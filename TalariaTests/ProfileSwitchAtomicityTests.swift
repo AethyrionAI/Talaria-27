@@ -927,15 +927,11 @@ struct ProfileSwitchAtomicityTests {
         let container = AppContainer(
             sessionStore: sessionStore,
             pairingStore: pairingStore,
-            hostStore: HermesHostStore(
-                hostService: MockHermesHostService(),
-                accessTokenProvider: { await sessionStore.currentAccessToken() }
-            ),
+            hostStore: HermesHostStore(hostService: MockHermesHostService()),
             chatStore: ChatStore(hermesClient: MockHermesClient(), persistence: persistence),
             inboxStore: InboxStore(
                 inboxService: MockInboxService(),
-                persistence: persistence,
-                sessionStore: sessionStore
+                persistence: persistence
             ),
             permissionsStore: PermissionsStore(
                 locationService: MockLocationService(),

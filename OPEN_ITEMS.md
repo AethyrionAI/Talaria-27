@@ -149,7 +149,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#308** 📝 PUBLISH the talaria plugin repo — the unblock for #269-B, and the update path it needs
 - **#312** 🔬 Continuity fabric DEVICE PASS — ~~Group 7 has genuinely never run once~~ **→ IT RAN 2026-08-11 (Owen, `whoGoesThere`, build `6b9e7e2`): (c′) PASS — model switched mid-conversation, SAME hop reused, no priming notice, reply correctly attributed (`kimi-k3` → `deepseek-v4-flash`); (d) PASS — `[CONTEXT TRANSPLANTED INTO A FRESH SESSION — 36,939 TOKENS]` and the host read the prior exchange back; (e) PASS — airplane mode parks QUEUED with no Retry and fires exactly once on reconnect, *"almost instantly, like it was waiting on me"*; **(a) RED → filed as #329** (cold launch calls a live turn failed, offers Retry, tapping duplicates); (b) NOT RUN (needs a host-side gateway stop/restart); **(f) RED → filed as #330** (the whole SESSION block is absent on the transplanted thread — clipping ruled out by discriminator)**
 - **#314** 📝 Compose outbox: attachment turns have no durable wire-ready form — v1 limit, deliberately deferred, never re-examined
-- **#309** 📝 RELAY TENANT RE-HOMING — the app calls EIGHTEEN relay paths across SEVEN services, and the decommission plan names three — **all five ruled 2026-08-25 (design doc delivered, lanes A–D elected). ✅ LANE A DONE + MERGED the same night (PR #381, `69e2e7e6`): the bootstrap chain deleted at all four construction sites, the five lifecycle gates re-keyed to capability (#411 fixed here), installation identity ported, #365's residual gone for EVERY profile — gate PASS 2586 Swift Testing / 213 suites + 14 XCUITest + Release, FIRST RUN. Lanes D ∥, then C, then B (awaits Owen's design spec)**
+- **#309** 📝 RELAY TENANT RE-HOMING — the app calls EIGHTEEN relay paths across SEVEN services, and the decommission plan names three — **all five ruled 2026-08-25 (design doc delivered, lanes A–D elected). ✅ LANES A, D AND C ALL LANDED 2026-08-25.** Lane A (PR #381, `69e2e7e6`): the bootstrap chain deleted at all four construction sites, the five lifecycle gates re-keyed to capability (#411 fixed here), installation identity ported, #365's residual gone for EVERY profile. Lane D (plugin PR [#7](https://github.com/AethyrionAI/talaria-plugin/pull/7), `b4e8dfa`): `pair-qr` shipped, the orphan CLI arm deleted. **Lane C (PR #382, `SQUASH`): both ADAPTS executed — host presence on gateway `/health`, the command catalog on `/v1/skills` — the Inbox's relay clothes shed (#412's second sighting fixed), the `device/app-state` beacon deleted, and `RelayAPIClient` + `ProfileRelaySession` + `LiveHermesHostService` DELETED; `isPaired` re-homed onto per-profile gateway credentials. PASS — 2591 Swift Testing / 213 suites (+5 on the 2586 branch-point baseline, exactly the net: seven added, two tombstoned) + 14 XCUITest + Release build, FIRST RUN, on CC-lane-3.** The disposition table now has ONE unexecuted row: `phone-pairing/redeem`, **Lane B's** (awaits nothing — Owen's design spec has landed)
 - **#318** 🎨 Settings SEARCH (Claude Design 1b) — filed 2026-08-09 by the #252 close; **elected and ✅ BUILT + MERGED 2026-08-25 (PR #372, `b5dd5f08`)** — data-driven index over the grid/deck, one navigation door, gate 2553(+6)/14/Release; only the device look remains (runbook)
 - **#323** 🐛 App Lock gates the SCREEN and nothing else — behind the cover a FULL INFERENCE TURN ran and committed to the transcript, and the sensor pipeline collected GPS (±9.7 m) + health and **attempted to upload them**; the uploads failed only because the OJAMD gateway happened to be off. Root cause is #302's: the cover is an opaque `UIWindow`, `scenePhase` stays `.active`, and — until 2026-08-20 — nothing else consulted lock state. **MEASURED on device 2026-08-10; ~~NOT STARTED~~ → ✅ BUILT 2026-08-20 with #302 (bars 323-A…E MET, mutation-proven; device verification rides #302's). ✅ SEVERITY BOUNDED same day: the device passcode gates the lock-screen path (no device-lock bypass) — the exposure is an UNLOCKED phone in someone else's hands, which is exactly App Lock's own threat model. Real defect, fix owed, not an emergency**
 - **#325** 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** on its own background (WCAG non-text floor 3.0:1, AA text 4.5:1) and it is the colour of shipping warning **TEXT**, including #18's `LOCAL VOICE` badge at 9pt. **MEASURED 2026-08-11 over all 90 (theme × slot) cells by the #320 lane and re-derived at filing; 11 of 88 reachable cells under 3.0:1, 21 under 4.5:1 — every light theme, no dark theme (dark floor 6.06:1). ✅ **BUILT 2026-08-21 — 325-A..E ALL MET.** Route (c)'s `forgeText` token (per-slot, optional, falls back to `forge` so DARK themes are untouched) **plus a second half the ruling did not anticipate:** route (c) alone could not satisfy 325-A, because it leaves `forge` decorative and FOUR light themes shipped a `forge` below even the 3.0 non-text floor. Owen ruled 2026-08-21 to nudge those four (only to 3.0, not route (a)'s 4.5 across seven). **And the real stake was never compliance — Owen: *"I'll finally be able to use those themes too"*; the only user could not use seven of his own themes.** 325-D demonstrated RED first and reproduced this entry's hand-computed 21/11 exactly. 69 text sites on `forgeText`, 61 decorative kept on `forge`. 🔴 Two migration errors caught by READING CALL SITES, both invisible to the gate (a green contrast sweep measures the tokens, not which sites use them). 🟡 Interaction with #320 named and corrected but NOT taken: its badge could now use the warning hue via `forgeText` — that is #320's ruled surface and Owen's call. GATE: PASS 2428/14/Release. **DEVICE verification still owed.**
@@ -158,7 +158,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#408** 🐛 a guardrail-declined image turn has no route — on-device `.guardrailViolation` dead-ends at Retry (n=4: the declined photo stable at 0/2 on-device, 1/1 on PCC; a different shot passed on-device); post-#390 nothing can opt an image down to OCR on that tier. **⚖️ RULED auto-degrade-once 2026-08-25 and ✅ BUILT + MERGED the same night (PR #378, `b03fabfb`): BOTH turn paths retry once through #390-B's own `composeTurnInput(… imageInputEnabled: false)`, the reply says so in production copy, text-only + PCC declines untouched; 408-A..E met, RED-first, five mutations each reding one named pin; gate 2568(+16)/14/Release. OPEN on the device re-send only (runbook card in the entry)**
 - **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); the refusal wording is the lever — **✅ THE STRING SHIPPED 2026-08-25 (PR #376): both branches carry an explicit do-not-claim clause, RED-first, mutation-proven both ways, 409-A/B/C MET. OPEN on 409-D only — the wording changed, the model's behaviour is UNVERIFIED until the next device `refusal-words` run**
 - **#411** 🐛 four AppContainer lifecycle entry points hard-gate on relay `isPaired` — gateway-only/hostless installs get NO lifecycle refresh — **✅ FIXED + MERGED 2026-08-25 in #309 Lane A (PR #381, `69e2e7e6`): five gates re-keyed, local work unconditional, host work on `hasGatewayCredentials`; mutation-proven both ways. The owed redundancy measurement RAN and corrected the filed impact — five named paths had per-screen fallbacks (overstated), the BACKGROUND widget refresh has none by construction (understated), and `retryCredentialHoldIfNeeded` was vacuous rather than starved**
-- **#412** 🐛 the Pairing & Devices screen instructs a flow that cannot complete at either end — plugin-CLI copy (`hermes talaria pair`) over a relay-alphabet code field and a relay-plane gate — Owen's 3063 device find; absorbed by #309 Lane B (Connect Host), no separate lane
+- **#412** 🐛 the Pairing & Devices screen instructs a flow that cannot complete at either end — plugin-CLI copy (`hermes talaria pair`) over a relay-alphabet code field and a relay-plane gate — Owen's 3063 device find; absorbed by #309 Lane B (Connect Host), no separate lane. **✅ THE SECOND SIGHTING (Inbox, "COULD NOT REACH THE RELAY") IS FIXED 2026-08-25 by #309 Lane C bar C6 (PR #382, `SQUASH`)** — the producer was the store's relay-plane capability gate reporting through a failure surface, not a failed fetch; new string `"COULD NOT REACH THE HERMES HOST — PULL TO RETRY"`. The pairing-screen half stays open for Lane B
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it**. **MEASURED 2026-08-11; clipping RULED OUT.** ~~Mechanism UNKNOWN~~ ~~⟵ INVESTIGATED 2026-08-25, candidates ranked~~ **⟵ ✅ MECHANISM MEASURED 2026-08-25 (measurement lane, unit repro): `openSession`'s wholesale replace + `mapStoredMessage`'s role refusal and empty usage fields zero BOTH totals inputs in ONE event, and the 9→7 row drop is the same event. Candidate ① CONFIRMED; candidate ③ (the `.voiceHermes` predicate split) is REAL but mutation-proven NOT the cause; the entry's "receipts render normally" claim is FALSIFIED — no reopened row carries `usage` or `turnDuration`, and the quoted numbers are the card's LAST TURN block via `SessionUsageIndex`. Shipped: 16 pins in `SessionTotalsAfterReopenTests`, a verbose-gated `/usage` instrument (NOT `#if DEBUG`), 3 seam breadcrumbs at `.notice`, and 330-G's six-step device script.** 330-A/B/E DISCHARGED; **330-C/330-D DEFERRED to the fix lane** (receipts sidecar + predicate convergence), 330-G is Owen's. Keeps #312 (f) RED
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
@@ -7186,6 +7186,322 @@ argument for making the relay more robust.
 > `AppSessionState`'s UI-read surface. The `device/app-state` beacon
 > (`reportAppStateIfNeeded`, row 10) is gated correctly and left standing for
 > Lane C to delete.
+
+> **✅ 2026-08-25 — LANE C LANDED: THE TWO ADAPTS ARE ON THE GATEWAY, THE
+> INBOX SHED ITS RELAY CLOTHES, AND THE RELAY CLIENT FAMILY IS DELETED
+> (PR #382, squash `SQUASH`). Bars 309-C1..C6 all MET.** With this the
+> disposition table has ONE unexecuted row left — row 6, `POST
+> phone-pairing/redeem`, which is Lane B's by the fence.
+>
+> **309-C1 — `ClientError` extracted, verbatim, in its own commit.**
+> `RelayAPIClient.ClientError` → `Talaria/Services/Support/APIClientError.swift`,
+> same four cases and the same `errorDescription` text, with
+> `typealias ClientError = APIClientError` left on the client so its own
+> throw sites and the tests catching them were untouched.
+> `LiveVoiceSessionService`'s four borrow sites (`:986`, `:1045`, `:1055`,
+> `:1447`) moved to the new spelling in the same commit — which is the
+> point of the bar: without it, C5 breaks voice compilation (design doc
+> §5b). **Bar C5 then trimmed what the deletion left dead, and said so
+> rather than carrying it:** `payloadRejected` had one producer
+> (`RelayAPIClient.send`'s 400/422 arm, for the #24a sensor uploaders whose
+> pipeline #352 deleted) and zero consumers, so it went with the client;
+> and the two relay-worded case texts were re-cut, because the only
+> thrower left is voice and *"Invalid relay URL:
+> https://api.openai.com/v1/realtime/calls"* is a sentence about a
+> component neither end of that request involves.
+>
+> **309-C2 — row 7's ADAPT: host presence reads the GATEWAY.**
+> `LiveHermesHostService` (relay `GET hosts/current`) is deleted and
+> replaced by `GatewayHermesHostService`: one `GET /health` on the active
+> profile's gateway base URL, the profile's bearer attached, on the #136
+> probe budget. The display name comes from the PROFILE — the gateway has
+> none to report, and the relay's `displayName` was the connector's
+> enrollment label. `platform` and `connectorVersion` come back `nil`
+> (rendered "—", #45) rather than invented for a retired connector.
+> **What it deliberately does not measure, recorded so no one reads more
+> into a green pip:** `/health` is unauthenticated on the api_server, so a
+> 2xx says REACHABLE, not that this profile's key is valid. Credential
+> validity keeps its own honest surfaces (the Server screen's `/v1/models`
+> probe classifies 401/403 as unkeyed; chat fails loudly on a bad key),
+> and Lane B builds the full probe ladder (spec §3.1).
+>   - **`HermesHostServiceProtocol` shrank from three methods to one.**
+>     `createEnrollmentCode` (row 8) and `revokeCurrentHost` (row 9) were
+>     relay verbs about the relay's ENROLLMENT record and dissolve with
+>     it: there is no third party to enrol with and nothing to
+>     unregister. `HostEnrollmentCode`, `HermesHostStore
+>     .generateEnrollmentCode()`/`.activeEnrollmentCode`/`.revokeCurrentHost()`
+>     /`.isWorking`, and the Pairing & Devices screen's **Revoke Host**
+>     action went with them. The action was deleted rather than made
+>     local because a local "revoke" would be cleared and immediately
+>     re-derived by the next `refresh()` — a button that lies. Disconnect
+>     (`PairingStore.disconnect()`) is the real forget-this-host action
+>     and always was. The surviving method also lost its `accessToken:`
+>     parameter: it carried the relay session token, and the gateway
+>     service resolves the profile's own credentials itself.
+>   - **The store's gate is re-keyed and its MESSAGE deleted.**
+>     `relayAvailabilityProvider` → `hasGatewayCredentials`, and
+>     `HermesHostStore.relayUnavailableMessage` is gone. #310 argued for
+>     stating a reason because "nil host with no message" is
+>     indistinguishable from "asked, no host enrolled" — true on the relay
+>     plane, where host presence and phone pairing were separate facts
+>     with separate remedies. On the gateway plane they are ONE fact, so
+>     `.notConnected` ("No Host / Set up from your Hermes machine") is the
+>     honest state and routing it through `lastErrorMessage` would paint
+>     an unconfigured install as a broken one.
+>
+> **309-C3 — row 16's ADAPT: the composer's catalog reads `/v1/skills`.**
+> `performCommandCatalogRefresh` no longer builds a `RelayAPIClient` and
+> asks for `commands`; it calls `SkillsStore.refresh()` — #161's zero-new-
+> infrastructure rule — and merges the returned skills with
+> `SlashCommand.localCommands`. Sharing the store means the Skills browser
+> and the composer cannot disagree about what the host has installed; the
+> old code's two planes could, and `SkillsService`'s own docstring said so
+> (that line is corrected in the same commit, per the close-out rule).
+> **Personalities and quick commands are the RULED accepted loss
+> (2026-08-19) and degrade per #180:** nothing fabricated, no empty
+> section rendered, the constructors left in place unused because a ruled
+> loss is not recorded by deleting a model's constructor.
+>   - **A second loss, stated because it is real and was not named in the
+>     ruling:** the relay payload also carried `activeModel.contextWindow`,
+>     #191's host-reported CTX denominator, and neither `/v1/skills` nor
+>     `/api/model/options` has such a field (checked). The meter falls back
+>     to `ChatStore.inferredContextWindow` — which is exactly what #4's own
+>     comment anticipated — and to the `/model` chat response's
+>     "Context: N tokens" on a model switch. **This did not regress here:**
+>     the catalog fetch has been failing at a retired relay since the
+>     retirement, so the fallback has been the live behaviour for weeks.
+>     This lane is where it stops being an accident.
+>
+> **309-C4 — the `device/app-state` beacon (row 10) is deleted**, at all
+> THREE call sites, one of which was outside `AppContainer` and outside
+> the brief's list (`AppEntry.swift:191`, the `.background` transition —
+> found by grep, not inherited). It was fire-and-forget at a retired
+> service that nothing app-side ever read back; being fire-and-forget is
+> exactly why nobody ever saw it fail. Nothing replaces it: the plugin
+> link's own POST cadence is the liveness signal the host actually uses
+> (#347), and re-homing a beacon nobody reads would be building a second
+> one.
+>   - **Row 5 (`POST device/provisioning` / `ProvisioningService`) is
+>     CONFIRMED ABSENT by grep, as its disposition predicted** — #375 took
+>     it. `git grep -n 'device/provisioning\|ProvisioningService' --
+>     '*.swift'` returns nothing.
+>
+> **309-C6 — the INBOX sheds its relay clothes (#412's second sighting).**
+> Owen saw *"Inbox Unreachable — COULD NOT REACH THE RELAY — PULL TO
+> RETRY"* on his phone. **Traced to its actual producer, which is not a
+> failed fetch:** `InboxStore`'s relay-plane gate set
+> `relayUnavailableMessage`, and `InboxScreen` branches on
+> `lastErrorMessage != nil` — so a CAPABILITY gate was reporting through a
+> FAILURE surface, on a profile whose `relayBaseURL` #310's own migration
+> had cleared. Three residues, all executed:
+>   - the gate is now `hasGatewayCredentials` (the same predicate Lane A
+>     introduced, reused — not a sibling);
+>   - `InboxStore.relayUnavailableMessage` is DELETED, so a
+>     credential-less profile lands on the EMPTY state (`lastErrorMessage
+>     == nil`), which is the honest answer: on the plugin plane "no host"
+>     and "nothing there" are the same state, because the only source of
+>     inbox rows is a link that profile does not have;
+>   - the dead `accessToken:` plumbing is gone from
+>     `InboxServiceProtocol` (both methods), which let `InboxStore` drop
+>     its `AppSessionStore` dependency entirely — it existed only so the
+>     store could fetch a credential `TalariaPlatformInboxService` never
+>     read.
+>
+>   **The new string, verbatim:** `"COULD NOT REACH THE HERMES HOST — PULL
+>   TO RETRY"`. The unreachable state is KEPT, not deleted — it is the
+>   honest surface for a fetch that genuinely fails; it is no longer what
+>   a hostless profile sees. **The grep, stated accurately rather than
+>   flatteringly:** `git grep -in relay -- Talaria/Features/Inbox/` returns
+>   FOUR lines, all inside the doc comment that records this fix. No
+>   user-visible string on the surface names the relay — which is the bar —
+>   but "returns nothing" would have been false, and I wrote it that way
+>   first.
+>
+> **309-C5 — the relay client family is DELETED.**
+> `RelayAPIClient.swift`, `ProfileRelaySession.swift` (the
+> `ProfileRelaySessionFactory`) and `LiveHermesHostService.swift` are gone
+> as files, with `AppContainer`'s `apiClient` / `probeAPIClient` /
+> `relayBaseURLProvider` / `profileRelaySessions` and the
+> `HostEnrollmentCode` model. `RelayCoders` moved to its own file — its
+> live readers are voice and three decoding tests, and voice's own comment
+> already said "this is a coder, not a transport"; the NAME is left alone
+> on purpose, because the relay-vocabulary sweep is Lane B's and a
+> half-renamed vocabulary is harder to finish than an unrenamed one. The
+> #136 probe budget moved to `BootstrapProbeSession`, unchanged, where the
+> gateway host probe reads it.
+> **Structural check:** `git grep -nE
+> 'RelayAPIClient|ProfileRelaySession|LiveHermesHostService|profileRelaySessions|relayAvailabilityProvider|relayUnavailableMessage|reportAppStateIfNeeded|HostEnrollmentCode'
+> -- Talaria/ TalariaTests/ TalariaUITests/ Shared/` returns COMMENT LINES
+> ONLY (tombstones, per the adjudicated 309-DEL-A standard).
+>
+> **THE `isPaired` RE-HOME — the choice, stated.** Lane A's finding was
+> that `ProfileRelaySessionFactory` had exactly one live method left,
+> `isPaired(profileID:)`, at four call sites. **It is re-homed as TWO
+> predicates, not one, because the four sites were asking two different
+> questions and answering both with the relay record is what made the old
+> one wrong in both directions** (a profile that ever paired reads paired
+> forever — the record persists its own `baseURLString` — and a
+> gateway-only profile never does):
+>   - **Three sites take `AppContainer.hasGatewayCredentials(forProfileID:)`**
+>     — the per-profile twin of Lane A's predicate, synchronous because
+>     every call site is a view body, reading `ProfileGatewayKeyCache` (the
+>     same cache `SessionsHermesClient`'s per-profile endpoint resolver
+>     reads, so a profile this says yes about is one a turn could actually
+>     be routed to) with the container's key mirror for the ACTIVE profile,
+>     which is briefly ahead of the cache after a save. Sites:
+>     `ContentView.pairingFlowAttempt` (#127's re-pair-vs-new-connect
+>     classification), `ServerSettingsScreen.profileCard`'s badge and
+>     `startPairing`. The badge copy moved with the predicate —
+>     **"KEYED"/"NO KEY"**, not "PAIRED"/"NOT PAIRED"; the app already
+>     speaks that word (`ServerProbeResult.unkeyed`, the Uplink
+>     unkeyed-profile notice).
+>   - **One site keeps the RECORD question, moved to its owner** as
+>     `PairingStore.hasPairingRecord(profileID:)`: the Server screen's
+>     **Forget Pairing** row. `forgetPairing` clears a relay-era pairing
+>     record, so offering it on gateway credentials would put the row on
+>     profiles where it does nothing at all — a new lie in place of the old
+>     one. It is dying vocabulary and it dies with `PairingStore`, in Lane B.
+>   - **A fifth site the brief did not name, found by following the type:**
+>     `UplinkSettingsScreen.unkeyedNudgeVisible(isPaired:apiKey:)`. Re-homing
+>     it onto gateway credentials would have made the rule **VACUOUS** —
+>     `hasGatewayCredentials` already requires a non-empty key, so
+>     `hasGatewayCredentials && key.isEmpty` is false by construction and
+>     the notice could never render again. The honest half of the pair is
+>     the half the key is missing FROM, so the argument is now
+>     `hasGatewayEndpoint:` and the copy is re-cut (M-14's "paired for
+>     sensors" named a pipeline #352 deleted): **"HOST SET — KEY MISSING"**,
+>     *"\(name) has a gateway URL but no API key, so chat can't reach it."*
+>
+> **THE SWITCH-TIME REFRESHES ARE BACK — AND OFF THE SWITCH'S CRITICAL
+> PATH, WHICH IS THE JUDGEMENT IN THIS LANE.** Lane A's scope-edge call 2
+> removed `hostStore.refresh()`, `inboxStore.loadInbox()` and
+> `refreshCommandCatalog()` from `handleActiveProfileChanged` because all
+> three were relay calls; the brief asked Lane C to restore them on the new
+> planes. **They do not go back where they were.** #365's lesson is
+> structural rather than about which host answers: a switch that AWAITS a
+> network probe stalls the UI for as long as the probe hangs, and a
+> black-holed GATEWAY hangs exactly like a black-holed relay did (firewall
+> DROP, no TCP refusal, the full timeout) — Owen's phone is off-tailnet
+> routinely, which is the condition #412 was filed from. So they run in
+> `startProfileSwitchRefresh()`, a tracked task superseded by the next
+> switch and by every `cancelBackgroundLaunchRefresh()` site, with
+> cancellation checked BETWEEN steps so a late landing cannot write the
+> outgoing profile's host state over the incoming one's.
+> `aProfileSwitchCompletesWithEveryHostSurfaceBlackHoled` is what holds
+> this line: awaiting any of the three inside the handler reds it, and
+> that test went from structurally-true under Lane A back to a LIVE
+> requirement under this lane.
+>
+> **DISPOSITION-TABLE EXECUTION STATUS after this lane** (the accepted
+> table, `planning/reports/2026-08-19-309-relay-path-dispositions.md`,
+> which now carries a dated banner saying the same):
+> rows **1–4** done (Lane A) · **5** confirmed absent (#375, re-verified
+> here) · **6 OPEN — Lane B's, the only survivor** · **7** ADAPTED (C2) ·
+> **8, 9** deleted (C2's protocol shrink) · **10** deleted (C4) ·
+> **11, 12** done (#383) · **13–15, 20** done (ruling 1) · **16** ADAPTED
+> (C3) · the 17th path the report's own correction added
+> (`GET /v1/device/files`) done (#375). **And one line of that report is
+> falsified by this lane and corrected there:** its "left standing
+> deliberately: `RelayAPIClient.streamEvents`, zero callers, relay-client
+> surface not that lane's scope" — the whole client is gone now.
+>
+> **TESTS — added, rewritten, tombstoned.**
+> - **Added (309-C2), RED against `main` because the type does not exist
+>   there:** `gatewayHostProbeReportsAReachableHostFromAHealthAnswer`,
+>   `gatewayHostProbeSurfacesARejectedKeyAsAnHonestFailure`,
+>   `gatewayHostProbeWithNoGatewayConfiguredAsksNothingAndReportsNoHost`,
+>   `gatewayHostProbeIdentityIsStableForAHostAndDistinctBetweenHosts`.
+> - **Rewritten, never deleted as "relay tests":** 310-C's slot becomes
+>   `gatewayOnlyProfileActivationRefreshesTheHostPlaneAfterTheSwitch` (the
+>   claim inverts — the switch DOES the work again, and the relay counter
+>   that carried "zero" cannot exist once the client is deleted);
+>   `relayBearingProfileActivationAlsoMakesZeroRelayCalls` becomes
+>   `relayBearingProfileActivationBehavesExactlyLikeAGatewayOnlyOne`
+>   (**a vacuous test avoided on purpose** — with no relay client, "zero
+>   relay calls" is true by construction, the same
+>   green-result-that-proves-nothing shape Lane A named when it retired
+>   310-D's `isBootstrapping` sampler; the property that still has teeth is
+>   that `relayBaseURL` changes NOTHING about a switch);
+>   `relayFedStoresRefuseToFetchAndSayWhy…` becomes
+>   `hostFedStoresRefuseToFetchAndStayHONESTWhenTheProfileHasNoGatewayCredentials`
+>   with 310-E's message requirement deliberately INVERTED (that inversion
+>   is #412's fix); `relaylessRefreshAnnouncesAHostChangeOnlyOnATransition`
+>   → `gatedRefreshAnnouncesAHostChangeOnlyOnATransition`;
+>   `relayFedStoresStillFetchWhenTheProfileHasARelay` →
+>   `hostFedStoresStillFetchWhenTheProfileHasGatewayCredentials`, which
+>   gained the inbox arm — the positive control Owen's device needed, and
+>   the one the old `hasRelay` version could not express;
+>   `bootstrapProbeSessionUsesShortTimeouts` re-pointed at
+>   `BootstrapProbeSession`; `unkeyedNudgeShowsOnlyForPairedProfilesWithoutAKey`
+>   → `…ForProfilesWithAGatewayAndNoKey` (same truth table, honest facts).
+> - **Tombstoned with a dated block naming what covers the survivors:**
+>   `liveHermesHostServiceRefreshesExpiredAccessTokenDuringFetch` (the LAST
+>   pin on the 401 → refresh-once → retry ladder — there is no such shape
+>   left anywhere: the relay session tokens it renewed are gone and the
+>   gateway credential is a static key with nothing to refresh) and
+>   `hostStoreGeneratesEnrollmentCodeAndClearsOnRevoke` (both store methods
+>   deleted with rows 8/9; the surviving half — a refresh landing a record
+>   — is pinned by the new C2 tests and by
+>   `hostStoreKeepsKnownOnlineHostDuringRefreshErrors`).
+>
+> **GATE: PASS — 2591 Swift Testing / 213 suites (+5 on the 2586 branch-point baseline, exactly the net: seven added, two tombstoned) + 14 XCUITest + Release build, FIRST RUN, on CC-lane-3**
+>
+> **MUTATIONS — FOUR, each isolating:**
+> 1. **`GatewayHermesHostService` returns `nil` on a non-2xx instead of
+>    throwing** ⇒ `gatewayHostProbeSurfacesARejectedKeyAsAnHonestFailure` RED
+>    on BOTH its store assertions (`connectionState == .unreachable`,
+>    `lastErrorMessage == "The Hermes host rejected this device's API key."`),
+>    every other selected test GREEN. This is the pair the store renders
+>    differently, so the mutation is caught where a user would notice it.
+> 2. **Await the host plane INSIDE `handleActiveProfileChanged`** (the
+>    obvious way to write the restore) ⇒ only
+>    `aProfileSwitchCompletesWithEveryHostSurfaceBlackHoled` RED, on
+>    `completed`, **terminating after 3.035 s rather than hanging** — the
+>    black-hole arm doing exactly what it was rebuilt to do. This is the
+>    mutation that makes the detached design a measured decision rather than
+>    a stylistic one.
+> 3. **Restore a message in `InboxStore`'s capability guard** (the #310
+>    `relayUnavailableMessage` text) ⇒ only
+>    `hostFedStoresRefuseToFetchAndStayHONESTWhenTheProfileHasNoGatewayCredentials`
+>    RED, on `inboxStore.lastErrorMessage == nil` — which is precisely the
+>    assertion that separates the two screens Owen sees, because
+>    `InboxScreen` branches on nothing else.
+> 4. **Fetch the skills and drop them from the merge** ⇒ only
+>    `commandCatalogMergesTheHostsSkillsWithTheBuiltIns` RED (2 issues: the
+>    skill row absent, and the count). The failure arm and the hostless arm
+>    stay GREEN, which is what makes it isolating rather than a blanket
+>    catalog break.
+>
+> Control run of the same 13-test selection before any mutation: **13/13
+> passed**, so none of the four reds is a pre-existing failure.
+>
+> **SCOPE-EDGE CALLS, stated because each is a judgement:**
+> 1. **`LivePairingService` KEPT and made self-sufficient, not stubbed.**
+>    It was the only surviving `RelayAPIClient` caller outside this lane's
+>    scope (row 6, Lane B's). Its one request is inlined with behaviour
+>    intact — same `{data: …}` unwrap, same lenient dates, same status
+>    mapping — rather than rewritten to fail honestly, because failing
+>    honestly would change what the pairing screen DOES and this lane does
+>    not own that screen. The fence's "minimal stub + dated comment naming
+>    Lane B" is honoured as a minimal inline + that comment.
+> 2. **`PairingStore.hasPairingRecord` is a NEW method on a store Lane B
+>    deletes.** Adding surface to a dying type is worth flagging; the
+>    alternative was leaving `ProfileRelaySessionFactory` alive for one
+>    read, which bar C5 forbids, or giving Forget Pairing a predicate that
+>    makes it a no-op.
+> 3. **`InboxStore` lost its `sessionStore` dependency**, not only the
+>    `accessToken:` parameter — with the parameter gone the store had no
+>    other use for it. Four test construction sites moved with it.
+> 4. **The Uplink nudge's copy and predicate both changed** (see the
+>    re-home section). Copy edits are normally Lane B's; this one is not
+>    optional, because the alternative spellings were "vacuous rule" or
+>    "notice that names a deleted sensor pipeline".
+> 5. **`ConnectHermesHostScreen`'s `.unreachable` subtitle re-cut** —
+>    *"We couldn't refresh host status from the relay."* → *"…reach this
+>    profile's Hermes host."* — and the file header's description of its
+>    own contents corrected. The SETUP card's `hermes talaria pair`
+>    instruction is left alone: it is #412's first sighting and Lane B
+>    replaces the screen.
 
 ## 318. 🎨 Settings SEARCH — Claude Design direction 1b, filed as its own item — **FILED 2026-08-09 by Owen's §7.3 routing call on #252 ("close #252; file 1b its own number"). Per #268, this is 1b's first tracker existence. ⟵ HEADER CORRECTED 2026-08-25 (the lane's own close-out missed it and the invariant caught it POST-merge — a `;` chain swallowed the checker's exit; process note in the result block's commit): elected on the 08-25 ballot and ✅ BUILT + MERGED the same day (PR #372, squash `b5dd5f08`) — bars 318-A..E met, gate 2553(+6)/14/Release, four mutations isolating. Remaining: the device look (runbook card).**
 
@@ -15217,6 +15533,43 @@ sibling class), #405 (the pairing-screen family's last defect), #406
 > `accessToken:` plumbing into a service that doesn't want it. No
 > disposition-table omission — the relay inbox path was already deleted;
 > only its clothes survived.
+
+> **✅ 2026-08-25 — THE INBOX HALF IS FIXED (#309 Lane C, bar 309-C6; PR
+> #382, squash `SQUASH`).** The string Owen photographed is gone, and
+> the producer turned out not to be the one the sighting implied.
+>
+> **What actually rendered it.** Not a failed fetch reported honestly:
+> `InboxStore`'s RELAY-plane gate assigned `relayUnavailableMessage`
+> ("This profile has no relay URL, so there's no inbox to load from it"),
+> and `InboxScreen` branches on `lastErrorMessage != nil` — so a
+> CAPABILITY gate was reporting through a FAILURE surface. #310's own
+> migration had cleared `relayBaseURL` on every profile, so that gate
+> answered NO everywhere and the working plugin inbox was starved on every
+> install, not just off-tailnet. The block above read the failure as real
+> and the attribution as the fossil; the attribution was a fossil, and the
+> failure was not real either.
+>
+> **The three residues, executed.** The gate is re-keyed onto
+> `hasGatewayCredentials` (Lane A's predicate, reused); the message is
+> DELETED, so a credential-less profile lands on the empty state rather
+> than an error one; and the dead `accessToken:` plumbing is gone from
+> `InboxServiceProtocol`, which let the store drop its `AppSessionStore`
+> dependency outright.
+>
+> **The new string, verbatim:**
+> `"COULD NOT REACH THE HERMES HOST — PULL TO RETRY"` — kept, not deleted,
+> because a fetch that genuinely fails still needs an honest surface (#45);
+> it is simply no longer what a hostless profile sees. The remaining "relay"
+> hits under `Talaria/Features/Inbox/` are four doc-comment lines recording
+> this fix; no user-visible string names it.
+>
+> **Still open on this entry:** the FIRST sighting — the Pairing & Devices
+> screen's `hermes talaria pair` setup card and its relay-alphabet code
+> field — which Lane B replaces with the screen. Lane C did trim two
+> things there that its own deletions would otherwise have left lying:
+> the **Revoke Host** action (relay row 9, a button that would have
+> cleared a record the next refresh re-derives) and the `.unreachable`
+> subtitle's *"…from the relay."*
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 

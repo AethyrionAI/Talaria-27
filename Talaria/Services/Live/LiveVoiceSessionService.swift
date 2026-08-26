@@ -123,10 +123,12 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         voiceTransportProvider() ?? UnavailableVoiceTransport()
     }
 
-    /// Shared with `RelayAPIClient` ON PURPOSE — same ISO date shapes, and a
-    /// second date parser is how two decoders drift until they disagree about
-    /// a boundary case (#256). This is a coder, not a transport; nothing here
-    /// speaks to the relay any more.
+    /// The house's one lenient ISO date coder — a second date parser is how
+    /// two decoders drift until they disagree about a boundary case (#256).
+    /// This is a coder, not a transport; nothing here speaks to the relay any
+    /// more, and since #309 Lane C there is no relay client left to share it
+    /// with: `RelayCoders` lives in its own file, and voice is its main
+    /// reader.
     private static let decoder = RelayCoders.makeDecoder()
     private let urlSession: URLSession
     private let realtimeEventTransportOverride: ((Data) -> Bool)?
@@ -983,7 +985,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         rtcConfig.sdpSemantics = .unifiedPlan
         let constraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
         guard let connection = Self.peerFactory.peerConnection(with: rtcConfig, constraints: constraints, delegate: peerDelegate) else {
-            throw RelayAPIClient.ClientError.requestFailed("Failed to create WebRTC peer connection.")
+            throw APIClientError.requestFailed("Failed to create WebRTC peer connection.")
         }
         let audioSource = Self.peerFactory.audioSource(with: constraints)
         let track = Self.peerFactory.audioTrack(with: audioSource, trackId: "hermes-mobile-audio")
@@ -1042,7 +1044,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     private func exchangeSDP(localSDP: String, clientSecret: String, model: String?) async throws -> String {
         let modelName = model ?? "gpt-realtime"
         guard let url = URL(string: "https://api.openai.com/v1/realtime/calls?model=\(modelName)") else {
-            throw RelayAPIClient.ClientError.invalidURL("https://api.openai.com/v1/realtime/calls")
+            throw APIClientError.invalidURL("https://api.openai.com/v1/realtime/calls")
         }
 
         var request = URLRequest(url: url)
@@ -1052,7 +1054,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
 
         let (data, response) = try await urlSession.upload(for: request, from: Data(localSDP.utf8))
         guard let http = response as? HTTPURLResponse, (200 ..< 300).contains(http.statusCode) else {
-            throw RelayAPIClient.ClientError.requestFailed(String(data: data, encoding: .utf8) ?? "OpenAI Realtime SDP exchange failed.")
+            throw APIClientError.requestFailed(String(data: data, encoding: .utf8) ?? "OpenAI Realtime SDP exchange failed.")
         }
         return String(decoding: data, as: UTF8.self)
     }
@@ -1444,7 +1446,7 @@ private extension RTCPeerConnection {
                 } else if let sdp {
                     continuation.resume(returning: sdp)
                 } else {
-                    continuation.resume(throwing: RelayAPIClient.ClientError.requestFailed("Failed to create WebRTC offer."))
+                    continuation.resume(throwing: APIClientError.requestFailed("Failed to create WebRTC offer."))
                 }
             })
         }

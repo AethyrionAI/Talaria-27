@@ -9,13 +9,22 @@ final class InboxStore {
 
     private let inboxService: any InboxServiceProtocol
     private let persistence: any AppPersistenceStoreProtocol
-    private let sessionStore: AppSessionStore
-    /// #310: does the ACTIVE profile have a relay plane at all? Gated in the
-    /// store for the same reason `HermesHostStore`'s is — `InboxScreen` and
+    /// **#309 Lane C bar C6 (#412's second sighting): the RELAY availability
+    /// gate is now a GATEWAY-CREDENTIAL gate.**
+    ///
+    /// #310's reason for gating in the STORE rather than only at the
+    /// profile-switch site is untouched — `InboxScreen` and
     /// `BriefingDetailScreen` each call `loadInbox(force: true)` from their
-    /// own `.task`, so a gate at the profile-switch site alone would be
-    /// bypassed by simply opening the tab. Defaults to "yes".
-    private let relayAvailabilityProvider: @MainActor () -> Bool
+    /// own `.task`, so a gate at the switch alone is bypassed by opening the
+    /// tab. What changed is the capability it asks about. The inbox has been
+    /// plugin-backed since #251-2A (`TalariaPlatformInboxService` reads the
+    /// drain's local cache), so `profile.hasRelay` gated a surface with no
+    /// relay in it — and after #310's own migration cleared `relayBaseURL` on
+    /// every profile, it answered NO everywhere and starved the working
+    /// plugin inbox on every install. That is what Owen saw on the device.
+    ///
+    /// Defaults to "yes" so every existing construction is unchanged.
+    private let hasGatewayCredentials: @MainActor () -> Bool
     private var localState: InboxLocalState {
         didSet { persistence.saveInboxState(localState) }
     }
@@ -23,13 +32,11 @@ final class InboxStore {
     init(
         inboxService: any InboxServiceProtocol,
         persistence: any AppPersistenceStoreProtocol,
-        sessionStore: AppSessionStore,
-        relayAvailabilityProvider: @escaping @MainActor () -> Bool = { true }
+        hasGatewayCredentials: @escaping @MainActor () -> Bool = { true }
     ) {
         self.inboxService = inboxService
         self.persistence = persistence
-        self.sessionStore = sessionStore
-        self.relayAvailabilityProvider = relayAvailabilityProvider
+        self.hasGatewayCredentials = hasGatewayCredentials
         self.localState = persistence.loadInboxState()
 
         // #352: drop any persisted #113 connector-outage alert — its producer
@@ -52,15 +59,28 @@ final class InboxStore {
         items.filter { !$0.isRead }.count
     }
 
-    /// #310: the honest empty state for a gateway-only profile.
-    static let relayUnavailableMessage =
-        "This profile has no relay URL, so there's no inbox to load from it."
+    // **#309 Lane C bar C6: `relayUnavailableMessage` is DELETED.**
+    //
+    // "This profile has no relay URL, so there's no inbox to load from it."
+    // was #310's honest message about a plane that has since become the wrong
+    // one, and `InboxScreen` renders ANY `lastErrorMessage` as the
+    // "Inbox Unreachable — could not reach the relay" state. So the message
+    // was the whole of what Owen saw on the device (#412): not a failed fetch
+    // reported honestly, but a capability gate reporting the wrong capability
+    // through a failure surface.
+    //
+    // A profile with no host has no inbox to be missing — the honest state is
+    // EMPTY, not broken, and `emptyState` already renders it. The #310
+    // argument for stating a reason ("nil with no message is indistinguishable
+    // from 'asked, nothing there'") does not survive the move: on the plugin
+    // plane those two ARE the same state, because the only source of inbox
+    // rows is a link this profile does not have.
 
     func loadInbox(force: Bool = false) async {
         if isLoading || (!force && !items.isEmpty) { return }
-        guard relayAvailabilityProvider() else {
+        guard hasGatewayCredentials() else {
             // #113's locally-raised alerts are REAL data about this device
-            // and must survive — only the relay-fetched half is unavailable.
+            // and must survive — only the host-fed half is unavailable.
             // Dropping them here would be the #45 inversion in reverse:
             // discarding real data because a remote source is absent.
             //
@@ -73,7 +93,7 @@ final class InboxStore {
             // polled on a cadence), but the same mistake.
             let resolved = applyLocalState(to: localState.localItems)
             if items != resolved { items = resolved }
-            lastErrorMessage = Self.relayUnavailableMessage
+            lastErrorMessage = nil
             return
         }
 
@@ -82,8 +102,7 @@ final class InboxStore {
         defer { isLoading = false }
 
         do {
-            let token = await sessionStore.currentAccessToken()
-            let fetchedItems = try await inboxService.fetchInbox(accessToken: token)
+            let fetchedItems = try await inboxService.fetchInbox()
             // #136: a cancelled launch probe was superseded by a reset —
             // its result must not land over the canceller's state.
             guard !Task.isCancelled else { return }
@@ -204,12 +223,10 @@ final class InboxStore {
         }
 
         do {
-            let token = await sessionStore.currentAccessToken()
             let targetID = item.serverID ?? item.id
             let result = try await inboxService.submitAction(
                 itemID: targetID,
-                actionID: actionID,
-                accessToken: token
+                actionID: actionID
             )
 
             apply(result: result, to: item)

@@ -8,9 +8,15 @@ import os
 /// filters to enabled skills and exposes no toggle, detail, or install
 /// surface — what this returns is what the agent can use.
 ///
-/// NOT the composer's source: `/v1/commands` autocomplete keeps the relay
+/// ~~NOT the composer's source: `/v1/commands` autocomplete keeps the relay
 /// catalog (`SlashCommand`); the two planes can disagree and that is
-/// expected — no reconciliation.
+/// expected — no reconciliation.~~
+/// **SUPERSEDED 2026-08-25 (#309 Lane C, row 16's adapt): this IS the
+/// composer's source now.** The relay catalog it deferred to is retired
+/// (#346/#375), so `AppContainer.performCommandCatalogRefresh` merges built-in
+/// commands with the skills this service returns — through `SkillsStore`, so
+/// the browser and the composer share one fetch. The two planes cannot
+/// disagree any more because there is only one plane.
 @MainActor
 protocol SkillsServiceProtocol {
     func listSkills() async throws -> [Skill]

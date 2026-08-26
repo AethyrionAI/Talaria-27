@@ -184,12 +184,14 @@ struct TalariaApp: App {
                         consumePendingControlDestination()
                         Task { await container.handleAppDidBecomeActive() }
                     } else if newPhase == .background {
-                        // #14: arm the native background-refresh safety net
-                        // alongside the relay app-state report.
+                        // #14: arm the native background-refresh safety net.
+                        // (#309 Lane C bar C4: the relay `device/app-state`
+                        // report that used to ride alongside it is deleted —
+                        // a fire-and-forget beacon at a retired service that
+                        // nothing app-side ever read back. This is the third
+                        // of its three call sites and the only one outside
+                        // AppContainer.)
                         BackgroundRefreshScheduler.schedule()
-                        Task {
-                            await container.reportAppStateIfNeeded("background")
-                        }
                     }
                     // Voice sessions END on background (#118, privacy):
                     // AppContainer's didEnterBackground observer runs the

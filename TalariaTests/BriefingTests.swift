@@ -152,8 +152,8 @@ struct InboxStoreMarkReadTests {
     @MainActor
     private final class StubInboxService: InboxServiceProtocol {
         var stubbedItems: [InboxItem] = []
-        func fetchInbox(accessToken: String?) async throws -> [InboxItem] { stubbedItems }
-        func submitAction(itemID: UUID, actionID: String, accessToken: String?) async throws -> InboxActionResult {
+        func fetchInbox() async throws -> [InboxItem] { stubbedItems }
+        func submitAction(itemID: UUID, actionID: String) async throws -> InboxActionResult {
             Issue.record("markRead must never round-trip the relay")
             throw URLError(.badServerResponse)
         }
@@ -209,11 +209,7 @@ struct InboxStoreMarkReadTests {
         service: StubInboxService = StubInboxService(),
         persistence: MemoryPersistence = MemoryPersistence()
     ) async -> InboxStore {
-        let sessionStore = AppSessionStore(
-            secureStore: MockSecureStore(),
-            persistence: persistence,
-        )
-        return InboxStore(inboxService: service, persistence: persistence, sessionStore: sessionStore)
+        return InboxStore(inboxService: service, persistence: persistence)
     }
 
     @Test("markRead flips the item read + non-actionable without a relay round-trip")

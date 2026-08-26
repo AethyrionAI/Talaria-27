@@ -112,13 +112,22 @@ struct ServerSettingsTests {
 
     // MARK: - M-14: unkeyed-profile nudge
 
+    /// **#309 Lane C re-keyed the first argument** (`isPaired` →
+    /// `hasGatewayEndpoint`). The truth table is unchanged and deliberately
+    /// so — this is the same rule about the same user-visible notice — but the
+    /// left-hand fact is now "the profile names a gateway", not "the profile
+    /// holds a relay pairing". Re-homing it onto gateway CREDENTIALS instead
+    /// would have made the rule vacuous: credentials include the key, so
+    /// `hasGatewayCredentials && key.isEmpty` is false by construction and the
+    /// notice could never render. That is why this test keeps a two-fact
+    /// signature rather than collapsing to one.
     @Test @MainActor
-    func unkeyedNudgeShowsOnlyForPairedProfilesWithoutAKey() {
-        #expect(UplinkSettingsScreen.unkeyedNudgeVisible(isPaired: true, apiKey: ""))
-        #expect(UplinkSettingsScreen.unkeyedNudgeVisible(isPaired: true, apiKey: "   "))
-        #expect(UplinkSettingsScreen.unkeyedNudgeVisible(isPaired: true, apiKey: "abc123") == false)
-        #expect(UplinkSettingsScreen.unkeyedNudgeVisible(isPaired: false, apiKey: "") == false)
-        #expect(UplinkSettingsScreen.unkeyedNudgeVisible(isPaired: false, apiKey: "abc123") == false)
+    func unkeyedNudgeShowsOnlyForProfilesWithAGatewayAndNoKey() {
+        #expect(UplinkSettingsScreen.unkeyedNudgeVisible(hasGatewayEndpoint: true, apiKey: ""))
+        #expect(UplinkSettingsScreen.unkeyedNudgeVisible(hasGatewayEndpoint: true, apiKey: "   "))
+        #expect(UplinkSettingsScreen.unkeyedNudgeVisible(hasGatewayEndpoint: true, apiKey: "abc123") == false)
+        #expect(UplinkSettingsScreen.unkeyedNudgeVisible(hasGatewayEndpoint: false, apiKey: "") == false)
+        #expect(UplinkSettingsScreen.unkeyedNudgeVisible(hasGatewayEndpoint: false, apiKey: "abc123") == false)
     }
 
     // MARK: - #151: Test Connection verdicts

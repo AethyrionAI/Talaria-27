@@ -4,10 +4,11 @@ import SwiftUI
 //
 // Reached from Settings → Hermes Host → "Pairing & Devices". The label used
 // to read "Pair Device", which advertised only the add action while this
-// screen's actual contents are Revoke Host and Disconnect — an unpair hidden
+// screen's actual contents were Revoke Host and Disconnect — an unpair hidden
 // behind a pairing verb. The QR pairing flow itself is unchanged; adding a
 // device is now an explicit action HERE rather than the implied purpose of
-// the whole surface.
+// the whole surface. (#309 Lane C deleted the Revoke Host action with relay
+// row 9; Disconnect is the only unpair left. See the actions card.)
 struct ConnectHermesHostScreen: View {
     @Environment(AppContainer.self) private var container
     @Environment(HermesHostStore.self) private var hostStore
@@ -146,22 +147,20 @@ struct ConnectHermesHostScreen: View {
 
                 Divider().overlay(Design.Colors.divider)
 
-                if hostStore.currentHost != nil {
-                    Button(role: .destructive) {
-                        Task { await hostStore.revokeCurrentHost() }
-                    } label: {
-                        actionRow(
-                            icon: "desktopcomputer.trianglebadge.exclamationmark",
-                            label: "Revoke Host",
-                            detail: "Unregisters this Hermes machine. The phone stays paired.",
-                            color: Design.Colors.dangerText
-                        )
-                    }
-                    .disabled(hostStore.isWorking)
-
-                    Divider().overlay(Design.Colors.divider)
-                }
-
+                // #309 Lane C (row 9): the REVOKE HOST action is deleted.
+                // It POSTed `hosts/current/revoke` to the relay to unregister
+                // an enrolled machine — a record that no longer exists on
+                // either host (#346/#375), and a concept the gateway plane
+                // does not have: the gateway IS the host, so a local "revoke"
+                // would be cleared and immediately re-derived by the next
+                // `hostStore.refresh()`. Disconnect below is the real
+                // forget-this-host action and always was.
+                //
+                // The screen itself is #309 Lane B's to replace wholesale
+                // (Connect Host, design doc §6) — including the SETUP card
+                // above, whose `hermes talaria pair` instruction names a CLI
+                // arm Lane D deleted (#412). This edit is the minimum that
+                // stops the deletion leaving a button that lies.
                 Button {
                     Task {
                         await pairingStore.disconnect()
@@ -328,7 +327,7 @@ struct ConnectHermesHostScreen: View {
         case .offline:
             return "Waiting for the connector to come online"
         case .unreachable:
-            return hostStore.lastErrorMessage ?? "We couldn't refresh host status from the relay."
+            return hostStore.lastErrorMessage ?? "We couldn't reach this profile's Hermes host."
         case .notConnected:
             return "Set up from your Hermes machine"
         case .checking:

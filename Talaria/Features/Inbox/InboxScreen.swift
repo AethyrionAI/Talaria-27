@@ -125,7 +125,7 @@ struct InboxScreen: View {
                     bottom: Design.Spacing.sm / 2, trailing: Design.Spacing.md))
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     // #354: only owned rows (platform + local copies) offer
-                    // delete; relay rows keep their dismiss lifecycle.
+                    // delete; host-fetched rows keep their dismiss lifecycle.
                     if inboxStore.canDelete(item) {
                         Button(role: .destructive) {
                             inboxStore.delete(item)
@@ -184,8 +184,19 @@ struct InboxScreen: View {
 
     // MARK: - Unreachable State (#45)
 
-    /// The fetch failed — say so. Real data only: an unreachable relay must
+    /// The fetch failed — say so. Real data only: an unreachable HOST must
     /// never read as "All Caught Up" (and never show demo items).
+    ///
+    /// **#309 Lane C bar C6 re-cut the copy (#412, Owen's device sighting).**
+    /// It read "COULD NOT REACH THE RELAY", which was a fossil twice over: the
+    /// relay is retired on both hosts (#346/#375), and the inbox has been
+    /// plugin-backed since #251-2A, so nothing on this screen has spoken to a
+    /// relay in months. What Owen actually saw was `InboxStore`'s capability
+    /// GATE — the relay-plane one — routing "this profile has no relay URL"
+    /// through this failure surface. The gate is re-keyed and its message
+    /// deleted, so a credential-less profile now lands on `emptyState`; this
+    /// state is left standing, honestly worded, for a fetch that genuinely
+    /// fails.
     private var unreachableState: some View {
         ContentUnavailableView {
             Label {
@@ -198,7 +209,7 @@ struct InboxScreen: View {
             }
         } description: {
             MonoLabel(
-                "COULD NOT REACH THE RELAY — PULL TO RETRY",
+                "COULD NOT REACH THE HERMES HOST — PULL TO RETRY",
                 size: 10,
                 weight: .regular,
                 tracking: Design.Tracking.monoWide,
