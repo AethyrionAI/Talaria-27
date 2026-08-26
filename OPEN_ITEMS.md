@@ -7872,6 +7872,114 @@ queue producers inherit whatever this decides.
 >   pytest suite green. **309-D3:** REPO COMMIT ONLY — no live deploy in
 >   the lane; deploy rides Owen's transmission per the standing
 >   plugin-deploy path.
+
+> **✅ 2026-08-25 night — LANE D LANDED (plugin repo PR
+> [#7](https://github.com/AethyrionAI/talaria-plugin/pull/7), squash
+> `b4e8dfa`; `talaria-plugin` 0.7.0 → 0.8.0). ALL THREE BARS MET.**
+> Host-side only — no app file touched, no host deployed.
+>
+> - **309-D1 MET.** `hermes talaria pair-qr` renders the versioned payload
+>   as an ANSI terminal QR (explicit fg/bg on both halves of every cell, so
+>   the terminal's own theme cannot invert the code), plus `--png <path>`
+>   via qrcode's pure-Python writer. `--gateway`, `--name`, `--no-color`
+>   round it out. **The fixture is pinned in BOTH the plugin test and here**
+>   — `tests/fixtures/pair_payload.json`, which Lane B's scanner pins from
+>   the app side:
+>   ```json
+>   {
+>     "talaria": 1,
+>     "gateway": "http://100.79.222.100:8642",
+>     "key": "FIXTURE-API-SERVER-KEY-00000000000000000000000000000000000000000",
+>     "name": "Owens-Mac-mini"
+>   }
+>   ```
+>   Wire form is compact JSON, key order irrelevant, `talaria` a MANDATORY
+>   integer. **Round-trip PROVEN, not asserted:** the PNG was decoded with
+>   Apple's own `VNDetectBarcodesRequest` — the framework the iOS scanner
+>   uses — and returned byte-identical bytes; a second test unpacks the
+>   *terminal* half-block art back to a module grid and compares it to the
+>   same symbol, so the ANSI arm rides the same evidence.
+> - **309-D2 MET.** The `pair` subcommand and `store.create_pairing()` are
+>   deleted, with a comment tombstone naming the ruling.
+>   `status`/`unpair`/`send`/`prune` untouched; `create_paired_device` (the
+>   wire verb) remains the only mint. **And the sweep found #412's shape in
+>   THREE surfaces, not one** — `status`'s own empty-store hint, the README,
+>   and `desktop-plugin/plugin.js`'s Electron empty state all told the
+>   operator to run the dead verb. The pane has no Python importer, so its
+>   copy is now pinned by string match (the repo's own precedent for that
+>   file). Found by grepping for the verb, not by reading the surfaces.
+> - **309-D3 MET.** REPO COMMIT ONLY. Neither host was deployed; the live
+>   checkout at `~/.hermes/plugins/talaria` was cloned read-only and never
+>   edited. Deploy rides Owen's transmission.
+>
+> **The config-read choice, recorded because it is the load-bearing
+> design decision and it is not obvious.** The KEY comes from
+> `hermes_cli.config.get_env_value_prefer_dotenv("API_SERVER_KEY")` —
+> HERMES_HOME's `.env` BEFORE the process environment — falling back to
+> the plain `os.environ` read `platform_adapter._api_key()` uses inside
+> the gateway. `.env`-first is deliberate: a rotated key shadowed by a
+> stale shell export would hand the phone a credential that 401s.
+> *(Divergence flagged, not churned: `voice.py::_resolve_setting` reads
+> env-first. Two conventions now live in one repo, on purpose.)* The
+> gateway URL has NO clean read — `API_SERVER_HOST` is a BIND address and
+> the api_server's default is `127.0.0.1` — so it is DERIVED and the
+> command prints its own provenance: `--gateway` verbatim → the configured
+> host only when concrete (`0.0.0.0`, `::`, loopback and `localhost` are
+> refused) → this machine's tailnet address, accepted ONLY inside
+> `100.64.0.0/10` (the same CIDR #166b's ATS exception is keyed to) →
+> otherwise a NAMED failure asking for `--gateway`. It never guesses.
+> Verified live: derived `http://100.79.222.100:8642` from the tailnet
+> arm, cross-checked against `tailscale ip -4`.
+>
+> **Dependency decision: no new package.** `qrcode==7.4.2` was already in
+> the Hermes venv at exactly that pin, and PNG rides its bundled pypng
+> writer rather than Pillow. ⚠️ **But it is NOT a Hermes CORE dependency**
+> — it ships only with the `messaging`/`dingtalk`/`feishu` extras, so a
+> minimally-installed host lacks it. Import is lazy (nothing else in the
+> plugin imports it, so plugin LOAD cannot be affected), the absence
+> produces an actionable message naming the install line, and CI installs
+> it explicitly. Worth knowing before the deploy: **if OJAMD's Hermes was
+> installed without those extras, `pair-qr` will say so rather than work.**
+>
+> **Repo-state finding, and it matters for whatever deploys this:** the
+> LIVE checkout at `~/.hermes/plugins/talaria` was **2 commits BEHIND
+> `origin/main`** at lane open — missing `dbf32c9` (#308 compatibility
+> floor) and `b87cd6c` (#224 approval_mode verb). The lane branched from
+> `origin/main`, so a pull brings all three.
+>
+> **Verification:** plugin pytest **216 → 256**, green, exit 0 on both
+> `pytest` and `python -m pytest`; `test_pairing_qr.py` green standalone
+> (37) AND in-suite, so no order dependence. `compileall` exit 0.
+> `hermes plugins doctor . --ci` exit 0 (its one WARN, the `pre_tool_call`
+> hook, pre-exists on `origin/main`). CI green on Python 3.11 and 3.12.
+> RED-first throughout, then **20 mutations, 20 caught, 0 uncaught**.
+>
+> **🔴 AND A VERIFICATION-INSTRUMENT LESSON THIS LANE PAID FOR — it belongs
+> to the "green results that prove nothing" family and it is NEW.** Mid-lane
+> the suite reported 255 passed while `pytest tests/test_pairing_qr.py`
+> alone reported 2 failures — which reads exactly like an order dependence
+> and is not. The mutation harness ran `cp` → `perl -i` → `pytest` → `mv`
+> back, and two mutations were **byte-length-IDENTICAL** to the original
+> (`border: int = 4` → `= 0`; `matrix[index + 1]` → `[index + 2]`).
+> CPython validates a cached `.pyc` on **(source mtime in WHOLE SECONDS,
+> source size)** — so with the cycle finishing inside one second and the
+> size unchanged, bytecode compiled from the MUTATED source was served as
+> fresh. Measured directly:
+> ```
+> pyc records mtime 1787712776 size 13040
+> src actual  mtime 1787712776 size 13040
+> VALIDATOR SAYS FRESH: True     ← but the bytecode was the mutant's
+> ```
+> The committed `.py` was correct throughout (git tracks source;
+> `__pycache__` is ignored), and every number above was **re-measured from
+> a purged cache under `PYTHONDONTWRITEBYTECODE=1` + `-p no:cacheprovider`**,
+> all 20 mutations included — same verdicts. **The general form: a
+> same-size edit inside a one-second window is INVISIBLE to Python's
+> bytecode validator**, so any timing-tight mutation harness can report a
+> confident wrong answer in EITHER direction — a mutation that reads as
+> caught when it was not, or a restored file that reads as broken when it
+> is fine. Purge the cache between arms, or disable bytecode writing.
+
 > lane's open — ruling 1 above; the design doc is a separate deliverable):**
 > - **309-DEL-A:** `LiveHermesClient.swift` deleted; `grep -rn
 >   LiveHermesClient` across `Talaria/ TalariaTests/ TalariaUITests/
@@ -16410,6 +16518,20 @@ copy needs an interim fix before that lane runs. **Close-out already
 done:** the design doc's §1 claim that the CLI arm has "no UI" is
 corrected (dated) — the UI ADVERTISES the arm it cannot consume, which
 strengthens Q4 (make it real or delete both halves).
+
+> **⟵ HOST HALF IS GONE 2026-08-25 night (#309 Lane D, plugin PR #7,
+> squash `b4e8dfa`) — read this before designing Lane B against the
+> entry above.** `hermes talaria pair` and `store.create_pairing()` are
+> DELETED, so the flow this screen advertises no longer dead-ends at the
+> host end: **that end does not exist.** `RelaySetupCodePayload.swift:9`'s
+> *"Enter the 8-character code from `hermes talaria pair`"* is therefore
+> no longer merely false-provenance copy — it names a command that is not
+> installed on any host that pulls the plugin. The replacement Lane B
+> consumes is `hermes talaria pair-qr`, whose payload fixture is pinned
+> in #309's Lane-D result block above and in the plugin's
+> `tests/fixtures/pair_payload.json`. **Still OPEN on the app half** —
+> the screen, its relay-plane gate and its relay-alphabet code field are
+> untouched by Lane D, exactly as the disposition says.
 
 **Related:** #309 (the absorbing design), #411 (wrong-plane gates,
 sibling class), #405 (the pairing-screen family's last defect), #406
