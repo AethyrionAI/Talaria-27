@@ -8089,6 +8089,25 @@ argument for making the relay more robust.
 > pointed at the wrong thing — and reports `isHittable` and the keyboard count
 > so a next failure is measured rather than guessed.
 >
+> **🔴 AND THAT DIAGNOSTIC PAID OFF ON THE NEXT RUN — the "flake" has a
+> MECHANISM, and it is a product defect.** The gate reported
+> `continueHittable=false` with `keyboards=0` and `springboardAlerts=0`:
+> nothing was covering the button, and it was still out of reach. **It was
+> below the fold.** Design A5 draws CONTINUE under the connected card, and
+> that card's height grows with what the probe found — `MODELS SEEN` renders
+> only when there is a count — so on a short screen the step's ONLY forward
+> action sits past the bottom of the scroll view. Every re-tap landed on
+> whatever was at those coordinates, which is why "tap it again" never helped
+> and why the failure moved with timing rather than with code.
+>
+> **The fix is a layout ruling, not a hedge: the wizard's forward action goes
+> ABOVE the details card.** The confirmation the user needs is the headline;
+> the card is detail, and detail can scroll. Filed here rather than only in
+> the commit because it is the third time this lane found that a UI journey
+> was measuring something no unit test could see — and the first time the
+> thing it found was a design ordering that reads perfectly in a mockup and
+> fails on a phone.
+>
 > **Filed as a fourth occurrence in the #164/#182 flake family** — see #182's
 > counter, and note the renames recorded there. **And the product got one
 > thing out of the wrong attribution:** chasing it found that the wizard's
