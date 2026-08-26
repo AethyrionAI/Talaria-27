@@ -537,7 +537,18 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   `UserSettings.verboseLogging` (the Developer screen toggle).
 - **iCloud Private Relay** intercepts HTTP to Tailscale IPs — moot for sensors since #352
   (nothing uploads), but the mechanism stands for any other HTTP-to-tailnet path the app
-  ever grows.
+  ever grows. **⟵ SHARPENED 2026-08-26 (#377): that "any other path" is now exactly ONE
+  and it is the important one — cleartext HTTP to a `100.64.0.0/10` literal on `:8642`,
+  carrying chat, the runs plane, the Test Connection probe and the plugin webhook. #24e's
+  two measured victims (relay `:8000`'s 502s, the shim `:8765`'s 30 s timeouts) are both
+  RETIRED components (#375), so the mechanism's blast radius shrank while its stakes rose.
+  The app now names the condition itself in the Uplink Test Connection result
+  (`PrivateRelayIndicator`), and the DISCRIMINATOR is worth knowing before anyone diagnoses
+  this by hand: a proxy-shaped **502/504** over cleartext HTTP to a CGNAT literal. Our
+  aiohttp api_server does not answer `/v1/models` that way, so that status is an
+  intermediary talking. **A timeout is NOT a Private Relay diagnosis** — it is equally a
+  sleeping host — and HTTPS is untouched by the proxy entirely, which is why the OTA
+  install over `tailscale serve` has never been affected.**
 - ~~**HealthKit** needs an explicit in-app `requestAuthorization()` on every
   `SensorUploadService.start()`~~ — **superseded by #352 (2026-08-16): the service is
   deleted.** The surviving form of the lesson: HealthKit read grants are invisible by
