@@ -2370,7 +2370,14 @@ enum ThemePaletteCatalog {
             foreground: Color(hex: 0x262019),
             foregroundBright: Color(hex: 0x262019),
             secondaryForeground: Color(hex: 0x716450),
-            mutedForeground: Color(hex: 0x7D6F58),
+            // #393 muted lane (2026-08-25): 3.84 → 4.41 against this cream.
+            // RAMP-CAPPED, and the cap is the finding: the smallest blend that
+            // clears 4.5 here is `0x716450` — `secondaryForeground` itself,
+            // because call 4 solved that same blend from this same literal.
+            // The 8-bit ladder jumps 4.4771 → 4.5246 with nothing in between,
+            // so AA and a visible muted STEP cannot both exist at this
+            // secondary. Stays baseline-listed in #393's ratchet.
+            mutedForeground: Color(hex: 0x726651),
             dimForeground: Color(hex: 0x7D715E),
             coolForeground: Color(hex: 0x716450)
         ),
@@ -2599,7 +2606,11 @@ enum ThemePaletteCatalog {
             foreground: Color(hex: 0x26212E),
             foregroundBright: Color(hex: 0x26212E),
             secondaryForeground: Color(hex: 0x756D64),
-            mutedForeground: Color(hex: 0x7A7268),
+            // #393 muted lane (2026-08-25): 4.20 → 4.40. RAMP-CAPPED for the
+            // same reason as pulpNoir — the smallest blend clearing 4.5 is
+            // `0x756D64`, this theme's own `secondaryForeground` (ladder jumps
+            // 4.4636 → 4.5100). Stays baseline-listed in #393's ratchet.
+            mutedForeground: Color(hex: 0x766F65),
             dimForeground: Color(hex: 0x7B746B),
             coolForeground: Color(hex: 0x756D64)
         ),

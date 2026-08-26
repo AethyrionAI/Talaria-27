@@ -220,6 +220,18 @@ struct SemanticForegroundContrastTests {
     /// — 3.75 and 4.09 after the raise — because those themes' muted steps
     /// sit below 4.5 and a dim at 4.5 would invert the ramp).
     ///
+    /// **NOT tightened 2026-08-25 (the `mutedForeground` lane), and that is
+    /// the measurement rather than an omission.** All nine muted cells stay
+    /// listed: `deepField` ×3 unmoved by ruling, and `pulpNoir` ×3 /
+    /// `stickerBombToybox` ×3 RAISED (3.84 → 4.41, 4.20 → 4.40) but still
+    /// short of 4.5, because each is capped by its own `secondaryForeground`
+    /// — on both themes the smallest 8-bit blend that clears the floor is
+    /// literally that secondary hex. The tightening was still run, twice, as
+    /// a MUTATION either side of the palette move: RED at exactly six both
+    /// times, at 3.84/4.20 before and 4.41/4.40 after. A ratchet that is not
+    /// tightened because nothing crossed the floor has to SAY so, or the next
+    /// reader cannot tell it apart from one nobody checked.
+    ///
     /// 170 `token|theme|accent` cells. This is the artifact 393-A required
     /// recorded, in the one place that cannot go stale: a test reads it.
     ///
@@ -236,15 +248,23 @@ struct SemanticForegroundContrastTests {
     /// the suite — that is how a ratchet stops being a ratchet and starts
     /// being a reason not to fix things.
     private static let knownFailingCells: Set<String> = [
+        // NOT MOVED, by ruling: deepField's ramp is byte-pinned as pre-theming
+        // legacy identity and Owen ruled 2026-08-23 to keep the pin. It is the
+        // only one of the nine muted cells with real headroom (secondary 6.28).
         "mutedForeground|deepField|cyan",  // 4.12:1
         "mutedForeground|deepField|amber",  // 4.12:1
         "mutedForeground|deepField|violet",  // 4.12:1
-        "mutedForeground|pulpNoir|cyan",  // 3.84:1
-        "mutedForeground|pulpNoir|amber",  // 3.84:1
-        "mutedForeground|pulpNoir|violet",  // 3.84:1
-        "mutedForeground|stickerBombToybox|cyan",  // 4.20:1
-        "mutedForeground|stickerBombToybox|amber",  // 4.20:1
-        "mutedForeground|stickerBombToybox|violet",  // 4.20:1
+        // RAISED 2026-08-25 and STILL BELOW THE FLOOR — the muted lane's
+        // honest residue, not an untouched defect. Both themes are capped by
+        // their own `secondaryForeground` (4.52 / 4.51): the smallest 8-bit
+        // blend that clears 4.5 IS that secondary literal, so AA and a
+        // distinct muted step cannot coexist there. See #393's muted block.
+        "mutedForeground|pulpNoir|cyan",  // 4.41:1 (was 3.84)
+        "mutedForeground|pulpNoir|amber",  // 4.41:1 (was 3.84)
+        "mutedForeground|pulpNoir|violet",  // 4.41:1 (was 3.84)
+        "mutedForeground|stickerBombToybox|cyan",  // 4.40:1 (was 4.20)
+        "mutedForeground|stickerBombToybox|amber",  // 4.40:1 (was 4.20)
+        "mutedForeground|stickerBombToybox|violet",  // 4.40:1 (was 4.20)
         "dimForeground|deepField|cyan",  // 3.16:1
         "dimForeground|deepField|amber",  // 3.16:1
         "dimForeground|deepField|violet",  // 3.16:1

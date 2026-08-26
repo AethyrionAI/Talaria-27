@@ -225,11 +225,19 @@ struct AccentTextVariantGeneratorTests {
     /// by `secondaryForeground` above it. On the two light themes that fail,
     /// `secondaryForeground` itself sits at 4.51–4.52 — because #393 call 4
     /// solved *the same minimal-blend problem from the same starting literal*
-    /// when it raised secondary. So re-running the generator on muted
-    /// reproduces secondary's exact hex: **on `pulpNoir` and
+    /// when it raised secondary. So running the generator on the PRE-RAISE
+    /// muted reproduced secondary's exact hex: **on `pulpNoir` and
     /// `stickerBombToybox`, a muted at 4.5:1 IS `secondaryForeground`**, and
-    /// the ladder has no 8-bit step in between (pulpNoir jumps 4.4771 →
+    /// the ladder has no 8-bit step in between (pulpNoir jumped 4.4771 →
     /// 4.5246, toybox 4.4636 → 4.5100).
+    ///
+    /// **Run from the SHIPPED values it now states the same cap the other way
+    /// round** — the first AA rung *overshoots* secondary (pulpNoir 4.5410 vs
+    /// 4.5246) because blending from the raised literal walks a different
+    /// rounding path and skips the rung that sat exactly on secondary. Either
+    /// spelling says the one thing that matters: on these two themes there is
+    /// no AA landing at or below `secondaryForeground` except that literal
+    /// itself.
     ///
     /// Both landings are printed for every failing theme — the capped one this
     /// lane ships, and the collapse one that would clear AA by making the two
@@ -283,12 +291,24 @@ struct AccentTextVariantGeneratorTests {
             // cannot see the thing it is checking for.
             let secondaryHex = Self.hex(ThemeContrastMath.composite(p.secondaryForeground, over: bg))
             if let aa = Self.solve(p.mutedForeground, on: bg, floor: 4.5) {
+                // **And the verdict must be re-derivable AFTER the raise, not
+                // only from the pre-raise literal.** Solving from the shipped
+                // (already-raised) muted walks a slightly different rounding
+                // path and skips the rung that sat exactly on secondary, so a
+                // bare hex-equality check prints nothing today and the finding
+                // would read as unreproducible. Both outcomes are named.
+                let verdict: String
+                if aa.hex == secondaryHex {
+                    verdict = "  ← that IS secondaryForeground (\(secondaryHex)): AA COLLAPSES the muted step"
+                } else if aa.ratio > secondaryRatio {
+                    verdict = String(format: "  ← OVERSHOOTS secondaryForeground (%.4f): AA INVERTS the ramp here",
+                                     secondaryRatio)
+                } else {
+                    verdict = ""
+                }
                 lines.append(String(
                     format: "  %-22@   AA landing would be %@ %.4f%@",
-                    "" as NSString, aa.hex as NSString, aa.ratio,
-                    (aa.hex == secondaryHex
-                        ? "  ← that IS secondaryForeground (\(secondaryHex)): the muted step COLLAPSES"
-                        : "") as NSString))
+                    "" as NSString, aa.hex as NSString, aa.ratio, verdict as NSString))
             }
         }
         print(lines.joined(separator: "\n"))
