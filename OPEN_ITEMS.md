@@ -10464,6 +10464,34 @@ NOT cut), **#215** (routed-vs-unrouted: these rows are the `armed` control),
 > flipped, and the six cells that scored `0/5` on 2026-08-12 should score
 > `5/5` now **with no behavior change whatsoever** — a scoring flip, not a
 > fix. Read `row=<id>`, never `probe=` + `ctxchars=`.
+>
+> **📋 RUNBOOK CARD TEXT — for #339's pre-OTA subset card (the runbook is the
+> orchestrator's artifact; this lane does not touch it):**
+>
+> > ⚠️ **`long-context-probe` RE-BASELINED 2026-08-25 (#334) — do not read the
+> > first beta-7 run as drift.** Band count **22 → 34** (14 grid rows × 2 arms
+> > + 6 short accept rows; was 8 × 2 + 6). The Developer-screen button now
+> > reads **"Long-context probe n=5 (170)"**, up from *(50)* — the old label
+> > had under-reported the run by more than half since #206.
+> >
+> > Three `expected:` labels flipped to ARMED per Owen's offer-tail ruling
+> > (`base-words-offer-long-say`, `base-words-offer-natural-say`,
+> > `base-words-offer-long-write`), so **the six cells that scored `0/5` on
+> > 2026-08-12 should score `5/5` now with no behavior change** — a scoring
+> > flip, not a fix. Treat any comparison against a pre-08-25 run as
+> > incomparable on both the band set and the labels.
+> >
+> > **New rows to read (the reason this run matters):** `E1-offer-short` ·
+> > `E1-offer-long` · `E1-nooffer-short` · `E1-nooffer-long` (the 2×2 that
+> > varies ends-in-an-offer independently of length) and `E2-offer-short` ·
+> > `E2-offer-long` (non-anaphoric words-only over an offer tail). **E1's
+> > no-offer cells going toolless while its offer cells go armed confirms the
+> > offer-tail mechanism. E2 going ARMED means offer-tail salience alone
+> > drives the route; E2 going toolless means anaphora does.**
+> >
+> > **Score by `row=<id>`, never by `probe=` + `ctxchars=`** — three rows now
+> > share the prompt *"Say that again more briefly"* at 551 characters by
+> > design, and the id is the only thing that tells them apart.
 **The measurement** (artifact `20260812T200237Z-long-context-probe`, `long-context-probe`
 n=5, production router probed directly — these are router-classification rates, not armed
 cells; #215's unrouted caveat does not apply):
