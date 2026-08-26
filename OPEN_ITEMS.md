@@ -1147,7 +1147,7 @@ gate should follow), **#386** (the published policy that describes the tiers),
 > 390-G device card (both arms) on the next staged build.**
 
 
-> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — 390-G FORMALLY PASSED: "On device and pcc vision
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — 390-G FORMALLY PASSED: "On device and pcc vision
 > confirmed."** Both arms now carry a FORMAL runbook verdict on top of
 > the 08-25 informal sightings. The staged-composer caption texts went
 > unreported (they are unit-pinned; nothing rests on the glance).
@@ -1608,7 +1608,7 @@ Logged 2026-07-06.
 ---
 
 
-> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — PASS, and Owen's close: "Can't tap twice, because it
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — PASS, and Owen's close: "Can't tap twice, because it
 > works now and a single tap brings me in. This can be closed."** The
 > cold first tap WORKS — #179's discriminator answered in the good
 > direction (nothing swallowed). CLOSED on his word; the opportunistic
@@ -2189,7 +2189,7 @@ Logged 2026-07-12 (dispatch-prep session).
 **2026-07-13 follow-up (`48770cd`):** icon picker was a silent no-op on iPad — iPadOS reads `CFBundleIcons~ipad` exclusively for alternate-icon support and we only declared the base key (iPhone unaffected). Fixed via YAML anchor/alias in `project.yml` so both keys stay byte-identical with a single edit point. **Shelley's iPad icon-picker check rides her next install.**
 
 
-> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — DEVICE PASS: "Looks good. Changes based on system
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — DEVICE PASS: "Looks good. Changes based on system
 > settings."** The live re-skin follows the system appearance without
 > relaunch; no seam complaint volunteered on either recorded seam. The
 > iPad icon-picker glance still rides Shelley's next install
@@ -2223,7 +2223,7 @@ Logged 2026-07-17.
 ---
 
 
-> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — RE-CONFIRMED:** reasoning panes render in full on
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — RE-CONFIRMED:** reasoning panes render in full on
 > resume, including on a CONTEXT-TRANSPLANTED thread ("viewed the
 > reasoning there in full"), plus several other threads clean. CLOSED;
 > archive move rides the next sweep.
@@ -2256,7 +2256,7 @@ Logged 2026-07-17.
 ---
 
 
-> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — RE-CONFIRMED:** "I didn't see any 0.00" — no zeroed
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — RE-CONFIRMED:** "I didn't see any 0.00" — no zeroed
 > cost rows anywhere he looked. (The SESSION-block-after-reopen half is
 > #330's, separately fixed last night and closing via its own 330-G
 > card.) CLOSED; archive move rides the next sweep.
@@ -4352,7 +4352,7 @@ Logged 2026-07-23.
 
 
 
-> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — the discriminator ANSWERED: the cold first tap is NOT
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — the discriminator ANSWERED: the cold first tap is NOT
 > swallowed** ("a single tap brings me in"). Owen: "This can be closed."
 > CLOSED with #58 on his word; archive move rides the next sweep.
 ## 180. 🎨 UMBRELLA — the app hides its own degradation: one design default, and a register that is no longer four instances long
@@ -5543,7 +5543,7 @@ scored here.
 > switch in hand.
 
 
-> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — THE PICKER CHECK "FAILED", AND THE LIKELY CAUSE IS A
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — THE PICKER CHECK "FAILED", AND THE LIKELY CAUSE IS A
 > DEPLOY LAG THE NIGHT BATCH ALREADY MEASURED, not an app defect.** Owen:
 > Settings → Server shows "hermes host predates approval modes — the
 > picker unlocks after the host updates" on BOTH hosts, "Mac is the most
@@ -7050,7 +7050,7 @@ host, because on that plane there is nothing to consult.
 > **What remains on this entry: 329-F alone.**
 
 
-> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — 329-F PASS (the closing device bar), with one honest
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — 329-F PASS (the closing device bar), with one honest
 > nuance recorded:** force-quit mid-turn → relaunch "showed Retry at
 > first," then as the host progressed, leaving and re-entering the
 > thread delivered the fuller answer with reasoning — ONE answer, no
@@ -14104,7 +14104,7 @@ into the base snapshot vs block typing while dictating) is a product call.
 > 10-second device look rides the runbook. **Remaining: that look only.**
 
 
-> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — DEVICE PASS:** "composer is locked down with listening
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — DEVICE PASS:** "composer is locked down with listening
 > and I can't use it while dictating." The ruled block-typing behavior
 > confirmed on device. CLOSED; archive move rides the next sweep.
 ## 408. 🐛 A GUARDRAIL-DECLINED IMAGE TURN HAS NO ROUTE — on-device `.guardrailViolation` on a sighted turn dead-ends at Retry, and post-#390 there is no way to opt an image DOWN to the OCR path — **FILED 2026-08-25 per #268, from Owen's first on-device vision turn (build 3022, device screenshot). ~~DESIGN ELECTION OWED; measure-informed bars pre-register here when a route is picked.~~** **⟵ ⚖️ RULED route (a) AUTO-DEGRADE ONCE 2026-08-25 (Owen, AskUserQuestion, n=4 in hand) and ✅ BUILT + GATED the same night (branch `408-guardrail-image-degrade`, PR #378, squash `b03fabfb`) — 408-A..E ALL MET, RED-first, and mutation-proven in both directions. BOTH turn paths are armed (`send` and `streamTurn` — the image door's only two call sites). **STAYS OPEN on the DEVICE half, which is a behavioural claim no simulator can make (#324):** nothing here shows the declined laundromat photo now completes on the phone — only Owen's runbook re-send can, and that card is written into the result block.**
@@ -15431,7 +15431,7 @@ hedge pattern), #131/#82/#198 (this controller's prior hardening), #9
 >   this lane's suite), 14 XCUITest, Release clean.
 
 
-> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — PASS, the honest closer met:** "Got the short, and got
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — PASS, the honest closer met:** "Got the short, and got
 > a very long one from me without missing a word. I rambled for a bit."
 > Both arms (short utterance + long ramble) survived the auto-stop grace.
 > CLOSED; archive move rides the next sweep.
@@ -16015,7 +16015,7 @@ scope: **wholesale, or a permanent dual path?**
 > runbook.**
 
 
-> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — DEVICE PASS:** "dimmed check" — the provenance dim
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — DEVICE PASS:** "dimmed check" — the provenance dim
 > confirmed on device. CLOSED; archive move rides the next sweep.
 ## 372. 🔬 #337 successors — the DECLINE path has never been exercised, 337-H never built, and measuring the promotion needs a ROLLBACK arm — **FILED 2026-08-18 night per #268 at #337's close. NOT STARTED; bars pre-register here before any run.** **⟵ CORRECTED 2026-08-26 (instruments lane): the NOT-STARTED clause is now false for the whole entry. (c) was BUILT + RUN 2026-08-21 and CLOSED by Owen 2026-08-24 as unmeasurable-worthwhile; **(a) the decline path and (b) 337-H's `.required` remedy were BUILT + MERGED 2026-08-26** — bars 372-A1..A4 / 372-H1..H4 met on the simulator and mutation-proven, with the device A/B (372-HD1..HD4) pre-registered and UNRUN. What is owed is two device runs, not a build. This is a PRESENCE claim and settles by grep: `runOfferReadBattery` is #211A's, but `CardClauseArm.toolmodeRequired`, `LocalChatBackend.declineHalfRow` and the `card-clause-remedy` registry entry are this entry's.**
 
@@ -16862,6 +16862,6 @@ scope: **wholesale, or a permanent dual path?**
 > `handleExplicitDoor`. Gate as #407's. **Remaining: the device look
 > (steer menu appears while busy with the hold taken) — runbook.**
 
-> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — DEVICE PASS:** "Got the fork, then the two button
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — DEVICE PASS:** "Got the fork, then the two button
 > choices for steer or stop and steer." CLOSED; archive move rides the
 > next sweep.
