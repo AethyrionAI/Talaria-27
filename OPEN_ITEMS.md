@@ -184,7 +184,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity — **un-parked and ✅ BUILT + MERGED 2026-08-25 (PR #371, squash `02c45440`)** — awaited off-main transitions + guards + the #397 generation close; 198B-B/C/D met, both prescribed mutations isolating, gate 2547(+4)/14/Release; **only 198B-A remains** (zero fault lines on device — the runbook card targets build 3022)
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
-- **#211A** offer-instead-of-act on READ paths, where no confirmation gate excuses it
+- **#211A** offer-instead-of-act on READ paths, where no confirmation gate excuses it — **✅ instrument BUILT + MERGED 2026-08-26** (`offer-read`: production-routed vs #211's pinned `readMotion` rollback vs a read-tool-free CEILING that doubles as the scorer's positive control; four buckets, never a union; armed-routed denominator per #215). **Device run OWED** — 211A-D1..D4 pre-registered, D1 is a GATE: if the ceiling arm does not offer, the run is uninterpretable
 - **#340** 🔴 the due date is OMITTED by the model — both prose fixes falsified 08-15; **ROUTE (a) APP-SIDE RULED by Owen 2026-08-18 ~22:15 post-refresher** *(this line read "route decision pending Owen's refresher" until 2026-08-21 — the ruling landed in the entry and never reached the board, #317)*. 🟡 **BUILT 2026-08-21 AM: `parseBareClock`/`resolveBareClock` ship in BOTH the tool path and — a defect nobody had noticed — the CARD-EDIT path, where typing a plain `18:00` into the Due field was rejected outright. The GUIDE change is held behind cell `armed-bareclock` (Owen, 2026-08-21) because 340-G's guide arm bought its omission win at a flagged cost in tool calls, so the TOOL path stays inert until 340-H5 runs; the card-edit fix is not inert. Four-bucket scorer re-denominated on TRIALS, not calls — `no-call` was structurally invisible before. Wiring mutation: deleting the `performCreate` line reds 2 tests and leaves all 11 parsing tests GREEN.** 🛑 **340-H5 RAN 2026-08-21 AND IS MISSED — the guide is NOT promoted** (union rose 75%→85%). **But the bar was badly formed and is retired:** a `no-call` trial is neither omitted nor wrong-value, so it LOWERS the union — the control's 5 no-calls depressed its number and the treatment was penalised for calling more reliably. Over CALLS the union FELL; two denominators, opposite verdicts, which is 340-F1's ambiguity committed one level up by the same lane that fixed it. **✅ Route (a) VERIFIED on device though:** 3 bare clocks sent, all `16:30` at 17:08, all resolved to TOMORROW correctly, and `already-past` is 0/37 across both arms where 340-G had every value stale. 🔴 **Still broken: the model sent a time 3/20 — omission is 85% and the founding defect is UNSOLVED.** Bars **340-H5′-A..D** reformulated (`correct`/trials primary, `wrong-value` guard, both denominators reported, n≥40 — tonight was ~2x underpowered). 340-E still owed
 - **#344** 🐛 impersonation-marker reach — RULED leave-as-specified 08-18; WATCH (rate >~1/20, or the shape on a completion claim)
 - **#358** 🐛 delivered-but-unrendered — failure class removed, TurnStreamLedger armed; WATCH (trigger unidentified)
@@ -194,7 +194,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#368** 🔧 Phase 3 slice 3E — the runs-transport CUTOVER — MERGED 2026-08-19 (`33108d05`); runs is the DEFAULT plane; 3E-H's last two device steps owed Friday
 - **#370** 🧹 calendar reap under-deletes (42 created / 25 reaped) — measure the residue first; Owen glances at mid-Aug events
 - **#371** 🐛 restored ✓ chips on runs nobody stopped — honesty design rides #368
-- **#372** 🔬 #337 successors — decline path · 337-H · **(c) the rollback arm ✅ BUILT + RUN 2026-08-21.** 372-C1 met on device: `blurb-reworded` is byte-identical to control (1852 chars, confirming it measures nothing) while `blurb-rollback` substitutes (1839, reworded gone). 🟡 **The measurement is a NULL — rollback 3/30 vs control 1/30, p=0.612 — neither replicated nor refuted.** 🔴 **And it is underpowered STRUCTURALLY: control's imitation rate is 3.3% where #337-F's was 13.3%, because control now ships the promoted text.** The phenomenon has stopped happening in the control arm — what a working promotion looks like, and what makes it expensive to measure. A powered re-run needs hundreds of trials/arm; whether that is worth device time is a decision for Owen, not a scheduled lane
+- **#372** 🔬 #337 successors — decline path · 337-H · **(c) the rollback arm ✅ BUILT + RUN 2026-08-21.** 372-C1 met on device: `blurb-reworded` is byte-identical to control (1852 chars, confirming it measures nothing) while `blurb-rollback` substitutes (1839, reworded gone). 🟡 **The measurement is a NULL — rollback 3/30 vs control 1/30, p=0.612 — neither replicated nor refuted.** 🔴 **And it is underpowered STRUCTURALLY: control's imitation rate is 3.3% where #337-F's was 13.3%, because control now ships the promoted text.** The phenomenon has stopped happening in the control arm — what a working promotion looks like, and what makes it expensive to measure. A powered re-run needs hundreds of trials/arm; whether that is worth device time is a decision for Owen, not a scheduled lane. **⟵ (a) + (b) BUILT + MERGED 2026-08-26:** the gate now COUNTS declines so the decline half is observable at all (it never was — `toolCallsAdmitted` is the governor's number, not the gate's), scored by #392's scorer and ONLY on trials that were actually declined; and 337-H's `.required` remedy ships as a seventh arm plus a two-arm `card-clause-remedy` instrument, with production's tool-calling mode still unset and pinned that way. Device A/B 372-HD1..HD4 pre-registered, UNRUN
 - **#373** 🧹 instrument/test hygiene bundle — 🟡 **FIVE TAKEN 2026-08-21 PM**, all sharing one shape (a cheap mistake billed only after an expensive run): `--trials`/`--timeout` validated (`--timeout 30m` made bash's `(( ))` evaluate 0 and report a timeout that never happened); a TYPO'D INSTRUMENT NAME no longer burns the full timeout on an inert launch; `devicectl` exit 142 no longer reads as "no device"; #224's five busy-spins → one bounded helper that ASSERTS instead of falling through silently; #335's conductor now claims its run by set difference. **Plus an unlisted finding: the button-name tripwire was blind to `due-date`/`card-clause`/`refusal-words` — a hand-maintained list cannot detect its own omissions.** **⟵ ✅ FOUR MORE DONE + MERGED 2026-08-26 (bundle lane; PR #386, squash `fda2ad8e`), 373-A..E all MET:** `cold-calfix` registered (count pin 49→50, flags derived not copied); the tripwire made SELF-MAINTAINING — it reads the VIEW's source now, and the proof is the sequencing: the new button landed before its registry entry, the derived test caught it, the literal list stayed green through the exact failure it was built for; #342's residual executed as what it really was (see below); #335's conductor hazard PINNED by mutation. **🔴 Two of the four were ALREADY DONE at lane-open — #342's checks shipped 2026-08-15 (its close mis-scoped them three days later), #335's fix 2026-08-21 by this bundle's own earlier pass — so what landed for #342 is `scripts/oi-invariants-test.py`, the fixture harness that checker never had, plus #409's regex narrowing and the discovery that markdown bold could switch the check off entirely.** 🟡 One bullet still open: `score-due-omission.py` scores the #200V warm-up as an arm
 - **#377** 🔧 Private Relay detection row in diagnostics (re-homed from #24e) — **✅ BUILT 2026-08-26; premise re-derived and NARROWED to the one surviving cleartext-HTTP-to-CGNAT path (`:8642`), since #24e's relay and shim are retired. Names the condition only on proxy-shaped evidence.**
 - **#378** 🧭 156c — Memory surface — **✅ BUILT + MERGED 2026-08-26 (bundle lane; PR #386, squash `fda2ad8e`), 378-A..E MET.** Read-only local `~/.hermes/memories/*.md` per Owen's 08-18 scope ruling. **The ruling named a source and not a surface, and `~` on iOS being the app container decides the rest:** the read resolves in DEV (a simulator shares the Mac's filesystem) and can never resolve on a device, so the panel reports UNREACHABLE there rather than EMPTY — both true about a phone, only one true about the agent. Developer channel; a user-facing panel is NOT claimed, because both routes that would earn one (plugin delivery, Honcho) are excluded by the ruling itself. Content carries #158/#159's one-layer caveat
@@ -15936,7 +15936,7 @@ just the log.
 > signature has not recurred. The gate's flake protocol (re-run once, record
 > BOTH runs) stays armed. Nothing owed.
 
-## 211A. offer-instead-of-act on READ paths, where no confirmation gate excuses it
+## 211A. offer-instead-of-act on READ paths, where no confirmation gate excuses it — **✅ INSTRUMENT BUILT + MERGED 2026-08-26 (instruments lane): `offer-read`, three arms x four read prompts, cells + scorer, bars 211A-B1..B7 met on the simulator. The DEVICE run is Owen's and is a runbook card; 211A-D1..D4 are pre-registered and UNRUN, so this entry still carries ZERO behavioural numbers.**
 
 **FILED 2026-08-01** from the audit's unfiled-lanes list.
 
@@ -15955,6 +15955,172 @@ test that directly before assuming it needs its own words.
 
 
 > **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** the offer-instead-of-act READ-path battery is BUILT (cells + scorer); the device run becomes a runbook card. Rides the instruments lane. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
+
+> **📋 BARS 211A-B1..B7 (STRUCTURAL, sim-scored) + 211A-D1..D4 (DEVICE,
+> PRE-REGISTERED AND NOT RUN) — 2026-08-26, with the instrument.**
+>
+> **Ordering stated rather than glossed.** The structural bars are the tests
+> that drove the build, so they were fixed before the code they check but not
+> before the lane opened. The DEVICE bars are pre-registered in the strict
+> sense: the simulator cannot generate (#324), so **no run of any kind has
+> produced a number for this instrument** and nothing below can have been
+> chosen after seeing one.
+>
+> ### What was built
+>
+> **`offer-read`** — three arms × four READ prompts × n
+> (`Talaria/Services/Live/LocalChatBackend+OfferRead.swift`). Auto-DECLINE,
+> read tools only, nothing written, reap is a no-op, unattended-eligible.
+>
+> **No arm changes a word of prose, and that is this entry's own instruction
+> being obeyed** — *"a lane should test that directly before assuming it needs
+> its own words."*
+>
+> | arm | what moves | why it is here |
+> |---|---|---|
+> | `control` | nothing; the ROUTER runs per trial | the only rate quotable as production's (#215/337-C) |
+> | `tool-rollback` | ONE description → `MotionTool.stepClaimingDescription211` | the hypothesis as a manipulation: does restoring tool AMBIGUITY bring the offers back? |
+> | `no-read-belt` | every read tool removed | **the detector's POSITIVE CONTROL** |
+>
+> **The ceiling arm is not padding.** A scorer that never fires cannot be told
+> from a clean run — the `cmd | grep || echo "absent"` trap wearing a battery's
+> clothes. One arm has to make it fire, which is the nonsense-verb control of
+> the plugin-deploy probe and #373's positive control on the button scan,
+> arriving in a third place.
+>
+> **Arm ORDER departs from this project's "newest arm last", deliberately.**
+> The worst-slot convention exists to make a POSITIVE conservative where
+> thermal drift would flatter it. Here the primary is a within-run contrast
+> between `control` and `tool-rollback`, and thermal drift pushes the later arm
+> in the SAME direction as the hypothesis — so the honest placement is adjacent
+> to its control, not maximally far from it. The ceiling goes last because it
+> is a control rather than a finding: it is the cheapest place in the run to
+> spend a confound.
+>
+> **The scorer never collapses the two readings.** This entry's own specimen
+> offers to check *"other metrics"* — which reads like a follow-on to an answer
+> that WAS given. Counting every offer shape would fold courteous turns into
+> the defect and manufacture a rate out of good ones. The discriminator is the
+> TOOL CALL, and the buckets are four: `offeredWithoutActing` (the defect) ·
+> `offeredAfterActing` (benign) · `actedNoOffer` (clean) ·
+> `neitherActedNorOffered` (denials, stalls, errors — a **named** residue,
+> because 340-H5′-B's guard is only writable if the residue has a name).
+>
+> ### 211A-B1..B7 — STRUCTURAL, all MET on the simulator
+>
+> - **211A-B1 (the scorer fires on the specimen, and stays quiet on the
+>   near-miss).** Both apostrophe forms hit; a bare capability statement
+>   (*"I can check your steps."*), a plain answer, and a #202D-shaped denial
+>   all miss. A detector that fired on the statement would score most correct
+>   read answers as the disease.
+> - **211A-B2 (the four buckets are discriminated by the tool call).** Offer +
+>   0 calls ⇒ defect; offer + calls ⇒ benign; no offer + calls ⇒ clean; neither
+>   ⇒ residue. A trial that threw AFTER calling a tool is scored as having
+>   acted, never as residue — otherwise an arm with a high error rate reads as
+>   an arm that stopped offering (`21F0C10D`'s shape).
+> - **211A-B3 (the prompt rows are the PINNED texts, reached by tag).** #211's
+>   `stepsdirect` + `motiondirect` and #209's `weatherbare` + `healthbare`, so
+>   the cells stay readable against those runs. `compactMap` over a renamed tag
+>   returns a SHORTER array rather than an error, so the bar asserts the count,
+>   the order, and each row's byte-equality with its pinned source.
+> - **211A-B4 (the rollback swaps exactly one description, to the pinned
+>   constant, and removes nothing).** A manipulation that found no `MotionTool`
+>   would produce a treatment identical to its control and a clean-looking null.
+> - **211A-B5 (the ceiling removes every read tool and only those).** With a
+>   positive control on the filter itself — the same belt through `control`
+>   must still carry read tools, or the assertion would pass against a belt
+>   that never had any.
+> - **211A-B6 (#215 per band: counted denominators, counted errors, all four
+>   buckets under BOTH denominators, no union).** The ARMED-ROUTED denominator
+>   is recorded separately from `attempted`, because a trial the router sent
+>   toolless has no belt at all — that is the ceiling arm's condition arriving
+>   by accident, and pooling it would import the very contamination the third
+>   arm exists to isolate. `routedToollessTrials`, `routeFailures`,
+>   `generationErrors` and `timeouts` all ride the summary, so a band where
+>   every trial threw reports 0/n with n errors rather than a clean zero rate.
+> - **211A-B7 (the pins move in the same commit).**
+>   `InstrumentRegistry.all.count >= 50 → 51`, the literal button-name list
+>   gains `offer-read`, the Developer-screen button lands so #373's
+>   source-derived scan covers it, and `OfferReadArm.allCases` is pinned by
+>   raw value with the ceiling last.
+>
+> ### 211A-D1..D4 — DEVICE, PRE-REGISTERED, NOT RUN
+>
+> `n` below means **trials per ARM pooled across the four prompts** — the
+> #337-F convention. `--trials 10` gives n = 40 per arm.
+>
+> - **🔴 211A-D1 (THE GATE, read FIRST and before anything else).** The
+>   `no-read-belt` arm must post `offeredWithoutActing` on **≥ 50%** of its
+>   armed-routed trials at n ≥ 30. Below that band the scorer is **not
+>   demonstrated to fire at all**, the run is UNINTERPRETABLE, and no other bar
+>   in it may be read. The remedy is a re-run with widened shapes, never a
+>   reinterpretation of the arms that did not fire.
+> - **211A-D2 (THE PRIMARY).** `control` vs `tool-rollback` on
+>   `offeredWithoutActing` over ARMED-ROUTED trials, n ≥ 30 per arm, Fisher
+>   two-tailed. **Reading fixed in advance, both publishable:** rollback
+>   ≥ 2× control **and** p < 0.05 ⇒ the offer is downstream of TOOL CHOICE,
+>   #211A closes into #211's lineage and needs no words of its own. Rollback
+>   within [0.5×, 2×] of control **and** p ≥ 0.05 ⇒ a genuine null: the offer
+>   survives unambiguous tools, and a prose lane becomes warranted on evidence
+>   rather than on assumption. **A third outcome exists and is named so it
+>   cannot be narrated later:** rollback significantly LOWER than control is
+>   not a result, it is a reversed-order re-run.
+> - **211A-D3 (THE GUARD, 340-H5′-B's shape).** `neitherActedNorOffered` must
+>   not RISE in `tool-rollback` relative to `control`. An offer traded for a
+>   stall or a denial is not a finding about offers, and a union bar would
+>   have hidden the trade.
+> - **211A-D4 (REPORT, no threshold).** All four buckets under BOTH
+>   denominators — trials and armed-routed — plus `routedToollessTrials`,
+>   `routeFailures` and the error tally, every time (340-H5′-C: the one run
+>   where the two denominators disagreed, the disagreement WAS the finding).
+>   The control's own defect rate is **reported with its interval and carries
+>   no bar**: it is the production number, and pre-registering a threshold on a
+>   measurement invites reading a null as success. The run's **local clock time
+>   and the device's iOS build** go in the record (340-H5′-D), because since
+>   #398 a rate without its runtime is ambiguous.
+
+> **✅ 211A BUILT 2026-08-26 (instruments lane) — CELLS + SCORER LANDED,
+> SIM-GATED; THE DEVICE RUN IS OWEN'S AND IS A RUNBOOK CARD.**
+>
+> **Built vs device-owed, explicitly:** 211A-B1..B7 are **MET** on the
+> simulator. 211A-D1..D4 are **PRE-REGISTERED AND UNRUN** — the simulator
+> cannot generate, so this lane produced an instrument and **zero** behavioural
+> numbers. Nothing here says anything about whether the app offers instead of
+> acting.
+>
+> ### 📇 RUNBOOK CARD — "Offer-instead-of-act on READ paths (#211A)"
+>
+> **Command** (Mac, phone on the LAN):
+> ```bash
+> DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer \
+>   scripts/mac/run-instrument.sh --device whoGoesThere \
+>   --instrument offer-read --trials 10 --timeout 3600
+> ```
+> Verbose logging ON. Unattended-eligible: auto-DECLINE, read tools only,
+> nothing is written and there is nothing to reap. 3 arms × 4 prompts × 10 =
+> **120 trials + 1 discarded warm-up**, n = 40 per arm.
+>
+> **Expected artifact:** one `BatteryRunRecord`, `kind: "offer-read"`,
+> `endedCleanly: true`, `cells == ["control", "tool-rollback",
+> "no-read-belt"]`, carrying three bands — `manipulation` (3 rows),
+> `offer-read-summary` (3 rows), `offer-read-trial` (120 rows). The harness
+> fetches it and verifies the completion flag; a run that ends without one is
+> a failed run, not a null.
+>
+> **What Claude scores, in this order:**
+> 1. **The manipulation band first.** `tool-rollback` must show
+>    `descriptionsSwapped == 1`; `no-read-belt` must show
+>    `readToolsPresent == 0`. An arm that did not apply is a broken arm and its
+>    null does not pool with the control's.
+> 2. **211A-D1, the gate.** `no-read-belt`'s
+>    `armedOfferedWithoutActing / routedArmedTrials`. Under 50% ⇒ STOP and
+>    report the run as uninterpretable.
+> 3. **211A-D2**, Fisher two-tailed, `control` vs `tool-rollback`, armed-routed
+>    denominator, against the three fixed readings above.
+> 4. **211A-D3**, the residue guard.
+> 5. **211A-D4**, the four-bucket table under both denominators, the control's
+>    rate with its interval and no verdict, plus local clock time and the
+>    device's iOS build.
 ## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.** **⟵ PREMISE MOVED 2026-08-24 (#401): Apple SHIPPED the beta 6 Xcode (27A5252f) carrying the iOS-beta-7 SDK/runtime (24A5422a / 24A5423a) — the "no beta 6 Xcode" clause is dead, and the sim now LEAPFROGS the device instead of trailing it. Dated block at the foot; bars 398-A..C unchanged.** **⟵ ✅ RAN 2026-08-26 on the aligned fleet — 398-A and 398-C MET (device runtime timeline MEASURED end-to-end from two independent sources; the gate now names its runtime on the preflight AND verdict lines), 398-B DEVICE-OWED (runbook card written; the sim still cannot generate, #324/#402). **THIS HEADER'S OWN PROVENANCE WAS WRONG TWICE and is corrected in the result block: the build string comes from `Extra/logd.0.log`, NOT `callservicesd` BuildVersion, and it is stamped 2026-08-17, NOT the 08-22 collection date — so the skew was a SEVEN-DAY window.** Owen's founding worry measures FALSE: no battery ever ran on a beta-2/beta-3 device build, and the device ran builds we still hold (`24A5390f`, `24A5408d`) for most of the measurement era. **STAYS OPEN on 398-B.**
 
 **What was measured, not inferred:**
@@ -18346,7 +18512,7 @@ scope: **wholesale, or a permanent dual path?**
 > key by its own test arm. Gate as #407's. **Remaining: the device look —
 > runbook.**
 
-## 372. 🔬 #337 successors — the DECLINE path has never been exercised, 337-H never built, and measuring the promotion needs a ROLLBACK arm — **FILED 2026-08-18 night per #268 at #337's close. NOT STARTED; bars pre-register here before any run.**
+## 372. 🔬 #337 successors — the DECLINE path has never been exercised, 337-H never built, and measuring the promotion needs a ROLLBACK arm — **FILED 2026-08-18 night per #268 at #337's close. NOT STARTED; bars pre-register here before any run.** **⟵ CORRECTED 2026-08-26 (instruments lane): the NOT-STARTED clause is now false for the whole entry. (c) was BUILT + RUN 2026-08-21 and CLOSED by Owen 2026-08-24 as unmeasurable-worthwhile; **(a) the decline path and (b) 337-H's `.required` remedy were BUILT + MERGED 2026-08-26** — bars 372-A1..A4 / 372-H1..H4 met on the simulator and mutation-proven, with the device A/B (372-HD1..HD4) pre-registered and UNRUN. What is owed is two device runs, not a build. This is a PRESENCE claim and settles by grep: `runOfferReadBattery` is #211A's, but `CardClauseArm.toolmodeRequired`, `LocalChatBackend.declineHalfRow` and the `card-clause-remedy` registry entry are this entry's.**
 
 - (a) Every clean arm made 29–30 of 30 calls, so no trial has ever exercised
   the decline half — the very guidance the reworded blurb was kept for.
@@ -18503,6 +18669,213 @@ scope: **wholesale, or a permanent dual path?**
 
 
 > **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** the never-exercised decline path + 337-H's `toolCallingMode = .required` remedy (timely: beta 7 claims the excessive-tool-call fix). Rides the instruments lane; device runs become runbook cards. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
+
+> **📋 BARS FOR (a) AND (b) — 372-A1..A4 and 372-H1..H4 (STRUCTURAL, sim-scored)
+> + 372-HD1..HD4 (the DEVICE A/B, PRE-REGISTERED AND NOT RUN). Written
+> 2026-08-26 with the code; the device halves are pre-registered before any
+> run.**
+>
+> Same honesty about ordering as #211A's block: the structural bars are the
+> tests that drove the build, so they were fixed before the code they check but
+> not before the lane opened. The device bars are pre-registered in the strict
+> sense — the simulator cannot generate (#324), so **no behavioural number
+> exists for either half.**
+>
+> ### (a) — the decline path, and WHY it went unexercised for so long
+>
+> The filed line was *"every clean arm made 29–30 of 30 calls, so no trial has
+> ever exercised the decline half."* Building it exposed something sharper than
+> the filing: **no instrument in this project could SEE a decline at all.**
+>
+> `toolCallsAdmitted` is the GOVERNOR's number. It says a call got past the
+> per-turn budget — not that the confirmation gate ever answered it. Every
+> statement about the decline half, in this entry and in
+> `DeviceActionClauses`' own doc comment, was inferred from the call count.
+> That is #215's error one layer down: reading a configuration off a number
+> that does not carry it.
+>
+> **What landed.** `ToolConfirmationCenter` now counts every `.declined` it can
+> produce, at all three sites — the battery auto-decline, the defensive
+> second-request decline, and the user's own `decline()` — through a single
+> `noteDecline()`, with a per-instance count and a process-wide mirror moved in
+> the same statement pair. The card-clause instrument reads a per-trial DELTA
+> off it, and `LocalChatBackend.declineHalfRow` scores the reply with **#392's
+> `DeclineAttributionScorer`** — but **only when the delta is non-zero**.
+>
+> **That guard is the whole of (a), not a detail.** A reply cannot misattribute
+> a refusal that never happened, so scoring a zero-decline trial enters a free
+> `.actorUnnamed` or `.unscorable` into the tally and dilutes the rate with
+> rows that had no opportunity to fail. The verdicts are therefore scored over
+> `declineHalfExercised`, **never over `attempted`**, and the artifact carries a
+> note saying so — because the wrong denominator here produces a defect rate
+> that FALLS whenever the model simply calls nothing.
+>
+> **A side finding worth its own line: this is `DeclineAttributionScorer`'s
+> FIRST call site.** It shipped 2026-08-23 (#392, PR #353) with unit tests and
+> a Mac-side log scorer and no Swift caller anywhere in the app — a scorer with
+> no instrument to score.
+>
+> - **372-A1 (a trial with NO decline is NOT scored).** Pinned against text
+>   that WOULD score `.attributedToTool` if the guard were removed, which is
+>   what makes the bar isolating rather than decorative.
+> - **372-A2 (the gate counts every decline it can produce).** All three sites,
+>   plus a NEGATIVE control — an approval must not move the counter — without
+>   which all three site tests would pass against a counter incremented on
+>   every resolution. Asserted against the per-instance count: the static
+>   mirror is process-global and Swift Testing runs suites in parallel, so an
+>   equality assertion on the mirror would be a flake generator. One further
+>   bar pins that the mirror moves with the instance count, since the mirror is
+>   what instruments actually read.
+> - **372-A3 (exercised-with-no-reply is EXERCISED, with no verdict).** Not
+>   `unscorable`. An absent reply is instrument state — a throw, a timeout —
+>   while `unscorable` is a reply nobody could classify, which is behaviour.
+>   Collapsing them would file instrument failure as data (`21F0C10D`).
+> - **372-A4 (the run carries the count and the verdicts).** Per arm and per
+>   trial, with `declinesObserved` kept SEPARATE from `toolCallsAdmitted` in
+>   the record rather than derived from it.
+>
+> ### (b) — 337-H's `.required` remedy, built as an ARM and nothing else
+>
+> #337-H named it and nobody built it: `GenerationOptions.toolCallingMode`
+> moves tool use from model-decided to developer-set, and **production sets it
+> nowhere.** The card-clause instrument is the right host because its failure
+> mode IS 337-H's target — the zero-tool turn that writes the confirmation card
+> out in prose and calls nothing.
+>
+> `CardClauseArm.toolmodeRequired`: belt and instructions production VERBATIM,
+> the sole delta being `.required` until the first call and `.allowed` after,
+> through `ToolmodeBatteryProfile`. **The demote exit is mandatory, not
+> stylistic** — a static `.required` loops until a tool throws (#200E, and
+> Apple's own doc comment) — which is also why the arm is the one session here
+> built through a DynamicProfile: options passed to `respond()` are fixed for
+> the whole request, so re-supplying them is how a demote exit silently stops
+> existing.
+>
+> **Owen's night-batch direction is structural, not a note:** no production
+> default moves, the device A/B decides.
+>
+> A second registry entry, **`card-clause-remedy`**, runs `control` +
+> `toolmode-required` ONLY. The full sweep is now 7 arms × 3 prompts = 210
+> trials, and the five prose arms buy this contrast nothing while inserting
+> ~90 trials of thermal drift between the two arms being compared. The remedy
+> sits LAST in the seven-arm run (worst slot, conservative for a positive) and
+> SECOND in the two-arm run (adjacent to its control) — the two placements
+> answer different questions.
+>
+> - **372-H1 (EXACTLY ONE arm forces the mode).** Swept over every case, so an
+>   arm that inherited the forced mode would turn its own prose result into a
+>   bundle of two treatments.
+> - **372-H2 (the remedy changes NEITHER descriptions NOR instructions).** Its
+>   whole claim is that it needs no words; an arm that also moved a sentence
+>   could not make it.
+> - **372-H3 (PRODUCTION STILL SETS NO TOOL-CALLING MODE).** Both tiers. This
+>   is the pin that goes red if a later lane promotes the remedy by editing
+>   `chatGenerationOptions` instead of by measuring it.
+> - **372-H4 (the manipulation is VISIBLE in the artifact).** The remedy's
+>   treatment is invisible in every existing column — belt identical,
+>   instructions byte-identical, zero descriptions swapped — so without a
+>   `toolCallingForced` row it would be indistinguishable from the control, and
+>   from a broken arm.
+>
+> ### 🔴 A DEFECT THIS LANE FOUND IN THE MANIPULATION BAND ITSELF
+>
+> The `correct` column of the manipulation check was
+> `arm == .control ? 1 : (swapped > 0 ? 1 : 0)`. **Every arm whose treatment is
+> an INSTRUCTION swap therefore scored 0** — `blurb-stripped` and
+> `blurb-rollback` both applied cleanly on 2026-08-21 and both were recorded in
+> the artifact as treatments that had FAILED TO APPLY. Nobody was misled, and
+> only because the reader went to the `instructionsChars` /
+> `rewordedSentencePresent` metrics instead. **The column built to catch a
+> silent no-op was itself silently wrong, and the evidence that saved the
+> reading came from somewhere else.**
+>
+> #372(b) is what made it urgent rather than tidy: the remedy arm swaps no
+> description AND changes no instruction byte, so under the old expression it
+> would have been permanently indistinguishable from a broken arm. It is now
+> `cardClauseManipulationApplied`, per-arm and unit-pinned;
+> `toolsAndBlurbStripped` requires BOTH halves, deliberately. `blurbReworded`
+> still returns false, and that is **372-C1's finding rather than a
+> regression** — post-promotion that arm is identity with control and the
+> column should say so.
+>
+> ### 372-HD1..HD4 — THE DEVICE A/B, PRE-REGISTERED, NOT RUN
+>
+> Instrument `card-clause-remedy`, `control` vs `toolmode-required`,
+> **n ≥ 40 per arm** (`--trials 20` over the three action prompts). The
+> four-bucket discipline is 340-H5′'s, and the denominators matter here for the
+> reason 340-H5′-C records.
+>
+> - **372-HD1 (PRIMARY — `trialsWithToolCalls` over TRIALS must rise,
+>   significantly).** One number, one denominator, **no union**. The remedy's
+>   entire claim is that it produces the call the prose arms were trying to
+>   persuade the model into; a bar on the imitation rate alone could be met by
+>   an arm that went silent.
+> - **372-HD2 (GUARD — `armedImitations` over TRIALS must not RISE).** The
+>   asymmetry is deliberate and is 340-H5′-B's: a forced call that still
+>   narrates a card in prose is a worse outcome than a missing call, because
+>   the user cannot tell the narrated card from the real one. If imitations
+>   rise, the remedy fails whatever it does for calls.
+> - **372-HD3 (REPORT the decline half, and it is (a) and (b) meeting).**
+>   `declineHalfExercised` per arm, with the four verdicts over THAT
+>   denominator. **A specific prediction, written before the run:** the remedy
+>   arm should exercise the decline half MORE often than control, because
+>   forcing the call is what puts a trial in front of the gate. If it does not,
+>   either the mode is not applying — check `toolCallingForced` — or the
+>   governor is cutting the trial first, and `cutTrials` says which.
+> - **372-HD4 (n ≥ 40 per arm; manipulation row read FIRST; run conditions
+>   recorded).** `toolCallingForced == 1` on the remedy and `0` on control
+>   before any behavioural number is read. Local clock time and the device's
+>   iOS build go in the record — since #398 a rate without its runtime is
+>   ambiguous, and the fleet moved again on 2026-08-24.
+
+> **✅ (a) AND (b) BUILT 2026-08-26 (instruments lane) — SIM-GATED; BOTH DEVICE
+> RUNS ARE OWEN'S AND ARE RUNBOOK CARDS.**
+>
+> **Built vs device-owed, explicitly:** 372-A1..A4 and 372-H1..H4 are **MET**
+> on the simulator, mutation-proven. 372-HD1..HD4 are **PRE-REGISTERED AND
+> UNRUN**. This lane produced instrumentation and **zero** behavioural numbers:
+> nothing here says whether the decline half is ever reached in practice, and
+> nothing here says whether `.required` helps.
+>
+> **(c) is untouched and stays closed** as UNMEASURABLE-WORTHWHILE per Owen's
+> 2026-08-24 ruling. The rollback arm still rides the seven-arm sweep.
+>
+> ### 📇 RUNBOOK CARD — "Required-mode remedy A/B (#372b / 337-H)"
+>
+> **Command** (Mac, phone on the LAN):
+> ```bash
+> DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer \
+>   scripts/mac/run-instrument.sh --device whoGoesThere \
+>   --instrument card-clause-remedy --trials 20 --timeout 3600
+> ```
+> Verbose logging ON. Unattended-eligible: auto-DECLINE, nothing written,
+> nothing to reap. 2 arms × 3 prompts × 20 = **120 trials + 1 discarded
+> warm-up**, n = 60 per arm.
+>
+> **Expected artifact:** one `BatteryRunRecord`, `kind: "card-clause"`,
+> `endedCleanly: true`, `cells == ["control", "toolmode-required"]`, bands
+> `manipulation` (2 rows), `card-clause-summary` (2 rows),
+> `card-clause-trial` (120 rows).
+>
+> **What Claude scores, in this order:** the manipulation row first
+> (`toolCallingForced` 1 on the remedy, 0 on control — an arm that did not
+> apply is a broken arm); then 372-HD1 (Fisher two-tailed on
+> `trialsWithToolCalls`); then 372-HD2, the imitation guard; then 372-HD3, the
+> decline half's count and its four verdicts over `declineHalfExercised`; then
+> the run's clock time and the device's iOS build.
+>
+> ### 📇 RUNBOOK CARD — "Card clause full sweep, seven arms (#337-F/#372)"
+>
+> The seven-arm sweep still exists and is now the EXPENSIVE one — use it only
+> when the prose arms are wanted:
+> ```bash
+> DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer \
+>   scripts/mac/run-instrument.sh --device whoGoesThere \
+>   --instrument card-clause --trials 10 --timeout 5400
+> ```
+> 7 arms × 3 prompts × 10 = **210 trials**. Its remedy arm sits LAST, so a
+> positive there is conservative and a null needs a reversed-order re-run
+> rather than a conclusion — read `card-clause-remedy` for the clean contrast.
 ## 373. 🧹 Instrument/test hygiene bundle — small knives, one drawer — **FILED 2026-08-18 night per #268, collecting residuals re-homed from #333, #341, #224, #342 and #335 at their closes. 🟡 FIVE TAKEN 2026-08-21 PM; the rest still open and listed below.** **⟵ ⟵ FOUR MORE DONE + MERGED 2026-08-26 (bundle lane; PR #386, squash `fda2ad8e`): `cold-calfix` registered (count pin 49→50), the button-name tripwire made SELF-MAINTAINING (it reads the view's source now, RED-witnessed by the new button landing before its entry while the old literal list stayed green), #342's residual executed as what it really was, and #335's conductor hazard PINNED. Bars 373-A..E all MET. 🔴 TWO OF THE FOUR WERE ALREADY DONE when this lane opened — #342's checks since 2026-08-15, #335's fix since 2026-08-21 — and both were carried on the ballot and in this entry's own list; the premise check that caught it cost ten minutes. 🟡 STAYS OPEN on ONE bullet: `score-due-omission.py` reporting the #200V warm-up trial as an arm.**
 
 > **✅ 2026-08-21 PM — five items, chosen because they share one shape: a cheap
