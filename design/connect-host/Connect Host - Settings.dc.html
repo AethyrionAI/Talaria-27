@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--accent:#54e6f0;--accent-bright:#cdf8fb;--accent-deep:#14636e;--forge:#ffc14d;--danger:#e0625f;--glow:1}
+*{box-sizing:border-box}
+body{margin:0;background:#080b0f}
+a{color:#54e6f0;text-decoration:none}
+a:hover{color:#cdf8fb}
+@keyframes tal-spin{to{transform:rotate(360deg)}}
+@keyframes tal-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+@keyframes tal-blink{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes tal-caret{0%,49%{opacity:1}50%,100%{opacity:0}}
+</style>
+</helmet>
+
+<div style="min-width:100%;min-height:100vh;width:max-content;box-sizing:border-box;padding:60px;background:#080b0f;font-family:'Space Grotesk',sans-serif">
+
+  <div style="margin-bottom:40px">
+    <div style="font-family:'Chakra Petch',sans-serif;font-size:13px;letter-spacing:7px;color:#7c93a6;font-weight:600">ARTIFACT 2 · SETTINGS → CONNECT HOST</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:2px;color:#4d6273;margin-top:9px">ALWAYS AVAILABLE · THE MANUAL PATH · ONE DISCONNECT WHERE TWO BUTTONS USED TO BE</div>
+    <div style="display:flex;gap:32px;margin-top:22px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.6px;color:#5d7488;line-height:1.9">
+      <div>ROW A — THE TWO RESTING STATES<br><span style="color:#4d6273">EMPTY · FILLED · CHECKING · CONNECTED</span></div>
+      <div>ROW B — THE HONEST ONES<br><span style="color:#4d6273">TWO FAILURES · HOSTS LIST · DISCONNECT</span></div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:44px;align-items:flex-start;margin-bottom:64px">
+
+    <div style="flex:none;width:392px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;color:#5d7488;margin:0 0 13px 6px">A1 · UNCONNECTED — nothing entered</div>
+      <div style="width:392px;height:850px;background:#000;border-radius:48px;padding:11px;border:1px solid rgba(120,150,175,.18);box-shadow:0 30px 70px rgba(0,0,0,.55)">
+        <div style="position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:radial-gradient(120% 70% at 50% -8%, #0c2730 0%, #070d15 52%, #04070c 100%)">
+          <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(84,230,240,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(84,230,240,.045) 1px,transparent 1px);background-size:26px 26px;pointer-events:none"></div>
+          <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#000;border-radius:18px;z-index:6"></div>
+          <div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:5">
+            <div style="font-family:'Chakra Petch',sans-serif;font-size:15px;color:#cfe1ea;letter-spacing:.5px;font-weight:600">9:41</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#7c93a6;letter-spacing:1.4px">5G&nbsp;&nbsp;▮▮▮▮</div>
+          </div>
+
+          <div style="position:absolute;top:52px;left:0;right:0;bottom:0;overflow:hidden;padding:8px 16px 22px">
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0 24px">
+              <div style="width:40px;height:40px;flex:none;border-radius:50%;background:rgba(84,230,240,.07);border:1px solid rgba(84,230,240,.26);display:flex;align-items:center;justify-content:center;color:var(--accent-bright);font-size:19px;line-height:0;padding-bottom:3px">‹</div>
+              <div>
+                <div style="font-family:'Chakra Petch',sans-serif;font-size:22px;font-weight:600;letter-spacing:3px;color:#eaf6f8">CONNECT HOST</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:2.2px;color:#5d7488;margin-top:4px">NO HOST CONNECTED</div>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:16px;padding:16px;border-radius:16px;background:rgba(8,18,26,.55);border:1px solid rgba(120,150,175,.16);margin-bottom:24px">
+              <div style="position:relative;width:42px;height:42px;flex:none">
+                <div style="position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(120,150,175,.28)"></div>
+                <div style="position:absolute;inset:13px;border-radius:50%;background:radial-gradient(circle at 50% 40%,#9fb3c4,#5d7488 45%,#26333d)"></div>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-family:'Chakra Petch',sans-serif;font-size:18px;font-weight:700;letter-spacing:1.4px;color:#cfe1ea">RUNNING LOCALLY</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:1.4px;color:#7c93a6;margin-top:5px">ON-DEVICE BRAIN · NOTHING TO CONNECT TO</div>
+              </div>
+              <div style="width:9px;height:9px;border-radius:50%;background:#7c93a6;flex:none"></div>
+            </div>
+
+            <div style="height:56px;display:flex;align-items:center;justify-content:center;gap:12px;border-radius:14px;background:linear-gradient(180deg,rgba(84,230,240,.22),rgba(84,230,240,.08));border:1px solid rgba(84,230,240,.6);box-shadow:0 0 calc(24px * var(--glow)) rgba(84,230,240,.35);color:#eaf6f8;margin-bottom:22px">
+              <div style="position:relative;width:16px;height:16px">
+                <div style="position:absolute;top:0;left:0;width:5px;height:5px;border-top:1.5px solid #eaf6f8;border-left:1.5px solid #eaf6f8"></div>
+                <div style="position:absolute;top:0;right:0;width:5px;height:5px;border-top:1.5px solid #eaf6f8;border-right:1.5px solid #eaf6f8"></div>
+                <div style="position:absolute;bottom:0;left:0;width:5px;height:5px;border-bottom:1.5px solid #eaf6f8;border-left:1.5px solid #eaf6f8"></div>
+                <div style="position:absolute;bottom:0;right:0;width:5px;height:5px;border-bottom:1.5px solid #eaf6f8;border-right:1.5px solid #eaf6f8"></div>
+                <div style="position:absolute;left:50%;top:3px;bottom:3px;width:1.5px;background:#eaf6f8;transform:translateX(-50%)"></div>
+              </div>
+              <div style="font-family:'Chakra Petch',sans-serif;font-size:16px;font-weight:600;letter-spacing:2.4px">SCAN HOST CODE</div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px">
+              <div style="flex:1;height:1px;background:rgba(120,150,175,.16)"></div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;color:#5d7488">OR TYPE THEM</div>
+              <div style="flex:1;height:1px;background:rgba(120,150,175,.16)"></div>
+            </div>
+
+            <div style="margin-bottom:20px">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;letter-spacing:2.2px;color:#5d7488;margin-bottom:8px">GATEWAY URL</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:15px;color:#4d6273;padding:16px;border-radius:14px;background:rgba(6,8,12,.6);border:1px solid rgba(84,230,240,.14)">http://your-host:8642</div>
+              <div style="font-size:12px;line-height:1.45;color:#7c93a6;margin-top:8px">Where your Hermes gateway listens.</div>
+            </div>
+
+            <div style="margin-bottom:24px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;letter-spacing:2.2px;color:#5d7488">API KEY</div>
+                <div style="display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:#7c93a6"><span style="width:5px;height:5px;border-radius:50%;background:#5d7488"></span>NOT STORED YET</div>
+              </div>
+              <div style="display:flex;gap:10px;align-items:stretch">
+                <div style="flex:1;font-family:'JetBrains Mono',monospace;font-size:15px;color:#4d6273;padding:16px;border-radius:14px;background:rgba(6,8,12,.6);border:1px solid rgba(84,230,240,.14)">Your host's API key</div>
+                <div style="width:52px;border-radius:14px;background:rgba(120,150,175,.06);border:1px solid rgba(120,150,175,.16);display:flex;align-items:center;justify-content:center;color:#4d6273;font-size:15px">◉</div>
+              </div>
+              <div style="font-size:12px;line-height:1.45;color:#7c93a6;margin-top:8px">Kept in this device's Keychain. Never shown in full again.</div>
+            </div>
+
+            <div style="height:56px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:rgba(120,150,175,.06);border:1px solid rgba(120,150,175,.16);color:#4d6273;font-family:'Chakra Petch',sans-serif;font-size:16px;font-weight:600;letter-spacing:2.4px">CHECK &amp; CONNECT</div>
+            <div style="text-align:center;font-size:12px;color:#5d7488;margin-top:12px">Both values are needed before the check can run.</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;line-height:1.8;letter-spacing:1.3px;color:#4d6273;margin:13px 0 0 6px">EMPTY IS NOT AN ERROR STATE. THE LOCAL<br>BRAIN IS NAMED AS THE CURRENT ANSWER.</div>
+    </div>
+
+    <div style="flex:none;width:392px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;color:#5d7488;margin:0 0 13px 6px">A2 · UNCONNECTED — filled, ready</div>
+      <div style="width:392px;height:850px;background:#000;border-radius:48px;padding:11px;border:1px solid rgba(120,150,175,.18);box-shadow:0 30px 70px rgba(0,0,0,.55)">
+        <div style="position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:radial-gradient(120% 70% at 50% -8%, #0c2730 0%, #070d15 52%, #04070c 100%)">
+          <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(84,230,240,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(84,230,240,.045) 1px,transparent 1px);background-size:26px 26px;pointer-events:none"></div>
+          <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#000;border-radius:18px;z-index:6"></div>
+          <div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:5">
+            <div style="font-family:'Chakra Petch',sans-serif;font-size:15px;color:#cfe1ea;letter-spacing:.5px;font-weight:600">9:41</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#7c93a6;letter-spacing:1.4px">5G&nbsp;&nbsp;▮▮▮▮</div>
+          </div>
+
+          <div style="position:absolute;top:52px;left:0;right:0;bottom:0;overflow:hidden;padding:8px 16px 22px">
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0 24px">
+              <div style="width:40px;height:40px;flex:none;border-radius:50%;background:rgba(84,230,240,.07);border:1px solid rgba(84,230,240,.26);display:flex;align-items:center;justify-content:center;color:var(--accent-bright);font-size:19px;line-height:0;padding-bottom:3px">‹</div>
+              <div>
+                <div style="font-family:'Chakra Petch',sans-serif;font-size:22px;font-weight:600;letter-spacing:3px;color:#eaf6f8">CONNECT HOST</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:2.2px;color:#5d7488;margin-top:4px">NOT CHECKED YET</div>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;background:rgba(8,18,26,.5);border:1px solid rgba(84,230,240,.12);margin-bottom:22px">
+              <div style="position:relative;width:30px;height:30px;flex:none">
+                <div style="position:absolute;top:0;left:0;width:10px;height:10px;border-top:1.5px solid var(--accent);border-left:1.5px solid var(--accent)"></div>
+                <div style="position:absolute;top:0;right:0;width:10px;height:10px;border-top:1.5px solid var(--accent);border-right:1.5px solid var(--accent)"></div>
+                <div style="position:absolute;bottom:0;left:0;width:10px;height:10px;border-bottom:1.5px solid var(--accent);border-left:1.5px solid var(--accent)"></div>
+                <div style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-bottom:1.5px solid var(--accent);border-right:1.5px solid var(--accent)"></div>
+              </div>
+              <div style="flex:1;font-size:14px;color:#cfe1ea">Scan a host code instead</div>
+              <div style="color:rgba(84,230,240,.7);font-size:15px">›</div>
+            </div>
+
+            <div style="margin-bottom:20px">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;letter-spacing:2.2px;color:#5d7488;margin-bottom:8px">GATEWAY URL</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:15px;color:#e8eef5;padding:16px;border-radius:14px;background:rgba(6,8,12,.6);border:1px solid rgba(84,230,240,.35);box-shadow:0 0 18px rgba(84,230,240,.10)">http://100.110.102.59:8642<span style="display:inline-block;width:1.5px;height:15px;background:var(--accent);margin-left:2px;vertical-align:text-bottom;animation:tal-caret 1s steps(1) infinite"></span></div>
+              <div style="font-size:12px;line-height:1.45;color:#7c93a6;margin-top:8px">Where your Hermes gateway listens.</div>
+            </div>
+
+            <div style="margin-bottom:24px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;letter-spacing:2.2px;color:#5d7488">API KEY</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:#7c93a6">TAP TO REVEAL</div>
+              </div>
+              <div style="display:flex;gap:10px;align-items:stretch">
+                <div style="flex:1;font-family:'JetBrains Mono',monospace;font-size:15px;letter-spacing:3px;color:#cfe1ea;padding:16px;border-radius:14px;background:rgba(6,8,12,.6);border:1px solid rgba(84,230,240,.14)">••••••••••••••••</div>
+                <div style="width:52px;border-radius:14px;background:rgba(84,230,240,.08);border:1px solid rgba(84,230,240,.25);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:15px">◉</div>
+              </div>
+              <div style="font-size:12px;line-height:1.45;color:#7c93a6;margin-top:8px">Kept in this device's Keychain. Never shown in full again.</div>
+            </div>
+
+            <div style="height:56px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:linear-gradient(180deg,rgba(84,230,240,.22),rgba(84,230,240,.08));border:1px solid rgba(84,230,240,.6);box-shadow:0 0 calc(24px * var(--glow)) rgba(84,230,240,.35);color:#eaf6f8;font-family:'Chakra Petch',sans-serif;font-size:16px;font-weight:600;letter-spacing:2.4px">CHECK &amp; CONNECT</div>
+            <div style="text-align:center;font-size:12px;color:#5d7488;margin-top:12px">Saved only if the host answers and takes the key.</div>
+
+            <div style="margin-top:26px;border-radius:14px;background:rgba(8,18,26,.4);border:1px solid rgba(120,150,175,.12);padding:16px;display:flex;flex-direction:column;gap:8px">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2.2px;color:#5d7488">// ON YOUR HOST</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#cfe1ea">hermes gateway run</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#cfe1ea">hermes talaria pair-qr</div>
+              <div style="font-size:12px;line-height:1.45;color:#7c93a6;margin-top:2px">The first starts the gateway. The second prints a code with both values in it.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;line-height:1.8;letter-spacing:1.3px;color:#4d6273;margin:13px 0 0 6px">SCAN DEMOTED TO A ROW ONCE TYPING STARTED.<br>THE HOST COMMANDS SIT AT THE BOTTOM, NOT THE TOP.</div>
+    </div>
+
+    <div style="flex:none;width:392px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;color:#5d7488;margin:0 0 13px 6px">A3 · CHECKING — inline, in place</div>
+      <div style="width:392px;height:850px;background:#000;border-radius:48px;padding:11px;border:1px solid rgba(120,150,175,.18);box-shadow:0 30px 70px rgba(0,0,0,.55)">
+        <div style="position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:radial-gradient(120% 70% at 50% -8%, #0c2730 0%, #070d15 52%, #04070c 100%)">
+          <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(84,230,240,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(84,230,240,.045) 1px,transparent 1px);background-size:26px 26px;pointer-events:none"></div>
+          <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#000;border-radius:18px;z-index:6"></div>
+          <div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:5">
+            <div style="font-family:'Chakra Petch',sans-serif;font-size:15px;color:#cfe1ea;letter-spacing:.5px;font-weight:600">9:41</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#7c93a6;letter-spacing:1.4px">5G&nbsp;&nbsp;▮▮▮▮</div>
+          </div>
+
+          <div style="position:absolute;top:52px;left:0;right:0;bottom:0;overflow:hidden;padding:8px 16px 22px">
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0 24px">
+              <div style="width:40px;height:40px;flex:none;border-radius:50%;background:rgba(84,230,240,.07);border:1px solid rgba(84,230,240,.26);display:flex;align-items:center;justify-content:center;color:var(--accent-bright);font-size:19px;line-height:0;padding-bottom:3px">‹</div>
+              <div>
+                <div style="font-family:'Chakra Petch',sans-serif;font-size:22px;font-weight:600;letter-spacing:3px;color:#eaf6f8">CONNECT HOST</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:2.2px;color:var(--accent);margin-top:4px">CHECKING…</div>
+              </div>
+            </div>
+
+            <div style="border-radius:16px;background:rgba(84,230,240,.06);border:1px solid rgba(84,230,240,.28);padding:20px;display:flex;flex-direction:column;gap:18px;margin-bottom:24px">
+              <div style="display:flex;align-items:center;gap:14px">
+                <div style="position:relative;width:42px;height:42px;flex:none">
+                  <div style="position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(84,230,240,.25);animation:tal-spin 10s linear infinite"></div>
+                  <div style="position:absolute;inset:5px;border-radius:50%;border:2px solid transparent;border-top-color:var(--accent);animation:tal-spin 1.1s linear infinite"></div>
+                  <div style="position:absolute;inset:15px;border-radius:50%;background:radial-gradient(circle at 50% 40%,var(--accent-bright),var(--accent) 45%,var(--accent-deep));box-shadow:0 0 12px rgba(84,230,240,.6);animation:tal-breathe 2s ease-in-out infinite"></div>
+                </div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:17px;font-weight:600;letter-spacing:1.6px;color:#eaf6f8">CHECKING THE HOST</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:var(--accent);margin-top:5px">100.110.102.59:8642</div>
+                </div>
+              </div>
+              <div style="height:1px;background:rgba(84,230,240,.14)"></div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div style="width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);flex:none"></div>
+                  <div style="flex:1;font-size:14px;color:#cfe1ea">Address reachable</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:var(--accent)">18MS</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div style="width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);flex:none;animation:tal-blink 1s ease-in-out infinite alternate"></div>
+                  <div style="flex:1;font-size:14px;color:#cfe1ea">Checking the key</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:#5d7488">…</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;opacity:.5">
+                  <div style="width:7px;height:7px;border-radius:50%;background:#5d7488;flex:none"></div>
+                  <div style="flex:1;font-size:14px;color:#7c93a6">Confirming it's a Hermes gateway</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:#5d7488">—</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-bottom:20px;opacity:.55">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;letter-spacing:2.2px;color:#5d7488;margin-bottom:8px">GATEWAY URL</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:15px;color:#cfe1ea;padding:16px;border-radius:14px;background:rgba(6,8,12,.6);border:1px solid rgba(84,230,240,.14)">http://100.110.102.59:8642</div>
+            </div>
+
+            <div style="margin-bottom:24px;opacity:.55">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;letter-spacing:2.2px;color:#5d7488;margin-bottom:8px">API KEY</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:15px;letter-spacing:3px;color:#cfe1ea;padding:16px;border-radius:14px;background:rgba(6,8,12,.6);border:1px solid rgba(84,230,240,.14)">••••••••••••••••</div>
+            </div>
+
+            <div style="height:56px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:rgba(84,230,240,.1);border:1px solid rgba(84,230,240,.4);color:var(--accent-bright);font-size:14px;font-weight:500">Cancel</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;line-height:1.8;letter-spacing:1.3px;color:#4d6273;margin:13px 0 0 6px">NO MODAL, NO SPINNER-ONLY BUTTON. THE FIELDS<br>DIM BUT STAY PUT SO A TYPO IS STILL VISIBLE.</div>
+    </div>
+
+    <div style="flex:none;width:392px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;color:#5d7488;margin:0 0 13px 6px">A4 · CONNECTED — the resting state</div>
+      <div style="width:392px;height:850px;background:#000;border-radius:48px;padding:11px;border:1px solid rgba(120,150,175,.18);box-shadow:0 30px 70px rgba(0,0,0,.55)">
+        <div style="position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:radial-gradient(120% 70% at 50% -8%, #0c2730 0%, #070d15 52%, #04070c 100%)">
+          <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(84,230,240,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(84,230,240,.045) 1px,transparent 1px);background-size:26px 26px;pointer-events:none"></div>
+          <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#000;border-radius:18px;z-index:6"></div>
+          <div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:5">
+            <div style="font-family:'Chakra Petch',sans-serif;font-size:15px;color:#cfe1ea;letter-spacing:.5px;font-weight:600">9:41</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#7c93a6;letter-spacing:1.4px">5G&nbsp;&nbsp;▮▮▮▮</div>
+          </div>
+
+          <div style="position:absolute;top:52px;left:0;right:0;bottom:0;overflow:hidden;padding:8px 16px 22px">
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0 24px">
+              <div style="width:40px;height:40px;flex:none;border-radius:50%;background:rgba(84,230,240,.07);border:1px solid rgba(84,230,240,.26);display:flex;align-items:center;justify-content:center;color:var(--accent-bright);font-size:19px;line-height:0;padding-bottom:3px">‹</div>
+              <div>
+                <div style="font-family:'Chakra Petch',sans-serif;font-size:22px;font-weight:600;letter-spacing:3px;color:#eaf6f8">CONNECT HOST</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:2.2px;color:var(--accent);margin-top:4px">OJAMD · CONNECTED</div>
+              </div>
+            </div>
+
+            <div style="border-radius:16px;background:rgba(84,230,240,.07);border:1px solid rgba(84,230,240,.3);box-shadow:0 0 calc(26px * var(--glow)) rgba(84,230,240,.10);padding:20px;display:flex;flex-direction:column;gap:16px;margin-bottom:22px">
+              <div style="display:flex;align-items:center;gap:14px">
+                <div style="position:relative;width:42px;height:42px;flex:none">
+                  <div style="position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(84,230,240,.35);animation:tal-spin 10s linear infinite"></div>
+                  <div style="position:absolute;inset:6px;border-radius:50%;border:2px solid transparent;border-top-color:var(--accent);animation:tal-spin 4s linear infinite reverse"></div>
+                  <div style="position:absolute;inset:14px;border-radius:50%;background:radial-gradient(circle at 50% 40%,var(--accent-bright),var(--accent) 45%,var(--accent-deep));box-shadow:0 0 14px rgba(84,230,240,.7);animation:tal-breathe 3s ease-in-out infinite"></div>
+                </div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:19px;font-weight:700;letter-spacing:2px;color:#eaf6f8">OJAMD</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:1.6px;color:var(--accent);margin-top:5px">REACHABLE · 18MS</div>
+                </div>
+                <div style="width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);flex:none;animation:tal-blink 1.4s ease-in-out infinite alternate"></div>
+              </div>
+              <div style="height:1px;background:rgba(84,230,240,.14)"></div>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px"><span style="color:#5d7488">ADDRESS</span><span style="color:#cfe1ea">100.110.102.59:8642</span></div>
+                <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px"><span style="color:#5d7488">KEY</span><span style="color:#cfe1ea">IN KEYCHAIN</span></div>
+                <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px"><span style="color:#5d7488">LAST ANSWERED</span><span style="color:#cfe1ea">9:41 AM · JUST NOW</span></div>
+              </div>
+              <div style="display:flex;gap:10px;margin-top:2px">
+                <div style="flex:1;height:44px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:rgba(84,230,240,.1);border:1px solid rgba(84,230,240,.35);color:var(--accent-bright);font-size:13px;font-weight:500">Check now</div>
+                <div style="flex:1;height:44px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:rgba(84,230,240,.1);border:1px solid rgba(84,230,240,.35);color:var(--accent-bright);font-size:13px;font-weight:500">Edit address</div>
+              </div>
+            </div>
+
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.4px;color:#5d7488;margin:0 0 11px 4px">// WHAT THIS HOST GIVES YOU</div>
+            <div style="border-radius:14px;background:rgba(8,18,26,.5);border:1px solid rgba(84,230,240,.12);overflow:hidden;margin-bottom:24px">
+              <div style="display:flex;align-items:center;gap:14px;padding:15px 16px">
+                <div style="flex:1;font-size:15px;color:#e8eef5">Desktop models</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:var(--accent)">14 SEEN</div>
+                <div style="color:rgba(84,230,240,.7);font-size:15px">›</div>
+              </div>
+              <div style="height:1px;background:rgba(84,230,240,.1);margin:0 16px"></div>
+              <div style="display:flex;align-items:center;gap:14px;padding:15px 16px">
+                <div style="flex:1;font-size:15px;color:#e8eef5">Server sessions</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:var(--accent)">ON</div>
+                <div style="color:rgba(84,230,240,.7);font-size:15px">›</div>
+              </div>
+              <div style="height:1px;background:rgba(84,230,240,.1);margin:0 16px"></div>
+              <div style="display:flex;align-items:center;gap:14px;padding:15px 16px">
+                <div style="flex:1;font-size:15px;color:#e8eef5">Phone context</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:#7c93a6">OFF · YOUR CHOICE</div>
+                <div style="color:rgba(84,230,240,.7);font-size:15px">›</div>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:14px;padding:16px;border-radius:14px;background:rgba(224,98,95,.06);border:1px solid rgba(224,98,95,.32)">
+              <div style="flex:1">
+                <div style="font-size:15px;color:var(--danger)">Disconnect this host</div>
+                <div style="font-size:12px;line-height:1.45;color:#7c93a6;margin-top:3px">Forgets the address and key, and tells OJAMD to drop this phone.</div>
+              </div>
+              <div style="color:rgba(224,98,95,.6);font-size:13px;font-weight:600">›</div>
+            </div>
+
+            <div style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.8px;color:#4d6273;margin-top:18px;line-height:1.7">CHAT KEEPS WORKING ON-DEVICE AFTERWARDS.</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;line-height:1.8;letter-spacing:1.3px;color:#4d6273;margin:13px 0 0 6px">ONE DESTRUCTIVE ROW, AND ITS BLURB NAMES<br>BOTH HALVES: LOCAL FORGET + HOST-SIDE DROP.</div>
+    </div>
+
+  </div>
+
+  <div style="margin-bottom:26px">
+    <div style="font-family:'Chakra Petch',sans-serif;font-size:12px;letter-spacing:6px;color:#7c93a6;font-weight:600">ROW B · THE HONEST ONES</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;color:#4d6273;margin-top:8px">FAILURE IN PLACE · A HOST THAT WENT QUIET · MORE THAN ONE MACHINE · THE ONE-BUTTON DISCONNECT</div>
+  </div>
+
+  <div style="display:flex;gap:44px;align-items:flex-start">
+
+    <div style="flex:none;width:392px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;color:#5d7488;margin:0 0 13px 6px">B1 · FAILED IN PLACE — key turned down</div>
+      <div style="width:392px;height:850px;background:#000;border-radius:48px;padding:11px;border:1px solid rgba(120,150,175,.18);box-shadow:0 30px 70px rgba(0,0,0,.55)">
+        <div style="position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:radial-gradient(120% 70% at 50% -8%, #0c2730 0%, #070d15 52%, #04070c 100%)">
+          <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(84,230,240,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(84,230,240,.045) 1px,transparent 1px);background-size:26px 26px;pointer-events:none"></div>
+          <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#000;border-radius:18px;z-index:6"></div>
+          <div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:5">
+            <div style="font-family:'Chakra Petch',sans-serif;font-size:15px;color:#cfe1ea;letter-spacing:.5px;font-weight:600">9:41</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#7c93a6;letter-spacing:1.4px">5G&nbsp;&nbsp;▮▮▮▮</div>
+          </div>
+
+          <div style="position:absolute;top:52px;left:0;right:0;bottom:0;overflow:hidden;padding:8px 16px 22px">
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0 22px">
+              <div style="width:40px;height:40px;flex:none;border-radius:50%;background:rgba(84,230,240,.07);border:1px solid rgba(84,230,240,.26);display:flex;align-items:center;justify-content:center;color:var(--accent-bright);font-size:19px;line-height:0;padding-bottom:3px">‹</div>
+              <div>
+                <div style="font-family:'Chakra Petch',sans-serif;font-size:22px;font-weight:600;letter-spacing:3px;color:#eaf6f8">CONNECT HOST</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:2.2px;color:var(--forge);margin-top:4px">CHECK FAILED · KEY</div>
+              </div>
+            </div>
+
+            <div style="border-radius:16px;background:rgba(255,193,77,.07);border:1px solid rgba(255,193,77,.4);padding:18px;display:flex;flex-direction:column;gap:14px;margin-bottom:22px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="width:7px;height:7px;border-radius:50%;background:var(--forge);flex:none"></div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:2.6px;color:var(--forge)">KEY TURNED DOWN</div>
+              </div>
+              <div style="font-size:15px;line-height:1.5;color:#e8eef5;text-wrap:pretty">The host answered in 16ms and refused this key. The address is right — the key isn't.</div>
+              <div style="height:1px;background:rgba(255,193,77,.2)"></div>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div style="width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);flex:none"></div>
+                  <div style="flex:1;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:#cfe1ea">ADDRESS REACHABLE</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:var(--accent)">16MS</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div style="width:6px;height:6px;border-radius:50%;background:var(--forge);flex:none"></div>
+                  <div style="flex:1;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:#cfe1ea">KEY ACCEPTED</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:var(--forge)">NO</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-bottom:20px">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;letter-spacing:2.2px;color:#5d7488;margin-bottom:8px">GATEWAY URL</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:15px;color:#cfe1ea;padding:16px;border-radius:14px;background:rgba(6,8,12,.6);border:1px solid rgba(84,230,240,.14)">http://100.110.102.59:8642</div>
+            </div>
+
+            <div style="margin-bottom:24px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;letter-spacing:2.2px;color:var(--forge)">API KEY · NEEDS ATTENTION</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:#7c93a6">PASTE</div>
+              </div>
+              <div style="display:flex;gap:10px;align-items:stretch">
+                <div style="flex:1;font-family:'JetBrains Mono',monospace;font-size:15px;letter-spacing:3px;color:#cfe1ea;padding:16px;border-radius:14px;background:rgba(6,8,12,.6);border:1px solid rgba(255,193,77,.5);box-shadow:0 0 16px rgba(255,193,77,.10)">••••••••••••••••<span style="display:inline-block;width:1.5px;height:15px;background:var(--forge);margin-left:4px;vertical-align:text-bottom;animation:tal-caret 1s steps(1) infinite"></span></div>
+                <div style="width:52px;border-radius:14px;background:rgba(84,230,240,.08);border:1px solid rgba(84,230,240,.25);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:15px">◉</div>
+              </div>
+              <div style="font-size:12px;line-height:1.45;color:#7c93a6;margin-top:8px">Your host prints it with <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#cfe1ea">hermes talaria pair-qr</span> if it's easier to scan.</div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div style="height:56px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:linear-gradient(180deg,rgba(84,230,240,.22),rgba(84,230,240,.08));border:1px solid rgba(84,230,240,.6);box-shadow:0 0 calc(24px * var(--glow)) rgba(84,230,240,.35);color:#eaf6f8;font-family:'Chakra Petch',sans-serif;font-size:16px;font-weight:600;letter-spacing:2.4px">CHECK AGAIN</div>
+              <div style="height:48px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:rgba(84,230,240,.1);border:1px solid rgba(84,230,240,.4);color:var(--accent-bright);font-size:14px;font-weight:500">Scan the code instead</div>
+            </div>
+
+            <div style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.8px;color:#4d6273;margin-top:18px">NOTHING WAS SAVED. YOU ARE STILL ON-DEVICE.</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;line-height:1.8;letter-spacing:1.3px;color:#4d6273;margin:13px 0 0 6px">THE FAILURE SITS WHERE THE HOST CARD WOULD BE,<br>AND ONLY THE GUILTY FIELD IS FLAGGED.</div>
+    </div>
+
+    <div style="flex:none;width:392px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;color:#5d7488;margin:0 0 13px 6px">B2 · CONNECTED BUT QUIET — went away</div>
+      <div style="width:392px;height:850px;background:#000;border-radius:48px;padding:11px;border:1px solid rgba(120,150,175,.18);box-shadow:0 30px 70px rgba(0,0,0,.55)">
+        <div style="position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:radial-gradient(120% 70% at 50% -8%, #0c2730 0%, #070d15 52%, #04070c 100%)">
+          <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(84,230,240,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(84,230,240,.045) 1px,transparent 1px);background-size:26px 26px;pointer-events:none"></div>
+          <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#000;border-radius:18px;z-index:6"></div>
+          <div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:5">
+            <div style="font-family:'Chakra Petch',sans-serif;font-size:15px;color:#cfe1ea;letter-spacing:.5px;font-weight:600">9:41</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#7c93a6;letter-spacing:1.4px">5G&nbsp;&nbsp;▮▮▮▮</div>
+          </div>
+
+          <div style="position:absolute;top:52px;left:0;right:0;bottom:0;overflow:hidden;padding:8px 16px 22px">
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0 22px">
+              <div style="width:40px;height:40px;flex:none;border-radius:50%;background:rgba(84,230,240,.07);border:1px solid rgba(84,230,240,.26);display:flex;align-items:center;justify-content:center;color:var(--accent-bright);font-size:19px;line-height:0;padding-bottom:3px">‹</div>
+              <div>
+                <div style="font-family:'Chakra Petch',sans-serif;font-size:22px;font-weight:600;letter-spacing:3px;color:#eaf6f8">CONNECT HOST</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:2.2px;color:var(--forge);margin-top:4px">OJAMD · NOT ANSWERING</div>
+              </div>
+            </div>
+
+            <div style="border-radius:16px;background:rgba(8,18,26,.6);border:1px solid rgba(255,193,77,.35);padding:20px;display:flex;flex-direction:column;gap:16px;margin-bottom:22px">
+              <div style="display:flex;align-items:center;gap:14px">
+                <div style="position:relative;width:42px;height:42px;flex:none">
+                  <div style="position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(255,193,77,.3)"></div>
+                  <div style="position:absolute;inset:14px;border-radius:50%;background:radial-gradient(circle at 50% 40%,#ffe2a6,var(--forge) 45%,#6e4d14);opacity:.75"></div>
+                </div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-family:'Chakra Petch',sans-serif;font-size:19px;font-weight:700;letter-spacing:2px;color:#eaf6f8">OJAMD</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:1.6px;color:var(--forge);margin-top:5px">NO ANSWER · LAST SEEN 2H AGO</div>
+                </div>
+                <div style="width:9px;height:9px;border-radius:50%;background:var(--forge);flex:none;animation:tal-blink 1.4s ease-in-out infinite alternate"></div>
+              </div>
+              <div style="height:1px;background:rgba(255,193,77,.2)"></div>
+              <div style="font-size:14px;line-height:1.5;color:#cfe1ea;text-wrap:pretty">Still saved, just not reachable right now. Chat is answering on-device until it comes back.</div>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px"><span style="color:#5d7488">ADDRESS</span><span style="color:#cfe1ea">100.110.102.59:8642</span></div>
+                <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px"><span style="color:#5d7488">KEY</span><span style="color:#cfe1ea">IN KEYCHAIN</span></div>
+                <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px"><span style="color:#5d7488">LAST ANSWERED</span><span style="color:var(--forge)">7:32 AM</span></div>
+              </div>
+              <div style="display:flex;gap:10px">
+                <div style="flex:1;height:44px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:rgba(84,230,240,.1);border:1px solid rgba(84,230,240,.35);color:var(--accent-bright);font-size:13px;font-weight:500">Check now</div>
+                <div style="flex:1;height:44px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:rgba(84,230,240,.1);border:1px solid rgba(84,230,240,.35);color:var(--accent-bright);font-size:13px;font-weight:500">Edit address</div>
+              </div>
+            </div>
+
+            <div style="border-radius:14px;background:rgba(8,18,26,.4);border:1px solid rgba(120,150,175,.12);padding:16px;display:flex;flex-direction:column;gap:8px;margin-bottom:22px">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2.2px;color:#5d7488">// COMMON CAUSES</div>
+              <div style="font-size:13px;line-height:1.6;color:#7c93a6;text-wrap:pretty">The machine is asleep · your private network is down on this phone · the gateway isn't running.</div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:14px;padding:16px;border-radius:14px;background:rgba(224,98,95,.06);border:1px solid rgba(224,98,95,.32)">
+              <div style="flex:1">
+                <div style="font-size:15px;color:var(--danger)">Disconnect this host</div>
+                <div style="font-size:12px;line-height:1.45;color:#7c93a6;margin-top:3px">Forgets the address and key here; OJAMD is told when it's next reachable.</div>
+              </div>
+              <div style="color:rgba(224,98,95,.6);font-size:13px;font-weight:600">›</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;line-height:1.8;letter-spacing:1.3px;color:#4d6273;margin:13px 0 0 6px">SAVED ≠ REACHABLE. THE CARD SAYS BOTH, AND<br>THE DISCONNECT BLURB STAYS TRUTHFUL OFFLINE.</div>
+    </div>
+
+    <div style="flex:none;width:392px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;color:#5d7488;margin:0 0 13px 6px">B3 · MORE THAN ONE MACHINE</div>
+      <div style="width:392px;height:850px;background:#000;border-radius:48px;padding:11px;border:1px solid rgba(120,150,175,.18);box-shadow:0 30px 70px rgba(0,0,0,.55)">
+        <div style="position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:radial-gradient(120% 70% at 50% -8%, #0c2730 0%, #070d15 52%, #04070c 100%)">
+          <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(84,230,240,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(84,230,240,.045) 1px,transparent 1px);background-size:26px 26px;pointer-events:none"></div>
+          <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#000;border-radius:18px;z-index:6"></div>
+          <div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:5">
+            <div style="font-family:'Chakra Petch',sans-serif;font-size:15px;color:#cfe1ea;letter-spacing:.5px;font-weight:600">9:41</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#7c93a6;letter-spacing:1.4px">5G&nbsp;&nbsp;▮▮▮▮</div>
+          </div>
+
+          <div style="position:absolute;top:52px;left:0;right:0;bottom:0;overflow:hidden;padding:8px 16px 22px">
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0 22px">
+              <div style="width:40px;height:40px;flex:none;border-radius:50%;background:rgba(84,230,240,.07);border:1px solid rgba(84,230,240,.26);display:flex;align-items:center;justify-content:center;color:var(--accent-bright);font-size:19px;line-height:0;padding-bottom:3px">‹</div>
+              <div>
+                <div style="font-family:'Chakra Petch',sans-serif;font-size:22px;font-weight:600;letter-spacing:3px;color:#eaf6f8">CONNECT HOST</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:2.2px;color:var(--accent);margin-top:4px">3 HOSTS · OJAMD IN USE</div>
+              </div>
+            </div>
+
+            <div style="border-radius:16px;background:rgba(84,230,240,.07);border:1px solid rgba(84,230,240,.4);box-shadow:0 0 calc(22px * var(--glow)) rgba(84,230,240,.10);padding:16px;margin-bottom:12px">
+              <div style="display:flex;align-items:flex-start;gap:12px">
+                <div style="flex:1;min-width:0">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <div style="font-size:16px;font-weight:500;color:#eaf6f8">OJAMD</div>
+                    <div style="color:var(--accent);font-size:13px">✓</div>
+                  </div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:#7c93a6;margin-top:3px">100.110.102.59</div>
+                </div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:500;letter-spacing:1.4px;color:var(--accent);padding:3px 6px;border-radius:4px;background:rgba(84,230,240,.1);border:1px solid rgba(84,230,240,.35)">IN USE</div>
+                <div style="color:#7c93a6;font-size:15px;line-height:.9">⋯</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;margin-top:14px">
+                <div style="display:flex;align-items:center;gap:5px"><div style="width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 5px var(--accent)"></div><div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:var(--accent)">REACHABLE · 18MS</div></div>
+                <div style="flex:1"></div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;letter-spacing:1.4px;color:var(--accent)">KEY OK</div>
+              </div>
+            </div>
+
+            <div style="border-radius:16px;background:rgba(6,8,12,.5);border:1px solid rgba(84,230,240,.12);padding:16px;margin-bottom:12px">
+              <div style="display:flex;align-items:flex-start;gap:12px">
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:16px;font-weight:500;color:#e8eef5">Studio Mac</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:#7c93a6;margin-top:3px">100.72.14.8</div>
+                </div>
+                <div style="color:#7c93a6;font-size:15px;line-height:.9">⋯</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;margin-top:14px">
+                <div style="display:flex;align-items:center;gap:5px"><div style="width:6px;height:6px;border-radius:50%;background:var(--forge)"></div><div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:var(--forge)">NO ANSWER</div></div>
+                <div style="flex:1"></div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;letter-spacing:1.4px;color:#7c93a6">KEY SAVED</div>
+              </div>
+            </div>
+
+            <div style="border-radius:16px;background:rgba(6,8,12,.5);border:1px solid rgba(84,230,240,.12);padding:16px;margin-bottom:20px">
+              <div style="display:flex;align-items:flex-start;gap:12px">
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:16px;font-weight:500;color:#e8eef5">Dev box</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.4px;color:#7c93a6;margin-top:3px">100.88.203.41</div>
+                </div>
+                <div style="color:#7c93a6;font-size:15px;line-height:.9">⋯</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;margin-top:14px">
+                <div style="display:flex;align-items:center;gap:5px"><div style="width:6px;height:6px;border-radius:50%;background:#5d7488"></div><div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.4px;color:#7c93a6">NOT CHECKED</div></div>
+                <div style="flex:1"></div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;letter-spacing:1.4px;color:var(--forge)">NO KEY</div>
+              </div>
+            </div>
+
+            <div style="height:52px;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:14px;background:rgba(84,230,240,.1);border:1px solid rgba(84,230,240,.4);color:var(--accent-bright);font-size:14px;font-weight:500;margin-bottom:22px">Add another host</div>
+
+            <div style="border-radius:14px;background:rgba(8,18,26,.4);border:1px solid rgba(120,150,175,.12);padding:16px;display:flex;flex-direction:column;gap:8px">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2.2px;color:#5d7488">// HOW SWITCHING WORKS</div>
+              <div style="font-size:13px;line-height:1.6;color:#7c93a6;text-wrap:pretty">One host is in use at a time. Each keeps its own key. Tap a card to switch — the check runs again before anything changes.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;line-height:1.8;letter-spacing:1.3px;color:#4d6273;margin:13px 0 0 6px">STATUS PER HOST IS MEASURED OR "NOT CHECKED" —<br>NEVER GUESSED. NO KEY IS ITS OWN HONEST STATE.</div>
+    </div>
+
+    <div style="flex:none;width:392px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;color:#5d7488;margin:0 0 13px 6px">B4 · DISCONNECT — the one action</div>
+      <div style="width:392px;height:850px;background:#000;border-radius:48px;padding:11px;border:1px solid rgba(120,150,175,.18);box-shadow:0 30px 70px rgba(0,0,0,.55)">
+        <div style="position:relative;width:100%;height:100%;border-radius:38px;overflow:hidden;background:radial-gradient(120% 70% at 50% -8%, #0c2730 0%, #070d15 52%, #04070c 100%)">
+          <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(84,230,240,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(84,230,240,.045) 1px,transparent 1px);background-size:26px 26px;pointer-events:none;opacity:.5"></div>
+          <div style="position:absolute;inset:0;background:rgba(2,6,10,.85);z-index:7"></div>
+          <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#000;border-radius:18px;z-index:9"></div>
+          <div style="position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;z-index:8">
+            <div style="font-family:'Chakra Petch',sans-serif;font-size:15px;color:#cfe1ea;letter-spacing:.5px;font-weight:600">9:41</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#7c93a6;letter-spacing:1.4px">5G&nbsp;&nbsp;▮▮▮▮</div>
+          </div>
+
+          <div style="position:absolute;top:52px;left:0;right:0;bottom:0;padding:8px 16px 22px;opacity:.4;filter:blur(1px)">
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 0 22px">
+              <div style="width:40px;height:40px;flex:none;border-radius:50%;background:rgba(84,230,240,.07);border:1px solid rgba(84,230,240,.26)"></div>
+              <div>
+                <div style="font-family:'Chakra Petch',sans-serif;font-size:22px;font-weight:600;letter-spacing:3px;color:#eaf6f8">CONNECT HOST</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2.2px;color:var(--accent);margin-top:4px">OJAMD · CONNECTED</div>
+              </div>
+            </div>
+            <div style="border-radius:16px;background:rgba(84,230,240,.07);border:1px solid rgba(84,230,240,.3);height:190px"></div>
+          </div>
+
+          <div style="position:absolute;left:16px;right:16px;bottom:22px;z-index:9;border-radius:24px;background:rgba(8,18,26,.96);border:1px solid rgba(224,98,95,.35);box-shadow:0 -20px 60px rgba(0,0,0,.6);padding:26px 22px 22px;display:flex;flex-direction:column;gap:20px">
+            <div style="width:44px;height:4px;border-radius:2px;background:rgba(120,150,175,.3);align-self:center"></div>
+
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:2.6px;color:var(--danger)">DISCONNECT OJAMD</div>
+              <div style="font-family:'Chakra Petch',sans-serif;font-size:22px;font-weight:600;letter-spacing:1.6px;color:#eaf6f8">Two things happen</div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;align-items:flex-start;gap:12px;padding:15px 16px;border-radius:14px;background:rgba(6,8,12,.6);border:1px solid rgba(120,150,175,.16)">
+                <div style="width:20px;height:20px;flex:none;border-radius:6px;background:rgba(224,98,95,.12);border:1px solid rgba(224,98,95,.3);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:var(--danger)">1</div>
+                <div>
+                  <div style="font-size:14px;color:#e8eef5">This phone forgets the address and key</div>
+                  <div style="font-size:12px;line-height:1.45;color:#7c93a6;margin-top:3px">Removed from the Keychain. You'd re-enter or re-scan them to come back.</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:flex-start;gap:12px;padding:15px 16px;border-radius:14px;background:rgba(6,8,12,.6);border:1px solid rgba(120,150,175,.16)">
+                <div style="width:20px;height:20px;flex:none;border-radius:6px;background:rgba(224,98,95,.12);border:1px solid rgba(224,98,95,.3);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:var(--danger)">2</div>
+                <div>
+                  <div style="font-size:14px;color:#e8eef5">OJAMD drops this device</div>
+                  <div style="font-size:12px;line-height:1.45;color:#7c93a6;margin-top:3px">Its record for this phone is retired. Your other phones and hosts are untouched.</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:flex-start;gap:10px;padding:14px 16px;border-radius:12px;background:rgba(84,230,240,.05);border:1px solid rgba(84,230,240,.16)">
+              <div style="color:var(--accent);font-size:12px;line-height:1.5">▸</div>
+              <div style="font-size:13px;line-height:1.5;color:#7c93a6;text-wrap:pretty">Chat keeps working on this phone. Your saved conversations stay where they are.</div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div style="height:56px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:rgba(224,98,95,.14);border:1px solid rgba(224,98,95,.55);color:#ff8a86;font-family:'Chakra Petch',sans-serif;font-size:16px;font-weight:600;letter-spacing:2.4px">DISCONNECT</div>
+              <div style="height:48px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:rgba(84,230,240,.1);border:1px solid rgba(84,230,240,.4);color:var(--accent-bright);font-size:14px;font-weight:500">Keep it connected</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;line-height:1.8;letter-spacing:1.3px;color:#4d6273;margin:13px 0 0 6px">ONE BUTTON, BOTH HALVES SPELLED OUT — WHAT<br>USED TO BE "REVOKE HOST" + "DISCONNECT".</div>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;accent&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;cyan&quot;,&quot;amber&quot;,&quot;violet&quot;],&quot;default&quot;:&quot;cyan&quot;,&quot;tsType&quot;:&quot;'cyan'|'amber'|'violet'&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;glow&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:1,&quot;min&quot;:0,&quot;max&quot;:1.4,&quot;step&quot;:0.1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Appearance&quot;}}">
+class Component extends DCLogic {
+  // Accent slots + warning hue exactly as Shared/ThemePaletteCore.swift resolves
+  // them for Deep Field: the warning must stay separable from the accent.
+  static SLOTS = {
+    cyan:   { base: "#54e6f0", bright: "#cdf8fb", deep: "#14636e", forge: "#ffc14d" },
+    amber:  { base: "#ffc14d", bright: "#ffe2a6", deep: "#6e4d14", forge: "#ff7a18" },
+    violet: { base: "#b18cff", bright: "#e2d4ff", deep: "#3a2d6e", forge: "#ffc14d" }
+  };
+  componentDidMount() { this.apply(); }
+  componentDidUpdate() { this.apply(); }
+  apply() {
+    const slot = Component.SLOTS[this.props.accent] || Component.SLOTS.cyan;
+    const root = document.documentElement.style;
+    root.setProperty("--accent", slot.base);
+    root.setProperty("--accent-bright", slot.bright);
+    root.setProperty("--accent-deep", slot.deep);
+    root.setProperty("--forge", slot.forge);
+    root.setProperty("--glow", String(this.props.glow ?? 1));
+  }
+}
+</script>
+</body>
+</html>

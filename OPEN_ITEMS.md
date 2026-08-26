@@ -7825,6 +7825,22 @@ queue producers inherit whatever this decides.
 >    Lane B's UI look gets a runbook card, not a merge hold, unless the
 >    spec review changes that.
 
+> **📄 THE DESIGN SPEC LANDED THE SAME NIGHT — Owen's Claude Design
+> export (wizard A0–A6 + B1–B7; settings A1–A4 + B1–B4), committed at
+> `design/connect-host/` with the fact-checked build translation at
+> `planning/2026-08-25-309-laneB-connect-host-spec.md`.** Verdicts: both
+> deliverable artifacts vocabulary-clean (relay words only in the
+> "Today" reference panel, correctly); mechanism copy accurate
+> (`pair-qr` real as of tonight); the export's own reading of the wizard
+> ruling — "ENTERED, NEVER IMPOSED," no first-launch auto-wizard —
+> ADOPTED as stricter-than-ruled under #31. **One falsehood caught and
+> corrected in translation:** step 0's "nothing leaves the device"
+> ignores PCC (the #385 tier-honesty class) — replacement copy in the
+> spec §4.1. New implied mechanisms enumerated (§3: probe ladder as one
+> authenticated call, commit-on-probe-pass, deferred revoke for the
+> unreachable-host disconnect, key-never-shown-post-save). Lane B's bars
+> draw from the spec at its open, after Lane C.
+
 > **📐 BARS PRE-REGISTERED 2026-08-25 night (lanes A, C, D at their
 > open; Lane B's bars register when the design spec arrives):**
 > - **309-A1:** `LiveSessionBootstrapService`, `ResilientSessionBootstrapService`,
