@@ -45,6 +45,14 @@ invents:
   (`admin.py:15,43` → `store.create_pairing`, `store.py:55`) mints a device
   row with **no install_id** and prints the plaintext token once. The app
   has no UI to paste it; it predates the `pair` verb. See Q4.
+  **⟵ CORRECTED 2026-08-25 night (#412, Owen's device find on 3063):
+  "no UI" understates it — the Pairing & Devices screen
+  (`ConnectHermesHostScreen.swift:118`) ADVERTISES this CLI ("Prints a
+  pairing code — scan it with Pair New Device below") while its scanner
+  accepts only the 8-char relay alphabet and redeems against the retired
+  relay. The arm is not merely unconsumed; it is falsely advertised by a
+  flow that dead-ends twice. Strengthens Q4: make it real or delete both
+  halves, and §6's screen replacement inherits #412's pin.**
 
 **The consequence:** the chat plane (`/v1/runs`, `/api/sessions*`)
 authenticates by Bearer `API_SERVER_KEY` and by nothing else — the gateway

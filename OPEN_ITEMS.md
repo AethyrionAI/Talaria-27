@@ -162,6 +162,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); the refusal wording is the lever — **✅ THE STRING SHIPPED 2026-08-25 (PR #376): both branches carry an explicit do-not-claim clause, RED-first, mutation-proven both ways, 409-A/B/C MET. OPEN on 409-D only — the wording changed, the model's behaviour is UNVERIFIED until the next device `refusal-words` run**
 - **#410** ✅ unlanded AGENTS.md resync recovered from a stale worktree (commit `831b7620` mislabeled itself "#403") — **LANDED 2026-08-25**: sync script extracted byte-for-byte, AGENTS.md regenerated fresh from current CLAUDE.md (two runs byte-identical), worktree + branch pruned; 403-D (standing mechanism) still awaits Owen
 - **#411** 🐛 four AppContainer lifecycle entry points hard-gate on relay `isPaired` — gateway-only/hostless installs get NO lifecycle refresh (widgets, live activities, skills, voice readiness, share-inbox drain) — found by the #309 design sweep; fix rides #309 Lane A, Owen rules on the design doc first; redundancy coverage verify owed before quoting impact
+- **#412** 🐛 the Pairing & Devices screen instructs a flow that cannot complete at either end — plugin-CLI copy (`hermes talaria pair`) over a relay-alphabet code field and a relay-plane gate — Owen's 3063 device find; absorbed by #309 Lane B (Connect Host), no separate lane
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it**. **MEASURED 2026-08-11; clipping RULED OUT.** ~~Mechanism UNKNOWN~~ ~~⟵ INVESTIGATED 2026-08-25, candidates ranked~~ **⟵ ✅ MECHANISM MEASURED 2026-08-25 (measurement lane, unit repro): `openSession`'s wholesale replace + `mapStoredMessage`'s role refusal and empty usage fields zero BOTH totals inputs in ONE event, and the 9→7 row drop is the same event. Candidate ① CONFIRMED; candidate ③ (the `.voiceHermes` predicate split) is REAL but mutation-proven NOT the cause; the entry's "receipts render normally" claim is FALSIFIED — no reopened row carries `usage` or `turnDuration`, and the quoted numbers are the card's LAST TURN block via `SessionUsageIndex`. Shipped: 16 pins in `SessionTotalsAfterReopenTests`, a verbose-gated `/usage` instrument (NOT `#if DEBUG`), 3 seam breadcrumbs at `.notice`, and 330-G's six-step device script.** 330-A/B/E DISCHARGED; **330-C/330-D DEFERRED to the fix lane** (receipts sidecar + predicate convergence), 330-G is Owen's. Keeps #312 (f) RED
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
@@ -769,7 +770,7 @@ native pipeline), **#1** (voice transcripts).
 > half — which stays deliberately unbuilt behind the fault-2 author
 > measurement (§3 device row 12), per the ruling.
 
-## 393. 🔴 THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES — `accent` bottoms out at **1.24:1** and `accentBright` at **1.16:1**, and one of the casualties is the theme picker that would let you escape — **FOUND BY OWEN USING THE APP 2026-08-21, then measured. Same class as #325, different tokens, WORSE numbers. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): calls 1, 3 and 4 BUILT + MERGED 2026-08-22/23 (PRs #350, #351) — every text token now 0/88. Call 2 (`dimForeground`) and the fifth, decorative-floor call remain unelected.** **⟵ 2026-08-23 decision pass: call 2 is now ELECTED (build; ramp ordering pinned; Owen eyeballs on device before merge) and the fifth call is ELECTED danger-pips-only — ruling block at the foot of the entry.** **⟵ ✅ BUILT the same night — bars 393-C2-A..C + 393-P5-A all met, GATE PASS 2497/14/Release. PR #357 held for the closing bar, then ✅ CLOSING BAR MET + MERGED (squash `c8341df5`): Owen eyeballed the ramp on device (build 2971) — "toybox and pulp noir look good", the two ramp-capped themes named specifically. Result block at the foot. ~~What remains open on this entry: the deepField pinned-dim question, and the unelected residue (mutedForeground 9/88; retroSciFi's decorative accent).~~** **⟵ HEADER CORRECTED 2026-08-25 (orchestrated premise re-check): the deepField question was RESOLVED 2026-08-23 — Owen accepted 3.16, pin kept (the entry's own final ⚖️ block records it; this header missed the correction). What ACTUALLY remains: `mutedForeground` (9/88 — re-verified true at HEAD, palette byte-unchanged since the measurement) and `retroSciFi`'s decorative accent (same 1.24:1/1.16:1 literals, declined at election). Two decisions, both Owen's. ⟵ ⚖️ BOTH RULED 2026-08-25 (AskUserQuestion): `mutedForeground` FIX ELECTED — ramp ORDER pinned by test, merge waits on Owen's device eyeball (call 2's own precedent); `retroSciFi`'s decorative accent KEEP AS AESTHETIC — a STANDING ACCEPTED STATE, recorded so it stops resurfacing on ballots. After the muted lane merges and the eyeball lands, nothing remains on this entry.** **⟵ ✅ BUILT 2026-08-25 (the muted lane, branch `393-muted-foreground-ramp`): two literals moved — `pulpNoir` 3.84→4.41, `stickerBombToybox` 4.20→4.40 — both RAMP-CAPPED, because the finding is that a muted at 4.5 IS that theme's `secondaryForeground`, the same hex; `deepField` unmoved by the 08-23 pin ruling, so the token is **still 9/88** with every cell improved or ruled untouchable. Ramp order now pinned as FIVE relations across all 88 cells, mutation-proven on `solarForge`. 393-M-A/B/D + the gate met (PASS 2576/14/Release); 393-M-C met inverted — RED at exactly 6 on both sides of the palette move. **PR #380 OPEN — HOLDS for Owen's device eyeball**; the eyeball card is in the result block at the foot.**
+## 393. 🔴 THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES — `accent` bottoms out at **1.24:1** and `accentBright` at **1.16:1**, and one of the casualties is the theme picker that would let you escape — **FOUND BY OWEN USING THE APP 2026-08-21, then measured. Same class as #325, different tokens, WORSE numbers. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): calls 1, 3 and 4 BUILT + MERGED 2026-08-22/23 (PRs #350, #351) — every text token now 0/88. Call 2 (`dimForeground`) and the fifth, decorative-floor call remain unelected.** **⟵ 2026-08-23 decision pass: call 2 is now ELECTED (build; ramp ordering pinned; Owen eyeballs on device before merge) and the fifth call is ELECTED danger-pips-only — ruling block at the foot of the entry.** **⟵ ✅ BUILT the same night — bars 393-C2-A..C + 393-P5-A all met, GATE PASS 2497/14/Release. PR #357 held for the closing bar, then ✅ CLOSING BAR MET + MERGED (squash `c8341df5`): Owen eyeballed the ramp on device (build 2971) — "toybox and pulp noir look good", the two ramp-capped themes named specifically. Result block at the foot. ~~What remains open on this entry: the deepField pinned-dim question, and the unelected residue (mutedForeground 9/88; retroSciFi's decorative accent).~~** **⟵ HEADER CORRECTED 2026-08-25 (orchestrated premise re-check): the deepField question was RESOLVED 2026-08-23 — Owen accepted 3.16, pin kept (the entry's own final ⚖️ block records it; this header missed the correction). What ACTUALLY remains: `mutedForeground` (9/88 — re-verified true at HEAD, palette byte-unchanged since the measurement) and `retroSciFi`'s decorative accent (same 1.24:1/1.16:1 literals, declined at election). Two decisions, both Owen's. ⟵ ⚖️ BOTH RULED 2026-08-25 (AskUserQuestion): `mutedForeground` FIX ELECTED — ramp ORDER pinned by test, merge waits on Owen's device eyeball (call 2's own precedent); `retroSciFi`'s decorative accent KEEP AS AESTHETIC — a STANDING ACCEPTED STATE, recorded so it stops resurfacing on ballots. After the muted lane merges and the eyeball lands, nothing remains on this entry.** **⟵ ✅ BUILT 2026-08-25 (the muted lane, branch `393-muted-foreground-ramp`): two literals moved — `pulpNoir` 3.84→4.41, `stickerBombToybox` 4.20→4.40 — both RAMP-CAPPED, because the finding is that a muted at 4.5 IS that theme's `secondaryForeground`, the same hex; `deepField` unmoved by the 08-23 pin ruling, so the token is **still 9/88** with every cell improved or ruled untouchable. Ramp order now pinned as FIVE relations across all 88 cells, mutation-proven on `solarForge`. 393-M-A/B/D + the gate met (PASS 2576/14/Release); 393-M-C met inverted — RED at exactly 6 on both sides of the palette move. ~~**PR #380 OPEN — HOLDS for Owen's device eyeball**; the eyeball card is in the result block at the foot.~~ **⟵ ✅ EYEBALL PASSED + MERGED same night (squash `52137d6e`): Owen on build 3063 — "No issues detected with the themes" — the ship-as-is arm; AA-collapse offered, not taken. ENTRY COMPLETE; archive move rides the next sweep.****
 
 **How it was found, which matters.** #325 shipped that evening and Owen ran the
 device pass. Testing warning text on the light themes, he reported: *"Winter
@@ -1425,6 +1426,20 @@ Marquee ships three of the worst-affected palettes).
 >   below the JND**, and takes those six cells out of the ratchet baseline.
 > - **Control: Deep Field** (the default) is UNCHANGED at 4.12 by his own
 >   08-23 ruling. If anything looks different there, something leaked.
+
+> **✅ THE CLOSING BAR IS MET AND PR #380 IS MERGED (squash `52137d6e`,
+> 2026-08-25 night).** Owen ran the eyeball on build 3063 (staged as
+> main + this branch precisely so the eyeball needn't wait on the merge)
+> and reported verbatim: **"No issues detected with the themes."** That
+> is the SHIP-AS-IS arm of the three-arm question — muted stays at its
+> ramp-capped 4.41/4.40 on the two movable themes, the AA-collapse
+> option (muted = secondary's literal, 0.69 L\* apart) was offered and
+> NOT taken, and Deep Field's control passed implicitly in the same
+> verdict. Recorded as his ruling on the design question, not merely a
+> visual pass. **Nothing now remains on this entry** — every call
+> (1–5), the muted raise, and both standing-accepted states (deepField
+> 3.16, retroSciFi decorative) are dispositioned; archive move rides
+> the next sweep.
 
 ## 392. 🔴 A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT — *"your calendar didn't accept the request"* when the user declined the card — **MEASURED 2/30 ON DEVICE 2026-08-21 (#199A's re-run), CALENDAR-ONLY. Spawned rather than kept inside #199A, whose own claim is refuted. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built + merged 2026-08-23 (PR #353) with NO treatment elected, per Owen's route; the n≥30 device run is what remains.**
 
@@ -9115,6 +9130,35 @@ not free and must be visible" is that lane's own sentence, in the code at
 `StatusCardView.swift:94`), **#46** (the card and its CTX-gauge toggle),
 **#215** (why 330-B has a stop condition), **#180** (honest degradation).
 
+> **📏 2026-08-25 ~20:52 — CANDIDATE ① CONFIRMED ON DEVICE (Owen, build
+> 3063, the six-step script, two `/usage` screenshots).** Both
+> discriminating signatures observed:
+> - **Pre-reopen (post-transplant):** conversation `DA4F12D4`, ROWS 10,
+>   **TOTALS PRESENT · metered 1 · priming 1**, a `system … KIMI-K3 ·
+>   PRIMING` row present, senders user 2 / hermes 2 / system 3 /
+>   voice_user 2 / voice_hermes 1 — the step-3 EXPECT, exactly.
+> - **Post-reopen:** conversation **`C245DF95` — a DIFFERENT id**, ROWS
+>   1, **TOTALS ABSENT · metered 0 · priming 0 · SESSION BLOCK HIDDEN**,
+>   every Carriers count 0 — the step-6 PREDICTED output, exactly.
+> **Confound, stated:** the reopen appears to have happened while a turn
+> was in flight ("STILL WORKING" visible pre-reopen; the reopened thread
+> read 2 messages / 1 row), so the exact row arithmetic is confounded by
+> in-flight state — but the discriminator (present → absent + fresh id)
+> does not depend on it. The measurement script's device half is DONE;
+> **330-G (the FIX's closing bar) still waits on the fix lane.**
+> **Two NEW observations for the fix lane, from the same screenshots:**
+> 1. **The LIVE priming row carries `PRIMING TOKENS 0`** — before any
+>    reopen. The 08-11 observation had 36,939 priming tokens; on the
+>    runs plane the live priming row's token payload is apparently
+>    absent at creation. 330-D's "priming row with its hops and TOKENS"
+>    must find where priming tokens now come from, not just replay them.
+> 2. **Post-reopen, the transplanted priming PAYLOAD renders as a plain
+>    USER bubble** (the whole summary text as if Owen typed it) — the
+>    role-user priming turn survives `mapStoredMessage` while its notice
+>    row dies. The fix should restyle/suppress it (or the sidecar
+>    replay re-marks it) — a reopened thread currently shows the user a
+>    wall of primer text under their own name.
+
 ## 332. 🎲 THE FIRST DEVICE SUITE RUN — three failures the simulator has been hiding, on two devices at once — **FILED 2026-08-11. The full unit suite had NEVER run on hardware; every green in this project's history came from a simulator. It ran on both `whoGoesThere` and Shelley's iPad in the same sitting and failed on both, differently. ~~NOT STARTED~~ → **332-a and 332-b FIXED 2026-08-12 on `t27-332ab-device-suite-test-fixes`** — both are sim-verified with witnessed negative controls, and each has ONE half left that only hardware can score, deferred to the next central device pass (this lane touched no device, by instruction). **332-c STAYS OPEN and is untouched** — its first bar is a measurement nobody has taken yet, and the entry must not be edited to assume the benign answer. Bars per finding below.**
 
 **The run.** `-only-testing:TalariaTests` on each device, `main` @ `7699c43`.
@@ -15952,6 +15996,32 @@ via host-inference" — the layer that fired), #212 (error messages must name
 the true cause — the current message DOES; this item is about the dead end,
 not the wording).
 
+> **📏 2026-08-25 ~20:47 — THE DEVICE CHECK RAN AND THE TRIGGER HAS
+> DISSOLVED (Owen, build 3063, two screenshots).** He sent BOTH
+> laundromat photos on-device, one turn each: **both PASSED** with rich
+> scene descriptions (8:47 the brighter "Speed Queen" shot, OUT 55;
+> 8:48 the darker shot — the one that was **0/2 declined** earlier the
+> same day on build 3022 — OUT 57; both IN 4.3K, `READIMAGETEXT` chip
+> on both). Two consequences, recorded honestly:
+> - **The auto-degrade arm was NOT exercised on device** — it remains
+>   unit-proven only (16 pins, 5 mutations). The device bar as written
+>   ("re-send the declined photo, expect the note") is UNRUNNABLE ON
+>   DEMAND: no photo in hand reliably declines any more. The runbook
+>   card is re-cut to a PASSIVE observation — the next ORGANIC decline
+>   in daily use is the moment to look for the note. The entry stays
+>   open on that observation alone.
+> - **The 408-P stability question is answered toward NOT-STABLE:** the
+>   same photo went 0/2 (afternoon) → 1/1 (evening) on the same OS
+>   (beta 7 both times; only the app build changed, and the app does not
+>   ship the safety model). Per-image opinion does NOT hold across
+>   sessions — threshold/sampling noise or model-state dependence is
+>   real. This softens the "bare Retry is useless" premise (Retry is
+>   occasionally useful) without touching the shipped fix, which only
+>   fires when a decline actually happens. Owen's afternoon
+>   two-near-duplicates ambiguity stands recorded; tonight's send was
+>   deliberate ("I sent both"), so the contrast is clean at n=3 total
+>   observations of the dark photo.
+
 ## 409. 🔴 THE GOVERNOR'S `same-tool-repeat` REFUSAL STRING IS ANSWERED WITH A FALSE COMPLETION CLAIM — 6/6 across two runs and two instruments, while the phase-CUT path is 9/9 honest — **FILED 2026-08-25 per #268, from the 336-A forensics (Opus agent, full report in the session transcript). INSTRUMENT-REACHABLE, essentially PRODUCTION-UNREACHABLE today; the refusal WORDING is the named lever. ⟵ ✅ THE STRING SHIPPED 2026-08-25 (branch `409-do-not-claim-clause`, PR #376) — both refusal branches carry the do-not-claim clause, RED-first and mutation-proven in both directions; 409-A/B/C MET. **STAYS OPEN on 409-D, which is a STRING claim and not a behavioural one:** nothing here shows the model stops lying, and only the next device `refusal-words` run can.**
 
 The mechanism, determined from `run-20260812-214629-F6C46C82` (three claim
@@ -16228,7 +16298,45 @@ the gate replacement is what makes that deletion safe.
 **Related:** #309 (home of the lane), #31/#137 (the no-pairing-wall
 stance this violates in spirit), #365/#310 (the sibling stall + its
 partial gate), #145 Part D (the `// harness-visible` foreground-activation
-instrumentation whose semantics change when the guard does). 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
+instrumentation whose semantics change when the guard does).
+
+## 412. 🐛 THE "PAIRING & DEVICES" SCREEN INSTRUCTS A FLOW THAT CANNOT COMPLETE AT EITHER END — plugin-CLI copy over a relay-plane gate and a relay-alphabet code field — **FILED 2026-08-25 night per #268, from Owen's device pass on build 3063 ("Side note, relay verbiage detected, settings > Uplink > pairing and devices"). NO LANE — the screen is already scheduled for retirement by #309 Lane B; this entry pins what his screenshot proved so the design ruling absorbs it.**
+
+**What the screen says vs what the code can do (all verified at HEAD):**
+- The SETUP card (`ConnectHermesHostScreen.swift:118-119`) instructs:
+  *"`hermes talaria pair` — Prints a pairing code — scan it with Pair New
+  Device below."* But that CLI (`talaria/admin.py:15,43` →
+  `store.create_pairing`) prints a **43-char urlsafe one-time token**,
+  while the scan/entry path accepts only `PhonePairingCode`'s **8-char
+  relay alphabet** (`RelaySetupCodePayload.swift`) and redeems it against
+  the RETIRED relay (`LivePairingService` → `phone-pairing/redeem`).
+  **Following the on-screen instructions verbatim dead-ends twice**: the
+  CLI can't mint what the field accepts, and the field's redeem target no
+  longer exists.
+- The screen's availability gates on the RELAY plane —
+  `HermesHostStore.relayAvailabilityProvider` renders *"This profile has
+  no relay URL, so host pairing and enrollment aren't available on it"*
+  (`HermesHostStore.swift:72`, twice on the screen) — **plugin-era copy
+  behind a relay-plane gate, the #411 wrong-plane family in copy form.**
+- `RelaySetupCodePayload.swift:9` repeats the false provenance: *"Enter
+  the 8-character code from `hermes talaria pair`."*
+- Sibling noted, same family: `InboxStore.swift:57` ("no relay URL, so
+  there's no inbox to load") gates the relay-FETCHED half only (local
+  items survive by design) — the plugin-plane inbox rides the platform
+  link elsewhere; #309 Lane A/B's predicate re-keying covers it.
+
+**Disposition:** absorbed by #309 Lane B (the Connect Host screen
+replaces this screen wholesale) — no separate lane unless Owen rules the
+copy needs an interim fix before that lane runs. **Close-out already
+done:** the design doc's §1 claim that the CLI arm has "no UI" is
+corrected (dated) — the UI ADVERTISES the arm it cannot consume, which
+strengthens Q4 (make it real or delete both halves).
+
+**Related:** #309 (the absorbing design), #411 (wrong-plane gates,
+sibling class), #405 (the pairing-screen family's last defect), #406
+(the relay field's draft pattern — reused by Connect Host).
+
+## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
 **2026-08-11 — what was run and what it found (Fable orchestrator + 4 subagents; sims
 CC-B5-{,probe-,control-}iPhone-Air on runtime 24A5408d, beta4 24A5390f retained for A/B):**
