@@ -464,10 +464,40 @@ final class TalariaUITests: XCTestCase {
         // still showing CONTINUE, tap it again. A wizard that genuinely never
         // advances still runs out the deadline and still reds — nothing is
         // masked; a dropped tap is retried instead of being fatal.
+        //
+        // **And the loop dismisses a SYSTEM ALERT if one is up, because the
+        // diagnostic finally named the mechanism.** After thirty re-taps a
+        // gate run still reported `continue=true`: the button was on screen
+        // and its action never ran, which is not a dropped tap — it is a tap
+        // being SWALLOWED by something on top. A springboard alert is exactly
+        // that, and it is invisible to `app.buttons`, which is why every
+        // earlier diagnostic pointed at the wrong thing. Tapping it through is
+        // the same courtesy `testFreshInstallNeverPresentsNotificationPermission
+        // Dialog` already extends to the springboard, in the other direction.
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let startChatting = app.buttons["connectHostWizard.startChatting"]
         let tapDeadline = Date(timeIntervalSinceNow: 30)
         while !startChatting.exists, Date() < tapDeadline {
-            if carryOn.exists { carryOn.tap() }
+            if springboard.alerts.count > 0 {
+                let alert = springboard.alerts.firstMatch
+                let accept = alert.buttons.element(boundBy: alert.buttons.count - 1)
+                if accept.exists { accept.tap() }
+            }
+            if carryOn.exists {
+                // **`.exists` is not `.isHittable`.** An element under the
+                // keyboard plane or below the fold still exists, and `.tap()`
+                // on it lands on whatever is actually at those coordinates —
+                // which is a tap that "does nothing" from the test's side and
+                // is indistinguishable from a dropped one. Scroll it into
+                // reach first, then tap the coordinate space rather than the
+                // frame.
+                if !carryOn.isHittable { app.swipeUp() }
+                if carryOn.isHittable {
+                    carryOn.tap()
+                } else {
+                    carryOn.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+                }
+            }
             RunLoop.current.run(until: Date(timeIntervalSinceNow: 1.0))
         }
         // The diagnostic is deliberately made of CHEAP, NAMED probes rather
@@ -485,7 +515,10 @@ final class TalariaUITests: XCTestCase {
             connectMyHost=\(app.buttons["connectHostWizard.connectMyHost"].exists) \
             tryAgain=\(app.buttons["TRY AGAIN"].exists) \
             settingsScan=\(app.buttons["connectHost.scan"].exists) \
-            composer=\(composerInput(in: app).exists)
+            composer=\(composerInput(in: app).exists) \
+            springboardAlerts=\(springboard.alerts.count) \
+            continueHittable=\(app.buttons["connectHostWizard.continue"].isHittable) \
+            keyboards=\(app.keyboards.count)
             """
         )
         startChatting.tap()

@@ -47,6 +47,9 @@ struct ConnectHostWizard: View {
                             .padding(.horizontal, Design.Spacing.lg)
                             .padding(.vertical, Design.Spacing.lg)
                     }
+                    // A user who scrolls has already told us they want to see
+                    // what the keyboard is covering.
+                    .scrollDismissesKeyboard(.interactively)
                 }
             }
         }
@@ -280,6 +283,12 @@ struct ConnectHostWizard: View {
                 )
 
                 GlowButton(title: ConnectHostCopy.checkAndConnect) {
+                    // **Put the keyboard away before the ladder appears.** The
+                    // fields dim for the duration anyway, so a keyboard over a
+                    // spinner is noise — and on the step that follows it can
+                    // sit over the primary action, which is how CONTINUE ends
+                    // up present-but-unreachable.
+                    dismissKeyboard()
                     step = .check
                     model.startCheck()
                 }
@@ -482,6 +491,16 @@ struct ConnectHostWizard: View {
     }
 
     // MARK: Navigation
+
+    /// The responder-chain hammer. SwiftUI has no first-class "resign whatever
+    /// is focused" for a `@FocusState` owned by a child view, and the fields
+    /// live in `ConnectHostFieldsCard`; routing focus out of that component
+    /// just to dismiss a keyboard would put a second source of truth for focus
+    /// into a shared view.
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
 
     private func goBack() {
         switch step {
