@@ -10811,6 +10811,47 @@ distinguish LIVE from the other two.
 > traced in the same pass, findings INTERNAL pending Owen's per-submission
 > go (the standing external-submissions rule). Results file here.
 
+> **📏 TASK A1 COMPLETE — same night (Sonnet read-only trace, upstream
+> checkout `beb794123`, clean tree; full report in the session
+> transcript). THE ANSWER DISSOLVES BLOCKER 2:**
+> - **A desktop-only user already has a first-class gateway restart —
+>   shipped, two ways:** the statusbar Gateway popover's Power-icon
+>   "Restart Gateway" button (`apps/desktop/src/app/shell/
+>   gateway-menu-panel.tsx:203-213`) and the Command Palette entry
+>   (`command-palette/index.tsx:922`). Both → `POST /api/gateway/restart`
+>   on the desktop's OWN backend, which spawns a detached
+>   `hermes gateway restart` (`web_server.py:4789-4846`) that tries the
+>   OS service manager first, then kill-and-respawn.
+> - **The desktop app does NOT manage the gateway process itself** — its
+>   `serve --port 0` children are its own dashboard backends (in-repo
+>   comment: "the gateway isn't running under the app"); the restart is
+>   control-plane-by-HTTP, matching the CLI exactly.
+> - **Upstream treats gateway restart as a DELIBERATE, disruptive
+>   action** — the button's own comment says it was visually isolated
+>   "so it can't be hit by mistake." Evidence AGAINST any silent
+>   auto-restart in 269-B's flow.
+> - **Security flag RESOLVED BENIGN (static, internal):** the route has
+>   no inline `_require_token`, but the global `auth_middleware`
+>   (`web_server.py:935-956`) 401s every non-allowlisted `/api/*` path
+>   first — `gateway/restart` is not on `PUBLIC_API_PATHS` and not a
+>   registered token route. The per-route helper is redundant
+>   belt-and-braces (its own docstring says the middleware is
+>   authoritative in gated mode). Nothing to report upstream; the old
+>   "do not use the endpoint either way" caution is superseded — it is
+>   gated like the rest of the dashboard surface. (Routes belong to the
+>   DASHBOARD app :9119, not the :8642 chat plane — two-of-everything
+>   held.)
+> - **Stale cite corrected:** the entry's `main.ts:8167` now points at
+>   cloud-agent discovery; the real spawns are `:10502-10503` and
+>   `:10848-10849` at this HEAD. And the desktop Electron source lives
+>   IN the hermes-agent repo (`apps/desktop/`) — no asar spelunking
+>   needed, ever.
+> **THE RESTART RULING IS NOW READY (recommendation put to Owen in-chat
+> the same night): the agent/app never restarts the gateway silently —
+> 269-B's installer flow ends by pointing the user at the existing
+> Restart Gateway affordance (popover Power icon / palette), matching
+> upstream's own deliberate-action UX. Awaiting his word.**
+
 ## 264. ⚠️ A bounced gateway can come up WITHOUT the chat plane: api_server loses the :8642 bind race to the dying process's socket and NEVER RETRIES — **FILED 2026-08-06 late night (bit us live, mid-device-pass); upstream Hermes behavior, ops rule until fixed**
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
