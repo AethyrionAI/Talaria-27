@@ -132,7 +132,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#138** 🐛 Realtime engine self-barge-in — assistant TTS captured as user speech (OJAMD voice host); slow turn …
 - **#140** 🔧 README + GitHub Pages refresh — ~~stale wedge narrative + pre-freemium positioning~~ re-scoped 2026-08-25 (as-filed premise discharged) → **✅ PUBLISHED the same day on Owen's go (PR #373, `47632a01`, verified live): relay claims retired, the vision story public, beta6 line, honest screens meta. Remaining: the P-4 screenshot batch + device rows R15/R16 (runbook-carded)**
 - **#148** 🔧 Hermes 0.19 “Quicksilver” impact assessment — wire, shim, and behavior deltas vs Talaria (investigation …
-- **#150** ✨ Talaria as an MCP CLIENT — app-side MCP access (post-launch marquee candidate; distinct from #149)
+- **#150** ✨ Talaria as an MCP CLIENT — app-side MCP access (post-launch marquee candidate; distinct from #149) — **📏 discovery pass EXECUTED 2026-08-25 (08-09 ruling discharged): FM runtime-schema blocker FALSIFIED (typecheck-proven), host↔phone transport already shipped, Hermes ships its own MCP client; Lane C does NOT fit a 4096 window. Options + recommendation filed — Owen rules**
 - **#162** 🛠 156a Tasks lane — **SHIPPED, on `main`** (`Talaria/Features/Tasks/`, reachable at `ContentView.swift:246`) …
 - **#163** 🧩 156b Skills lane — **SHIPPED, on `main`** (`Talaria/Features/Skills/`, reachable at …
 - **#165** 🧩 156d Insights lane — **SHIPPED, on `main`** (`Talaria/Features/Insights/`, reachable at …
@@ -3442,7 +3442,7 @@ Logged 2026-07-20.
 
 ---
 
-## 150. ✨ Talaria as an MCP CLIENT — app-side MCP access (post-launch marquee candidate; distinct from #149)
+## 150. ✨ Talaria as an MCP CLIENT — app-side MCP access (post-launch marquee candidate; distinct from #149) — **📏 DISCOVERY PASS EXECUTED 2026-08-25, the 08-09 ruling DISCHARGED: the MECHANISM got easier (the FM runtime-schema blocker is falsified, typecheck-proven) and the VALUE got narrower (Hermes ships its own MCP client; the host↔phone transport already shipped). Free-tier Lane C does NOT fit a 4096-token window. Recommendation filed — DECISION BACK TO OWEN**
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **DISCOVERY PASS, not a park and not a build** — Owen: *"Can we do any
@@ -3534,6 +3534,162 @@ Logged 2026-07-20.
 
 
 > **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** the read-only MCP-client-fit discovery pass owed to the 08-09 ruling — dispatched immediately (no sim needed); deliverable is a filed reassessment, not code. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
+
+> **📏 DISCOVERY PASS EXECUTED — 2026-08-25 night. The 08-09 ruling is
+> DISCHARGED.** Read-only re-assessment at HEAD (`d405340a`); no host probe, no
+> endpoint call, no config touched. **Long form, with the evidence and the
+> arithmetic:** `planning/reports/2026-08-25-150-discovery.md`.
+>
+> **THE ANSWER TO OWEN'S QUESTION ("is it a better fit now?") IS SPLIT:** the
+> MECHANISM got materially easier, the VALUE got materially narrower. Four of
+> the 2026-07-20 design's premises are falsified, and they do not point the
+> same way.
+>
+> **① The "central OPEN QUESTION" was never a real constraint — MEASURED, not
+> argued.** `design/MCP_CLIENT_DESIGN.md` §6 held that FoundationModels tools
+> need compile-time `@Generable` argument types while MCP schemas are runtime
+> JSON, and recommended a **curated single-`query: String`** shape on that
+> basis. **False.** `Tool.parameters: GenerationSchema` is a protocol
+> REQUIREMENT whose default lives only in the `where Arguments: Generable`
+> extension, `Arguments` is merely `ConvertibleFromGeneratedContent`, and
+> `GenerationSchema.init(root: DynamicGenerationSchema, dependencies:)` builds
+> a schema at RUNTIME (iOS 26.0+, so this was true the day the doc was
+> written). `GeneratedContent` carries `init(json:)` / `.jsonString` — the wire
+> bridge to `tools/call` is one property. A probe declaring
+> `Tool` with `Arguments = GeneratedContent` + a runtime-built `parameters`,
+> handed to `LanguageModelSession(tools:)`, **typechecks clean against the
+> beta6 iPhoneOS 27.0 SDK** (`TYPECHECK_EXIT=0`), with a **negative control**
+> (2 errors) proving the compiler resolved the real framework. ⇒ A FAITHFUL
+> MCP tool bridge is available; the curated-single-string recommendation is
+> retired.
+>
+> **② The "tier inversion" is superseded — the host↔phone transport SHIPPED.**
+> The doc's §5 said the host cannot reach phone-local tools and that Lane D's
+> transport "does not exist." It exists on **both** ends at HEAD: the talaria
+> plugin `0.5.0` registers `talaria_phone_query` (`talaria/tools.py:29-54`), a
+> **synchronous 40 s round trip** — `TransportHub` parks an `asyncio.Future`,
+> the phone's 25 s long-polled `drain` carries the query, the phone POSTs
+> `query_result`, and the tool returns **inside the same model turn** — answered
+> app-side by `PhoneQueryResponder.swift` behind the same privacy gates as the
+> belt. So the naive tier story is RESTORED, not inverted. **But that channel is
+> a hardcoded, hand-synced 7-kind enum** (`location|health|motion|weather|
+> calendar|reminders|deviceStatus`), so each new capability costs a plugin edit,
+> an app edit and a release. **⇒ This is now the strongest surviving argument
+> FOR #150, and it is a DIFFERENT argument than the one filed:** MCP on the
+> phone would give that existing channel a DYNAMIC capability surface instead of
+> a static enum.
+>
+> **③ Hermes already ships a mature MCP client — which guts the Connected-tier
+> case.** `tools/mcp_tool.py` (~8.6k lines, host checkout `beb794123618`,
+> 0.20.5) does **stdio + Streamable HTTP + SSE**, OAuth 2.1 PKCE, mTLS,
+> protocol-version negotiation (`transport_type = "HTTP" if "url" in config
+> else "stdio"`, `:7560`), configured at `mcp_servers:` in `config.yaml` — and
+> it already solves the many-tools context problem with the deferred registry
+> (`tool_search`/`tool_describe`/`tool_call`, #347's mechanism). ⇒ **For any
+> server the HOST can reach, a Connected user has that capability today, with
+> no app change.** App-side MCP's only unique slice is *servers the host cannot
+> reach but the phone can* (phone's network position, or on-phone).
+>
+> **④ THE CONTEXT MATH — and the doc's budget omitted the belt entirely.** §6
+> budgeted an MCP tool's schema (≤300 tok) and result (≤1500 tok) against a
+> "4096/8192 TOTAL" window, never subtracting the device belt already resident
+> on every armed turn, nor the response reserve. Production reserves **1024**
+> on-device (`responseHeadroomTokens`), so usable = `contextSize − 1024`:
+> - **4096 window → 3072 usable.** Belt alone (measured `fullBelt=1648tok`,
+>   15 tools, 2026-08-09) = **53.6%**. + MCP schema = 1948. **+ one 1500-tok
+>   result = 3448 — OVER BUDGET. It does not fit at all.**
+> - **8192 window → 7168 usable.** Same total = 3448 = 48%, ~3720 left. Viable.
+> ⇒ **Free-tier model-driven MCP (Lane C) is arithmetically dead on 4096-token
+> hardware at the doc's own numbers.** Not a tuning problem — the belt is over
+> half the usable window before MCP arrives.
+>
+> **WHY THE ESCAPE HATCH IS SHUT: selective arming did not ship.** #284's vector
+> probe MISSED the ≤2% danger bar at **4.76%** (and in-scope exact-set at 37.5%),
+> so per its own pre-registration `ToolIntentRouteVector`/`routeVector` stay
+> `#if DEBUG` and production routing is still **binary** — `[]` or the whole
+> 15-tool belt. **There is no mechanism today to arm an MCP tool only on turns
+> that need it.** Two nuances that matter here: the danger bar measures
+> NARROWING (MCP is ADDITION, so 4.76% is not itself a risk to an MCP tool — it
+> is the reason the FIX is unavailable), and every in-scope miss was a SUPERSET
+> (over-arms, never under-arms). Note also that #284 named this very scenario as
+> its payoff ("50+ capabilities would exceed the entire 8k window… the broker
+> decouples capability COUNT from context COST") — **the descriptor half shipped,
+> the decoupling half did not.**
+>
+> **✅ WHAT DID IMPROVE, structurally:** `CapabilityRegistry` ships with
+> `enum CapabilitySource { case device; case hermes, mcp, skill }` — **`.mcp`
+> declared and unpopulated**, and the registry builds structurally from
+> `CapabilityDescribing` conformance, so a conforming MCP tool would appear in
+> the `/capabilities` sheet and the armed blurb with **zero registry changes**.
+> `ToolConfirmationCenter` (#70) is unchanged and still the one gate. #304
+> already renders the host's **`pattern_key: "mcp_elicitation"`** approval shape
+> on the phone, so the consent language exists.
+>
+> **🔴 A NEW RISK THAT DID NOT EXIST AT FILING (#346, and it is EMPIRICAL):**
+> running two tool surfaces on one agent has already bitten this project — the
+> legacy `hermes_mobile` MCP toolset SHADOWED the talaria plugin and the model
+> picked the legacy tool **by name-literalness**, bypassing the on-device
+> privacy gates and the honest-unreachable prose. App-side MCP would add a
+> **THIRD** surface with name collisions by construction (a user's server may
+> expose `get_location`, `read_calendar`…). **#150's design doc has no
+> namespacing/precedence design.** Any build must carry one.
+>
+> **STATE CHECK (nothing has been built):** no `Package.swift`; `project.yml`'s
+> `packages:` block still holds only WebRTC 130.0.0; zero `*MCP*` files under
+> `Talaria/`. The one grep hit is a cosmetic `SlashCommand(name: "reload-mcp",
+> isLocal: false)` — a HERMES command label relayed to the host, not app-side
+> MCP. Two further doc defects: §1 cites `IOS27_NATIVE_CAPABILITIES.md`, which
+> **does not exist in this repo and never has** (`git log --all` empty) though
+> its numbers check out against code; and the SDK verdict
+> (`modelcontextprotocol/swift-sdk` `from: 0.11.0`) is **UNVERIFIED tonight** —
+> out of scope, no network — corroborated only that the current spec revision is
+> **2025-11-25**, matching the doc. Lane A's compile gate (iOS minimum × Swift 6)
+> is still genuinely open. Also stale by retirement: the doc's Lane-D sketch
+> routes through the **relay**, retired on both hosts by #375.
+>
+> **THE OPTIONS (Owen's call — none of this is launch-pass work):**
+> - **① CORRECT THE RECORD, STAY PARKED.** Docs-only rewrite of the design doc's
+>   §5/§6 against ①–④, add the arithmetic, add the #346 namespacing question.
+>   *One small docs lane, no risk.*
+> - **② NARROW TO A MANUAL CONSOLE (Lanes A+B only, never C).** Registry +
+>   Keychain + honest probe + browse + manual invoke through
+>   `ToolConfirmationCenter` + insert result as quoted context. **Sidesteps ④
+>   entirely** — a manual result enters as TEXT; no schema ever joins the belt.
+>   *Two medium lanes + an SPM dep. Real but niche value.*
+> - **③ INVERT — make the EXISTING host→phone channel dynamic.** Phone stays the
+>   MCP client, but the CONSUMER is the host model via a new `talaria_phone_query`
+>   kind / sibling verb. Closest thing to the original "game changer", and ②
+>   above makes it far cheaper than the doc's Lane D imagined. *Two-sided (app +
+>   plugin); pays off only for the host-unreachable slice.*
+> - **④ KILL as considered-and-declined (re-filable)**, tonight's #253 shape:
+>   Connected is served by Hermes's own client, Free is blocked by arithmetic,
+>   the unique slice is thin for a 1.1 marquee. *One tracker commit.*
+>
+> **RECOMMENDATION (mine; Owen rules): ① now, hold the build question until
+> after launch, and if it is ever built, build ②'s shape — not Lane C.** ④ is
+> premature: the fit genuinely IMPROVED on both mechanical axes (the empty
+> `.mcp` seam, the runtime-schema bridge), and killing it tonight would discard
+> that on a value argument that only bites in Connected. ③ is the most
+> interesting and is named here as **the real form of the original ambition**,
+> but it is two-sided work whose payoff depends on a slice nobody has sized.
+> **Lane C should be treated as DEAD on 4096-token hardware until selective
+> arming ships**, and any revival must re-derive the table above against the
+> belt cost measured THAT day — never against the doc's belt-free budget.
+> **Explicitly NOT recommended:** adopting the SPM dependency before Lane A's
+> compile gate is a real decision (toolchain has moved twice since the verdict),
+> and building a phone-side deferred-tool registry to buy back context (three
+> model round trips per cold call is a bad bet against the record correction's
+> ceiling and the shipped governor's 12/turn · 4/tool caps).
+>
+> **➡️ DECISION BACK TO OWEN.** Nothing here changes #150's post-launch scope on
+> its own; the pass was ordered to inform the choice, not to make it.
+>
+> *(One cross-ref flagged, NOT corrected because it was not verified in this
+> pass: #251 still records "every MCP elicitation AUTO-DECLINES on the chat
+> plane" as an open HITL gap, a note that predates #304's elicitation-shaped
+> approval card and may be stale. It needs its own look rather than a
+> correction written blind from here.)*
+
 ## 162. 🛠 156a Tasks lane — **SHIPPED, on `main`** (`Talaria/Features/Tasks/`, reachable at `ContentView.swift:246`); **device checklist still owed** — header corrected 2026-08-01
 
 Dispatch `dispatch/FABLE-T27-156A-tasks-cron.md` executed 2026-07-22 on the Mac Mini
