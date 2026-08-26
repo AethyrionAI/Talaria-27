@@ -332,6 +332,116 @@ final class ChatStore {
         return (totals.meteredTurns > 0 || totals.primingHops > 0) ? totals : nil
     }
 
+    /// #330 — the measurement lane's instrument. Renders `sessionUsageTotals`'
+    /// INPUTS, row by row, as the text `/usage` appends to the transcript
+    /// while the Developer screen's Verbose Logging toggle is on.
+    ///
+    /// Three deliberate shapes, each of them a lesson from #330:
+    ///
+    /// 1. **No sender filter.** `/history` prints only `.user`/`.hermes` rows
+    ///    (`ChatScreen.showConversationHistory`), which makes it structurally
+    ///    unable to show the `.system` priming row — the one row that carries
+    ///    `isContextPriming`, and therefore the only row that can explain a
+    ///    zero `primingHops`. This report lists EVERY row.
+    /// 2. **The absent case is printed, loudly.** A report that fell silent
+    ///    when the totals were nil would reproduce the card's own blindness.
+    ///    `ABSENT` plus both zeroed inputs is the finding.
+    /// 3. **Presence, not values.** For each row it prints whether `usage`,
+    ///    `turnDuration`, `servingModel` and `isContextPriming` are there at
+    ///    all, because "the field is missing" and "the field is zero" are
+    ///    different diagnoses and the card cannot tell them apart.
+    ///
+    /// Real data only: "—" wherever a value is genuinely absent, never 0.
+    func usageDiagnosticReport() -> String {
+        let messages = conversation?.messages ?? []
+        let totals = sessionUsageTotals
+        var lines: [String] = ["── /usage · #330 SESSION TOTALS DIAGNOSTIC ──"]
+
+        let conversationID = conversation.map { String($0.id.uuidString.prefix(8)) } ?? "—"
+        lines.append("Conversation \(conversationID) · rows \(messages.count)")
+
+        if let totals {
+            lines.append(
+                "Totals PRESENT · metered \(totals.meteredTurns) · priming \(totals.primingHops)"
+            )
+            lines.append(
+                "  in \(TurnReceiptFormat.fullTokenLabel(totals.promptTokens))"
+                + " · out \(TurnReceiptFormat.fullTokenLabel(totals.completionTokens))"
+                + " · priming tokens \(TurnReceiptFormat.fullTokenLabel(totals.primingTokens))"
+                + " · model time \(totals.totalDuration > 0 ? TurnReceiptFormat.durationLabel(totals.totalDuration) : "—")"
+            )
+        } else {
+            // The whole point of the instrument: name the two counters the
+            // card's nil verdict is computed from, separately.
+            let metered = messages.filter { $0.sender == .hermes && $0.usage != nil && !$0.isContextPriming }.count
+            let priming = messages.filter(\.isContextPriming).count
+            lines.append("Totals ABSENT · metered \(metered) · priming \(priming) · SESSION BLOCK HIDDEN")
+        }
+
+        // The card's LAST TURN block reads this, and it arrives by a channel
+        // with no transcript row behind it (SessionUsageIndex → latestUsage),
+        // which is why it can survive when every per-row receipt does not.
+        if let last = lastTokenUsage {
+            lines.append(
+                "Last turn (side channel) in \(TurnReceiptFormat.fullTokenLabel(last.promptTokens))"
+                + " · out \(TurnReceiptFormat.fullTokenLabel(last.completionTokens))"
+                + " · total \(TurnReceiptFormat.fullTokenLabel(last.totalTokens))"
+            )
+        } else {
+            lines.append("Last turn (side channel) —")
+        }
+
+        let senderCounts = MessageSender.allCases.map { sender in
+            "\(sender.rawValue) \(messages.filter { $0.sender == sender }.count)"
+        }
+        lines.append("Senders \(senderCounts.joined(separator: " · "))")
+        lines.append(
+            "Carriers usage \(messages.filter { $0.usage != nil }.count)"
+            + " · turnDuration \(messages.filter { $0.turnDuration != nil }.count)"
+            + " · servingModel \(messages.filter { $0.servingModel != nil }.count)"
+            + " · isContextPriming \(messages.filter(\.isContextPriming).count)"
+        )
+        lines.append("ROWS (prefix \"  #\") · SENDER · USAGE · DUR · MODEL · PRIMING")
+
+        for (index, message) in messages.enumerated() {
+            let usage = message.usage.map {
+                "\(TurnReceiptFormat.fullTokenLabel($0.promptTokens))/\(TurnReceiptFormat.fullTokenLabel($0.completionTokens))"
+            } ?? "—"
+            let duration = message.turnDuration.map { TurnReceiptFormat.durationLabel($0) } ?? "—"
+            let model = message.servingModel ?? "—"
+            let priming = message.isContextPriming ? "PRIMING" : "—"
+            // `"  #"` marks a row line — the report's own grammar, relied on
+            // by the tests and readable in a screenshot. Two spaces alone are
+            // NOT enough: the totals-present detail line is also indented,
+            // and using bare indentation made the row census over-count by
+            // exactly one on the first run of these tests.
+            lines.append("  #\(index) · \(message.sender.rawValue) · \(usage) · \(duration) · \(model) · \(priming)")
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    /// #330 seam 2's line. Both sides of `openSession`'s replacement, with the
+    /// two `sessionUsageTotals` inputs counted on each — a device log then
+    /// shows the totals dying in the same event as the row count dropping,
+    /// which is the whole claim.
+    nonisolated static func openSessionSeamLine(
+        id: String,
+        departing: Conversation?,
+        arriving: Conversation
+    ) -> String {
+        func census(_ convo: Conversation?) -> String {
+            guard let convo else { return "none" }
+            let metered = convo.messages.filter { $0.sender == .hermes && $0.usage != nil && !$0.isContextPriming }.count
+            let priming = convo.messages.filter(\.isContextPriming).count
+            return "rows \(convo.messages.count) · metered \(metered) · priming \(priming)"
+                + " · totals \(metered > 0 || priming > 0 ? "PRESENT" : "ABSENT")"
+                + " · id \(convo.id.uuidString.prefix(8))"
+        }
+        return "#330 seam 2 · openSession '\(id)' REPLACE: departing [\(census(departing))]"
+            + " → arriving [\(census(arriving))]"
+    }
+
     private let hermesClient: any HermesClientProtocol
     private let chatLiveActivity = LiveActivityService()
     /// #304: the host-approval card's store — the `.approvalRequested` /
@@ -2476,6 +2586,15 @@ final class ChatStore {
         let label = usage.map {
             "[Context transplanted into a fresh session — \(TurnReceiptFormat.fullTokenLabel($0.totalTokens)) tokens]"
         } ?? "[Context transplanted into a fresh session]"
+        // #330 SEAM 3 — where the ONLY carrier of `isContextPriming` is born.
+        // It is a `.system` row, which no host transcript can hand back
+        // (seam 1), so from this moment its survival depends entirely on the
+        // local array outliving every replacement (seam 2).
+        chatLog.verboseNotice(
+            "#330 seam 3 · priming notice MINTED: sender=system · isContextPriming=true"
+            + " · usage \(usage.map { TurnReceiptFormat.fullTokenLabel($0.totalTokens) } ?? "—")"
+            + " · servingModel \(activeModelName ?? "—")"
+        )
         return Message(
             sender: .system,
             content: label,
@@ -3407,6 +3526,13 @@ final class ChatStore {
                 agentAttachments.rows(forSessionID: id),
                 onto: convo.messages
             )
+            // #330 SEAM 2 — the REPLACE itself, measured on both sides of the
+            // assignment below. The departing conversation's receipts and its
+            // priming notice do not survive this line (the non-merge is
+            // deliberate and pinned; the sidecar above is the only client-side
+            // field that IS replayed). Logged before the write so the two
+            // states can be read off one line.
+            chatLog.verboseNotice(Self.openSessionSeamLine(id: id, departing: conversation, arriving: convo))
             conversation = convo
             lastOpenedSessionID = id
             lastTokenUsage = convo.latestUsage

@@ -88,6 +88,41 @@ extension SlashCommand {
         SlashCommand(name: "capabilities", description: "See everything Talaria can do on this iPhone", category: "Device", acceptsArgument: false, isDestructive: false, isLocal: true),
     ]
 
+    /// #330 — the measurement lane's instrument, kept OUT of `localCommands`
+    /// on purpose.
+    ///
+    /// `/usage` is already a real GATEWAY command ("Show token usage",
+    /// `isLocal: false`), so a local entry of that name SHADOWS it. That is
+    /// acceptable only while the Developer screen's Verbose Logging toggle is
+    /// on — a deliberate, reversible, opt-in state — and never in a shipping
+    /// default. `localCommandsIncludingDiagnostics` is the gate; the plain
+    /// `localCommands` list above stays unconditional.
+    ///
+    /// ⚠️ NOT `#if DEBUG`: `ota-stage.sh` archives RELEASE, and #218 is the
+    /// standing proof that a Debug-only gate is invisible to every check this
+    /// project runs. The instrument has to exist in the binary Owen installs.
+    static let verboseDiagnosticCommands: [SlashCommand] = [
+        SlashCommand(
+            name: "usage",
+            description: "Session totals diagnostic (#330 — verbose logging only)",
+            category: "Info",
+            acceptsArgument: false,
+            isDestructive: false,
+            isLocal: true,
+            // Typed-only: the autocomplete menu is built from the host
+            // catalog, which already carries the gateway's own /usage row.
+            // Two identically-named rows in one menu would be worse than an
+            // undiscoverable diagnostic.
+            showInAutocomplete: false
+        )
+    ]
+
+    /// The local-command list the typed-command dispatcher resolves against.
+    /// Identical to `localCommands` unless verbose logging is on.
+    static var localCommandsIncludingDiagnostics: [SlashCommand] {
+        TalariaLog.isVerbose ? localCommands + verboseDiagnosticCommands : localCommands
+    }
+
     // Commands passed through to the Hermes agent — matches the gateway-available
     // surface from COMMAND_REGISTRY (cli_only=False commands)
     static let gatewayCommands: [SlashCommand] = [
