@@ -6472,6 +6472,16 @@ queue producers inherit whatever this decides.
 > - **309-C5:** `RelayAPIClient` + `ProfileRelaySession` deleted once
 >   references reach zero (C runs AFTER A by election). Gate green,
 >   count moved.
+> - **309-C6 (added 2026-08-25 ~22:30 from Owen's device sighting —
+>   #412's second sighting block):** the INBOX surface sheds its relay
+>   clothes — `InboxScreen.swift:201`'s "COULD NOT REACH THE RELAY"
+>   re-cut to name the HOST honestly; `InboxStore`'s
+>   `relayAvailabilityProvider` gate replaced with the same
+>   profile-has-gateway-credentials predicate Lane A introduces (a
+>   gateway-only profile gets its working plugin inbox);
+>   `relayUnavailableMessage` + the dead `accessToken:` plumbing
+>   deleted. Pinned: gateway-only profile → inbox loads; no-credentials
+>   profile → honest empty state, no relay word anywhere on the surface.
 > - **309-D1:** `hermes talaria pair-qr` (plugin repo) renders the
 >   versioned JSON payload `{"talaria":1,"gateway":…,"key":…,"name":…}`
 >   as an ANSI terminal QR (+ optional PNG path), credentials read from
@@ -14779,6 +14789,22 @@ strengthens Q4 (make it real or delete both halves).
 **Related:** #309 (the absorbing design), #411 (wrong-plane gates,
 sibling class), #405 (the pairing-screen family's last defect), #406
 (the relay field's draft pattern — reused by Connect Host).
+
+> **📏 2026-08-25 ~22:19 — A SECOND SIGHTING, Owen's device (Inbox
+> screen): "Inbox Unreachable — COULD NOT REACH THE RELAY — PULL TO
+> RETRY."** Traced at HEAD: the inbox is ALREADY plugin-backed
+> (`TalariaPlatformInboxService`; the relay's `LiveInboxService` "and its
+> 401-recovery ladder went with the relay" — `AppContainer.swift:517`),
+> so the fetch that failed went to the GATEWAY over the platform link —
+> the failure was real (off-tailnet phone), the ATTRIBUTION is a fossil.
+> Three residues, all now scoped into **#309 Lane C as bar 309-C6**:
+> `InboxScreen.swift:201`'s relay string; `InboxStore`'s
+> `relayAvailabilityProvider` gate + `relayUnavailableMessage` (a
+> gateway-only profile would be starved of a WORKING plugin inbox — the
+> #411 class, live on this surface); and the store's dead
+> `accessToken:` plumbing into a service that doesn't want it. No
+> disposition-table omission — the relay inbox path was already deleted;
+> only its clothes survived.
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
