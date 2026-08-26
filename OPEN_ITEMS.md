@@ -7669,6 +7669,117 @@ argument for making the relay more robust.
 >    instruction is left alone: it is #412's first sighting and Lane B
 >    replaces the screen.
 
+> **📐 LANE B BARS PRE-REGISTERED 2026-08-25 night — written at Lane B's
+> open, BEFORE any code, drawn from
+> `planning/2026-08-25-309-laneB-connect-host-spec.md` and Owen's
+> `design/connect-host/` export.** Twelve bars. A missed bar is a
+> falsification, not a redefinition (the standing #215/#218 rule).
+>
+> - **309-B1 — THE WIZARD IS ENTERED, NEVER IMPOSED.** A Connect Host
+>   wizard (step 0 choice → 1 connect → 2 probe → 3 done; four progress
+>   bars; back chevron from step 1 on) presented from the Settings
+>   **Connect Host** row ONLY. **Structurally pinned:** zero presentation
+>   sites outside Settings — no first-launch trigger, no `AppRootView` /
+>   `ContentView` auto-present — grep-proven, because "we didn't add one"
+>   is not a measurement. "Not now" on EVERY step; taking it lands in
+>   plain chat with no banner, no nag, no empty host slot (design B7).
+> - **309-B2 — THE SETTINGS SCREEN'S EIGHT STATES, each rendered from ONE
+>   state value rather than assembled from loose booleans:** A1 empty
+>   (not an error — "RUNNING LOCALLY · ON-DEVICE BRAIN" named as the
+>   current answer) · A2 filled/ready · A3 checking INLINE (fields dim but
+>   stay visible, no modal, Cancel present) · A4 connected resting card ·
+>   B1 failed-in-place (only the guilty field flagged) · B2
+>   connected-but-quiet (SAVED ≠ REACHABLE) · B3 multi-host list (the
+>   `BackendProfile` list wearing the new clothes — IN USE = active
+>   profile, per-host status MEASURED or "NOT CHECKED", "NO KEY" its own
+>   honest state) · B4 disconnect confirm. Unit-tested state by state,
+>   from the model, without the view.
+> - **309-B3 — THE PROBE LADDER MAKES REAL DISCRIMINATIONS, never
+>   theater.** ONE authenticated `GET /api/model/options` through
+>   `GatewayHermesHostService`, ~5 s timeout (the copy says "five
+>   seconds" — the number stays true), latency measured around it. Four
+>   arms, each a test: transport failure/timeout ⇒ reachable FAILS, key
+>   and shape NOT REACHED · 401/403 ⇒ reachable PASSES with latency, key
+>   REFUSED, shape NOT CONCLUDED · a 2xx that will not decode as a Hermes
+>   model catalog, or any other non-2xx ⇒ reachable PASSES, **key NOT
+>   CONCLUDED** (a server that ignores auth never tested it — printing
+>   "key accepted" there is exactly the theater this bar forbids), shape
+>   WRONG · 2xx Hermes ⇒ all three PASS and the catalog count feeds the
+>   card's "MODELS SEEN n".
+> - **309-B4 — COMMIT-ON-PROBE-PASS.** Gateway URL, API key and host name
+>   persist ONLY on a green probe (#406's commit-time draft pattern
+>   extended one notch — the commit moment IS the green probe). Pinned on
+>   every failure arm: profile store unchanged, Keychain unwritten, active
+>   profile unchanged. "NOTHING WAS SAVED. YOU ARE STILL ON-DEVICE." is a
+>   measured claim, and a mutation that commits early must red it.
+> - **309-B5 — THE SCANNER READS LANE D'S PAYLOAD, and the cross-repo
+>   contract is pinned APP-SIDE.** `SetupCodeScannerView` re-pointed at
+>   `{"talaria":1,"gateway":…,"key":…,"name":…}`; the plugin repo's
+>   `tests/fixtures/pair_payload.json` BYTES are pinned verbatim in a
+>   Talaria test. Rejects: absent or non-1 `talaria`, absent `gateway` or
+>   `key`, non-JSON, and the OLD 8-char relay code (which must not decode
+>   as anything). Scanner states per design B1–B3: live · camera-refused
+>   (typed arm promoted, iOS-Settings link secondary) · no-camera
+>   (half-sheet, not a full screen).
+> - **309-B6 — DISCONNECT IS ONE ACTION WITH BOTH HALVES, and the
+>   deferred-revoke question is ANSWERED IN WRITING.** Spec §3.3 offers a
+>   persisted retry queue OR an honest copy change; the call and its
+>   reasoning land in the result block. Local forget = the profile's
+>   gateway credentials + the plugin device token/id out of the Keychain;
+>   host half = the plugin's `unpair` envelope verb. Pinned: the unpair is
+>   attempted while the credentials still exist, the local forget happens
+>   whether or not it lands, and the confirm sheet's copy matches the
+>   mechanism in BOTH the reachable and the unreachable case.
+> - **309-B7 — THE §4.1 PCC COPY CORRECTION SHIPS.** No absolute
+>   "nothing leaves the device" claim survives anywhere the local tier is
+>   described while PCC is electable (#385/#390's tier-honesty class), and
+>   the `END-TO-END ENCRYPTED · DEVICE-BOUND KEY` footnote is replaced
+>   with something TRUE for Bearer-over-Tailscale. Both exact final
+>   strings recorded in the result block; a grep pins the falsehoods'
+>   absence.
+> - **309-B8 — THE §5 DELETIONS EXECUTE.** `ConnectHermesScreen`,
+>   `ConnectHermesHostScreen`, `PhonePairingCode` /
+>   `RelaySetupCodePayload`, `LivePairingService` +
+>   `PairingServiceProtocol` + its mock, `PairingStore` (every reader
+>   re-derived; `hasPairingRecord` and the Forget Pairing row die with
+>   it), `AppSessionState` / `AuthTokens` and their UI readers, and
+>   `BackendProfile.relayBaseURL` + `hasRelay` / `resolvedRelayBaseURL`
+>   (the RULED cleanup). Structural check: `git grep` over `Talaria/
+>   TalariaTests/ TalariaUITests/ Shared/` returns COMMENT LINES ONLY —
+>   the 309-DEL-A adjudicated tombstone standard.
+> - **309-B9 — THE KEYCHAIN HYGIENE PASS COVERS BOTH WRITERS' SLOT
+>   FAMILIES** (design §4). A one-time, idempotent purge of the dead relay
+>   slots — `accessToken`, `refreshToken`, `pairedRelayConfiguration`,
+>   `sessionState` — scoped AND legacy, for EVERY profile rather than only
+>   the active one (`AppSessionStore` wrote the active profile's,
+>   `ProfileRelaySessionFactory` the dormant ones; a purge that knows only
+>   one writer leaves exactly the half-paired ghosts #133 taught us to
+>   fear). `gatewayAPIKey` / `talariaDeviceToken` / `talariaDeviceID` /
+>   `shimToken` MUST survive — pinned by a test that reds if the purge
+>   widens.
+> - **309-B10 — `AppTemplateUITests` REWRITTEN FOR THE NEW FLOW, NEVER
+>   DELETED** (design §5e's rule for the #310/#136 armor, applied to the
+>   XCUITest suite): the pairing-screen journeys become Connect Host
+>   journeys; anything whose subject genuinely no longer exists is
+>   TOMBSTONED with the ruling named, and the count owed is stated.
+> - **309-B11 — ZERO RELAY VOCABULARY ON ANY SURVIVING USER-VISIBLE
+>   SURFACE** — measured, and reported as measured rather than
+>   flatteringly (309-C6's lesson): no string literal a user can read
+>   names the relay, a pairing code, or an enrollment, and the residual
+>   `git grep -in relay` hits over `Talaria/Features/` are enumerated
+>   rather than rounded to zero.
+> - **309-B12 — THE GATE IS GREEN** (units + XCUITest + Release, #218) on
+>   `TALARIA_SIM_NAME=CC-lane-2`, and the Swift Testing count moves by
+>   EXACTLY the net of added + rewritten − tombstoned against the **2591**
+>   branch-point baseline — verified, not assumed.
+>
+> **Also closing in this lane's PR, per the close-out rule:** #412 (the
+> screen that carried it is deleted), #180's convention write-up (Owen's
+> 08-25 ruling — the Connect Host state vocabulary enumerated in ONE place
+> as the standing convention), and the disposition report's last row
+> (6, `POST phone-pairing/redeem`) marked EXECUTED with its completion
+> banner.
+
 ## 318. 🎨 Settings SEARCH — Claude Design direction 1b, filed as its own item — **FILED 2026-08-09 by Owen's §7.3 routing call on #252 ("close #252; file 1b its own number"). Per #268, this is 1b's first tracker existence. ⟵ HEADER CORRECTED 2026-08-25 (the lane's own close-out missed it and the invariant caught it POST-merge — a `;` chain swallowed the checker's exit; process note in the result block's commit): elected on the 08-25 ballot and ✅ BUILT + MERGED the same day (PR #372, squash `b5dd5f08`) — bars 318-A..E met, gate 2553(+6)/14/Release, four mutations isolating. Remaining: the device look (runbook card).**
 
 **Scope as inherited from the 1c/1b split:** a search affordance over the
