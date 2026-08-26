@@ -140,7 +140,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#170** ⚠️ Task detail presents `model_snapshot` as if it were the job's model — and the phone cannot pin a model at …
 - **#173** 🐛 Silent degradation — the app presents confident replies when the host cannot actually see attachments
 - **#179** 🐛 First Control Center tap is swallowed — action reports success before the widget extension exists — likely …
-- **#180** 🎨 UMBRELLA — the app hides its own degradation: one design default + a register ("four instances" is the as-filed count). Lane 180-L SHIPPED 2026-08-09 — bars 180-A..F
+- **#180** 🎨 UMBRELLA — the app hides its own degradation: one design default + a register ("four instances" is the as-filed count). Lane 180-L SHIPPED 2026-08-09 — bars 180-A..F. **⚖️ 08-25: the design question is RULED — Connect Host's state vocabulary adopted as THE standard; members migrate as lanes touch them (309-C6 is migration #1); umbrella stays open as the register**
 - **#182** 🎲 Second flaky UI test — `testMockPairingViaSettingsEntryPoint` launch timeout
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and … **✅ BALLOT APPROVED 2026-08-10, all eight cards as recommended — Phase 0 dispatch owed (bars pre-register in the entry); Phases 1–3 hold** … ~~**→ BARS 224-0A..0G PRE-REGISTERED 2026-08-11; Phase 0 READY TO DISPATCH.**~~ **⟵ corrected 2026-08-24: Phase 0 RAN the same day it was ready — ALL SEVEN BARS MET 2026-08-11, MERGED as `5313499b`; the entry's own ✅ result block records it while this line still said dispatch-ready. What remains is Phases 1–3, HOLDING on ruling 1 (Owen's call, not a lane).**
@@ -173,7 +173,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#264** ⚠️ A bounced gateway can come up WITHOUT the chat plane: api_server loses the :8642 bind race and never …
 - **#263** 🐛 Plugin transport: discovery-pass module reloads SPLIT the hub singleton; the enqueue wake misses the … — **(b) FIXED + 263-G MET; (a) AS FILED FALSIFIED — open ONLY as the (a) WATCH** (the header predates both) …
 - **#254** 👁 Control Center buttons BIND (confirmed 2034); ghost session = connect-window ownership race — **WATCH (downgraded 2026-08-05, header corrected twice, 2026-08-09); premise MEASURED (254-F), fix landed under 254-A/B/C; **254-D OWED, 254-E UNRUNNABLE AS WRITTEN (device 2026-08-09; native `LIVE` arm passed in its place)** — STAYS OPEN**
-- **#253** 💡 AUTO ROUTING: per-message on-device/server brain routing — **FILED 2026-08-05 as a MAYBE (Owen: "file it …
+- **#253** 💡 ~~AUTO ROUTING maybe~~ — **✅ KILLED 2026-08-25 night (Owen: "Kill the maybe") — considered-and-declined, re-filable; awaits archive move** — was: **FILED 2026-08-05 as a MAYBE (Owen: "file it …
 - **#251** 🚀 THE PLUGIN VENTURE: replace relay + connector + MCP server + venv CLIs with ONE Hermes plugin — **FILED …
 - **#249** 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the …
 - **#241** 🔭 HERMES CORE — **REOPENED 2026-08-09 as TRACK-UPSTREAM. My "by design" call was WRONG: upstream calls it a Bug, 4 independent filings, maintainer-reviewed fix PR #72739 open. Watch it. Half two stays ours in #180. Nothing to submit (filed 4×).**
@@ -4737,6 +4737,22 @@ Patching these one at a time will reproduce the pattern in the next surface buil
 - make `lastErrorMessage` reachable after first load (the latch is fine; the gate is not)
 
 Logged 2026-07-23.
+
+> **⚖️ RULED 2026-08-25 night (Owen, AskUserQuestion): ADOPT CONNECT HOST
+> AS THE STANDARD — "if 180 is still relevant," a condition VERIFIED
+> before filing** (live members at HEAD: the #241-inherited prose-failure
+> instance, the health-permission card, the `lastErrorMessage` gate,
+> #139's residual copy, #296). **The ruling:** the Connect Host design's
+> state vocabulary (Owen's export, `design/connect-host/` — measured
+> status, SAVED ≠ REACHABLE, named failures per check, honest empty
+> states, no claim the code can't verify) IS the umbrella's long-sought
+> "one design default." #309 Lane B's close-out writes it up as the
+> standing convention; remaining members MIGRATE as lanes touch their
+> surfaces — each migration a named step in this register, never a silent
+> drift. **Migration #1 is already in flight tonight:** Lane C's 309-C6
+> re-cuts the inbox error surface to the convention. The umbrella stays
+> OPEN as the register until the members drain; what closed is the
+> DESIGN question it was filed to force.
 
 ## 182. 🎲 Second flaky UI test — `testMockPairingViaSettingsEntryPoint` launch timeout
 
@@ -10785,6 +10801,16 @@ distinguish LIVE from the other two.
 > whose moment now also fires #308's ruling (repo goes public) — plus the
 > undecided restart story (Task A1, read-only, is the free next step).
 
+> **⚖️ RULED 2026-08-25 night (Owen, AskUserQuestion): RUN TASK A1
+> FIRST.** The restart-story ruling is deliberately DEFERRED until A1's
+> read-only trace answers whether the desktop backend can bounce its own
+> gateway (which would soften the whole question to "ask the user to
+> click restart"). A1 dispatched the same night — read-only over the
+> upstream checkout on this Mac, no live install touched; the flagged
+> maybe-unauthenticated `POST /api/gateway/restart` gets its middleware
+> traced in the same pass, findings INTERNAL pending Owen's per-submission
+> go (the standing external-submissions rule). Results file here.
+
 ## 264. ⚠️ A bounced gateway can come up WITHOUT the chat plane: api_server loses the :8642 bind race to the dying process's socket and NEVER RETRIES — **FILED 2026-08-06 late night (bit us live, mid-device-pass); upstream Hermes behavior, ops rule until fixed**
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
@@ -11544,7 +11570,7 @@ filed; re-open on next sighting with the how-was-it-closed detail.
 > GONE; the bar is runnable on either host. Queued for a device evening /
 > Saturday.
 
-## 253. 💡 AUTO ROUTING: per-message on-device/server brain routing — **FILED 2026-08-05 as a MAYBE (Owen: "file it for later as a maybe"); no design, no lane**
+## 253. 💡 AUTO ROUTING: per-message on-device/server brain routing — **FILED 2026-08-05 as a MAYBE (Owen: "file it for later as a maybe"); no design, no lane** **⟵ ✅ CLOSED 2026-08-25 night — KILLED on Owen's word ("Kill the maybe"): considered-and-declined, re-filable; closing block at the foot. Archive move rides the next sweep.**
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **RE-FILED AS THE DETERMINISTIC ROUTER; the MAYBE is resolved.** Route on
@@ -11584,6 +11610,13 @@ routed-production discipline. Nothing owed.
 > ("answered from a remembered preference"). Shared instruments, separate
 > lanes; recorded in both entries so it is not re-derived (#101 has the twin
 > note).
+
+> **✅ CLOSED 2026-08-25 night — KILLED (Owen, AskUserQuestion:
+> "Kill the maybe").** Considered and declined: no design, no lane, no
+> trigger. The transparency borrow (the route chip that says WHY) and the
+> #101 instrument adjacency archive with this entry and are re-filable
+> verbatim if auto-routing is ever wanted — this close records a
+> decision, not a refutation. Archive move rides the next sweep.
 
 ## 251. 🚀 THE PLUGIN VENTURE: replace relay + connector + MCP server + venv CLIs with ONE Hermes plugin — **FILED 2026-08-05 (Owen's direction, via a Hermes-authored architecture report); architecture CORRECTED in discussion; lane not yet opened**
 
