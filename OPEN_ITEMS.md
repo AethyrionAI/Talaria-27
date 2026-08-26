@@ -3532,6 +3532,8 @@ Logged 2026-07-20.
 
 ---
 
+
+> **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** the read-only MCP-client-fit discovery pass owed to the 08-09 ruling — dispatched immediately (no sim needed); deliverable is a filed reassessment, not code. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
 ## 162. 🛠 156a Tasks lane — **SHIPPED, on `main`** (`Talaria/Features/Tasks/`, reachable at `ContentView.swift:246`); **device checklist still owed** — header corrected 2026-08-01
 
 Dispatch `dispatch/FABLE-T27-156A-tasks-cron.md` executed 2026-07-22 on the Mac Mini
@@ -8248,6 +8250,8 @@ not free and must be visible" is that lane's own sentence, in the code at
 >    replay re-marks it) — a reopened thread currently shows the user a
 >    wall of primer text under their own name.
 
+
+> **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** the FIX lane (receipts sidecar replayed at open + 330-C predicate convergence; the 16 defect pins flip RED-first; 330-D/G close behind it). Solo Opus lane. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
 ## 332. 🎲 THE FIRST DEVICE SUITE RUN — three failures the simulator has been hiding, on two devices at once — **FILED 2026-08-11. The full unit suite had NEVER run on hardware; every green in this project's history came from a simulator. It ran on both `whoGoesThere` and Shelley's iPad in the same sitting and failed on both, differently. ~~NOT STARTED~~ → **332-a and 332-b FIXED 2026-08-12 on `t27-332ab-device-suite-test-fixes`** — both are sim-verified with witnessed negative controls, and each has ONE half left that only hardware can score, deferred to the next central device pass (this lane touched no device, by instruction). **332-c STAYS OPEN and is untouched** — its first bar is a measurement nobody has taken yet, and the entry must not be edited to assume the benign answer. Bars per finding below.**
 
 **The run.** `-only-testing:TalariaTests` on each device, `main` @ `7699c43`.
@@ -9747,6 +9751,8 @@ NOT cut), **#215** (routed-vs-unrouted: these rows are the `armed` control),
 > recorder-integrity test, RED-witnessed); 336-A and 336-E are retired by
 > the election.
 
+
+> **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** 336-C — the RED-witnessed recorder-captures-every-accepted-call pin; closes this entry. Rides the hygiene trio. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
 ## 334. 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips 5/5→0/5 between ctxlen 575 and 4,073; `'Say that again more briefly'` misroutes at BOTH 551 and 4,073 — **MEASURED 2026-08-12 on the iPad (the #333 runner's first scored probe, n=5/band, errors=0). ~~Mechanism UNKNOWN and deliberately not guessed.~~ ⟵ 2026-08-25 (Opus investigation): the mechanism was NEVER unknown — archived #206 named, measured, and published it 2026-07-30, and this entry never cited it. This is a REPLICATION of #206's offer-tail finding, not a mystery. ~~Product question below awaits Owen; bars pre-register when a route is picked.~~ ⟵ ⚖️ RULED + 🟢 APP HALF LANDED 2026-08-25 (PR #377, merge `12217bdb`): ARMED IS SAFE, so **the rows were mislabelled, not the router** — three `expected:` labels corrected, E1/E2 added to the grid (band count **22 → 34**), the no-op suffix pinned, #206's retracted length rationale removed from the router's comment, and NO router behavior change (the production diff is comment-only). ⏳ **STAYS OPEN:** E1 and E2 are DEVICE rows — the simulator cannot generate (#324) — so this entry closes on the next `long-context-probe` device run, which rides the runbook.**
 
 > **🔬 2026-08-25 — MECHANISM INVESTIGATION (Opus agent, read-only; full
@@ -10936,6 +10942,8 @@ that looked up. A second `kill` (port verifiably free by then) came up clean.
 > over the four `effectiveConnectionState` sites (verified still four at
 > HEAD) — remains this entry's open build work.
 
+
+> **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** half 2 — the four `effectiveConnectionState` sites collapse into ONE signal (the #180-adopted convention's literal first bullet). Rides the hygiene trio. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
 ## 263. 🐛 Plugin transport: discovery-pass module reloads SPLIT the hub singleton (tool gated against a live phone), and the enqueue wake misses the parked drain (every query rides a full 25s poll cycle racing the 25s timeout) — **FILED 2026-08-06 late night from live forensics during the 260-E pass; absorbs 2A-B's owed transport instrumentation**
 
 Two related defects, one module-lifecycle root, both observed live tonight:
@@ -14504,6 +14512,8 @@ on **4/10** and the promoted treatment on **0/10**, which is evidence this shape
 is **downstream of tool choice** rather than a separate disease. A lane should
 test that directly before assuming it needs its own words.
 
+
+> **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** the offer-instead-of-act READ-path battery is BUILT (cells + scorer); the device run becomes a runbook card. Rides the instruments lane. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
 ## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.** **⟵ PREMISE MOVED 2026-08-24 (#401): Apple SHIPPED the beta 6 Xcode (27A5252f) carrying the iOS-beta-7 SDK/runtime (24A5422a / 24A5423a) — the "no beta 6 Xcode" clause is dead, and the sim now LEAPFROGS the device instead of trailing it. Dated block at the foot; bars 398-A..C unchanged.**
 
 **What was measured, not inferred:**
@@ -14605,6 +14615,8 @@ configuration the system never enters), **#388** (the beta5 surface sweep).
 > - **398-C stands unchanged** — the gate silently advanced to 24A5423a this
 >   very day, which is exactly the behavior 398-C wants named in the output.
 
+
+> **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** 398-A..C executed at last on the aligned fleet. Own lane; sim/Mac-side halves run tonight, device halves become runbook cards. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
 ## 407. 📝 Text TYPED while dictation is live is DISCARDED on the next transcript tick — `mergedDictationText` recomputes from a base snapshot that predates the typing — **FILED 2026-08-24 night per #268, from #405's class sweep (read-only, verdict MINOR-adjacent). NOT a per-keystroke scrambler — the trigger is the dictation tick, not typing — but it is real input loss. ~~NOT STARTED; bars pre-register here before any code.~~** **⟵ RULED block-typing 2026-08-24 (decision pass) and ✅ BUILT + GATED the same night (trio lane) — 407-A..D met; only the 10-second device look remains (runbook).**
 
 `ChatInputBar.swift:946-953` recomputes the composer text from an immutable
@@ -16776,6 +16788,8 @@ scope: **wholesale, or a permanent dual path?**
 > worth the device time. (a) the unexercised decline path and (b) 337-H
 > remain this entry's open scope, unchanged.
 
+
+> **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** the never-exercised decline path + 337-H's `toolCallingMode = .required` remedy (timely: beta 7 claims the excessive-tool-call fix). Rides the instruments lane; device runs become runbook cards. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
 ## 373. 🧹 Instrument/test hygiene bundle — small knives, one drawer — **FILED 2026-08-18 night per #268, collecting residuals re-homed from #333, #341, #224, #342 and #335 at their closes. 🟡 FIVE TAKEN 2026-08-21 PM; the rest still open and listed below.**
 
 > **✅ 2026-08-21 PM — five items, chosen because they share one shape: a cheap
@@ -16864,6 +16878,8 @@ scope: **wholesale, or a permanent dual path?**
   granularity (declared unreachable under separate `run-instrument.sh`
   launches; make it impossible instead of unlikely).
 
+
+> **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** all four chores (runColdCalfixBattery registration, #342's two remaining invariants checks — one false-positived on a lane TONIGHT, the tripwire structural fix, #335's conductor hardening). Rides the bundle lane. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
 ## 377. 🔧 Private Relay detection row in diagnostics — **FILED 2026-08-18 night, re-homed from #24e's second half at #24's close (the rollup's one live residue). NOT STARTED.**
 
 - iCloud Private Relay intercepts HTTP to Tailscale IPs, and chat still speaks
@@ -16871,12 +16887,16 @@ scope: **wholesale, or a permanent dual path?**
   cover this. The diagnostics panel should detect the condition and name it
   instead of presenting a generic failure. App-side, small.
 
+
+> **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** the Private-Relay diagnostics row (names blocked tailnet HTTP). Rides the hygiene trio. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
 ## 378. 🧭 156c — the MEMORY introspection surface — **FILED 2026-08-18 night, re-homed from #156's close. SCOPE DECISION FIRST, Owen routes: `~/.hermes/memories/*.md` vs the authoritative shared Honcho instance. Bars pre-register after scope.** **⟵ HEADER CORRECTED 2026-08-23: the SCOPE DECISION WAS MADE — Owen ruled 2026-08-18 ~22:40 for **local `~/.hermes/memories/*.md` first, read-only, no new dependency**, Honcho later if ever wanted. So bars can pre-register now; what is missing is a SCHEDULE, not a scope. *"Buildable when routed; not scheduled this week."***
 
 > **2026-08-18 ~22:40 — SCOPE RULED (Owen, recommendations batch): local
 > `~/.hermes/memories/*.md` first,** read-only, no new dependency; Honcho
 > later if ever wanted. Buildable when routed; not scheduled this week.
 
+
+> **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** the local memories read, per the 08-18 scope ruling (read-only, no new dependency). Rides the bundle lane. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
 ## 379. 🧭 156e — the PROJECTS introspection surface — **FILED 2026-08-18 night, re-homed from #156's close (Projects exist in hermes-agent — #159's correction). Post-launch candidate; Owen routes.** **⟵ HEADER CORRECTED 2026-08-23: RULED — Owen PARKED this post-launch on 2026-08-18 ~22:40. Not an open routing question; do not re-raise it before launch.**
 
 > **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): PARKED

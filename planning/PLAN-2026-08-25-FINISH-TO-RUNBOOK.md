@@ -97,6 +97,31 @@ green, tracker close-out in the same PR. Stage an OTA after merges land
   never "zero grep hits," when tombstones are also required (309-DEL-A's
   bar-formation error, adjudicated in the entry).
 
+## NIGHT-BATCH ADDENDUM (2026-08-25 ~23:00 — the ten-item ballot, ALL elected, "Tonight, stacked")
+
+Owen elected the entire unelected backlog in one ballot and confirmed
+overnight orchestration. Same discipline as the day: bars at lane-open
+(the lane writes them into its entry where missing, invariant-gated,
+BEFORE code), RED-first, gates, merge-on-green (his standing grant),
+close-outs in the same PR, device halves become runbook cards.
+
+**Lane groupings + order (max 2 concurrent gates; #309 Lane C is
+running and Lane B queues first):**
+1. **#150 discovery** — Opus, read-only, dispatched immediately (no sim).
+2. **#309 Lane B** (already queued) — after C merges.
+3. **#330 FIX lane** — Opus, solo; parallel with B on the second sim.
+4. **Hygiene trio** — #264 half-2 + #377 + #336-C, one Opus lane, one
+   gate (the night-trio precedent).
+5. **Bundle** — #373's four chores + #378 memories read, one Opus lane.
+6. **Instruments lane** — #211A battery build + #372 (decline path +
+   `.required` remedy): cells/scorers built and sim-gated tonight;
+   device runs → runbook cards.
+7. **#398-A..C** — own lane; Mac/sim-side halves run tonight, device
+   halves → runbook cards.
+
+Morning deliverables: merged lanes, a fresh staged OTA, the runbook
+republished with the new cards, handoff updated.
+
 ## Owen's standing state (do not re-ask)
 
 Stacking ruling (never hold builds/lanes for testing; edit the runbook) ·
