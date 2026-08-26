@@ -7936,9 +7936,13 @@ argument for making the relay more robust.
 > become unreachable code that could still be read as a claim); the Talk
 > footer's "RELAY-BOOTSTRAPPED" (a component #383 moved off); the chat banner's
 > "check your relay connection" and "Pair a Hermes host"; and the GenUI debug
-> demo's placeholder leaf. **`git grep -in relay -- Talaria/Features/` returns
-> 50 lines and every one is a comment** — not zero, and saying zero would have
-> been false.
+> demo's placeholder leaf. **The residual `git grep -in relay --
+> Talaria/Features/` is reported as measured, not rounded:** ~50 matches,
+> all of them comments, **plus three that are a DIFFERENT WORD** —
+> `privateRelayRow` and `PrivateRelayIndicator` on the Uplink screen are
+> #377's iCloud PRIVATE RELAY diagnostics, which have nothing to do with
+> the Hermes relay and are not this bar's subject. Saying "zero" would
+> have been false twice over.
 >
 > **309-B12 MET.** `GATE: PLACEHOLDER` on `TALARIA_SIM_NAME=CC-lane-2`.
 
