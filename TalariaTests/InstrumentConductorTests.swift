@@ -141,6 +141,45 @@ struct InstrumentConductorTests {
         #expect(final.runRecord?.id == recordID)
     }
 
+    /// 🔒 #373, pinning #335's hazard SHUT. The conductor claims its run by SET
+    /// DIFFERENCE against the ids present before it started, and until now
+    /// nothing tested that: every other case here begins with an EMPTY store,
+    /// where a set difference and `loadRuns().first` are indistinguishable. The
+    /// fix landed 2026-08-21 and the reversion that undoes it would have been
+    /// silent.
+    ///
+    /// The case that separates them is the one #335 described: `BatteryRunStore`
+    /// sorts newest-first on `startedAt`, which persists as ISO8601 at SECOND
+    /// granularity, so two records written inside one second decode to equal
+    /// keys and the sort gives NO order between them. This test constructs that
+    /// state directly — a foreign record still sitting at index 0 after the run
+    /// — which is what an injected store lets us do and a real clock does not.
+    ///
+    /// **What it forecloses is not a crash.** It is the conductor embedding
+    /// SOMEBODY ELSE'S run record in this run's artifact and sealing it
+    /// `.completed`: a wrong measurement wearing a positive marker, which is the
+    /// single shape this whole file exists to prevent.
+    @Test func theRunRecordIsClaimedByIdentityRatherThanByStoreOrder() async throws {
+        let (conductor, _, dir, box) = makeConductor()
+        let foreign = minimalRunRecord()
+        box.records = [foreign]
+        var mineID: UUID?
+        let s = spec("t-claim", mode: .none) { _, _, _ in
+            let mine = self.minimalRunRecord()
+            mineID = mine.id
+            // Deliberately NOT newest-first. A real store would usually sort
+            // `mine` to the front; the equal-second case is exactly when it
+            // does not, and that is the case being pinned.
+            box.records = [foreign, mine]
+        }
+        let status = await conductor.run(spec: s, trials: 1, cells: nil, unattended: true)
+        #expect(status == .completed)
+        let envelope = try latest(in: dir)
+        #expect(envelope.runRecord?.id == mineID,
+                "the conductor embedded a record this run did not produce")
+        #expect(envelope.runRecord?.id != foreign.id)
+    }
+
     /// Review fix: the mutex-refusal / recorder-bypass case. The instrument
     /// closure runs (it is not refused up front — no alarm/EventKit flags
     /// here) but never appends to the run store, exactly as
