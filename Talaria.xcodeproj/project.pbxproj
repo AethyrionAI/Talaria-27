@@ -234,6 +234,7 @@
 		57E2B573942BCA2EC78C8550 /* TurnReceiptsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8064CC89E452AB4576D02AAB /* TurnReceiptsTests.swift */; };
 		58A79513D2968FE0A9D5690E /* ThemeTextures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 639E35724ACC2C48AB542489 /* ThemeTextures.swift */; };
 		58EAE21B148EFB6CD6612474 /* Icon-SpringSprout@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C2CA32208388B8F40E1EF71 /* Icon-SpringSprout@3x.png */; };
+		597724CD14E6518CD6A5B575 /* GuardrailImageDegradeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C3EB8490FC0D1812A984D01 /* GuardrailImageDegradeTests.swift */; };
 		5A412055D651E684DFBD4FB1 /* RelayDraftIntegrityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EA81A88BF01CBBA0B7966E4 /* RelayDraftIntegrityTests.swift */; };
 		5A9C5EBDAC749A48E05CB003 /* Icon-AutumnHarvest@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6086194E5DA00269632F6A09 /* Icon-AutumnHarvest@3x.png */; };
 		5B1BE28C0064375B3F848E75 /* Design.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AA6B0D4D2F75AB7C4862721 /* Design.swift */; };
@@ -793,6 +794,7 @@
 		3BECA22F23DD60CCE3D17F84 /* ConnectHermesScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectHermesScreen.swift; sourceTree = "<group>"; };
 		3C102CC9A9B7B18C77F6D1DB /* CapabilitySurfaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilitySurfaceTests.swift; sourceTree = "<group>"; };
 		3C32704D09D8549CF9B13C88 /* PermissionsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsScreen.swift; sourceTree = "<group>"; };
+		3C3EB8490FC0D1812A984D01 /* GuardrailImageDegradeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuardrailImageDegradeTests.swift; sourceTree = "<group>"; };
 		3C88FFD7A8182163808414B5 /* Icon-PulpNoir@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-PulpNoir@2x.png"; sourceTree = "<group>"; };
 		3CC4169ED78CE4C1D595AEB4 /* AppEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEntry.swift; sourceTree = "<group>"; };
 		3CDBC9C25C77FD0F587AD8F5 /* LocalChatBackend+Preflight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LocalChatBackend+Preflight.swift"; sourceTree = "<group>"; };
@@ -1447,6 +1449,7 @@
 				6874BCC08D52FEC22B4949DF /* FilePreviewTests.swift */,
 				7E2D7B9075DF8CC3420C70D7 /* GatewayModelCatalogTests.swift */,
 				F11D4C7D5673FB21C2B22C40 /* GenUISchemaTests.swift */,
+				3C3EB8490FC0D1812A984D01 /* GuardrailImageDegradeTests.swift */,
 				D45CA30DC1D43A51A7A75093 /* HealthQueryCoreTests.swift */,
 				5ED1F671C97A9A773083B7E8 /* HermesBrandIconRedrawTests.swift */,
 				E5B4BC4786992BD264AE00F3 /* HermesControlsTests.swift */,
@@ -2925,6 +2928,7 @@
 				1AC5431689C6E653C516C975 /* FilePreviewTests.swift in Sources */,
 				2DC06B74C1A60E5C3B49A753 /* GatewayModelCatalogTests.swift in Sources */,
 				062B015021677D136F335948 /* GenUISchemaTests.swift in Sources */,
+				597724CD14E6518CD6A5B575 /* GuardrailImageDegradeTests.swift in Sources */,
 				EA081E6354B7FCAAF6CFC487 /* HTMLArtifactSandboxTests.swift in Sources */,
 				CD4124B10E098FB583AE1B6E /* HealthQueryCoreTests.swift in Sources */,
 				F359407C861A4FD4363468A8 /* HermesBrandIconRedrawTests.swift in Sources */,

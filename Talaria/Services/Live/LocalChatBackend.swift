@@ -506,7 +506,9 @@ final class LocalChatBackend: HermesClientProtocol {
         // re-assembles the same Prompt from it, so a condense/tool retry
         // keeps its images. Token-fit (`nextPrompt`) reads the TEXT side;
         // image cost is invisible to the counter either way.
-        let turnInput = Self.composeTurnInput(
+        // #408: `var` because the guardrail arm below re-composes it ONCE,
+        // with the images demoted — the only thing in this turn that may.
+        var turnInput = Self.composeTurnInput(
             message: message, attachments: attachments,
             imageInputEnabled: turnImageInputEnabled()
         )
@@ -548,6 +550,11 @@ final class LocalChatBackend: HermesClientProtocol {
         var didCondenseRetry = false
         var didToolDecodeRetry = false
         var didToolPhaseCutRetry = false
+        // #408: at most one image-degrade leg per turn, and the count the
+        // reply's note reads. 0 means "this turn never degraded", which is
+        // every turn but the declined-image one.
+        var didGuardrailImageDegrade = false
+        var degradedImageCount = 0
         while true {
             do {
                 let response = try await liveSession.respond(to: Self.makeTurnPrompt(turnInput), options: effectiveGenerationOptions())
@@ -577,7 +584,13 @@ final class LocalChatBackend: HermesClientProtocol {
                     modelText: collapsed,
                     settledText: content,
                     recorder: toolCallRecorder)
-                let reply = Message(sender: .hermes, content: guarded, status: .delivered)
+                // #408-D: the same settle point, for the same reason — after
+                // the model's text has settled, appended so the answer
+                // survives verbatim. Identity on every turn that did not
+                // degrade.
+                let noted = Self.replyNotingGuardrailImageDegrade(
+                    guarded, degradedImageCount: degradedImageCount)
+                let reply = Message(sender: .hermes, content: noted, status: .delivered)
                 appendAssistantMessage(reply, usage: usage)
                 return reply
             } catch {
@@ -615,6 +628,29 @@ final class LocalChatBackend: HermesClientProtocol {
                     Self.logger.notice("send: \(toolName, privacy: .public) argument decode failed before anything ran — retrying the turn once (#197)")
                     // Mid-turn throw → the live session's transcript state
                     // is unknowable (#102's rule) — rebuild from our history.
+                    session = nil
+                    liveSession = await rebuildSession(attachments: attachments, excludingClientMessageID: clientMessageID, forceCondense: false)
+                    continue
+                }
+                if Self.shouldDegradeImagesAfterGuardrail(
+                    error,
+                    tierIsOnDevice: activeTier == .onDevice,
+                    turnCarriedImages: !turnInput.images.isEmpty,
+                    didAlreadyDegrade: didGuardrailImageDegrade
+                ) {
+                    // #408: the on-device safety layer declined the picture.
+                    // Retry ONCE with it demoted to #390-B's placeholder —
+                    // the shape this turn would have had before #390 flipped
+                    // the tier sighted, and the one that completes.
+                    didGuardrailImageDegrade = true
+                    degradedImageCount = turnInput.images.count
+                    turnInput = Self.degradedTurnInput(message: message, attachments: attachments)
+                    Self.logger.notice("send: on-device guardrail declined a sighted turn — retrying once with \(degradedImageCount, privacy: .public) image(s) demoted to the OCR placeholder (#408)")
+                    // The declined prompt may already sit in the live
+                    // session's transcript, and retrying on it would hand the
+                    // guardrail the same picture again — so rebuild from OUR
+                    // history (#102's rule), which replays text-only by
+                    // construction (390-A).
                     session = nil
                     liveSession = await rebuildSession(attachments: attachments, excludingClientMessageID: clientMessageID, forceCondense: false)
                     continue
@@ -708,7 +744,9 @@ final class LocalChatBackend: HermesClientProtocol {
         #endif
 
         // #390: composed ONCE, before the retry loop — see `send`.
-        let turnInput = Self.composeTurnInput(
+        // #408: `var` for the same reason it is there — the guardrail arm
+        // below re-composes it ONCE, with the images demoted.
+        var turnInput = Self.composeTurnInput(
             message: message, attachments: attachments,
             imageInputEnabled: turnImageInputEnabled()
         )
@@ -741,6 +779,15 @@ final class LocalChatBackend: HermesClientProtocol {
         var didCondenseRetry = false
         var didToolDecodeRetry = false
         var didToolPhaseCutRetry = false
+        // #408: see `send`. Deliberately NOT gated on `sawObservableActivity`
+        // the way #197's retry is: a guardrail decline of an image is an
+        // INPUT-side verdict (all four recorded specimens streamed nothing),
+        // and on the output-side case the repaint costs a transient
+        // double-paint that the `.finished` consumer's resolved-slot swap
+        // then replaces with the retried leg's text — #232's accepted
+        // trade, not a new one.
+        var didGuardrailImageDegrade = false
+        var degradedImageCount = 0
         while true {
             do {
                 // FM snapshots are cumulative — diff against what has already
@@ -806,10 +853,13 @@ final class LocalChatBackend: HermesClientProtocol {
                     modelText: latestFull,
                     settledText: settled,
                     recorder: toolCallRecorder)
+                // #408-D: same settle point, same append rule — see `send`.
+                let noted = Self.replyNotingGuardrailImageDegrade(
+                    guarded, degradedImageCount: degradedImageCount)
                 // `latestFull` is authoritative: if a snapshot ever rewrote
                 // earlier text (no incremental delta exists for that), the
                 // finished message still carries the model's real final text.
-                var reply = Message(sender: .hermes, content: guarded, status: .delivered)
+                var reply = Message(sender: .hermes, content: noted, status: .delivered)
                 if !emittedReasoning.isEmpty { reply.reasoning = emittedReasoning }
                 let usage = currentTokenUsage()
                 appendAssistantMessage(reply, usage: usage)
@@ -852,6 +902,22 @@ final class LocalChatBackend: HermesClientProtocol {
                     Self.logger.notice("streamTurn: \(toolName, privacy: .public) argument decode failed before anything ran — retrying the turn once (#197)")
                     // Mid-turn throw → the live session's transcript state
                     // is unknowable (#102's rule) — rebuild from our history.
+                    session = nil
+                    liveSession = await rebuildSession(attachments: attachments, excludingClientMessageID: clientMessageID, forceCondense: false)
+                    continue
+                }
+                if Self.shouldDegradeImagesAfterGuardrail(
+                    error,
+                    tierIsOnDevice: activeTier == .onDevice,
+                    turnCarriedImages: !turnInput.images.isEmpty,
+                    didAlreadyDegrade: didGuardrailImageDegrade
+                ) {
+                    // #408: see `send` — the declined picture is demoted to
+                    // #390-B's placeholder and the turn is re-run once.
+                    didGuardrailImageDegrade = true
+                    degradedImageCount = turnInput.images.count
+                    turnInput = Self.degradedTurnInput(message: message, attachments: attachments)
+                    Self.logger.notice("streamTurn: on-device guardrail declined a sighted turn — retrying once with \(degradedImageCount, privacy: .public) image(s) demoted to the OCR placeholder (#408)")
                     session = nil
                     liveSession = await rebuildSession(attachments: attachments, excludingClientMessageID: clientMessageID, forceCondense: false)
                     continue
@@ -2713,6 +2779,126 @@ final class LocalChatBackend: HermesClientProtocol {
         if legacyIsDecodingFailure(underlying) { return true }
         return String(describing: underlying).contains("Failed to parse generated content")
             || underlying.localizedDescription.contains("Failed to parse generated content")
+    }
+
+    // MARK: - #408: a guardrail-declined image turn degrades ONCE to the OCR path
+
+    /// The guardrail class — typed successor first, #198's shape.
+    ///
+    /// This is the on-device safety model's decline, and #390 is what made it
+    /// reachable on a SIGHTED turn for the first time: the picture reaches the
+    /// model and the safety layer refuses it, at GENERATION time. No
+    /// compose-time check can catch that class, which is precisely why
+    /// #390-B's fallback (decode failure, arm off, no vision) left this turn
+    /// with no route at all.
+    nonisolated static func isGuardrailViolation(_ error: Error) -> Bool {
+        if let modelError = error as? LanguageModelError,
+           case .guardrailViolation = modelError { return true }
+        return legacyIsGuardrailViolation(error)
+    }
+
+    /// #198's quarantine pattern — the DEPRECATED enum's guardrail arm, held
+    /// in its own `@available` declaration so the call site stays quiet.
+    /// Delete with `GenerationError`, alongside its siblings below.
+    @available(iOS, deprecated: 27.0, message: "Delete with GenerationError; LanguageModelError.guardrailViolation is the successor (#198).")
+    nonisolated static func legacyIsGuardrailViolation(_ error: Error) -> Bool {
+        guard let generationError = error as? LanguageModelSession.GenerationError else { return false }
+        if case .guardrailViolation = generationError { return true }
+        return false
+    }
+
+    /// #408 (RULED 2026-08-25, route (a)) — whether a failed turn re-runs
+    /// ONCE with its images demoted to #390-B's honest placeholder. TRUE only
+    /// when ALL FOUR hold:
+    ///
+    /// 1. **It is a guardrail decline.** Nothing else in the error space is
+    ///    helped by removing the picture, and an arm that fired on every
+    ///    error would re-run turns that failed for reasons a demote cannot
+    ///    touch.
+    /// 2. **The tier is ON-DEVICE.** PCC described the very photo the
+    ///    on-device layer declined — same image, 12:43 vs 14:42 on 2026-08-25
+    ///    — so a PCC guardrail decline is a different question and stays a
+    ///    plain error.
+    /// 3. **The turn actually carried images as MODEL INPUT.** A text-only
+    ///    decline cannot be helped by demoting nothing (408-C), and a turn
+    ///    whose pictures already rode as the placeholder — arm off,
+    ///    undecodable bytes — has nothing left to demote. Reading
+    ///    `ComposedTurnInput.images` answers both for free, because
+    ///    `composeTurnInput` has already put every non-sighted attachment on
+    ///    the text side.
+    /// 4. **It has not degraded already** (408-B). The n=4 reading is that
+    ///    the guardrail's verdict is stable per image, so a second attempt
+    ///    buys nothing and a loop costs the turn; a decline on the DEGRADED
+    ///    retry surfaces as a plain error.
+    nonisolated static func shouldDegradeImagesAfterGuardrail(
+        _ error: Error,
+        tierIsOnDevice: Bool,
+        turnCarriedImages: Bool,
+        didAlreadyDegrade: Bool
+    ) -> Bool {
+        !didAlreadyDegrade
+            && tierIsOnDevice
+            && turnCarriedImages
+            && isGuardrailViolation(error)
+    }
+
+    /// #408-A: THE degrade — and deliberately not a new code path. It is
+    /// `composeTurnInput` with the arm forced off: the SAME call #390-B's
+    /// compose-time fallback makes for an undecodable image or a vision-less
+    /// tier. A second partitioner would be a second home for the
+    /// placeholder's wording and the file/image split, and the two would
+    /// drift the first time either is edited.
+    ///
+    /// **Catch-site scope, and why two arms are the whole of it:**
+    /// `makeTurnPrompt` is the ONE door from a decoded image to the model
+    /// (pinned by `ImageInputCompositionTests`), and it has exactly two call
+    /// sites — `send` and `streamTurn`. Both carry this arm, so no
+    /// image-carrying production turn is left dead-ending. Every other
+    /// `respond`/`streamResponse` in the tree (the router's guided
+    /// generations, `LocalIntelligenceService`'s condensation, the DEBUG
+    /// instruments) builds a text-only `Prompt` and cannot raise this class
+    /// on an image. A THIRD image-carrying turn path would need its own arm.
+    nonisolated static func degradedTurnInput(
+        message: String, attachments: [PendingAttachment]
+    ) -> ComposedTurnInput {
+        composeTurnInput(message: message, attachments: attachments, imageInputEnabled: false)
+    }
+
+    /// #408-D: what the reply says happened.
+    ///
+    /// PRODUCTION COPY (#218's rule — this is read on a real turn, so it
+    /// lives outside every `#if DEBUG`). Register deliberately matches
+    /// `composePrompt`'s image placeholder, the sentence the model itself
+    /// receives on the degraded leg. Three things it must do and one it must
+    /// not: name the TIER (PCC saw this picture — an unqualified "safety
+    /// declined it" would read as Talaria's own refusal), name the true cause
+    /// (#212), say what the answer is therefore built from — and never
+    /// promise that trying again will work, because the measured verdict is
+    /// stable per image.
+    ///
+    /// "any text read from it" is the honest scope: OCR is the user's own
+    /// #8 extraction, so the degraded turn carries the picture's text only
+    /// when they asked for it. Claiming the text was read would be a
+    /// fabrication on the turns where it wasn't.
+    nonisolated static func guardrailImageDegradeNote(imageCount: Int) -> String {
+        let subject = imageCount == 1 ? "the attached image," : "the attached images,"
+        let object = imageCount == 1 ? "it" : "them"
+        let pictures = imageCount == 1 ? "the picture itself" : "the pictures themselves"
+        return "[Apple's on-device safety layer declined \(subject) so this turn ran without \(object) — "
+            + "the answer above uses your message and any text read from \(object), not \(pictures).]"
+    }
+
+    /// The settle-point composition for the note (#257 lever 1b's shape, and
+    /// for its reason): APPENDED, so the model's own reply survives verbatim
+    /// as the prefix and a note can never destroy an answer. `0` — every turn
+    /// that did not degrade — is the identity function.
+    nonisolated static func replyNotingGuardrailImageDegrade(
+        _ settledText: String, degradedImageCount: Int
+    ) -> String {
+        guard degradedImageCount > 0 else { return settledText }
+        let note = guardrailImageDegradeNote(imageCount: degradedImageCount)
+        guard !settledText.isEmpty else { return note }
+        return settledText + "\n\n" + note
     }
 
     /// #198's quarantine pattern: the DEPRECATED enum's arm, deleted with

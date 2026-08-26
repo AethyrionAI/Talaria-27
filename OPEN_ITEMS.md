@@ -158,7 +158,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#325** 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** on its own background (WCAG non-text floor 3.0:1, AA text 4.5:1) and it is the colour of shipping warning **TEXT**, including #18's `LOCAL VOICE` badge at 9pt. **MEASURED 2026-08-11 over all 90 (theme × slot) cells by the #320 lane and re-derived at filing; 11 of 88 reachable cells under 3.0:1, 21 under 4.5:1 — every light theme, no dark theme (dark floor 6.06:1). ✅ **BUILT 2026-08-21 — 325-A..E ALL MET.** Route (c)'s `forgeText` token (per-slot, optional, falls back to `forge` so DARK themes are untouched) **plus a second half the ruling did not anticipate:** route (c) alone could not satisfy 325-A, because it leaves `forge` decorative and FOUR light themes shipped a `forge` below even the 3.0 non-text floor. Owen ruled 2026-08-21 to nudge those four (only to 3.0, not route (a)'s 4.5 across seven). **And the real stake was never compliance — Owen: *"I'll finally be able to use those themes too"*; the only user could not use seven of his own themes.** 325-D demonstrated RED first and reproduced this entry's hand-computed 21/11 exactly. 69 text sites on `forgeText`, 61 decorative kept on `forge`. 🔴 Two migration errors caught by READING CALL SITES, both invisible to the gate (a green contrast sweep measures the tokens, not which sites use them). 🟡 Interaction with #320 named and corrected but NOT taken: its badge could now use the warning hue via `forgeText` — that is #320's ruled surface and Owen's call. GATE: PASS 2428/14/Release. **DEVICE verification still owed.**
 - **#329** 🐛 A COLD LAUNCH calls a still-running turn FAILED and offers **Retry** — tapping it DUPLICATES the answer, because the host never stopped. **MEASURED TWICE 2026-08-11 with a control** (no tap → the answer arrives alone and correct, so recovery works and the classification is what is wrong). Airplane mode is correct by contrast — queued, no Retry, fires once. Shares #328's root; keeps #312 (a) RED; bars 329-A..F pre-registered **⟵ 2026-08-24: premise code-read inverted the mechanism (#382 killed the plane; only the run id was lost), Owen ruled 329-C reconcile-first, and the fix is ✅ BUILT + GATED the same night — 329-A..E met, only 329-F (device, next OTA) remains**
 - **#407** 📝 text typed during live dictation is discarded on the next transcript tick — filed from #405's sweep; design call (merge vs block)
-- **#408** 🐛 a guardrail-declined image turn has no route — on-device `.guardrailViolation` dead-ends at Retry (n=4: the declined photo stable at 0/2 on-device, 1/1 on PCC; a different shot passed on-device); post-#390 nothing can opt an image down to OCR on that tier. **Design election owed: auto-degrade once (recommended) / offer text-only / leave it**
+- **#408** 🐛 a guardrail-declined image turn has no route — on-device `.guardrailViolation` dead-ends at Retry (n=4: the declined photo stable at 0/2 on-device, 1/1 on PCC; a different shot passed on-device); post-#390 nothing can opt an image down to OCR on that tier. **⚖️ RULED auto-degrade-once 2026-08-25 and ✅ BUILT + GATED the same night (PR #378): BOTH turn paths retry once through #390-B's own `composeTurnInput(… imageInputEnabled: false)`, the reply says so in production copy, text-only + PCC declines untouched; 408-A..E met, RED-first, five mutations each reding one named pin; gate 2568(+16)/14/Release. OPEN on the device re-send only (runbook card in the entry)**
 - **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); the refusal wording is the lever — **✅ THE STRING SHIPPED 2026-08-25 (PR #376): both branches carry an explicit do-not-claim clause, RED-first, mutation-proven both ways, 409-A/B/C MET. OPEN on 409-D only — the wording changed, the model's behaviour is UNVERIFIED until the next device `refusal-words` run**
 - **#410** ✅ unlanded AGENTS.md resync recovered from a stale worktree (commit `831b7620` mislabeled itself "#403") — **LANDED 2026-08-25**: sync script extracted byte-for-byte, AGENTS.md regenerated fresh from current CLAUDE.md (two runs byte-identical), worktree + branch pruned; 403-D (standing mechanism) still awaits Owen
 - **#411** 🐛 four AppContainer lifecycle entry points hard-gate on relay `isPaired` — gateway-only/hostless installs get NO lifecycle refresh (widgets, live activities, skills, voice readiness, share-inbox drain) — found by the #309 design sweep; fix rides #309 Lane A, Owen rules on the design doc first; redundancy coverage verify owed before quoting impact
@@ -15382,7 +15382,7 @@ into the base snapshot vs block typing while dictating) is a product call.
 > 2515/205 + 14 XCUITest + Release (trio total +17/+3 exact). The
 > 10-second device look rides the runbook. **Remaining: that look only.**
 
-## 408. 🐛 A GUARDRAIL-DECLINED IMAGE TURN HAS NO ROUTE — on-device `.guardrailViolation` on a sighted turn dead-ends at Retry, and post-#390 there is no way to opt an image DOWN to the OCR path — **FILED 2026-08-25 per #268, from Owen's first on-device vision turn (build 3022, device screenshot). DESIGN ELECTION OWED; measure-informed bars pre-register here when a route is picked.**
+## 408. 🐛 A GUARDRAIL-DECLINED IMAGE TURN HAS NO ROUTE — on-device `.guardrailViolation` on a sighted turn dead-ends at Retry, and post-#390 there is no way to opt an image DOWN to the OCR path — **FILED 2026-08-25 per #268, from Owen's first on-device vision turn (build 3022, device screenshot). ~~DESIGN ELECTION OWED; measure-informed bars pre-register here when a route is picked.~~** **⟵ ⚖️ RULED route (a) AUTO-DEGRADE ONCE 2026-08-25 (Owen, AskUserQuestion, n=4 in hand) and ✅ BUILT + GATED the same night (branch `408-guardrail-image-degrade`, PR #378) — 408-A..E ALL MET, RED-first, and mutation-proven in both directions. BOTH turn paths are armed (`send` and `streamTurn` — the image door's only two call sites). **STAYS OPEN on the DEVICE half, which is a behavioural claim no simulator can make (#324):** nothing here shows the declined laundromat photo now completes on the phone — only Owen's runbook re-send can, and that card is written into the result block.**
 
 **The observation (device, 2026-08-25 14:42):** the same laundromat photo PCC
 described cleanly at 12:43 threw `LanguageModelError.guardrailViolation` on the
@@ -15444,6 +15444,134 @@ check joins the runbook.
 > - Device card (runbook): re-send the declined laundromat photo on the
 >   on-device tier — expect an OCR-grounded answer plus the note. The
 >   408-P same-photo-twice probe stays its own card line.
+
+> **✅ BUILT + GATED 2026-08-25 — 408-A..E ALL MET** (branch
+> `408-guardrail-image-degrade`, PR #378; Owen granted merge-on-green for
+> this lane). **STAYS OPEN on the DEVICE half, and no bar in this lane
+> could have closed it:** #324's rule is that the simulator cannot generate
+> on this model at all, so nothing here shows the declined laundromat photo
+> now COMPLETES on the phone — only Owen's re-send can. The runbook card is
+> written; its text is at the foot of this block.
+>
+> **📍 CATCH-SITE INVENTORY — a one-path retry would have been a half-fix.**
+> `makeTurnPrompt` is #390's ONE door from a decoded image to the model
+> (pinned by `ImageInputCompositionTests`), and it has exactly TWO call
+> sites: **`LocalChatBackend.send`** (`respond(to:)`, the non-streaming
+> turn) and **`LocalChatBackend.streamTurn`** (`streamResponse(to:)`).
+> **Both can throw `.guardrailViolation`; both got the arm**, each held by
+> its own wiring pin — and mutation m5 below proves those two pins are
+> path-specific rather than one test passing for both paths. Every other
+> `respond`/`streamResponse` in the tree — `+IntentRouting`'s guided route
+> generations, `LocalIntelligenceService`'s condensation, and the DEBUG
+> instruments (`+Battery`, `+Refusal`, `+CardClause`, `+Harnesses`,
+> `+Preflight`) — builds a **text-only `Prompt`** and cannot raise this
+> class on an image. A THIRD image-carrying turn path would need its own
+> arm; that is said in the code, at the degrade, rather than only here.
+>
+> **📝 THE EXACT REPLY COPY (408-D)** — production, appended after the
+> model's own answer at the same settle point #257 lever 1b and #338's
+> honesty guard use:
+> ```
+> [Apple's on-device safety layer declined the attached image, so this turn ran without it — the answer above uses your message and any text read from it, not the picture itself.]
+> ```
+> Plural form, when more than one picture was demoted: *"…declined the
+> attached images, so this turn ran without them — the answer above uses
+> your message and any text read from them, not the pictures themselves.]"*
+> It names the **tier** deliberately (PCC described this very photo — an
+> unqualified "safety declined it" would read as Talaria itself refusing),
+> names the true cause (#212), and says what the answer is therefore built
+> from. **It never promises that trying again will work**, because the n=4
+> reading is a stable per-image verdict. And *"any text read from it"* is
+> deliberate SCOPE, not hedging: OCR is the user's own #8 extraction, so a
+> degraded turn carries the picture's text only when they asked for it —
+> the bar's shorthand "the answer used text read from it" would be a
+> fabrication on every turn where nobody extracted any.
+>
+> **Bar by bar.**
+> - **408-A MET.** `shouldDegradeImagesAfterGuardrail` fires on exactly one
+>   error class (`LanguageModelError.guardrailViolation` plus its deprecated
+>   `GenerationError` twin, #198's quarantine shape) and the retry
+>   re-composes through **`composeTurnInput(… imageInputEnabled: false)`** —
+>   the SAME call #390-B's compose-time fallback makes for an undecodable
+>   image or a vision-less tier. `degradedTurnInput` is a one-line wrapper
+>   around it, held there by a structural pin; there is no second compose
+>   implementation. The behavioural pin asserts the retry's input directly
+>   (zero `TurnImage`s, the placeholder carrying the file name) **and**
+>   asserts it byte-equal to the compose-time fallback while DIFFERING from
+>   the sighted compose, so the equality cannot pass vacuously.
+> - **408-B MET.** `didAlreadyDegrade` caps it at one leg; a decline on the
+>   degraded retry falls through to the plain error, as does every
+>   non-guardrail failure (rate-limit, timeout, an `NSError`), pinned.
+> - **408-C MET.** `turnCarriedImages` reads `ComposedTurnInput.images`, so
+>   a text-only turn — and a turn whose pictures already rode as the
+>   placeholder because the arm was off or the bytes would not decode — has
+>   nothing to demote and stays a plain error. One predicate covers both,
+>   because `composeTurnInput` has already put every non-sighted attachment
+>   on the text side.
+> - **408-D MET.** Copy above. Appended, never substituted, so the model's
+>   own answer survives verbatim as the prefix; `degradedImageCount == 0` —
+>   every turn that did not degrade — is the identity function. **PCC is
+>   untouched** by the predicate's tier scope (mutation m3 is that pin's
+>   witness).
+> - **408-E MET.** Every #390 pin is byte-untouched: neither
+>   `ImageInputCompositionTests` nor `AttachmentCapabilityCopyTests` is in
+>   the diff, and both ran green beside the new suite (57 tests / 4 suites)
+>   before the gate. **GATE: PASS FIRST-RUN on `CC-lane-2` — 2568 Swift
+>   Testing / 14 XCUITest / Release build**, and the count moved by
+>   **exactly +16**, the number of tests this lane added (2552 → 2568). The
+>   two skips are the known-permanent `CondenserFidelityTests` pair, count
+>   unchanged.
+>
+> **RED first, and one honest caveat about which pins could go red.** The
+> production functions landed as deliberately-wrong stubs; the run recorded
+> **10 of 16 tests RED with 22 issues**, each on its own assertion text (not
+> a compile error). The other **six are NEGATIVE pins** — "a text-only
+> decline does NOT degrade", "the PCC arm does NOT", "a turn that never
+> degraded carries no note" — and an always-false stub satisfies those by
+> construction, so they could not have gone red at that point. **Their teeth
+> come from the mutation battery below**, which is why it runs three more
+> mutations than the two the lane brief named.
+>
+> **🔬 MUTATION BATTERY — each mutation reds a NAMED pin and nothing else**
+> (whole suite re-run per mutation, source restored from backup between
+> runs):
+>
+> | mutation | reds |
+> |---|---|
+> | **m1** drop the one-retry guard (`!didAlreadyDegrade`) | **1** — *408-B: a second guardrail decline does not degrade again* |
+> | **m2** the retry re-arms images (`imageInputEnabled: true`) | **2** — both 408-A demote pins (*the degrade reuses #390-B's compose path*, *the degrade is one call into composeTurnInput with the arm forced off*) |
+> | **m3** drop the tier scope (`&& tierIsOnDevice`) | **1** — *the retry is on-device only — the PCC arm keeps its plain error* |
+> | **m4** drop the image scope (`&& turnCarriedImages`) | **1** — *408-C: a guardrail decline on a TEXT-only turn stays a plain error* |
+> | **m5** delete the arm from `streamTurn` only | **1** — *the STREAMING turn path carries the degrade arm and the note* (the SYNC path's twin pin stays green, so the two wiring pins are genuinely path-specific — one test cannot vouch for both paths) |
+>
+> **⚖️ Two readings recorded as decisions rather than left as oversights.**
+> (1) When the DEGRADED retry is itself declined, the user sees the plain
+> guardrail message with no mention that a demote was tried — that is
+> 408-B read literally, and it is what shipped. (2) The streaming arm is
+> deliberately **not** gated on `sawObservableActivity` the way #197's
+> retry is: all four recorded specimens are input-side declines that
+> streamed nothing, and on an output-side decline the retry costs a
+> transient double-paint that the `.finished` consumer's resolved-slot swap
+> (`var resolved = finalMessage`, `ChatStore.swift`) then replaces with the
+> retried leg's text — #232's already-accepted trade, not a new one.
+>
+> **📱 DEVICE CARD (for the runbook — the orchestrator owns the file):**
+> > **#408 — the declined photo now completes (on-device).** Brain =
+> > **on-device**, not Private Cloud. Attach the SAME laundromat photo that
+> > was declined at 14:42 on 2026-08-25 (the darker close-up of clothes
+> > against the glass — NOT the brighter barcode-sticker shot, which
+> > passed) and send any prompt.
+> > **EXPECT:** an answer instead of the red error card, with
+> > `[Apple's on-device safety layer declined the attached image, …]` at the
+> > foot of the reply.
+> > **FAILS IF:** the turn still dead-ends at Retry (the arm never fired);
+> > or the answer describes the picture's contents (the demote did not
+> > take); or the note is absent (408-D).
+> > **Log corroboration:** `on-device guardrail declined a sighted turn —
+> > retrying once with 1 image(s) demoted to the OCR placeholder (#408)`,
+> > subsystem `org.aethyrion.talaria`, category `LocalChatBackend`.
+> > *(Separate line — 408-P, unchanged: send ONE chosen photo twice
+> > on-device; two declines ⇒ stable per-image, a split ⇒ sampling noise.)*
 
 **Candidate routes, for Owen's pick (superseded by the ruling above —
 kept for the record):**
