@@ -75,6 +75,37 @@ STALE_MERGE = re.compile(
 # FALSE ALARM, never a missed one. Fail safe, same posture as the gate's
 # failure-advice classifier.
 STRUCK = re.compile(r"~~.+?~~")
+# 2026-08-26 (#373, executing #342's residual). Markdown BOLD could switch this
+# check off, and #409 found that out by using it as a workaround: `**NOT**
+# merged` renders identically to `NOT merged` and matches nothing, because the
+# asterisks sit between the two words in the raw bytes. That is the archived
+# #300 shape — a discriminator that cannot match the text it polices — and it
+# cuts the dangerous way here: a real stale claim written `**NOT** MERGED`
+# would sail past. Stripped before matching so the check reads what a human
+# reads. ASTERISKS ONLY: `_` is emphasis in markdown but it is also every
+# `route_source`-shaped identifier in this tracker, and mangling those buys
+# nothing.
+EMPHASIS = re.compile(r"\*{1,3}")
+# ...and the same lane fixes the FALSE POSITIVE that made that workaround
+# necessary. "Deliberately not merged with: <a finding>" is a TOPIC merge —
+# English, not git — and #409 tripped this check twice with it, once in the
+# entry and once in the paragraph describing the trip. Both halves of the
+# check's reasoning were true and the conclusion was false.
+#
+# The narrowing is scoped to the sense, not to the words: `not merged with
+# main` / `with origin/x` / ``with `branch` `` are GIT claims and still fire.
+# That matters more than the false positive did — a narrowing that blinds a
+# real catch is the only way this edit could be worse than the bug, and it is
+# pinned in `oi-invariants-test.py` in both directions.
+TOPIC_MERGE = re.compile(
+    r"\bnot\s+merged\s+with\b(?!\s+(?:main\b|origin/|`))", re.I)
+
+
+def claimable(text: str) -> str:
+    """What is left of `text` once the spans that are not live git claims are
+    removed: retracted (struck) prose, markdown emphasis, and the English
+    'merged with <a topic>' sense."""
+    return TOPIC_MERGE.sub("", EMPHASIS.sub("", STRUCK.sub("", text)))
 
 
 def git(*args: str) -> str | None:
@@ -121,7 +152,7 @@ def check_claimed_merge_state() -> tuple[bool, str, list[str]]:
     parts = re.split(r"^## (\d+[A-Z]?)\.", text, flags=re.M)
     for i in range(1, len(parts) - 1, 2):
         num, body = parts[i], parts[i + 1]
-        if not STALE_MERGE.search(STRUCK.sub("", body)):
+        if not STALE_MERGE.search(claimable(body)):
             continue
         for br in set(BRANCH.findall(body)):
             # Only judge branches that still exist somewhere git can see.
@@ -139,20 +170,20 @@ def check_claimed_merge_state() -> tuple[bool, str, list[str]]:
 def check_open_prs_against_entries() -> tuple[bool, str, list[str]]:
     """PR #304, 2026-08-15 — open five days past the ruling that superseded it.
     This one cannot be decided mechanically: it REPORTS open PRs and the tracker
-    items they name, for a human to eyeball. Reporting is the honest ceiling."""
-    out = git("rev-parse", "--git-dir")
-    if out is None:
+    items they name, for a human to eyeball. Reporting is the honest ceiling.
+
+    2026-08-26 (#373): this used to shell out to `gh` itself, with its own
+    argument list and its own error handling, while `_open_prs()` sat three
+    functions away doing the same thing. Two call sites meant two behaviours to
+    keep in step and — the reason it mattered here — the second one could not be
+    reached by a fixture at all, so the only check in this file with no test was
+    the one duplicating code. Same output, one `gh` call site."""
+    if git("rev-parse", "--git-dir") is None:
         return False, "NO DATA — git unavailable", []
-    try:
-        p = subprocess.run(["gh", "pr", "list", "--state", "open",
-                            "--json", "number,title", "-q",
-                            '.[] | "\\(.number)\t\\(.title)"'],
-                           capture_output=True, text=True, timeout=30, cwd=ROOT)
-    except (OSError, subprocess.TimeoutExpired):
-        return False, "NO DATA — gh unavailable or timed out", []
-    if p.returncode != 0:
-        return False, f"NO DATA — gh failed: {p.stderr.strip()[:80]}", []
-    rows = [r for r in p.stdout.strip().split("\n") if r.strip()]
+    prs, why = _open_prs()
+    if why:
+        return False, f"NO DATA — {why}", []
+    rows = [f"{pr.get('number')}\t{pr.get('title', '')}" for pr in prs]
     if not rows:
         return True, "no open PRs to reconcile", []
     return True, f"{len(rows)} open PR(s) — verify each against its entry's LATEST dated block", rows
@@ -198,7 +229,7 @@ def check_open_pr_claims() -> tuple[bool, str, list[str]]:
         if not m:
             continue
         num = m.group(1)
-        if not STALE_MERGE.search(STRUCK.sub("", line)):
+        if not STALE_MERGE.search(claimable(line)):
             continue
         if re.search(rf"#{num}\b", haystack) or re.search(rf"(^|\s|/){num}-", haystack):
             continue
