@@ -10489,6 +10489,9 @@ NOT cut), **#215** (routed-vs-unrouted: these rows are the `armed` control),
 >   call — trigger still unnamed)."* That production hand-run trigger stays
 >   unnamed; the refusal-string trigger the forensics DID name lives at **#409**.
 >   This lane touched neither, and 336-C's green says nothing about either.
+> - **GATE: PASS, first run** (shared with #264 half 2 and #377) — Swift Testing
+>   **2626** / 215 suites on `CC-lane-3`, XCUITest 14/14, Release clean. +3 of
+>   the trio's +17 are this bar's.
 ## 334. 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips 5/5→0/5 between ctxlen 575 and 4,073; `'Say that again more briefly'` misroutes at BOTH 551 and 4,073 — **MEASURED 2026-08-12 on the iPad (the #333 runner's first scored probe, n=5/band, errors=0). ~~Mechanism UNKNOWN and deliberately not guessed.~~ ⟵ 2026-08-25 (Opus investigation): the mechanism was NEVER unknown — archived #206 named, measured, and published it 2026-07-30, and this entry never cited it. This is a REPLICATION of #206's offer-tail finding, not a mystery. ~~Product question below awaits Owen; bars pre-register when a route is picked.~~ ⟵ ⚖️ RULED + 🟢 APP HALF LANDED 2026-08-25 (PR #377, merge `12217bdb`): ARMED IS SAFE, so **the rows were mislabelled, not the router** — three `expected:` labels corrected, E1/E2 added to the grid (band count **22 → 34**), the no-op suffix pinned, #206's retracted length rationale removed from the router's comment, and NO router behavior change (the production diff is comment-only). ⏳ **STAYS OPEN:** E1 and E2 are DEVICE rows — the simulator cannot generate (#324) — so this entry closes on the next `long-context-probe` device run, which rides the runbook.**
 
 > **🔬 2026-08-25 — MECHANISM INVESTIGATION (Opus agent, read-only; full
@@ -11771,6 +11774,12 @@ that looked up. A second `kill` (port verifiably free by then) came up clean.
 >   is more than "only the type name" as the bar was written, and it is recorded
 >   here as a deviation rather than counted as compliance.
 > - **Ops half:** untouched, as pre-registered.
+> - **GATE: PASS, first run**, one contiguous run on `CC-lane-3` (iOS 27.0
+>   `24A5423a`, Xcode-beta6 `27A5252f`) — **Swift Testing 2626 / 215 suites**
+>   (baseline 2609 **+17**, the trio's exact addition: 10 Private Relay, 3
+>   recorder, 4 connection-signal), **XCUITest 14/14**, Release clean. The only
+>   skips are the known-permanent `CondenserFidelityTests` pair. Shared with
+>   #336-C and #377 — one gate for the trio, the night-trio precedent.
 >
 > **THE #180 CONNECTION, stated because the ballot asked for it.** This is the
 > #180-adopted convention's literal first bullet: **one signal, not N surfaces
@@ -17874,6 +17883,9 @@ scope: **wholesale, or a permanent dual path?**
 >   live 502 from a proxy; what IS pinned is every input that decides whether it
 >   appears. No probe signature changed: the verdict is computed from the base
 >   URL and the `ConnectionTestFailure` the probe already returns.
+>   **GATE: PASS, first run** (shared with #264 half 2 and #336-C) — Swift
+>   Testing **2626** / 215 suites on `CC-lane-3`, XCUITest 14/14, Release clean;
+>   +10 of the trio's +17 are this item's.
 >
 > **What this row deliberately does NOT do, and the honest limit to record.**
 > iOS ships no public API for "is Private Relay on", so INDICATED is an
