@@ -86,6 +86,17 @@ green, tracker close-out in the same PR. Stage an OTA after merges land
   structural-pin greps count COMMENTS too (reword comments, keep pins
   dumb) · CC-lane pool only, TALARIA_SIM_NAME always · beta6 is the
   toolchain (`DEVELOPER_DIR=/Applications/Xcode-beta6.app/...`).
+- **⛔ NEVER `pkill -f lane-gate.sh` or `pkill -f "xcodebuild -project"`
+  (bit the night batch, 08-26):** pattern-kills murder EVERY lane's gate on
+  the box — one lane's pre-rerun cleanup silently killed another's gate
+  mid-Release, leaving a log that just stops (the no-failure-marker trap).
+  Kill only PIDs you started and recorded; find a stale build of your OWN
+  by its worktree path, never the shared project name. Corollary of the
+  same incident: `setsid` does not exist on macOS.
+- **A count taken by name-grep is a count of names (trio lane, 08-26):**
+  #264's "four sites" missed a fifth site that didn't carry the
+  identifier and counted three that were already dead — inventory by
+  reading call sites, not grepping a name.
 - **Three more, from the 08-25 evening lanes:** a commit subject starting
   with `#` gets EATEN by `git rebase --continue`'s comment cleanup
   (repair with `--amend --cleanup=verbatim`; house "#NNN:" subjects are
