@@ -14,7 +14,6 @@ struct ConnectHostScreen: View {
     @Environment(AppContainer.self) private var container
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(TabRouter.self) private var router
-    @Environment(\.dismiss) private var dismiss
 
     /// Which profile this visit is about. `.activeProfile` for the ordinary
     /// entry; the roster hands a named one; "Add another host" hands `.newHost`.

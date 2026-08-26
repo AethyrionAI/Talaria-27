@@ -119,9 +119,9 @@ struct UplinkSettingsScreen: View {
         ConnectionSignal.settingsState(container: container, hostStore: hostStore)
     }
 
-    private var isDirect: Bool {
-        container.chatStore.directConnectionStatus == .connected
-    }
+    // #309 Lane B: `isDirect` is deleted with the DIRECT/RELAY link qualifier
+    // it fed. There is one transport now, so the property had one possible
+    // answer and its only reader printed the other branch's word.
 
     var body: some View {
         ZStack {
