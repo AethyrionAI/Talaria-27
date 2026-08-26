@@ -1146,6 +1146,12 @@ gate should follow), **#386** (the published policy that describes the tiers),
 > after — order safe by construction. **Remaining on #390: the runbook's
 > 390-G device card (both arms) on the next staged build.**
 
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — 390-G FORMALLY PASSED: "On device and pcc vision
+> confirmed."** Both arms now carry a FORMAL runbook verdict on top of
+> the 08-25 informal sightings. The staged-composer caption texts went
+> unreported (they are unit-pinned; nothing rests on the glance).
+> Nothing remains on this entry; archive move rides the next sweep.
 ## 45. 🔧 CarPlay voice mode — scaffold on main, gated on Apple's voice-conversational entitlement
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
@@ -1601,6 +1607,13 @@ Logged 2026-07-06.
 
 ---
 
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — PASS, and Owen's close: "Can't tap twice, because it
+> works now and a single tap brings me in. This can be closed."** The
+> cold first tap WORKS — #179's discriminator answered in the good
+> direction (nothing swallowed). CLOSED on his word; the opportunistic
+> Lock-Screen/Action-button arm dies with it (never a bar). Archive move
+> rides the next sweep. Twin note at #179.
 ## 60. 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under `_thinking`); real reasoning lives in `run.completed.reasoning_content`
 
 > **App-side half MERGED (`b88914f`): SessionsHermesClient adopts `run.completed` reasoning; answer-mirror never attaches.** Remaining: the gateway-side root cause (streaming reasoning deltas) — upstream Hermes code, update-unsafe to patch; re-probe on v0.18.2 (Mac gateway available) to see if upstream fixed the emitter, else it's an upstream ask, not a patch.
@@ -2175,6 +2188,12 @@ Logged 2026-07-12 (dispatch-prep session).
 
 **2026-07-13 follow-up (`48770cd`):** icon picker was a silent no-op on iPad — iPadOS reads `CFBundleIcons~ipad` exclusively for alternate-icon support and we only declared the base key (iPhone unaffected). Fixed via YAML anchor/alias in `project.yml` so both keys stay byte-identical with a single edit point. **Shelley's iPad icon-picker check rides her next install.**
 
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — DEVICE PASS: "Looks good. Changes based on system
+> settings."** The live re-skin follows the system appearance without
+> relaunch; no seam complaint volunteered on either recorded seam. The
+> iPad icon-picker glance still rides Shelley's next install
+> (opportunistic, not a bar). CLOSED; archive move rides the next sweep.
 ## 121. ✨ Reasoning on resume — restore thinking panes from stored messages — MERGED (PR #120) 2026-07-19
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
@@ -2203,6 +2222,11 @@ Logged 2026-07-17.
 
 ---
 
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — RE-CONFIRMED:** reasoning panes render in full on
+> resume, including on a CONTEXT-TRANSPLANTED thread ("viewed the
+> reasoning there in full"), plus several other threads clean. CLOSED;
+> archive move rides the next sweep.
 ## 122. ✨ Session cost & usage surface — MERGED (PR #121) 2026-07-19
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
@@ -2231,6 +2255,11 @@ Logged 2026-07-17.
 
 ---
 
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — RE-CONFIRMED:** "I didn't see any 0.00" — no zeroed
+> cost rows anywhere he looked. (The SESSION-block-after-reopen half is
+> #330's, separately fixed last night and closing via its own 330-G
+> card.) CLOSED; archive move rides the next sweep.
 ## 123. ✨ Share extension — send anything into a Hermes session (free tier)
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
@@ -4322,6 +4351,10 @@ first is swallowed, the shape is established.
 Logged 2026-07-23.
 
 
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — the discriminator ANSWERED: the cold first tap is NOT
+> swallowed** ("a single tap brings me in"). Owen: "This can be closed."
+> CLOSED with #58 on his word; archive move rides the next sweep.
 ## 180. 🎨 UMBRELLA — the app hides its own degradation: one design default, and a register that is no longer four instances long
 
 > ## 🎯 BARS — LANE 180-L, PRE-REGISTERED 2026-08-09 BEFORE ANY CODE
@@ -5509,6 +5542,25 @@ scored here.
 > look (runbook) · then Owen's Phases-1–3 reassessment with a working
 > switch in hand.
 
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — THE PICKER CHECK "FAILED", AND THE LIKELY CAUSE IS A
+> DEPLOY LAG THE NIGHT BATCH ALREADY MEASURED, not an app defect.** Owen:
+> Settings → Server shows "hermes host predates approval modes — the
+> picker unlocks after the host updates" on BOTH hosts, "Mac is the most
+> up to date and has the most recent plugin. I assume this fails."
+> **The assumption to check first: Lane D measured (2026-08-25 night)
+> that the Mac's LIVE plugin checkout sits at `e669549` — TWO commits
+> behind origin/main, and one of the two missing commits is `b87cd6c`,
+> the #224 approval_mode support itself.** So the gate may be telling
+> the truth: the DEPLOYED plugin genuinely predates approval modes on
+> both hosts, and "most recent plugin" described the repo, not the
+> install. **Discriminating fix, ~2 min (Mac):** `git -C
+> ~/.hermes/plugins/talaria pull` then the desktop app's Restart Gateway
+> button (the affordance A1 traced) → re-open the picker. Unlocks ⇒ the
+> gate was honest and this row flips PASS; still locked on a current
+> plugin ⇒ a REAL app-side gate defect, re-file with teeth. OJAMD rides
+> the standing brief either way. NOT closed — awaiting the post-deploy
+> re-check.
 ## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code. ⟵ PREMISE RE-VERIFIED LIVE AT HEAD 2026-08-25 (Sonnet agent): the asymmetric gate survives exactly as filed (#221 built it this way; #383 only renamed the pairing predicate; a passing regression test PINS the cold-launch pin as current behavior, `RealtimeVoiceIndicatorTests.swift:193`). The runbook's #303-A/B card remains the right instrument and has never run — measurement first, fix election after.**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 2).** 303-A/B ride the OJAMD sitting (realtime-configured host — see the OJAMD handoff §11); no fix before 303-A runs.
@@ -6997,6 +7049,19 @@ host, because on that plane there is nothing to consult.
 >   the record-lifecycle test.
 > **What remains on this entry: 329-F alone.**
 
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — 329-F PASS (the closing device bar), with one honest
+> nuance recorded:** force-quit mid-turn → relaunch "showed Retry at
+> first," then as the host progressed, leaving and re-entering the
+> thread delivered the fuller answer with reasoning — ONE answer, no
+> duplicate, the host session visibly advancing. The nuance: a brief
+> Retry window can appear before reconcile catches up with a
+> still-running run, and post-relaunch content arrives on thread
+> RE-ENTRY rather than live-streaming — both consistent with the
+> reconcile-first design (status is read at entry; the stream is not
+> re-attached). Recorded as observed behavior, not a defect claim; a
+> recurrence that DUPLICATES an answer would be the thing to re-file.
+> CLOSED; archive move rides the next sweep.
 ## 330. 🐛 The status card's whole SESSION block VANISHES on a transplanted thread — no priming row, no metered turns, and **#122's cost surface with it** — **FILED 2026-08-11 from Owen's Group 7 device pass (#312 item (f)). MEASURED with a discriminator that rules out clipping. ~~Mechanism UNKNOWN and deliberately not guessed.~~ ~~⟵ 2026-08-25 (Opus investigation): candidates RANKED, measurement lane electable.~~ ⟵ ✅ MECHANISM NOW MEASURED (2026-08-25, measurement lane): `ChatStore.openSession` REPLACES the message array with the server transcript, and `mapStoredMessage` both REFUSES every non-user/assistant role (killing the `.system` priming row, the only carrier of `isContextPriming`) and carries NO usage/turnDuration/servingModel — so both `sessionUsageTotals` inputs zero in ONE event, taking the 9→7 row drop with them. Candidate ① CONFIRMED, candidate ③ REAL-but-not-the-cause (mutation-witnessed), and the "receipts render normally" observation FALSIFIED — no reopened row can render a receipt; the quoted numbers are the card's LAST TURN block, fed by `SessionUsageIndex`. Repro + `/usage` instrument + 3 seam breadcrumbs landed. ~~STAYS OPEN: nothing is fixed — 330-C/330-D are the fix lane's, 330-G is Owen's.~~ ⟵ ✅ **MECHANISM FIXED 2026-08-25 (fix lane): a session-id-keyed `TurnReceiptSidecar` replayed at open carries the four receipt fields across the replace, and `mapStoredMessage` re-maps the STORED transplant primer (which the host holds as an ordinary `user` row) into the priming notice instead of a wall of text under the user's own name. 330-C converged all four metered-turn predicates on `sender.isAgentAuthored`; 330-D's token source traced to `postPrimingTurn`'s 20 s `runsSyncBudget` and fixed by keeping the run id and reading it again off the interactive path. 5 of the 16 defect pins flipped RED-first (9 expectations), all rewritten; 16 → 34 tests. **STAYS OPEN FOR 330-G ONLY — Owen's device close, which also flips #312 item (f).**
 
 > **🔬 2026-08-25 — MECHANISM INVESTIGATION (Opus agent, read-only; full
@@ -14038,6 +14103,10 @@ into the base snapshot vs block typing while dictating) is a product call.
 > 2515/205 + 14 XCUITest + Release (trio total +17/+3 exact). The
 > 10-second device look rides the runbook. **Remaining: that look only.**
 
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — DEVICE PASS:** "composer is locked down with listening
+> and I can't use it while dictating." The ruled block-typing behavior
+> confirmed on device. CLOSED; archive move rides the next sweep.
 ## 408. 🐛 A GUARDRAIL-DECLINED IMAGE TURN HAS NO ROUTE — on-device `.guardrailViolation` on a sighted turn dead-ends at Retry, and post-#390 there is no way to opt an image DOWN to the OCR path — **FILED 2026-08-25 per #268, from Owen's first on-device vision turn (build 3022, device screenshot). ~~DESIGN ELECTION OWED; measure-informed bars pre-register here when a route is picked.~~** **⟵ ⚖️ RULED route (a) AUTO-DEGRADE ONCE 2026-08-25 (Owen, AskUserQuestion, n=4 in hand) and ✅ BUILT + GATED the same night (branch `408-guardrail-image-degrade`, PR #378, squash `b03fabfb`) — 408-A..E ALL MET, RED-first, and mutation-proven in both directions. BOTH turn paths are armed (`send` and `streamTurn` — the image door's only two call sites). **STAYS OPEN on the DEVICE half, which is a behavioural claim no simulator can make (#324):** nothing here shows the declined laundromat photo now completes on the phone — only Owen's runbook re-send can, and that card is written into the result block.**
 
 **The observation (device, 2026-08-25 14:42):** the same laundromat photo PCC
@@ -15361,6 +15430,11 @@ hedge pattern), #131/#82/#198 (this controller's prior hardening), #9
 > - **360-D MET:** GATE: PASS — 2245 Swift Testing tests (exactly +8 for
 >   this lane's suite), 14 XCUITest, Release clean.
 
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — PASS, the honest closer met:** "Got the short, and got
+> a very long one from me without missing a word. I rambled for a bit."
+> Both arms (short utterance + long ramble) survived the auto-stop grace.
+> CLOSED; archive move rides the next sweep.
 ## 363. 🔧 Outbox hygiene — talaria plugin outbox/devices rows are retained forever by design; artifact-kind rows (3D, #362) make the cost content-sized — **FILED 2026-08-17 late night out of #362's design read, per Owen's routing ("no TTL now, file follow-up"). OPENED AND CLOSED-SHAPE 2026-08-18 (Owen's morning routings: scrub@7d, artifacts-only, per-slice deploy go): ALL BARS 363-A..F MET, plugin PR #5 merged `a8b5f7a` (0.4.0), deployed live on the Mac (listener verified; honest-zero sweep observed). WATCH: first natural nonzero sweep ~2026-08-25. Archive move per #261 on Owen's formal close. Dated blocks below are the record. (Header updated 2026-08-18 — it read "NOT STARTED" for half a day after the close.)**
 
 **What it is:** `outbox_items` rows are never deactivated after delivery
@@ -15940,6 +16014,9 @@ scope: **wholesale, or a permanent dual path?**
 > key by its own test arm. Gate as #407's. **Remaining: the device look —
 > runbook.**
 
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — DEVICE PASS:** "dimmed check" — the provenance dim
+> confirmed on device. CLOSED; archive move rides the next sweep.
 ## 372. 🔬 #337 successors — the DECLINE path has never been exercised, 337-H never built, and measuring the promotion needs a ROLLBACK arm — **FILED 2026-08-18 night per #268 at #337's close. NOT STARTED; bars pre-register here before any run.** **⟵ CORRECTED 2026-08-26 (instruments lane): the NOT-STARTED clause is now false for the whole entry. (c) was BUILT + RUN 2026-08-21 and CLOSED by Owen 2026-08-24 as unmeasurable-worthwhile; **(a) the decline path and (b) 337-H's `.required` remedy were BUILT + MERGED 2026-08-26** — bars 372-A1..A4 / 372-H1..H4 met on the simulator and mutation-proven, with the device A/B (372-HD1..HD4) pre-registered and UNRUN. What is owed is two device runs, not a build. This is a PRESENCE claim and settles by grep: `runOfferReadBattery` is #211A's, but `CardClauseArm.toolmodeRequired`, `LocalChatBackend.declineHalfRow` and the `card-clause-remedy` registry entry are this entry's.**
 
 - (a) Every clean arm made 29–30 of 30 calls, so no trial has ever exercised
@@ -16784,3 +16861,7 @@ scope: **wholesale, or a permanent dual path?**
 > been the wrong layer, per the bars). Labels verbatim; routes through
 > `handleExplicitDoor`. Gate as #407's. **Remaining: the device look
 > (steer menu appears while busy with the hold taken) — runbook.**
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD UNQUOTED at paste — asked, pending #200D) — DEVICE PASS:** "Got the fork, then the two button
+> choices for steer or stop and steer." CLOSED; archive move rides the
+> next sweep.
