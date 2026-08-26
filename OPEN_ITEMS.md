@@ -10448,8 +10448,8 @@ NOT cut), **#215** (routed-vs-unrouted: these rows are the `armed` control),
 >    **(170)** and the band count is now pinned in the suite, so the next
 >    drift is caught rather than accumulated.
 > 2. **This entry had lost a line.** The sentence opening its measurement
->    table — `**The measurement** (artifact
->    \`20260812T200237Z-long-context-probe\`, \`long-context-probe\`` — was
+>    table — the one beginning *"The measurement (artifact
+>    20260812T200237Z-long-context-probe…"* — was
 >    dropped when the 2026-08-25 investigation blocks were inserted, leaving
 >    the table introduced by a sentence fragment. Restored from
 >    `2c3b709c`. (Also noted, not fixed: **six items carry DUPLICATE index
