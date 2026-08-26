@@ -169,7 +169,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#344** 🐛 **THE GUARD'S IMPERSONATION TIER ONLY SEES THE MARKER IN LABEL POSITION** — *"Here's the confirmation card:"* wears the app's own affordance as prose with no card behind it, and is NOT caught, because `labelPositionBody` drops leading non-letters only so the marker must BEGIN the sentence. **MEASURED 3 TIMES IN 14 SAME-SHAPE PRODUCTION TURNS on 2026-08-15 (2/13 while hunting 338-C, plus a third in the #340 approve turn at 2:41 PM, whose impersonated card read "Time: 4:00 PM" while the tool call it produced carried `due raw=""`). FILED, NOT FIXED, and deliberately not called a bug: neither turn claims a COMPLETED action, so by the letter of the spec silence is right and 338-A's zero-false-positives-on-offers bar argues for it. The gap is between #338's STATED SCOPE (which scopes imitated cards in explicitly) and the tier's REACH. Owen's call between leave-it / widen-anywhere / widen-only-before-a-field-list; bars 344-A..D pre-registered, recommendation is ADOPT #337-F-2b's REWORDING FIRST and re-measure — verified, not assumed, because #337-F's 0/90 was scored by the BROAD detector that matches these shapes. **→ A NATURAL EXPERIMENT the same afternoon isolates the gap exactly: four impersonations, one build, one session — the three opening "Here's the confirmation…" were MISSED and the one opening "Confirmation Card:" FIRED. Sentence position is the whole difference. And since the one that fired was ALSO an offer, the three misses are not "correctly silent on offers" — they are the same harm escaping on syntax**
 - **#339** 🧪 **THE INSTRUMENT SUITE AS A REGRESSION GATE** — Owen's routing tonight: *"we may want to run through them as regression testing."* Newly possible because #333 made every instrument one command with a machine-readable artifact; **19 of 48 are unattended-eligible today**. Tonight four runs surfaced #334/#336/#337 that 2,181 green unit tests could not see. **NO LANE YET** — open questions are cadence, which subset, and what a "regression" even means for a stochastic rate (a band and an n, never an equality assert; #215 governs comparability)
 - **#336** 🔴 **THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — CONFIRMED IN PRODUCTION 2026-08-12 (Owen's hand-run, first try, on-device, no harness).** — 3/120 armed trials claim a completed action with **no recorded tool call** (2 remind, 1 alarm; no error, no denial flag), and for reminders the arithmetic is exact (4 calls → 4 artifacts reaped), so those claims wrote nothing. **SEPARATELY and pointing the other way: 12 artifacts reaped vs 10 recorded calls** (one alarm + one event above the recorder, the event unclaimed by anyone) — which would mean battery `toolCalls` counts are FLOORS, not counts, across the #200-series. **MEASURED 2026-08-12 on the phone (#225's attended run). ⟵ FORENSICS COMPLETE 2026-08-25: both discrepancies RESOLVED from the preserved bytes — the two orphan artifacts are the #200V warm-up's alarm+event (closed-recorder window, NOT a lossy recorder; determination locked two ways), and the 3 claims' trigger is the governor's same-tool-repeat refusal string (replicated 6/6 → spawned #409). Remaining here: 336-C as ruled; the production hand-run fabrication's trigger stays unnamed**
-- **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. ~~Mechanism deliberately not guessed~~ **⟵ INVESTIGATED 2026-08-25: the mechanism was published in archived #206 (2026-07-30) and this entry never cited it — "ends with an OFFER ⇒ armed" predicts 8/8 rows; length falsified three ways; a RETRACTED rationale still lives in the router's code comment (doc debt). The open question is Owen's PRODUCT call: should a words-only turn after an offer route armed?****
+- **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. ~~Mechanism deliberately not guessed~~ **⟵ INVESTIGATED 2026-08-25: the mechanism was published in archived #206 (2026-07-30) and this entry never cited it — "ends with an OFFER ⇒ armed" predicts 8/8 rows; length falsified three ways; a RETRACTED rationale still lives in the router's code comment (doc debt). ~~The open question is Owen's PRODUCT call: should a words-only turn after an offer route armed?~~ ⟵ **⚖️ RULED 2026-08-25: ARMED IS SAFE — the rows were mislabelled, not the router.** App half landed the same day (PR ZZPRZZ): three `expected:` labels corrected, **E1/E2 device rows added (band count 22 → 34 — a RE-BASELINE for #339's subset)**, the no-op suffix pinned (the "short" 551 row was never shortened — `suffix(560)` of a 551-char string), the retracted rationale rewritten on the latency basis, and the production diff comment-only. **⏳ OPEN on the next `long-context-probe` DEVICE run** (sim cannot generate, #324).****
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#280** 📝 A dictated-only thread gets a blank conversation-card title — **the entry's STATED MECHANISM IS FALSIFIED and its suggested fix is a NO-OP** (the generator is never invoked on the voice path, and its `.hermes` guard would reject the thread anyway); Owen ruled 2026-08-09 for a GENERATED on-device title; **bars 280-A..F pre-registered 2026-08-10, anchors re-verified at `c4a1ca9`** … **⟵ corrected 2026-08-24: ✅ BUILT + MERGED 2026-08-10 (PR #299) — 280-A..E met, result transcribed into the entry from the docs commit's message where it had lived unfiled; only 280-F (device, the runbook's #61 card) remains**
 - **#279** 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — **FIXED AND MERGED 2026-08-09 as `12ed25b`; bars 279-A..E MET (pre-fix user-row count 2 → 1), `GATE: PASS`. Stays open ONLY for 279-F (device, Owen).** …
@@ -193,7 +193,6 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
 - **#199A** false decline-attribution: the model blames a CONTACT for the USER's decline — **RE-MEASURED 2026-08-12 (decline battery, n=10, phone): the shape did NOT reproduce — 10/10 declines attributed to the USER, zero contact-blaming. But the bar's second clause FAILS — declines were reached on only 10 of 30 action prompts (calendar 4/10) because #232's governor cut 14, so calendar misattribution is 0-of-4, not 0-of-10. ✅ **CLOSED AS REFUTED 2026-08-21: 0/30 blamed a contact, with EVERY trial reaching a decline (30/30 vs the 2026-08-12 run's 10/30 — the old failure was #232's GOVERNOR cutting 14 trials, and #343's fix is hereby confirmed on a second instrument). 27/30 correctly attributed the decline to the user; the 'proceed anyway' worry is 1/30, also refuted. 🔴 BUT a SIBLING misattribution was found and spawned as #392 — 2/30 blame the CALENDAR for the user's decline ("your calendar didn't accept the request"), calendar-only, remind/alarm 0/20.** Two n≤2 observations recorded in the entry, not filed as defects: one row blames "the system"; two offer to **proceed anyway** after a decline
 - **#211A** offer-instead-of-act on READ paths, where no confirmation gate excuses it
-- **#334** 🐛 words-only turns over a LONG offer-tail context route ARMED — bars unwritten, mechanism deliberately unguessed
 - **#336** 🐛 claim-with-no-call + reap surplus — 336-A/C/E unbuilt; warm-up mechanism thrice corroborated, not elected
 - **#339** 🧪 instrument suite as regression gate — routing decision (cadence / subset / what a stochastic regression even is)
 - **#340** 🔴 the due date is OMITTED by the model — both prose fixes falsified 08-15; **ROUTE (a) APP-SIDE RULED by Owen 2026-08-18 ~22:15 post-refresher** *(this line read "route decision pending Owen's refresher" until 2026-08-21 — the ruling landed in the entry and never reached the board, #317)*. 🟡 **BUILT 2026-08-21 AM: `parseBareClock`/`resolveBareClock` ship in BOTH the tool path and — a defect nobody had noticed — the CARD-EDIT path, where typing a plain `18:00` into the Due field was rejected outright. The GUIDE change is held behind cell `armed-bareclock` (Owen, 2026-08-21) because 340-G's guide arm bought its omission win at a flagged cost in tool calls, so the TOOL path stays inert until 340-H5 runs; the card-edit fix is not inert. Four-bucket scorer re-denominated on TRIALS, not calls — `no-call` was structurally invisible before. Wiring mutation: deleting the `performCreate` line reds 2 tests and leaves all 11 parsing tests GREEN.** 🛑 **340-H5 RAN 2026-08-21 AND IS MISSED — the guide is NOT promoted** (union rose 75%→85%). **But the bar was badly formed and is retired:** a `no-call` trial is neither omitted nor wrong-value, so it LOWERS the union — the control's 5 no-calls depressed its number and the treatment was penalised for calling more reliably. Over CALLS the union FELL; two denominators, opposite verdicts, which is 340-F1's ambiguity committed one level up by the same lane that fixed it. **✅ Route (a) VERIFIED on device though:** 3 bare clocks sent, all `16:30` at 17:08, all resolved to TOMORROW correctly, and `already-past` is 0/37 across both arms where 340-G had every value stale. 🔴 **Still broken: the model sent a time 3/20 — omission is 85% and the founding defect is UNSOLVED.** Bars **340-H5′-A..D** reformulated (`correct`/trials primary, `wrong-value` guard, both denominators reported, n≥40 — tonight was ~2x underpowered). 340-E still owed
@@ -10260,7 +10259,7 @@ NOT cut), **#215** (routed-vs-unrouted: these rows are the `armed` control),
 > recorder-integrity test, RED-witnessed); 336-A and 336-E are retired by
 > the election.
 
-## 334. 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips 5/5→0/5 between ctxlen 575 and 4,073; `'Say that again more briefly'` misroutes at BOTH 551 and 4,073 — **MEASURED 2026-08-12 on the iPad (the #333 runner's first scored probe, n=5/band, errors=0). ~~Mechanism UNKNOWN and deliberately not guessed.~~ ⟵ 2026-08-25 (Opus investigation): the mechanism was NEVER unknown — archived #206 named, measured, and published it 2026-07-30, and this entry never cited it. This is a REPLICATION of #206's offer-tail finding, not a mystery. Product question below awaits Owen; bars pre-register when a route is picked.**
+## 334. 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips 5/5→0/5 between ctxlen 575 and 4,073; `'Say that again more briefly'` misroutes at BOTH 551 and 4,073 — **MEASURED 2026-08-12 on the iPad (the #333 runner's first scored probe, n=5/band, errors=0). ~~Mechanism UNKNOWN and deliberately not guessed.~~ ⟵ 2026-08-25 (Opus investigation): the mechanism was NEVER unknown — archived #206 named, measured, and published it 2026-07-30, and this entry never cited it. This is a REPLICATION of #206's offer-tail finding, not a mystery. ~~Product question below awaits Owen; bars pre-register when a route is picked.~~ ⟵ ⚖️ RULED + 🟢 APP HALF LANDED 2026-08-25 (PR ZZPRZZ, merge ZZSHAZZ): ARMED IS SAFE, so **the rows were mislabelled, not the router** — three `expected:` labels corrected, E1/E2 added to the grid (band count **22 → 34**), the no-op suffix pinned, #206's retracted length rationale removed from the router's comment, and NO router behavior change (the production diff is comment-only). ⏳ **STAYS OPEN:** E1 and E2 are DEVICE rows — the simulator cannot generate (#324) — so this entry closes on the next `long-context-probe` device run, which rides the runbook.**
 
 > **🔬 2026-08-25 — MECHANISM INVESTIGATION (Opus agent, read-only; full
 > report in the session transcript). Headline: "context ends with an
@@ -10331,6 +10330,141 @@ NOT cut), **#215** (routed-vs-unrouted: these rows are the `armed` control),
 > - **334-E:** NO router behavior change — production logic byte-identical
 >   except comments (stated structurally in the PR); gate green; suite
 >   count moves by exactly the tests added.
+
+> **✅ RESULT 2026-08-25 — BARS 334-A..E MET, 334-A with a stated COUNT
+> DEVIATION. PR ZZPRZZ, merge ZZSHAZZ.**
+>
+> **334-A — ⚠️ THE BAR SAYS FOUR MISLABELLED ROWS; THE GRID HOLDS THREE, and
+> that is measured rather than argued.** The RED run before the flip failed
+> **exactly three times**, all `Expectation failed: row.expected`, one per
+> row. The three, named:
+> - **`base-words-offer-long-say`** — `veryLongOffer` (4,073) ·
+>   *"Say that again more briefly"*
+> - **`base-words-offer-natural-say`** — `shortTail` (551, and see 334-C —
+>   it was never shortened) · *"Say that again more briefly"*
+> - **`base-words-offer-long-write`** — `veryLongOffer` (4,073) ·
+>   *"Write another one"*
+>
+> All three are now `expected: true`, pinned per-id by
+> `offerTailWordsOnlyRowsExpectArmedPerOwensRuling`, which also pins that the
+> two NO-offer words-only rows (`base-words-nooffer-haiku`,
+> `base-words-nooffer-summary`) still expect TOOLLESS — the ruling is scoped
+> to offer tails, not a licence to arm the band.
+>
+> **Where "four" came from, and why three is right.** `routerLongContextGrid`
+> has 8 rows; exactly 6 end in the dentist offer; 3 of those 6 are accepts
+> already labelled `true`, leaving 3 words-only rows to flip. Those 3 rows
+> produce **6 scored cells** (each long row runs in both the uncapped and
+> capped arms) — and 6 is the count of `0/5` cells in this entry's own table.
+> The likeliest reading is that "four of this entry's six failures" mixed the
+> two denominators; on either denominator the answer is 3 rows / 6 cells,
+> never 4. **The only other offer-tail words-only row in the codebase is
+> `routerContextGrid`'s `"No thanks"` decline, and it is deliberately NOT
+> flipped**: it is an explicit refusal, it measured correct 13/13 in #202A,
+> and it is the "tightest pair" row #202A exists to protect. Flipping it
+> would also move #202A's pre-registered band denominators (90/75/30 at
+> n=15), which belong to another lane's bars.
+>
+> **334-B — E1 and E2 are in the grid; the band count moved 22 → 34.** Six
+> rows added (8 → 14 grid rows; 14 × 2 arms + 6 short accept rows = 34).
+> - **E1** (4 rows, the 2×2 #206 declared owed and never built):
+>   `E1-offer-short` (551) · `E1-offer-long` (4,073) · `E1-nooffer-short`
+>   (551) · `E1-nooffer-long` (4,073). Prompt held fixed at *"Say that again
+>   more briefly"*. The no-offer contexts are the offer contexts with **only
+>   the closing sentence swapped, 72 characters for 72**, so the lengths
+>   match to the byte; the replacement KEEPS the device noun ("a reminder to
+>   call the dentist tomorrow at 9am") so what varies is the offer as an ACT,
+>   not the mention of a reminder. Labels argued in the code: offer cells
+>   ARMED per the ruling, no-offer cells TOOLLESS (nothing to accept, so
+>   arming buys nothing and costs #215's belt-armed composition tax).
+> - **E2** (2 rows, the anaphora control the finding still lacks):
+>   `E2-offer-short` (551) · `E2-offer-long` (4,073), prompt *"Write a haiku
+>   about sledding"* — self-contained, borrows no referring expression.
+>   Labelled TOOLLESS and argued: the ruling covers a follow-up that might BE
+>   an accept, and a new-subject composition request is not one. **ARMED
+>   there is both the falsifying observation and the discriminator** — armed
+>   ⇒ offer-tail salience alone drives the route; toolless ⇒ anaphora does.
+> - **Structural evidence only** (E1/E2 are device rows; the sim cannot
+>   generate, #324): `e1IsAFullTwoByTwoVaryingTheOfferIndependentlyOfLength`,
+>   `e2PutsANonAnaphoricWordsOnlyTurnOverTheOfferTail`,
+>   `longContextProbeBandCountIsPinnedBecauseTheSubsetWatchesItForDrift`.
+> - **Each emitted probe line now carries `row=<id>` and the artifact records
+>   it in `notes`.** This is not cosmetic: after E1 there are **three**
+>   distinct rows sharing the prompt *"Say that again more briefly"* at 551
+>   characters, so `probe=` + `ctxchars=` is not a key and a scorer reading
+>   the console would silently merge them. Pinned by
+>   `everyLongContextRowCarriesAUniqueNonEmptyID`.
+>
+> **334-C — E4 pinned, RED witnessed by mutation, and the FIRST VERSION OF
+> THE PIN WAS A TAUTOLOGY.** `longContextGridShortOfferRowWasNeverActually
+> Shortened` records both structural facts: `longOffer` is 551 chars so
+> `suffix(560)` returns it WHOLE (the "short" row is byte-identical to the
+> accept rows' context), and at 551 the 800-char cap is a no-op too, so that
+> row's capped and uncapped cells are **one configuration measured twice**.
+> The mutation (`suffix(560)` → `suffix(200)`) went RED on the length and
+> identity assertions — **but it left
+> `String(row.context.suffix(560)) == row.context` GREEN**, because that
+> comparison is a tautology for any context of 560 characters or fewer. It
+> was the pin's headline assertion and it could not fail. Replaced with an
+> identity against the untruncated source plus an exact length, re-mutated
+> (`suffix(500)`) to confirm the new form moves. **A pin the mutation cannot
+> move is not a pin** — the `xcodebuild-beta4-stale-incrementals` family,
+> found inside this lane's own test.
+>
+> **334-D — doc debt closed, and it was wider than the two named sites.**
+> - `LocalChatBackend+IntentRouting.swift:169-177` rewritten on the LATENCY
+>   basis #206 actually kept (1.47s → 0.66s at 4,073 chars, 2.2×), stating
+>   in as many words that the accuracy justification is withdrawn, that the
+>   551 row falsifies the ≤590 story, and — new, and load-bearing — that
+>   `routerContextTail` preserves the offer BY DESIGN, so **capped and
+>   uncapped agree on an offer-tail row by construction and their agreement
+>   is never evidence about length.**
+> - `DeviceToolBeltTests.swift:2537-2540` rewritten as a latency bound; the
+>   assertion moved `> 590` → `> 586` so the number matches the fact it
+>   claims (586 is the longest ordinary context in the grid; 590 was the
+>   retracted story's number).
+> - **Three more live sites the bar did not name, all in the grid itself**
+>   (`+Battery.swift`): *"if THIS passes, length is the cause"*, *"the pair
+>   localises it to length rather than words"*, and the `#205` no-truncation
+>   preamble. All rewritten. A repo grep for the retracted phrasings now
+>   returns only `OPEN_ITEMS.md` / `OPEN_ITEMS-ARCHIVE.md` history and one
+>   accurate dated line in `dispatch/OPUS-T27-199-decline-honesty.md` (which
+>   states what #205 measured, not what #206 retracted).
+>
+> **334-E — NO ROUTER CHANGE, shown structurally.** Over
+> `LocalChatBackend+IntentRouting.swift` the diff is **+30 / −8 lines and
+> ZERO of them are non-comment**. Every non-comment app-target line the lane
+> touched (40 in `+Battery.swift`, 2 in `DeveloperSettingsScreen.swift`)
+> falls inside a `#if DEBUG` region. No production router declaration
+> appears in the diff at all — `routeTurn`, `routeNeedsDeviceTool`,
+> `routerPrompt`, `routerContextTail`, `routerContextLimit`,
+> `productionRouterVariant`, `isShortAffirmative`, `shortAffirmatives`: none.
+>
+> **Two findings the lane did not go looking for:**
+> 1. **The Developer-screen button under-reported this instrument by more
+>    than half for 26 days.** `long-context-probe` read *"n=5 (50)"* — the
+>    #202C-era count of 4 single-arm rows + 6 short rows. #206 doubled the
+>    arms and grew the grid without touching the label. Corrected to
+>    **(170)** and the band count is now pinned in the suite, so the next
+>    drift is caught rather than accumulated.
+> 2. **This entry had lost a line.** The sentence opening its measurement
+>    table — `**The measurement** (artifact
+>    \`20260812T200237Z-long-context-probe\`, \`long-context-probe\`` — was
+>    dropped when the 2026-08-25 investigation blocks were inserted, leaving
+>    the table introduced by a sentence fragment. Restored from
+>    `2c3b709c`. (Also noted, not fixed: **six items carry DUPLICATE index
+>    lines** from the 2026-08-18 sweep — #334, #336, #339, #340, #344, #350
+>    each appear twice in the INDEX. #334's stale duplicate is removed here;
+>    the other five are left for a tracker-hygiene pass.)
+>
+> **⏳ WHAT REMAINS — the entry stays OPEN.** E1 and E2 are DEVICE rows and
+> nothing on the simulator can score them (#324). The next
+> `long-context-probe` run is what closes this item, and it is a
+> **RE-BASELINE, not a drift signal**: the band count moved, three labels
+> flipped, and the six cells that scored `0/5` on 2026-08-12 should score
+> `5/5` now **with no behavior change whatsoever** — a scoring flip, not a
+> fix. Read `row=<id>`, never `probe=` + `ctxchars=`.
+**The measurement** (artifact `20260812T200237Z-long-context-probe`, `long-context-probe`
 n=5, production router probed directly — these are router-classification rates, not armed
 cells; #215's unrouted caveat does not apply):
 
