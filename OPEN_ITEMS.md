@@ -10259,7 +10259,7 @@ NOT cut), **#215** (routed-vs-unrouted: these rows are the `armed` control),
 > recorder-integrity test, RED-witnessed); 336-A and 336-E are retired by
 > the election.
 
-## 334. 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips 5/5→0/5 between ctxlen 575 and 4,073; `'Say that again more briefly'` misroutes at BOTH 551 and 4,073 — **MEASURED 2026-08-12 on the iPad (the #333 runner's first scored probe, n=5/band, errors=0). ~~Mechanism UNKNOWN and deliberately not guessed.~~ ⟵ 2026-08-25 (Opus investigation): the mechanism was NEVER unknown — archived #206 named, measured, and published it 2026-07-30, and this entry never cited it. This is a REPLICATION of #206's offer-tail finding, not a mystery. ~~Product question below awaits Owen; bars pre-register when a route is picked.~~ ⟵ ⚖️ RULED + 🟢 APP HALF LANDED 2026-08-25 (PR #377, merge ZZSHAZZ): ARMED IS SAFE, so **the rows were mislabelled, not the router** — three `expected:` labels corrected, E1/E2 added to the grid (band count **22 → 34**), the no-op suffix pinned, #206's retracted length rationale removed from the router's comment, and NO router behavior change (the production diff is comment-only). ⏳ **STAYS OPEN:** E1 and E2 are DEVICE rows — the simulator cannot generate (#324) — so this entry closes on the next `long-context-probe` device run, which rides the runbook.**
+## 334. 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips 5/5→0/5 between ctxlen 575 and 4,073; `'Say that again more briefly'` misroutes at BOTH 551 and 4,073 — **MEASURED 2026-08-12 on the iPad (the #333 runner's first scored probe, n=5/band, errors=0). ~~Mechanism UNKNOWN and deliberately not guessed.~~ ⟵ 2026-08-25 (Opus investigation): the mechanism was NEVER unknown — archived #206 named, measured, and published it 2026-07-30, and this entry never cited it. This is a REPLICATION of #206's offer-tail finding, not a mystery. ~~Product question below awaits Owen; bars pre-register when a route is picked.~~ ⟵ ⚖️ RULED + 🟢 APP HALF LANDED 2026-08-25 (PR #377, merge `12217bdb`): ARMED IS SAFE, so **the rows were mislabelled, not the router** — three `expected:` labels corrected, E1/E2 added to the grid (band count **22 → 34**), the no-op suffix pinned, #206's retracted length rationale removed from the router's comment, and NO router behavior change (the production diff is comment-only). ⏳ **STAYS OPEN:** E1 and E2 are DEVICE rows — the simulator cannot generate (#324) — so this entry closes on the next `long-context-probe` device run, which rides the runbook.**
 
 > **🔬 2026-08-25 — MECHANISM INVESTIGATION (Opus agent, read-only; full
 > report in the session transcript). Headline: "context ends with an
@@ -10332,7 +10332,7 @@ NOT cut), **#215** (routed-vs-unrouted: these rows are the `armed` control),
 >   count moves by exactly the tests added.
 
 > **✅ RESULT 2026-08-25 — BARS 334-A..E MET, 334-A with a stated COUNT
-> DEVIATION. PR #377, merge ZZSHAZZ.**
+> DEVIATION. PR #377, merge `12217bdb`.**
 >
 > **334-A — ⚠️ THE BAR SAYS FOUR MISLABELLED ROWS; THE GRID HOLDS THREE, and
 > that is measured rather than argued.** The RED run before the flip failed
