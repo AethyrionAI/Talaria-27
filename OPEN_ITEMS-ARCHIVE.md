@@ -25577,6 +25577,40 @@ would want machine-readable state for the same reason).
 > board audit (ballot: `planning/2026-08-18-close-ballot.md`). RULED invariants-only (Owen 2026-08-18) — no per-entry status tokens; merge state stays derivable, `oi-invariants.py` stays read-only (it already caught the #319/#348 collision), and the two remaining checks are #373's.
 > Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
 
+> **📌 APPEND-ONLY CORRECTION 2026-08-26 (#373's bundle lane; #261 keeps the
+> bytes above untouched, #317 ruling (a) puts the correction here).**
+>
+> **🔴 "The two remaining checks are #373's" was WRONG ON THE DAY IT WAS
+> WRITTEN.** The phrase refers to the three one-line checks this entry's own
+> 2026-08-15 evidence block names — *"duplicate headers, claimed-merge-state vs
+> git, open PRs vs their entry's latest ruling."* **All three shipped in
+> `scripts/oi-invariants.py`'s FIRST commit, `cf65e96b`, on 2026-08-15** —
+> `check_duplicate_numbers`, `check_claimed_merge_state` and
+> `check_open_prs_against_entries`, complete, three days before this close.
+>
+> **How it happened, because the mechanism generalises:** the close-out cites
+> the one check whose CATCH it remembered ("it already caught the #319/#348
+> collision") and inferred from that memory that the other two were unwritten.
+> A recollection of an effect was used to count a cause. Nobody re-read the
+> script, and the phantom residual was then carried onto #373's board, into the
+> 2026-08-25 ballot, and into a lane brief — **eight days and three documents
+> downstream of a fact that one `grep` would have settled.**
+>
+> **What the invariants script has actually done since:** it grew to **seven**
+> checks, the four additions each written by a later lane that hit a NEW failure
+> class (a checker blind to this week's branch convention; result blocks filed
+> under the wrong item; headers claiming NOT STARTED over a recorded build;
+> headers awaiting a decision already made). The residual was fictional; the
+> growth was real and came from being used.
+>
+> **What #373 landed in its place, 2026-08-26 —** the work this residual should
+> have named: **`scripts/oi-invariants-test.py`**, the fixture harness the
+> checker had gone eleven days without (33 cases, ~0.1 s, a POSITIVE case per
+> check, `LIVE`/`ARCHIVE` and `git`/`gh` stubbed), plus the `STALE_MERGE`
+> narrowing #409 filed here and the discovery that came with it — **markdown
+> bold could switch that check off entirely.** Full account in #373's
+> 2026-08-26 block.
+
 
 ## 341. 🔌 `TALARIA_CELLS` WIRED — one cell per launch, so #337's pending A/B can run as TWO launches instead of one order-confounded run — **BUILT 2026-08-12 on Owen's instruction (*"run it as two separate launches"*). Structural build + unit lane only; no device run, no numbers. The #335 review's "reserved, documented, inert" is now superseded at its own home (above).**
 
@@ -26810,6 +26844,34 @@ after each trial and records whether it fired.
 > **✅ CLOSED 2026-08-18 night — Owen's formal close at the six-slice
 > board audit (ballot: `planning/2026-08-18-close-ballot.md`). Closed by its own 2026-08-12 block (bars A–H met, three owed questions discharged in one sitting); the conductor `loadRuns().first` hazard is re-homed to #373.
 > Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+> **📌 APPEND-ONLY CORRECTION 2026-08-26 (#373's bundle lane; #261 keeps the
+> bytes above untouched, #317 ruling (a) puts the correction here).**
+>
+> **The `loadRuns().first` hazard this entry re-homed to #373 is CLOSED — and
+> the fix predates this note by five days.** #373's 2026-08-21 pass replaced it
+> with a set difference (`InstrumentConductor.swift:139-141`), which is exactly
+> the remedy the WATCH paragraph above proposed: *"the fix, if it is ever
+> wanted, is the same set difference."*
+>
+> **What 2026-08-26 added, and why it was the part that mattered: a TEST.** The
+> fix shipped unpinned. Every case in `InstrumentConductorTests` began from an
+> EMPTY store — the one condition under which a set difference and
+> `loadRuns().first` are indistinguishable — so **a reversion would have been
+> silent**, and the fix's own comment would have been the only thing defending
+> it. `theRunRecordIsClaimedByIdentityRatherThanByStoreOrder` now constructs the
+> state this entry described (a foreign record still at index 0 after the run,
+> the equal-ISO8601-second case), and mutation-proves it: reverting to `.first`
+> reds that test with 2 issues and leaves the other 11 green.
+>
+> **The generalisable half.** This entry declined to touch merged code on a
+> hazard that needed two runs in one launch, and it was right to — but the
+> consequence of a hazard *"named here rather than left for whoever adds a
+> second instrument to one launch to rediscover"* is that the eventual fix
+> arrives in a lane whose bars are about something else, and lands without a
+> regression pin. **A hazard filed as prose closes as prose unless someone
+> writes the test**, and the five days between the fix and the pin were the
+> whole window in which a revert would have gone unnoticed.
 
 
 ## 347. 🔍 SCORING RULE — the agent's tool registry is DEFERRED, so "the tool is not available to me" is not evidence of anything. Three false negatives across two sittings were the model never calling `tool_search` — **FILED 2026-08-15 on Owen's routing, root-caused live on OJAMD. Not a defect in the plugin; a methodology rule that governs every future phone bar.**

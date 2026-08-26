@@ -195,9 +195,9 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#370** 🧹 calendar reap under-deletes (42 created / 25 reaped) — measure the residue first; Owen glances at mid-Aug events
 - **#371** 🐛 restored ✓ chips on runs nobody stopped — honesty design rides #368
 - **#372** 🔬 #337 successors — decline path · 337-H · **(c) the rollback arm ✅ BUILT + RUN 2026-08-21.** 372-C1 met on device: `blurb-reworded` is byte-identical to control (1852 chars, confirming it measures nothing) while `blurb-rollback` substitutes (1839, reworded gone). 🟡 **The measurement is a NULL — rollback 3/30 vs control 1/30, p=0.612 — neither replicated nor refuted.** 🔴 **And it is underpowered STRUCTURALLY: control's imitation rate is 3.3% where #337-F's was 13.3%, because control now ships the promoted text.** The phenomenon has stopped happening in the control arm — what a working promotion looks like, and what makes it expensive to measure. A powered re-run needs hundreds of trials/arm; whether that is worth device time is a decision for Owen, not a scheduled lane
-- **#373** 🧹 instrument/test hygiene bundle — 🟡 **FIVE TAKEN 2026-08-21 PM**, all sharing one shape (a cheap mistake billed only after an expensive run): `--trials`/`--timeout` validated (`--timeout 30m` made bash's `(( ))` evaluate 0 and report a timeout that never happened); a TYPO'D INSTRUMENT NAME no longer burns the full timeout on an inert launch; `devicectl` exit 142 no longer reads as "no device"; #224's five busy-spins → one bounded helper that ASSERTS instead of falling through silently; #335's conductor now claims its run by set difference. **Plus an unlisted finding: the button-name tripwire was blind to `due-date`/`card-clause`/`refusal-words` — a hand-maintained list cannot detect its own omissions.** Still open: `runColdCalfixBattery`, #342's two invariant checks, and the structural fix for that tripwire
+- **#373** 🧹 instrument/test hygiene bundle — 🟡 **FIVE TAKEN 2026-08-21 PM**, all sharing one shape (a cheap mistake billed only after an expensive run): `--trials`/`--timeout` validated (`--timeout 30m` made bash's `(( ))` evaluate 0 and report a timeout that never happened); a TYPO'D INSTRUMENT NAME no longer burns the full timeout on an inert launch; `devicectl` exit 142 no longer reads as "no device"; #224's five busy-spins → one bounded helper that ASSERTS instead of falling through silently; #335's conductor now claims its run by set difference. **Plus an unlisted finding: the button-name tripwire was blind to `due-date`/`card-clause`/`refusal-words` — a hand-maintained list cannot detect its own omissions.** **⟵ ✅ FOUR MORE DONE 2026-08-26 (bundle lane), 373-A..E all MET:** `cold-calfix` registered (count pin 49→50, flags derived not copied); the tripwire made SELF-MAINTAINING — it reads the VIEW's source now, and the proof is the sequencing: the new button landed before its registry entry, the derived test caught it, the literal list stayed green through the exact failure it was built for; #342's residual executed as what it really was (see below); #335's conductor hazard PINNED by mutation. **🔴 Two of the four were ALREADY DONE at lane-open — #342's checks shipped 2026-08-15 (its close mis-scoped them three days later), #335's fix 2026-08-21 by this bundle's own earlier pass — so what landed for #342 is `scripts/oi-invariants-test.py`, the fixture harness that checker never had, plus #409's regex narrowing and the discovery that markdown bold could switch the check off entirely.** 🟡 One bullet still open: `score-due-omission.py` scores the #200V warm-up as an arm
 - **#377** 🔧 Private Relay detection row in diagnostics (re-homed from #24e) — **✅ BUILT 2026-08-26; premise re-derived and NARROWED to the one surviving cleartext-HTTP-to-CGNAT path (`:8642`), since #24e's relay and shim are retired. Names the condition only on proxy-shaped evidence.**
-- **#378** 🧭 156c — Memory surface; scope decision first (local files vs Honcho)
+- **#378** 🧭 156c — Memory surface — **✅ BUILT 2026-08-26 (bundle lane), 378-A..E MET.** Read-only local `~/.hermes/memories/*.md` per Owen's 08-18 scope ruling. **The ruling named a source and not a surface, and `~` on iOS being the app container decides the rest:** the read resolves in DEV (a simulator shares the Mac's filesystem) and can never resolve on a device, so the panel reports UNREACHABLE there rather than EMPTY — both true about a phone, only one true about the agent. Developer channel; a user-facing panel is NOT claimed, because both routes that would earn one (plugin delivery, Honcho) are excluded by the ruling itself. Content carries #158/#159's one-layer caveat
 - **#379** 🧭 156e — Projects surface; post-launch candidate
 - **#381** 🎨 steer unreachable while composer is busyNoCommit with the hold slot taken — affordance is Owen's call
 
@@ -15916,6 +15916,33 @@ NOT a catcher here by design: these claims follow a refusal, not a tool run).
 > safe, so this is a papercut and not a defect worth a lane on its own. Filing
 > the regex narrowing (require a nearby PR/branch token, or exclude the
 > "…merged with" sense) is left to whoever owns #342's tooling.
+>
+> > **✅ THE NARROWING LANDED 2026-08-26 (#373's bundle lane, which owns #342's
+> > tooling), and it took the second of the two options offered above — the
+> > "…merged with" sense is excluded, scoped so that `not merged with main` /
+> > `origin/x` / `` `branch` `` still fire, because a narrowing that blinds a
+> > real catch is the only way that edit could have been worse than the bug.
+> > Pinned in both directions in the new `scripts/oi-invariants-test.py`.**
+> >
+> > **⚠️ AND THE PARAGRAPH ABOVE IS NOW OVERTAKEN ON ITS OWN INSTRUCTION: the
+> > `**NOT** merged` formatting is NO LONGER LOAD-BEARING.** Keeping it is
+> > harmless and it is left in place (it is a quotation of #409's filed text),
+> > but "removing it re-reds the tracker" is no longer true, for two independent
+> > reasons — the topic sense is excluded now, and `409-do-not-claim-clause` has
+> > been pruned from local and origin, so the check skips it as a branch git
+> > cannot resolve.
+> >
+> > **🔴 THE WORKAROUND WAS EVIDENCE OF A WORSE BUG THAN THE ONE IT DODGED, and
+> > this is the finding worth carrying.** It worked *because the emphasis
+> > markers sit between the two words in the raw bytes the regex reads* — which
+> > is to say **markdown bold could switch this check off.** #409 used that
+> > deliberately and reported it as a formatting trick; read the other way
+> > round, it means a genuinely stale entry written `**NOT** MERGED` would have
+> > sailed past a check whose entire job is catching that sentence. That is the
+> > archived #300 shape — a discriminator that cannot match the text it polices
+> > — cutting in the dangerous direction, and it had been latent since the check
+> > was written. Emphasis is now stripped before matching, so the check reads
+> > what a human reads.
 
 ## 411. 🐛 FOUR LIFECYCLE ENTRY POINTS HARD-GATE ON RELAY `isPaired` — a gateway-only (or hostless) install gets NO lifecycle refresh at all — **FILED 2026-08-25 per #268, found by the #309 design-doc dependency sweep (Sonnet agent, main @ `e106943a`). ✅ FIXED + MERGED the same night in #309 Lane A (PR #381, squash `69e2e7e6`): local work now runs unconditionally, host-plane work gates on `AppContainer.hasGatewayCredentials`. The verify-first caveat below is DISCHARGED with a per-gate measurement — which corrects this entry's own impact list in both directions; see the ✅ block at the foot.**
 
@@ -17698,7 +17725,7 @@ scope: **wholesale, or a permanent dual path?**
 
 
 > **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** the never-exercised decline path + 337-H's `toolCallingMode = .required` remedy (timely: beta 7 claims the excessive-tool-call fix). Rides the instruments lane; device runs become runbook cards. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
-## 373. 🧹 Instrument/test hygiene bundle — small knives, one drawer — **FILED 2026-08-18 night per #268, collecting residuals re-homed from #333, #341, #224, #342 and #335 at their closes. 🟡 FIVE TAKEN 2026-08-21 PM; the rest still open and listed below.**
+## 373. 🧹 Instrument/test hygiene bundle — small knives, one drawer — **FILED 2026-08-18 night per #268, collecting residuals re-homed from #333, #341, #224, #342 and #335 at their closes. 🟡 FIVE TAKEN 2026-08-21 PM; the rest still open and listed below.** **⟵ ⟵ FOUR MORE DONE 2026-08-26 (bundle lane): `cold-calfix` registered (count pin 49→50), the button-name tripwire made SELF-MAINTAINING (it reads the view's source now, RED-witnessed by the new button landing before its entry while the old literal list stayed green), #342's residual executed as what it really was, and #335's conductor hazard PINNED. Bars 373-A..E all MET. 🔴 TWO OF THE FOUR WERE ALREADY DONE when this lane opened — #342's checks since 2026-08-15, #335's fix since 2026-08-21 — and both were carried on the ballot and in this entry's own list; the premise check that caught it cost ten minutes. 🟡 STAYS OPEN on ONE bullet: `score-due-omission.py` reporting the #200V warm-up trial as an arm.**
 
 > **✅ 2026-08-21 PM — five items, chosen because they share one shape: a cheap
 > mistake that only bills you after an expensive run.** That shape cost real
@@ -17873,6 +17900,119 @@ scope: **wholesale, or a permanent dual path?**
 >   2026-08-21). It is real and it stays open — this lane's four chores are the
 >   elected ones, and quietly widening a bundle is how a lane stops being
 >   scoreable against its own bars.
+
+> **✅ 2026-08-26 — ALL FOUR CHORES DISCHARGED (bundle lane, branch
+> `373-378-bundle`). BAR BY BAR:**
+>
+> - **373-A — MET.** `cold-calfix` is registered
+>   (`InstrumentRegistry.swift`), tapped from the Developer screen as "Calendar
+>   COLD n=10 (80)", and the count pin moved **49 → 50** in the same commit.
+>   Its flags were **derived, not copied from `calfix-warm`**: the method
+>   delegates to `runActionBattery` on the DEFAULT remind/alarm/calendar prompt
+>   set under accept, so it declares EventKit **and** alarms and is never
+>   unattended-eligible under Owen's 2026-08-11 ruling. One signature change
+>   came with it — `runColdCalfixBattery` now takes `cells:` like every sibling
+>   wrapper, because declaring `defaultCells` on a method that pins its cells
+>   internally would ACCEPT a `TALARIA_CELLS` request and then ignore it, which
+>   is the precise drift #341 added that field to prevent.
+>   **What this actually buys:** #200W's cold-first artifact was re-runnable
+>   only by editing code, which makes it an asserted measurement rather than a
+>   reproducible one. It is now one tap, and it pairs with `calfix-warm` as a
+>   clean A/B whose only difference is the discarded warm-up pass.
+> - **373-B — MET, and the RED is the whole evidence.**
+>   `everyInstrumentButtonInTheViewSourceResolves` reads
+>   `DeveloperSettingsScreen.swift` at test time and asks the registry about
+>   every name the view actually passes. **Sequencing was the experiment:** the
+>   `cold-calfix` button landed BEFORE its registry entry, and the run scored
+>   `✘ everyInstrumentButtonInTheViewSourceResolves (1 issue)` beside
+>   `✔ everyConvertedButtonNameResolves` — **the new test caught the omission
+>   while the old hand-maintained list sat green through the exact failure it
+>   was built for.** That is the 2026-08-21 finding reproduced mechanically
+>   rather than restated.
+>   **The POSITIVE CONTROL earned its place within the hour.** Mutating the
+>   scan's regex by one letter reddened `names.count >= 45` and
+>   `names.contains("shape")` — while the per-name loop passed **vacuously**,
+>   which is exactly the false-green a scan that cannot fire produces. Without
+>   the control that mutation is a green suite.
+>   Honest limit, stated in the test's own skip reason: it reads repo sources,
+>   so it is **UNSCORABLE on a device** and skips there rather than passing. The
+>   literal list is kept and re-documented for that reason — it is now the
+>   device-runnable arm, and **no longer the completeness authority.**
+> - **373-C — MET, and it is not the work the entry described.** Re-derived at
+>   HEAD first: **#342's two named checks already existed**, all three of that
+>   phrase's referents having shipped in `cf65e96b` on 2026-08-15, three days
+>   before the close-out that called two of them remaining. So what landed is
+>   the residual that is real:
+>   - **`scripts/oi-invariants-test.py` — the fixture harness this checker has
+>     never had.** 33 checks, ~0.1 s, every check with at least one POSITIVE
+>     case, `LIVE`/`ARCHIVE` rebound to temp files and `git`/`gh` stubbed. A
+>     structural case fails if a check is ever registered without a fixture.
+>     **This is the load-bearing half:** a regex-over-prose checker with no test
+>     is the archived #300 shape waiting to happen, and #300 gave one wrong
+>     verdict for the entire history of this project before anyone fed it a log.
+>   - **The `STALE_MERGE` narrowing #409 filed** to "whoever owns #342's
+>     tooling" — and it turned out to be **two** defects, not one. The false
+>     positive (the English *"not merged with: a topic"* sense) is now excluded
+>     BY SENSE, so `not merged with main` still fires. And the workaround #409
+>     used revealed the more dangerous half: the check **could be switched off
+>     by markdown bold**, because the emphasis markers sit between the two words
+>     in the raw bytes. A real stale claim written that way sailed straight past.
+>     Emphasis is now stripped before matching.
+>   - `check_open_prs_against_entries` routed through the existing `_open_prs()`
+>     — one `gh` call site instead of two, and the only check with no fixture
+>     was the one duplicating code.
+>   RED-first: the harness failed **exactly four arms** against the unmodified
+>   script (both regex senses, both report-only cases) and 29 passed, so it was
+>   not merely failing everything. Three mutations, each isolating one pin —
+>   including the one that matters most, dropping the narrowing's negative
+>   lookahead, which reddens `'not merged with main' IS a git claim`. **A
+>   narrowing that blinds a real catch is the only way this edit could have been
+>   worse than the bug**, and that arm is pinned rather than argued.
+>   **Honest limit:** the live #409 case can no longer be re-demonstrated either
+>   way — `409-do-not-claim-clause` has been pruned from local and origin, and
+>   the check skips branches git cannot resolve. Both the old and new scripts
+>   therefore pass on that entry today, for a reason that has nothing to do with
+>   the fix. **The fixture is the evidence, which is precisely the argument for
+>   having one.**
+> - **373-D — MET, and the fix was not the missing part.**
+>   `InstrumentConductor.swift:139-141` has claimed its run by set difference
+>   since 2026-08-21. Nothing tested it: every case in
+>   `InstrumentConductorTests` starts from an EMPTY store, where a set
+>   difference and `loadRuns().first` are indistinguishable, so **the reversion
+>   would have been silent.** `theRunRecordIsClaimedByIdentityRatherThanByStoreOrder`
+>   constructs the state #335 described — a foreign record still at index 0
+>   after the run, the equal-ISO8601-second case a real clock will not produce on
+>   demand — and mutation-proven: reverting to `.first` reds that test with 2
+>   issues while the other 11 stay green.
+> - **373-E — MET. GATE: PASS** (numbers in the PR and in #378's block; this
+>   lane and #378 rode one gate). `xcodegen` twice byte-identical; no
+>   `Talaria.xcscheme` drift, so #319's fix continues to hold.
+>
+> **⚠️ THE WORD "HARDENING" IN THIS BUNDLE DOES NOT MEAN WHAT THE STANDING RULE
+> FORBIDS, and it is worth saying rather than assuming.** 373-D is a unit test
+> over our own DEBUG conductor — app-side instrument safety. Owen's 2026-08-02
+> ruling (*"I beg not to harden"*) is about the RELAY and the CONNECTOR:
+> components with a planned end-of-life, where reliability is bought with
+> permanent update friction. Nothing in this lane touches either, nothing here
+> adds a hoop to any update path, and the rule is not being read narrowly to
+> permit this — it simply does not reach it.
+>
+> **🔴 THE FINDING WORTH KEEPING, because it cost this lane an hour and it will
+> cost the next one more.** **Two of the four elected chores were already
+> done** — #342's checks since 2026-08-15, #335's conductor fix since
+> 2026-08-21 — and both were carried on the ballot, in the plan doc, and in this
+> entry's own "still open" list. That is #279's and #389's shape a third time:
+> **work dispatched against a premise nobody re-derived.** The two cases have
+> different causes and both are instructive. #342's residual was mis-scoped at
+> its own close by a writer who counted the check whose catch he remembered and
+> inferred the rest; #335's was genuinely open when filed and was quietly
+> discharged by a later pass of this very bundle, which updated its "still open"
+> list for the four items it took and left the fifth entry's own bullet list
+> untouched. **A residual list is a claim with a date on it, and neither of
+> these had been re-read since it was written.** The check that caught both took
+> ten minutes of `git log` and one `grep` — before any code, which is the only
+> time it is cheap.
+
 ## 377. 🔧 Private Relay detection row in diagnostics — **FILED 2026-08-18 night, re-homed from #24e's second half at #24's close (the rollup's one live residue). ⟵ ✅ BUILT 2026-08-26 (hygiene trio): relevance re-derived first — the premise SURVIVES but NARROWS to one plane, because #24e's two measured victims (relay `:8000`, shim `:8765`) are retired and only cleartext HTTP to a CGNAT literal on `:8642` remains. Bars 377-A..D written at lane-open and all MET, two RED-witnessed. The row names Private Relay ONLY on a proxy-shaped 502/504 over cleartext HTTP to `100.64.0.0/10`; a timeout gets weaker wording and an answer gets no row. Honest limit recorded: INDICATED is an inference, unobserved live in this configuration.**
 
 - iCloud Private Relay intercepts HTTP to Tailscale IPs, and chat still speaks
@@ -17983,7 +18123,7 @@ scope: **wholesale, or a permanent dual path?**
 > purpose. That is a 60-second device fixture, not a bar this lane can meet on a
 > simulator, and it is stated here rather than implied away: **the discriminator
 > is grounded in a real measurement of the same mechanism on a different port.**
-## 378. 🧭 156c — the MEMORY introspection surface — **FILED 2026-08-18 night, re-homed from #156's close. SCOPE DECISION FIRST, Owen routes: `~/.hermes/memories/*.md` vs the authoritative shared Honcho instance. Bars pre-register after scope.** **⟵ HEADER CORRECTED 2026-08-23: the SCOPE DECISION WAS MADE — Owen ruled 2026-08-18 ~22:40 for **local `~/.hermes/memories/*.md` first, read-only, no new dependency**, Honcho later if ever wanted. So bars can pre-register now; what is missing is a SCHEDULE, not a scope. *"Buildable when routed; not scheduled this week."***
+## 378. 🧭 156c — the MEMORY introspection surface — **FILED 2026-08-18 night, re-homed from #156's close. SCOPE DECISION FIRST, Owen routes: `~/.hermes/memories/*.md` vs the authoritative shared Honcho instance. Bars pre-register after scope.** **⟵ HEADER CORRECTED 2026-08-23: the SCOPE DECISION WAS MADE — Owen ruled 2026-08-18 ~22:40 for **local `~/.hermes/memories/*.md` first, read-only, no new dependency**, Honcho later if ever wanted. So bars can pre-register now; what is missing is a SCHEDULE, not a scope. *"Buildable when routed; not scheduled this week."*** **⟵ ✅ BUILT 2026-08-26 (bundle lane): bars 378-A..E written at lane-open and all MET, one RED-witnessed on the lane's own wording. `HermesMemoryReader` + a read-only `AgentMemorySection` on the Developer channel. THE SCOPE READING, stated because the ruling named a source and not a surface: `~` on iOS is the app container, so the ruled read resolves in DEV (a simulator shares the Mac's filesystem) and can never resolve on a device — so the panel reports UNREACHABLE there rather than EMPTY, which is the only honest difference and the whole point. A user-facing panel is NOT claimed: under this scope there is nothing for a device user to see, and both routes that would change that (plugin delivery, Honcho) are excluded by the ruling itself. Content carries #158/#159's one-layer caveat naming Honcho and Mem0.**
 
 > **2026-08-18 ~22:40 — SCOPE RULED (Owen, recommendations batch): local
 > `~/.hermes/memories/*.md` first,** read-only, no new dependency; Honcho
@@ -18062,6 +18202,63 @@ scope: **wholesale, or a permanent dual path?**
 > - **No bar on showing a device user their agent's memory.** That is the thing
 >   this scope cannot do, and a bar claiming it would be met by a screen that
 >   lies.
+
+> **✅ 2026-08-26 — BUILT (bundle lane, branch `373-378-bundle`). BAR BY BAR:**
+>
+> **THE SCOPE READING, restated as the result: a read-only DEVELOPER-SURFACE
+> panel that reports UNREACHABLE on a device rather than EMPTY.** The ruling
+> named a source and was silent on a surface, and `~` being the app container on
+> iOS decides the rest. `HermesMemoryReader` (production, not DEBUG) +
+> `AgentMemorySection` on the Developer settings channel.
+>
+> - **378-A — MET.** `HermesMemoryReader.read(directory:fileManager:)` is pure
+>   with respect to everything but the directory handed to it, so every arm is
+>   unit-reachable with a temp directory. `§`-separated per #158's
+>   source-confirm, `.md` only, sorted deterministically, CRLF tolerated, empty
+>   entries **dropped rather than counted** — a trailing separator is
+>   punctuation, and counting it reports a file with one more memory than it
+>   has. One unreadable file inside a readable directory is reported as a file
+>   with zero entries rather than silently vanishing.
+> - **378-B — MET, and the bar reddened on its own author.** Four distinct
+>   states with four distinct headlines and details, and a forbidden-claim scan
+>   over every empty-handed one. **The first run failed it:** the
+>   missing-directory headline read **"NO MEMORIES DIRECTORY"**, which is
+>   strictly about a directory and scans at a glance as a verdict on the agent
+>   — the exact conflation this type exists to prevent, committed inside the
+>   type that exists to prevent it, and caught only because the bar was written
+>   before the code. Reworded to **"DIRECTORY NOT FOUND"**; the test was not
+>   touched.
+> - **378-C — MET.** #158's caveat ships with any content and only with content
+>   (mutation: always-on reddens all four empty-handed arms), and it NAMES
+>   Honcho and Mem0 rather than gesturing — because #159 made that caveat a
+>   fact: Owen runs the file backend AND a shared Honcho instance, so this view
+>   is one layer and may be the stale one.
+> - **378-D — MET, pinned rather than promised.** A structural scan over both
+>   new files forbids `URLSession`/`URLRequest`/`import Network`/`import
+>   Combine` and every `FileManager` write verb. "Read-only, no new dependency"
+>   was the ruling's wording; a doc comment saying so is not a constraint.
+> - **378-E — MET.** The panel renders on the Developer channel in Debug and
+>   Release. **GATE: PASS** (shared with #373 — see the PR for numbers).
+>
+> **WHAT THIS DELIBERATELY DOES NOT DO, and it is a ceiling rather than an
+> oversight.** On `whoGoesThere` this panel says *"Agent memory files live on
+> the Hermes host's filesystem, and this build has no path to one"* — and it
+> will say that on every device, forever, under this scope. No user-facing panel
+> is claimed. Lifting that needs a routing decision Owen has not made: host
+> delivery over the talaria plugin (a new verb and a host deploy — **a new
+> dependency, which the ruling forbids in the same sentence that set the
+> scope**) or the Honcho client (deferred, *"later if ever wanted"*). The value
+> banked today is the DEV read plus the honest-degradation machinery, both of
+> which either route would reuse unchanged.
+>
+> **UNMEASURED, and named rather than implied away:** the panel has not been
+> seen resolving real memories. The resolver prefers `SIMULATOR_HOST_HOME` (a
+> simulator process is handed the Mac user's home; `NSHomeDirectory()` is the
+> app container and would be wrong), falling back to the container — a fallback
+> that resolves to a nonexistent directory and therefore reports
+> `DIRECTORY NOT FOUND`, which is honest but is not the loaded arm. **Every
+> input that decides which arm renders is unit-pinned; that one 10-second dev
+> look is not, and it is a runbook card rather than a claim.**
 ## 379. 🧭 156e — the PROJECTS introspection surface — **FILED 2026-08-18 night, re-homed from #156's close (Projects exist in hermes-agent — #159's correction). Post-launch candidate; Owen routes.** **⟵ HEADER CORRECTED 2026-08-23: RULED — Owen PARKED this post-launch on 2026-08-18 ~22:40. Not an open routing question; do not re-raise it before launch.**
 
 > **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): PARKED
