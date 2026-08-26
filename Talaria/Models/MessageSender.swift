@@ -1,6 +1,11 @@
 import Foundation
 
-enum MessageSender: String, Codable, Hashable, Sendable {
+/// #330: `CaseIterable` so the `/usage` diagnostic's per-sender census
+/// enumerates the cases rather than hardcoding a list — a sixth case then
+/// shows up in the report automatically instead of being silently omitted,
+/// which is the same failure mode the two predicates below were written to
+/// stop.
+enum MessageSender: String, Codable, Hashable, Sendable, CaseIterable {
     case user
     case hermes
     case system

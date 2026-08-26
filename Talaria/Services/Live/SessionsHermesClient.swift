@@ -671,12 +671,34 @@ final class SessionsHermesClient: HermesClientProtocol {
         }
         Self.logger.verbose("openSession: decoded \(response.data.count) messages for '\(id)'")
         let messages = response.data.compactMap { Self.mapStoredMessage($0, sessionId: id) }
+        // #330 SEAM 1 — where rows are REFUSED. `mapStoredMessage` returns nil
+        // for every role but user/assistant, so the `.system` context-priming
+        // notice cannot come back from the host; and the rows that do come
+        // back carry no usage by protocol (see this file's openSession comment
+        // — per-row `token_count` is always null). Both of
+        // `ChatStore.sessionUsageTotals`' inputs are decided right here.
+        Self.logger.verboseNotice(
+            "#330 seam 1 · fetchSessionConversation '\(id)': stored \(response.data.count) → mapped \(messages.count)"
+            + " (refused \(response.data.count - messages.count))"
+            + " · roles \(Self.roleCensus(response.data))"
+            + " · rows carrying usage 0 (the stored transcript has none to carry)"
+        )
         let convo = Conversation(
             title: Conversation.defaultTitle,
             messages: messages,
             lastActivity: messages.last?.timestamp ?? .now
         )
         return (response.sessionId ?? id, convo)
+    }
+
+    /// #330 seam 1's payload: "user 3, assistant 3, system 1" — which role the
+    /// map refused, not merely how many rows it dropped. A count alone cannot
+    /// distinguish a missing priming notice from a tool row.
+    nonisolated static func roleCensus(_ rows: [SessionMessagesResponse.StoredMessage]) -> String {
+        let counts = rows.reduce(into: [String: Int]()) { tally, row in
+            tally[(row.role ?? "none").lowercased(), default: 0] += 1
+        }
+        return counts.keys.sorted().map { "\($0) \(counts[$0] ?? 0)" }.joined(separator: ", ")
     }
 
     nonisolated static func mapStoredMessage(_ m: SessionMessagesResponse.StoredMessage, sessionId: String) -> Message? {   // harness-visible (#364)
@@ -881,8 +903,13 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// If the priming turn fails, no hop is recorded: the just-created server
     /// session is abandoned and the next attempt re-creates and re-primes —
     /// a little server-side litter, never a silently unprimed session.
-    // runs-path-visible (#283): hop preparation (including the transplant
-    // priming turn, which stays on the SESSIONS plane in 3A) is shared.
+    // runs-path-visible (#283): hop preparation, including the transplant
+    // priming turn, is shared.
+    // ~~which stays on the SESSIONS plane in 3A~~ — FALSIFIED, corrected
+    // 2026-08-25 (#330's lane, the debt #330 records against #382's
+    // close-out). `postPrimingTurn` posts to `Self.runsPath`; there is no
+    // sessions-plane turn transport left to stay on (#382 deleted it,
+    // 2026-08-23). The priming turn rides the RUNS plane like every other.
     func ensureHopForTurn() async throws -> PreparedHop {
         if let hop = journal.activeHop, journal.activeHopIsCurrent {
             return PreparedHop(sessionId: hop.apiSessionId, wasReused: true, priming: nil, profileID: hop.profileID)

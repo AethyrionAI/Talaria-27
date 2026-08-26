@@ -451,9 +451,14 @@ extension SessionsHermesClient {
             let endpoint = try resolveTurnEndpoint(profileID: hop.profileID)
             capturedEndpoint = endpoint
             // P1 (#90): the transplant just happened, before this turn hits
-            // the wire — surface its cost so the receipts stay honest. The
-            // priming turn itself deliberately stays on the SESSIONS plane in
-            // 3A: it is hop SETUP, not the turn transport being migrated.
+            // the wire — surface its cost so the receipts stay honest.
+            // ~~The priming turn itself deliberately stays on the SESSIONS
+            // plane in 3A: it is hop SETUP, not the turn transport being
+            // migrated.~~ — FALSIFIED, corrected 2026-08-25 (#330's lane, the
+            // debt #330 records against #382's close-out). `postPrimingTurn`
+            // posts to `Self.runsPath`, and #382 (2026-08-23) deleted the
+            // sessions turn transport entirely, so there is no other plane
+            // for it to be on. Hop SETUP it remains; sessions-plane it is not.
             if let priming = hop.priming {
                 continuation.yield(.contextPrimed(priming.usage))
             }

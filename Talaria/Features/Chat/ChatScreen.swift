@@ -1740,6 +1740,19 @@ struct ChatScreen: View {
     }
 
     private func handleSlashCommand(_ command: SlashCommand, _ argument: String?) {
+        // #330 instrument. Placed ABOVE the pass-through guard on purpose:
+        // the autocomplete menu offers the HOST's `/usage` row (isLocal
+        // false), so an intercept below the guard would answer a typed
+        // `/usage` and silently pass a TAPPED one through to the gateway —
+        // two behaviours for one command, which is exactly the sort of split
+        // a device script cannot be written against. Gated on the Developer
+        // screen's Verbose Logging toggle; with it off this is inert and
+        // `/usage` reaches the host as it always has.
+        if TalariaLog.isVerbose, command.name == "usage", argument?.isEmpty ?? true {
+            appendSystemMessage(chatStore.usageDiagnosticReport())
+            return
+        }
+
         // Agent pass-through: send the raw slash command text as a chat message.
         // The Hermes agent processes it natively — same as Discord/Telegram.
         guard command.isLocal else {
@@ -1841,7 +1854,9 @@ struct ChatScreen: View {
 
         let commandName = String(first).lowercased()
         let argument = parts.count > 1 ? String(parts[1]) : nil
-        let localCommand = (chatStore.commandCatalog + SlashCommand.localCommands)
+        // #330: `localCommandsIncludingDiagnostics` adds the verbose-gated
+        // `/usage` instrument and is otherwise identical to `localCommands`.
+        let localCommand = (chatStore.commandCatalog + SlashCommand.localCommandsIncludingDiagnostics)
             .first { $0.name == commandName && $0.suggestedArgument == nil && $0.isLocal }
 
         if let localCommand {

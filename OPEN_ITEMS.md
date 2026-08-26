@@ -162,7 +162,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); the refusal wording is the lever — **✅ THE STRING SHIPPED 2026-08-25 (PR #376): both branches carry an explicit do-not-claim clause, RED-first, mutation-proven both ways, 409-A/B/C MET. OPEN on 409-D only — the wording changed, the model's behaviour is UNVERIFIED until the next device `refusal-words` run**
 - **#410** ✅ unlanded AGENTS.md resync recovered from a stale worktree (commit `831b7620` mislabeled itself "#403") — **LANDED 2026-08-25**: sync script extracted byte-for-byte, AGENTS.md regenerated fresh from current CLAUDE.md (two runs byte-identical), worktree + branch pruned; 403-D (standing mechanism) still awaits Owen
 - **#411** 🐛 four AppContainer lifecycle entry points hard-gate on relay `isPaired` — gateway-only/hostless installs get NO lifecycle refresh (widgets, live activities, skills, voice readiness, share-inbox drain) — found by the #309 design sweep; fix rides #309 Lane A, Owen rules on the design doc first; redundancy coverage verify owed before quoting impact
-- **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it** — while per-turn receipts render normally on the same thread. **MEASURED 2026-08-11; clipping RULED OUT** (that card does not scroll, other threads' cards do). `sessionUsageTotals` returns nil only when metered turns AND priming hops are both zero, and both should be non-zero. ~~Mechanism UNKNOWN~~ **⟵ INVESTIGATED 2026-08-25: candidates RANKED — the lead (openSession's wholesale replace drops system rows + usage; the 9→7 count drop and the vanished totals are ONE event) predicts the observed card row-for-row and is SIM-CONFIRMABLE before any device time; measurement lane designed and electable.** Keeps #312 (f) RED; bars 330-A..G pre-registered
+- **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it**. **MEASURED 2026-08-11; clipping RULED OUT.** ~~Mechanism UNKNOWN~~ ~~⟵ INVESTIGATED 2026-08-25, candidates ranked~~ **⟵ ✅ MECHANISM MEASURED 2026-08-25 (measurement lane, unit repro): `openSession`'s wholesale replace + `mapStoredMessage`'s role refusal and empty usage fields zero BOTH totals inputs in ONE event, and the 9→7 row drop is the same event. Candidate ① CONFIRMED; candidate ③ (the `.voiceHermes` predicate split) is REAL but mutation-proven NOT the cause; the entry's "receipts render normally" claim is FALSIFIED — no reopened row carries `usage` or `turnDuration`, and the quoted numbers are the card's LAST TURN block via `SessionUsageIndex`. Shipped: 16 pins in `SessionTotalsAfterReopenTests`, a verbose-gated `/usage` instrument (NOT `#if DEBUG`), 3 seam breadcrumbs at `.notice`, and 330-G's six-step device script.** 330-A/B/E DISCHARGED; **330-C/330-D DEFERRED to the fix lane** (receipts sidecar + predicate convergence), 330-G is Owen's. Keeps #312 (f) RED
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
 - **#339** 🧪 **THE INSTRUMENT SUITE AS A REGRESSION GATE** — Owen's routing tonight: *"we may want to run through them as regression testing."* Newly possible because #333 made every instrument one command with a machine-readable artifact; **19 of 48 are unattended-eligible today**. Tonight four runs surfaced #334/#336/#337 that 2,181 green unit tests could not see. ~~**NO LANE YET** — open questions are cadence, which subset, and what a "regression" even means for a stochastic rate~~ **⟵ index line refreshed 2026-08-25 (it was stale through two sweeps, and its 08-18 duplicate said the same stale thing): the SUBSET was NAMED 08-24 (5 members, ~12 min) and the pre-OTA sequencer BUILT 08-25 (`scripts/mac/preota-subset.sh` + self-test, drift-detection over dead pins). Owed: the first beta-7 run — which is a RE-BASELINE, not drift (#334's E1/E2 moved the long-context band count 22 → 34 and relabeled six cells the same day)** (a band and an n, never an equality assert; #215 governs comparability)
@@ -8611,7 +8611,7 @@ host, because on that plane there is nothing to consult.
 >   the record-lifecycle test.
 > **What remains on this entry: 329-F alone.**
 
-## 330. 🐛 The status card's whole SESSION block VANISHES on a transplanted thread — no priming row, no metered turns, and **#122's cost surface with it** — **FILED 2026-08-11 from Owen's Group 7 device pass (#312 item (f)). MEASURED with a discriminator that rules out clipping. ~~Mechanism UNKNOWN and deliberately not guessed.~~ ⟵ 2026-08-25 (Opus investigation): premise LIVE at HEAD, candidates RANKED with a lead that predicts the observed card row-for-row, and a SIM-TESTABLE confirmation exists — measurement lane electable (below).**
+## 330. 🐛 The status card's whole SESSION block VANISHES on a transplanted thread — no priming row, no metered turns, and **#122's cost surface with it** — **FILED 2026-08-11 from Owen's Group 7 device pass (#312 item (f)). MEASURED with a discriminator that rules out clipping. ~~Mechanism UNKNOWN and deliberately not guessed.~~ ~~⟵ 2026-08-25 (Opus investigation): candidates RANKED, measurement lane electable.~~ ⟵ ✅ MECHANISM NOW MEASURED (2026-08-25, measurement lane): `ChatStore.openSession` REPLACES the message array with the server transcript, and `mapStoredMessage` both REFUSES every non-user/assistant role (killing the `.system` priming row, the only carrier of `isContextPriming`) and carries NO usage/turnDuration/servingModel — so both `sessionUsageTotals` inputs zero in ONE event, taking the 9→7 row drop with them. Candidate ① CONFIRMED, candidate ③ REAL-but-not-the-cause (mutation-witnessed), and the "receipts render normally" observation FALSIFIED — no reopened row can render a receipt; the quoted numbers are the card's LAST TURN block, fed by `SessionUsageIndex`. Repro + `/usage` instrument + 3 seam breadcrumbs landed. STAYS OPEN: nothing is fixed — 330-C/330-D are the fix lane's, 330-G is Owen's.**
 
 > **🔬 2026-08-25 — MECHANISM INVESTIGATION (Opus agent, read-only; full
 > report in the session transcript).** Premise NOT mooted by #368/#382 —
@@ -8661,7 +8661,202 @@ host, because on that plane there is nothing to consult.
 >   (`SessionsHermesClient+RunsTransport.swift:454-456`,
 >   `SessionsHermesClient.swift:884-885`) — both falsified by
 >   `postPrimingTurn` posting to `runsPath`. Correct in whatever lane
->   touches these files next.
+>   touches these files next. **✅ DONE — both corrected in the
+>   measurement lane's own commit (2026-08-25), dated in place, original
+>   claims struck rather than deleted.**
+
+> **✅ 2026-08-25 — MEASUREMENT LANE RAN. CANDIDATE ① IS CONFIRMED; THE
+> MECHANISM IS NAMED AND REPRODUCED IN UNITS.** PR: the `/usage` +
+> repro lane. Bars: **330-A, 330-B, 330-E DISCHARGED; 330-C, 330-D,
+> 330-G DEFERRED to the fix lane** per the ruling. **The entry stays
+> OPEN** — nothing was fixed, and 330-G is Owen's.
+>
+> **THE MECHANISM, in one sentence:** `ChatStore.openSession` replaces
+> `conversation` wholesale with the server transcript, and that
+> transcript is produced by `SessionsHermesClient.mapStoredMessage`,
+> which (a) returns nil for every role but `user`/`assistant` — so the
+> `.system` priming notice, the app's ONLY carrier of
+> `isContextPriming`, cannot come back — and (b) constructs `Message`
+> without `usage`/`turnDuration`/`servingModel`/`isContextPriming`,
+> which it has no choice about, because the stored transcript carries no
+> usage at all (`SessionsHermesClient.openSession`'s own probe comment,
+> 2026-07-16: per-row `token_count` always null). **Both of
+> `sessionUsageTotals`' inputs go to zero in ONE event, and the message
+> count drops by exactly the rows the map refuses.** The card then
+> renders no SESSION section because `sessionUsageTotals` returns nil.
+>
+> - **330-A — DISCHARGED, and the reproduction reaches the store the way
+>   PRODUCTION does** (330-B's stop condition checked, not assumed): the
+>   drawer's own call is `sessionsModel.onSelectSession → await
+>   chatStore.openSession(summary.id)` in `ChatScreen.swift`, which is
+>   the exact entry point the tests use. The fixture is built by
+>   production code on both sides — the live thread's priming notice and
+>   receipt are minted by the store from a `.contextPrimed` + `.finished`
+>   stream, and the arriving transcript is real JSON decoded through
+>   `SessionMessagesResponse` and mapped by the real `mapStoredMessage`.
+>   No hand-written `Message` on the load-bearing rows.
+> - **Two ISOLATING MUTATIONS, both witnessed** (the pins measure what
+>   they claim, not a fixture accident):
+>   - **M1** — make `openSession` carry the departing priming rows across
+>     the replace ⇒ `reopeningTheThreadFromTheDrawerZeroesBothTotalsInputs`
+>     goes RED on `store.sessionUsageTotals == nil` and on
+>     `messages.filter(\.isContextPriming).count == 0`, and the 9→7 pin
+>     goes RED on all three of its expectations. Reverted.
+>   - **M2** — widen `sessionUsageTotals`' predicate to
+>     `sender.isAgentAuthored` ⇒ the candidate-③ pin goes RED **and the
+>     reopen repro STILL PASSES.** That is the falsification: converging
+>     the predicate does not restore one token of the SESSION block on a
+>     reopened thread. Reverted.
+> - **CANDIDATE ③ — REAL, BUT NOT THE CAUSE.** The divergence is
+>   confirmed and now pinned: `MessageBubble` treats a row as
+>   assistant-authored via `sender == .hermes || sender == .voiceHermes`
+>   and renders a receipt from `message.usage` alone, while
+>   `sessionUsageTotals` demands `sender == .hermes` exactly — so a
+>   `.voiceHermes` row carrying usage prints a receipt and counts for
+>   nothing. M2 proves it is not #330's cause (Hermes-thread replies are
+>   `.hermes`, and the totals count them correctly right up until the
+>   reopen). **It remains 330-C's whole subject.**
+> - **THE "RECEIPTS RENDER NORMALLY" OBSERVATION — RESOLVED, and the
+>   entry's reading of it was wrong.** After a reopen **no row can render
+>   a receipt at all**: every row has `usage == nil` AND `turnDuration ==
+>   nil`, and `1M 39S` in the quoted receipt is printed from
+>   `turnDuration`, which `mapStoredMessage` never sets by any path. What
+>   survives is the **card's own LAST TURN block**, fed by
+>   `lastTokenUsage ← Conversation.latestUsage ← SessionUsageIndex` — a
+>   side channel with no transcript row behind it — and its three numbers
+>   are precisely the three the entry quotes (155,932 / 2,459 / 158,391).
+>   **So the entry's ⚠️ STRUCTURAL NOTE ("the receipt asks only 'is there
+>   usage?'") describes a real divergence but is NOT what Owen saw that
+>   night.** The measured explanation is simpler and worse: the receipts
+>   were gone too, and the one surviving number came from a cache.
+> - **330-E — RESOLVED. The count drop and the vanished totals are ONE
+>   event**, exactly as candidate ① predicted. Pinned: a nine-row local
+>   thread carrying two `.system` rows (the priming notice + one in-app
+>   notice) becomes seven on reopen, with `sessionUsageTotals` nil in the
+>   same call. What is NOT claimed: which two rows Owen's thread held.
+>   The mechanism is measured; the composition of that specific thread is
+>   not recoverable and is not guessed.
+>
+> **THE INSTRUMENT — `/usage`, gated on `UserSettings.verboseLogging`.**
+> ⚠️ **NOT `#if DEBUG`** — `ota-stage.sh` archives RELEASE, so a Debug
+> gate would be absent from the exact binary Owen installs (#218's shape,
+> arriving as a missing feature rather than a broken build). It does NOT
+> copy `/history`'s `.user`/`.hermes` filter, which is structurally blind
+> to the `.system` priming row. Verbatim output, captured from the
+> instrument itself on the two states of one thread:
+> ```
+> ── /usage · #330 SESSION TOTALS DIAGNOSTIC ──
+> Conversation CE6EA5E8 · rows 3
+> Totals PRESENT · metered 1 · priming 1
+>   in 155,932 · out 2,459 · priming tokens 36,939 · model time 0S
+> Last turn (side channel) in 155,932 · out 2,459 · total 158,391
+> Senders user 1 · hermes 1 · system 1 · voice_user 0 · voice_hermes 0
+> Carriers usage 2 · turnDuration 1 · servingModel 0 · isContextPriming 1
+> ROWS (prefix "  #") · SENDER · USAGE · DUR · MODEL · PRIMING
+>   #0 · user · — · — · — · —
+>   #1 · system · 36,939/0 · — · — · PRIMING
+>   #2 · hermes · 155,932/2,459 · 0S · — · —
+> ```
+> …and the same thread after one drawer reopen — the whole finding on one
+> screen (fresh conversation id, rows 3→2, totals PRESENT→ABSENT, every
+> carrier zeroed, the side channel untouched):
+> ```
+> ── /usage · #330 SESSION TOTALS DIAGNOSTIC ──
+> Conversation 62273785 · rows 2
+> Totals ABSENT · metered 0 · priming 0 · SESSION BLOCK HIDDEN
+> Last turn (side channel) in 155,932 · out 2,459 · total 158,391
+> Senders user 1 · hermes 1 · system 0 · voice_user 0 · voice_hermes 0
+> Carriers usage 0 · turnDuration 0 · servingModel 0 · isContextPriming 0
+> ROWS (prefix "  #") · SENDER · USAGE · DUR · MODEL · PRIMING
+>   #0 · user · — · — · — · —
+>   #1 · hermes · — · — · — · —
+> ```
+> **A DEVIATION WORTH NAMING: `/usage` ALREADY EXISTS as a gateway
+> command** ("Show token usage", `isLocal: false`), so a local entry of
+> that name SHADOWS it. Rather than rename the contracted command, the
+> local entry lives in `SlashCommand.verboseDiagnosticCommands` and is
+> merged in only by `localCommandsIncludingDiagnostics`, i.e. only while
+> Verbose Logging is on. With the toggle off — the shipping default —
+> nothing is added and `/usage` reaches the host exactly as before; the
+> gateway row is never deleted, so flipping the toggle back restores it.
+> The intercept sits ABOVE `handleSlashCommand`'s pass-through guard so a
+> TAPPED `/usage` (the menu offers the host's row) and a TYPED one behave
+> identically — a command with two behaviours is one a device script
+> cannot be written against. Both gate arms are pinned.
+>
+> **THREE SEAM BREADCRUMBS**, emitted at `.notice` under the same verbose
+> gate via a new `Logger.verboseNotice` — **`verbose(_:)` emits at
+> `.debug`, which `log collect` does not persist, and the OTA path
+> installs with no debugger, so a `.debug` breadcrumb is unreadable
+> exactly when it is needed.** Grep a collected device log for
+> `#330 seam`:
+> - **seam 3** (`ChatStore.makePrimingNotice`) — the notice is MINTED:
+>   `sender=system · isContextPriming=true · usage N`.
+> - **seam 1** (`SessionsHermesClient.fetchSessionConversation`) — the
+>   host's rows are REFUSED: `stored N → mapped M (refused N-M) · roles
+>   assistant a, system s, user u`. The role census is deliberate: a bare
+>   "dropped 1" cannot tell a missing priming notice from a tool row.
+> - **seam 2** (`ChatStore.openSession`) — the REPLACE, both sides on one
+>   line: `departing [rows 3 · metered 1 · priming 1 · totals PRESENT ·
+>   id …] → arriving [rows 2 · metered 0 · priming 0 · totals ABSENT ·
+>   id …]`.
+>
+> **THE SIX-STEP DEVICE SCRIPT (330-G's runbook card — verbatim; the
+> runbook artifact itself belongs to the orchestrator).**
+> ```
+> #330 — SESSION-BLOCK MEASUREMENT (needs a Hermes host; ~5 min)
+> PRE: Settings → Developer → Verbose Logging ON. Without it /usage is
+>      the HOST's command and the seam breadcrumbs emit nothing.
+>
+> 1. New chat. Send one ordinary turn. Wait for the reply.
+> 2. Type  /usage  and send.
+>    EXPECT: "Totals PRESENT · metered 1 · priming 0", one "  #" row line
+>    per message, "Carriers usage 1".
+> 3. Force a transplant. The reliable trigger is a journal entry the
+>    server session never saw: take one VOICE turn (or switch the brain
+>    to on-device, send a turn, switch back), then send a Hermes chat
+>    turn. The transcript must show
+>    [Context transplanted into a fresh session — N tokens].
+>    (A bare model switch is NOT reliable here — #312 (c′) measured the
+>    same hop being reused with no priming notice.)
+> 4. Type  /usage  again.
+>    EXPECT: "priming 1" and a row line reading  · system · … · PRIMING.
+>    Open the CTX gauge → status card: the SESSION block IS present,
+>    with "Priming (1 hop)".
+> 5. Sessions drawer → tap ANY other conversation → tap back into this
+>    one. (This is openSession — the measured cause. Nothing else.)
+> 6. Type  /usage  a third time.
+>    PREDICTED: "Totals ABSENT · metered 0 · priming 0 · SESSION BLOCK
+>    HIDDEN", every Carriers count 0, no PRIMING row, row count dropped
+>    by the number of system rows, and a DIFFERENT Conversation id on
+>    line 2. The status card now ends after LAST TURN.
+>
+> AFTER: leave Verbose Logging on until the log is collected, then
+>   sudo log collect --device-udid <whoGoesThere UDID>
+> and grep "#330 seam" — three lines tell the whole story (3 minted the
+> notice, 1 refused it back, 2 replaced the array).
+>
+> FALSIFIED IF: step 6 shows Totals PRESENT (candidate ① is wrong on
+> device), or step 4 already shows ABSENT (the loss happens before any
+> reopen — a different defect from the one measured in units).
+> ```
+>
+> **DEFERRED, explicitly, to the fix lane:** **330-C** (converge the
+> predicates or document the divergence at both sites), **330-D** (the
+> priming row and `Est. cost` come back on a transplanted thread — the
+> designed shape is a session-id-keyed receipts sidecar replayed at open,
+> the pattern `AgentAttachmentSidecar` already uses; the deliberate
+> non-merge at `openSession` stays, it is pinned), **330-G** (Owen's
+> device close). **No sidecar was built here and no predicate converged
+> — this lane measured.**
+>
+> **THE PINS ARE DEFECT PINS.** Every expectation that encodes the wrong
+> behaviour is marked `⚠️ DEFECT PIN` in
+> `TalariaTests/SessionTotalsAfterReopenTests.swift` and names #330 and
+> the fix lane in its docstring. The fix lane flips them RED FIRST and
+> then rewrites them to describe the fixed behaviour — they are not
+> deleted, because several of them (notably "the SERVER MAP alone can
+> never supply these fields") stay true after the fix.
 
 **What was seen.** On the thread from #312 item (d) — the one that had announced
 `[CONTEXT TRANSPLANTED INTO A FRESH SESSION — 36,939 TOKENS]` twenty minutes

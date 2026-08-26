@@ -68,4 +68,20 @@ extension Logger {
         let line = message()
         debug("\(line, privacy: .public)")
     }
+
+    /// #330: a verbose-gated breadcrumb that has to SURVIVE A DEVICE LOG
+    /// COLLECTION. Same gate as `verbose(_:)`, `.notice` level.
+    ///
+    /// `verbose(_:)` emits at `.debug`, which Console.app's default view
+    /// suppresses and which `log collect` does not persist — fine for a
+    /// live-attached stream, useless for the post-hoc device passes this
+    /// project actually runs (the OTA path installs without a debugger, so
+    /// `sudo log collect --device-udid` is the only route to app log lines).
+    /// A seam breadcrumb nobody can read afterwards is not an instrument, so
+    /// diagnostics meant for a device pass use this instead.
+    func verboseNotice(_ message: @autoclosure () -> String) {
+        guard TalariaLog.isVerbose else { return }
+        let line = message()
+        notice("\(line, privacy: .public)")
+    }
 }
