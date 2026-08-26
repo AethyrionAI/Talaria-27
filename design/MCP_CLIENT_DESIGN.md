@@ -18,7 +18,10 @@
 > lean at the ruling, verbatim: "I'm leaning towards killing it. Value
 > for it has plummeted with Hermes being able to do it, and phone query
 > being available prior to Hermes even being connected." A future ballot
-> should offer KILL first.**
+> should offer KILL first.** **⟵ AND HE DID, the same hour, unprompted:
+> #150 is KILLED 2026-08-26 ("kill it") — considered-and-declined,
+> re-filable. This doc is now the record of a design that was measured
+> honest and then declined on value, not a plan awaiting execution.**
 
 **Author:** Claude (Mac session, 2026-07-20 late) · **Status:** DESIGN GATE — reviewed by
 Owen before any implementation lane dispatches. · **Scope:** post-launch 1.1 marquee.
