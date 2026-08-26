@@ -6583,7 +6583,7 @@ have no durable wire-ready form to park here"). Worth re-examining against
 that #306's mid-turn queue kept v1 text-only for the same reason, so both
 queue producers inherit whatever this decides.
 
-## 309. 📝 RELAY TENANT RE-HOMING — the app calls EIGHTEEN relay paths across SEVEN services, and the decommission plan names three — **FILED 2026-08-09 (Owen routed the filing; found by `dispatch/FABLE-T27-223-251-reconciliation.md` §1.3/NEW-1 — "the largest unfiled gap found"). GATES #251 Phase 4 / #223's relay decommission alongside #271 and #310.**
+## 309. 📝 RELAY TENANT RE-HOMING — the app calls EIGHTEEN relay paths across SEVEN services, and the decommission plan names three — **FILED 2026-08-09 (Owen routed the filing; found by `dispatch/FABLE-T27-223-251-reconciliation.md` §1.3/NEW-1 — "the largest unfiled gap found"). GATES #251 Phase 4 / #223's relay decommission alongside #271 and #310.** **⟵ ✅ COMPLETE + CLOSED 2026-08-26: ALL FOUR LANES LANDED (A `69e2e7e6` · B `373ec733` · C `46daa2cb` · D plugin `b4e8dfa`) plus the design doc, the ruled wizard, and the LiveHermesClient deletion — the REGISTER IS EMPTY, zero code paths from this app to a relay remain (Lane B's block below says it in so many words). This close FEEDS the #251/#223 umbrellas: their relay-decommission gate is satisfied from the app side. What survives elsewhere by design: #269-B's publication moment (its own entry) and the plugin deploy to hosts (Owen's transmission, the standing path).**
 
 > **📏 2026-08-25 — THE REGISTER RE-DERIVED AT HEAD (Sonnet agent; full
 > report in the session transcript). Sweep 5's "five services with live
@@ -10872,7 +10872,15 @@ routinely-red or routinely-ignored gate is worse than none.
 > beta5/6-era; `pcc-surface` makes the transition legible). Carded in the
 > runbook §05.
 
-## 336. 🐛 THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — 3/120 armed trials claim an action with no recorded tool call; separately, 12 artifacts were reaped against 10 recorded calls — **MEASURED 2026-08-12 on `whoGoesThere` (#225's attended spiral run). TWO discrepancies pointing OPPOSITE ways; mechanism NOT elected. ⟵ 2026-08-25 (Opus forensics on the preserved bytes): BOTH discrepancies RESOLVED — the reap surplus is a closed-recorder window with the two orphans NAMED (determination, not a fit), and the 3 claims have a named, REPLICATED trigger. New finding spawned as #409. Dated block below. ⟵ ✅ 336-C BUILT 2026-08-26 (hygiene trio) — the recorder-integrity pin drives the real production call site, PASSED at HEAD (the recorder does not drop admitted calls) and is RED-witnessed against deleting that call site. **This entry's BUILD work is DISCHARGED.** What remains is not build work: Owen's 08-12 production hand-run fabrication has a trigger that is still unnamed, and the refusal-string trigger lives at #409.**
+## 336. 🐛 THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — 3/120 armed trials claim an action with no recorded tool call; separately, 12 artifacts were reaped against 10 recorded calls — **MEASURED 2026-08-12 on `whoGoesThere` (#225's attended spiral run). TWO discrepancies pointing OPPOSITE ways; mechanism NOT elected. ⟵ 2026-08-25 (Opus forensics on the preserved bytes): BOTH discrepancies RESOLVED — the reap surplus is a closed-recorder window with the two orphans NAMED (determination, not a fit), and the 3 claims have a named, REPLICATED trigger. New finding spawned as #409. Dated block below. ⟵ ✅ 336-C BUILT 2026-08-26 (hygiene trio) — the recorder-integrity pin drives the real production call site, PASSED at HEAD (the recorder does not drop admitted calls) and is RED-witnessed against deleting that call site. **This entry's BUILD work is DISCHARGED.** What remains is not build work: Owen's 08-12 production hand-run fabrication has a trigger that is still unnamed, and the refusal-string trigger lives at #409.
+
+> **✅ CLOSED 2026-08-26 (sweep-8): nothing actionable remains here.** The
+> unnamed production trigger is a STANDING OBSERVATION, honestly recorded
+> — no lane, no bar, no defined watch trigger can be written for an n=1
+> event whose bytes were fully mined (this entry's own forensics). A
+> recurrence of a claim-with-no-call in production RE-FILES per #268 with
+> these forensics as its head start; #409 carries the named
+> instrument-plane trigger and #338 the guard's scope.**
 
 > **🔬 2026-08-25 — 336-A FORENSICS COMPLETE from the preserved record
 > (Opus agent; three byte-identical copies verified, incl.
@@ -12407,6 +12415,14 @@ that looked up. A second `kill` (port verifiably free by then) came up clean.
 > by name-grep is a count of names.** Re-derive an inventory at HEAD before
 > building against it — which is what this lane's own bars required, and it is
 > why the defect was found at all.
+
+> **✅ CLOSED 2026-08-26 (sweep-8): both OUR halves are landed and pinned;
+> what remains is the UPSTREAM bind-race itself, which this entry always
+> said is not ours to fix — that residue is an ACCEPTED-EXTERNAL state,
+> and its operational armor (verify the LISTENER after any bounce;
+> `gateway_state.json` diagnosis) lives in CLAUDE.md's ops rules, which
+> survive this entry. A future Hermes update fixing the retry changes
+> nothing of ours.**
 
 ## 263. 🐛 Plugin transport: discovery-pass module reloads SPLIT the hub singleton (tool gated against a live phone), and the enqueue wake misses the parked drain (every query rides a full 25s poll cycle racing the 25s timeout) — **FILED 2026-08-06 late night from live forensics during the 260-E pass; absorbs 2A-B's owed transport instrumentation**
 
@@ -16990,7 +17006,7 @@ instrumentation whose semantics change when the guard does).
 > caveat did not anticipate — one path was worse than filed, one was
 > narrower, and one was not a path at all.
 
-## 412. 🐛 THE "PAIRING & DEVICES" SCREEN INSTRUCTS A FLOW THAT CANNOT COMPLETE AT EITHER END — plugin-CLI copy over a relay-plane gate and a relay-alphabet code field — **FILED 2026-08-25 night per #268, from Owen's device pass on build 3063 ("Side note, relay verbiage detected, settings > Uplink > pairing and devices"). NO LANE — the screen is already scheduled for retirement by #309 Lane B; this entry pins what his screenshot proved so the design ruling absorbs it.**
+## 412. 🐛 THE "PAIRING & DEVICES" SCREEN INSTRUCTS A FLOW THAT CANNOT COMPLETE AT EITHER END — plugin-CLI copy over a relay-plane gate and a relay-alphabet code field — **FILED 2026-08-25 night per #268, from Owen's device pass on build 3063 ("Side note, relay verbiage detected, settings > Uplink > pairing and devices"). NO LANE — the screen is already scheduled for retirement by #309 Lane B; this entry pins what his screenshot proved so the design ruling absorbs it.** **⟵ ✅ CLOSED 2026-08-26: ABSORBED AS PLANNED — Lane B deleted the screen and the pairing family (PR #388), Lane C pre-trimmed Revoke Host and the relay subtitle; closing block at the foot.**
 
 **What the screen says vs what the code can do (all verified at HEAD):**
 - The SETUP card (`ConnectHermesHostScreen.swift:118-119`) instructs:
@@ -17116,6 +17132,14 @@ sibling class), #405 (the pairing-screen family's last defect), #406
 > the **Revoke Host** action (relay row 9, a button that would have
 > cleared a record the next refresh re-derives) and the `.unreachable`
 > subtitle's *"…from the relay."*
+
+> **✅ CLOSED 2026-08-26 (sweep-8 verification, code-checked at HEAD):**
+> `ConnectHermesHostScreen`, `PhonePairingCode`/`RelaySetupCodePayload`,
+> and both falsely-advertising strings are GONE — `git grep` finds one
+> tombstone comment naming the old screen (the adjudicated standard) and
+> nothing else. The CLI arm it advertised died in Lane D (`pair-qr`
+> replaced it). Both sightings (the screen, the inbox) are fixed and the
+> flow that could not complete no longer exists to instruct anyone.
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 

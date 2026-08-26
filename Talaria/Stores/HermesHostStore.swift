@@ -24,9 +24,10 @@ final class HermesHostStore {
     ///
     /// #310 put a gate here rather than only at the activation call site,
     /// because this store's callers are not only `handleActiveProfileChanged`
-    /// — `ConnectHermesHostScreen` has its own `.task { await refresh() }`, so
-    /// a gate that lived at the switch alone would be bypassed the moment the
-    /// user opened Pairing & Devices. That reasoning is untouched; only the
+    /// — screens refresh it directly too (today `ConnectHostScreen`'s own
+    /// `.task { await refresh() }`; originally the since-deleted Pairing &
+    /// Devices screen, #412), so a gate that lived at the switch alone would
+    /// be bypassed the moment a screen opened. That reasoning is untouched; only the
     /// capability it asks about changed, because the capability the fetch
     /// needs changed with it. Same predicate as
     /// `AppContainer.hasGatewayCredentials` (#411/Lane A), derived per call so
