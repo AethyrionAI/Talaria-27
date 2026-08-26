@@ -1,6 +1,35 @@
 import Foundation
 import os
 
+/// **What a push onto `.connectHost` decided, frozen at the tap.**
+///
+/// 🔴 **`startsInWizard` is snapshotted here on purpose, and the alternative
+/// is a measured defect.** The obvious shape — let `ContentView` derive
+/// wizard-vs-screen from `hasGatewayCredentials` — puts an OBSERVABLE
+/// predicate inside `navigationDestination`'s builder, so the moment the
+/// wizard's own commit writes the credentials, SwiftUI re-evaluates the
+/// destination and swaps the wizard out for the Settings screen. The user
+/// never sees the green card or step 3; the flow ends by silently becoming a
+/// different screen.
+///
+/// It was written that way first and `testConnectingAHostViaSettingsEntryPoint
+/// LandsBackInChat` failed on it — a UI journey catching what no unit test
+/// could, because the defect lives in the navigation graph rather than in any
+/// one view. Freezing the decision at the push makes the destination a pure
+/// function of the route, which is the only shape that cannot flip.
+struct ConnectHostEntry: Hashable, Sendable {
+    /// `nil` means the ACTIVE profile — every entry point except the Server
+    /// screen's per-profile row.
+    let profileID: UUID?
+    /// True when this push should present the wizard (no host yet).
+    let startsInWizard: Bool
+
+    var target: ConnectHostTarget {
+        guard let profileID else { return .activeProfile }
+        return .profile(profileID)
+    }
+}
+
 /// Which profile a Connect Host flow is about to write into.
 enum ConnectHostTarget: Equatable, Sendable, Hashable {
     /// The profile the app is currently using — the ordinary case, and the one
@@ -51,6 +80,23 @@ extension AppContainer {
     private static let connectHostLogger = Logger(
         subsystem: TalariaLog.subsystem, category: "ConnectHost")
 
+    /// The push a Connect Host entry point makes. Reads the predicate ONCE,
+    /// here, where it is a fact about the moment the user tapped.
+    ///
+    /// `profileID == nil` resolves the active profile; a fresh install with no
+    /// profile at all has no host either, so it starts in the wizard.
+    func connectHostEntry(profileID: UUID? = nil) -> ConnectHostEntry {
+        let resolved = profileID ?? profilesStore?.activeProfileID
+        let hasHost = resolved.map { hasGatewayCredentials(forProfileID: $0) } ?? false
+        return ConnectHostEntry(profileID: profileID, startsInWizard: !hasHost)
+    }
+
+    /// #127's classification, on the same frozen fact — a profile that already
+    /// holds a host is an existing connection and fails OPEN.
+    func connectAttempt(for entry: ConnectHostEntry) -> ConnectAttempt {
+        entry.startsInWizard ? .newConnect : .existingPairing
+    }
+
     /// Builds the Connect Host state machine's world.
     ///
     /// **Everything that WRITES is behind `commit`,** which `ConnectHostModel`
@@ -63,7 +109,15 @@ extension AppContainer {
     ) -> ConnectHostModel.Environment {
         ConnectHostModel.Environment(
             probe: { [weak self] gatewayBaseURL, apiKey in
-                _ = self
+                // The UI-test arm, and it is the direct heir of
+                // `MockPairingService`: under the test doubles any well-formed
+                // pair of values connects, because a UITest has no host to
+                // reach and the journey under test is the FLOW, not the wire.
+                // The wire is `ConnectHostProbeTests`' subject, on stubs that
+                // can fail four different ways.
+                if self?.usesMockServices == true {
+                    return .connected(latencyMilliseconds: 18, modelsSeen: 3)
+                }
                 return await GatewayHermesHostService.probeCandidateHost(
                     gatewayBaseURL: gatewayBaseURL, apiKey: apiKey
                 )
@@ -125,7 +179,15 @@ extension AppContainer {
         // The lifecycle transition #136's reset-race tests pin: a launch that
         // had no host to talk to has host-backed work to redo. Same seam the
         // relay redeem used, reached from the one place a host can now appear.
-        await handleHostConnected()
+        //
+        // **NOT AWAITED, and that is Lane C's judgement applied again.**
+        // `handleHostConnected()` runs `initialize()`, whose host-backed half
+        // is network work; awaiting it here would park the wizard on its
+        // spinner for as long as the new host takes to answer — and the phone
+        // has just proved the host answers, so there is nothing to wait FOR.
+        // The credentials are already persisted above; everything downstream
+        // is a refresh. (#365's stall, one door further along.)
+        Task { @MainActor [weak self] in await self?.handleHostConnected() }
     }
 
     /// The wizard's "Name this host" field, and the only write the flow makes
@@ -250,12 +312,28 @@ extension AppContainer {
         return told ? .forgottenAndHostTold : .forgottenHostNotTold
     }
 
-    /// Clears BOTH credential families for one profile: the gateway key the
-    /// chat plane uses and the talaria device token/id the plugin link mints.
-    /// Endpoints stay — a profile with an address and no key is an honest
-    /// "HOST SET — KEY MISSING", and deleting the profile is a different,
-    /// louder action the Server screen owns.
+    /// Clears BOTH credential families for one profile — the gateway key the
+    /// chat plane uses and the talaria device token/id the plugin link mints —
+    /// **and the ADDRESS with them.**
+    ///
+    /// 🔴 **The address goes because the card says it does.** Design B4's first
+    /// bullet is *"This phone forgets the address and key"*, and an earlier
+    /// draft of this method kept the endpoint on the theory that "a profile
+    /// with an address and no key is an honest HOST SET — KEY MISSING". It is
+    /// honest, and it is not what the user was told, and it leaves the Connect
+    /// Host screen resting on a half-configured card forever instead of on the
+    /// empty state that names the local brain. The UI journey caught it: after
+    /// a disconnect the screen never returned to A1.
+    ///
+    /// The PROFILE survives — it is the container the credentials are scoped
+    /// to, and removing it is the Server screen's louder, separately-confirmed
+    /// Delete.
     private func forgetHostCredentials(for profile: BackendProfile) async {
+        if let profilesStore {
+            var cleared = profile
+            cleared.gatewayBaseURL = ""
+            profilesStore.upsert(cleared)
+        }
         // The gateway key rides `saveGatewayAPIKey("")` rather than a raw
         // delete: that path also clears the in-memory box and the per-profile
         // cache the chat client reads synchronously, so a forgotten host stops

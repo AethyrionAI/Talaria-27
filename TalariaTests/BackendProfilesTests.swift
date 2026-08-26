@@ -304,7 +304,8 @@ struct BackendProfilesTests {
     // `ConnectHostTests` pins it harder — the old tests measured the
     // POST-CONDITION (the record is still there), while the new ones count
     // WRITES, so a commit that happened and was then undone cannot pass.
-    // See `aFailedProbeWritesNothing…` and `theCommitTargetsOneProfile…`.
+    // See `aGreenProbeCommitsExactlyOnce`, `aFailedProbeWritesNothingOnEveryArm`
+    // and `disconnectClearsOnlyTheTargetProfilesCredentials`.
 
 
     // MARK: - Delete guards (Keychain hygiene rides AppContainer's callback)

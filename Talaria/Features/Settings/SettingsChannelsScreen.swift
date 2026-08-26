@@ -401,7 +401,7 @@ struct SettingsChannelsScreen: View {
     private var upgradeBanner: some View {
         Button {
             router.dismissSheet()
-            router.navigate(to: .connectHost(nil))
+            router.navigate(to: .connectHost(container.connectHostEntry()))
         } label: {
             VStack(alignment: .leading, spacing: Design.Spacing.xs) {
                 HStack {

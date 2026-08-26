@@ -397,7 +397,7 @@ struct UplinkSettingsScreen: View {
             // could not complete at either end).
             GlowButton(title: ConnectHostCopy.screenTitle, systemImage: "link") {
                 router.dismissSheet()
-                router.navigate(to: .connectHost(nil))
+                router.navigate(to: .connectHost(container.connectHostEntry()))
             }
             GhostButton(
                 title: testState == .testing ? "Testing…" : "Test Connection",

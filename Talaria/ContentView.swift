@@ -219,7 +219,7 @@ struct MainTabView: View {
             PermissionsScreen()
         case .capture:
             CaptureScreen()
-        case .connectHost(let profileID):
+        case .connectHost(let entry):
             // **#309 Lane B: the wizard is ENTERED, never imposed.** This is
             // its ONLY presentation site, and it is reached only by an
             // explicit tap — Settings' Connect Host row, the Server screen's
@@ -233,12 +233,15 @@ struct MainTabView: View {
             // #127: this seam is still the one gated connect entry point.
             // Only a NEW connect can hit the paywall — re-opening a host you
             // already have is never severed. Dormant until the #127 flag flips.
-            if container.connectGateVerdict(for: connectAttempt(for: profileID)) == .showPaywall {
+            // The branch reads the FROZEN decision the push carried, never a
+            // live predicate — see `ConnectHostEntry`, and the UI journey that
+            // caught the live version swapping the wizard out mid-flow.
+            if container.connectGateVerdict(for: container.connectAttempt(for: entry)) == .showPaywall {
                 ConnectedPaywallView()
-            } else if hasHost(profileID) {
-                ConnectHostScreen(target: connectTarget(for: profileID))
+            } else if entry.startsInWizard {
+                ConnectHostWizard(target: entry.target)
             } else {
-                ConnectHostWizard(target: connectTarget(for: profileID))
+                ConnectHostScreen(target: entry.target)
             }
         case .inbox:
             InboxScreen()
@@ -255,34 +258,14 @@ struct MainTabView: View {
         }
     }
 
-    /// #127: classify what the connect flow would do. A profile that ALREADY
-    /// has a working host is an existing connection (fail open); everything
-    /// else reaching the flow is a new connect.
-    ///
-    /// **#309 Lane C re-homed the predicate; Lane B moved the TARGET off a
-    /// store field and onto the route.** It used to ask
-    /// `ProfileRelaySessionFactory.isPaired` — "does this profile hold a
-    /// relay-era pairing record?" — which the retirement made permanently true
-    /// for every profile that ever paired (the record persists its own relay
-    /// URL and nothing clears it) and permanently false for a gateway-only
-    /// one. Both answers were wrong for #127's question, which is whether the
-    /// user already has this host set up.
-    private func connectAttempt(for profileID: UUID?) -> ConnectAttempt {
-        hasHost(profileID) ? .existingPairing : .newConnect
-    }
-
-    /// Whether the named profile (or the active one) already holds a host this
-    /// app could route a turn to. The same predicate the whole app uses — not
-    /// a sibling of it.
-    private func hasHost(_ profileID: UUID?) -> Bool {
-        guard let id = profileID ?? container.profilesStore?.activeProfileID else { return false }
-        return container.hasGatewayCredentials(forProfileID: id)
-    }
-
-    private func connectTarget(for profileID: UUID?) -> ConnectHostTarget {
-        guard let profileID else { return .activeProfile }
-        return .profile(profileID)
-    }
+    // #127's classification moved onto `AppContainer.connectAttempt(for:)`,
+    // which reads the entry's frozen decision rather than re-deriving a live
+    // one. **#309 Lane C had re-homed the predicate itself**: it used to ask
+    // `ProfileRelaySessionFactory.isPaired` — "does this profile hold a
+    // relay-era pairing record?" — which the retirement made permanently true
+    // for every profile that ever paired and permanently false for a
+    // gateway-only one. Both answers were wrong for #127's question, which is
+    // whether the user already has this host set up.
 
     @ViewBuilder
     private func sheetDestination(_ destination: SheetDestination) -> some View {

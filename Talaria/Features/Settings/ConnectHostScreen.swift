@@ -88,6 +88,20 @@ struct ConnectHostScreen: View {
             VStack(alignment: .leading, spacing: Design.Spacing.lg) {
                 statusLine(model)
 
+                // **The disconnect's OUTCOME, above the state it left behind.**
+                // It lives here rather than inside a branch because a
+                // disconnect lands on the EMPTY state, and a notice rendered
+                // only on the connected card could never be read (the UI
+                // journey caught exactly that). Bar 309-B6: which of the two
+                // halves happened is reported, never assumed.
+                if model.lastDisconnectOutcome == .forgottenHostNotTold {
+                    Text(ConnectHostCopy.disconnectedHostNotTold)
+                        .font(Design.Typography.caption)
+                        .foregroundStyle(Design.Brand.forgeText)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("connectHost.disconnectOutcome")
+                }
+
                 switch model.presentation {
                 case .empty, .ready, .checking, .failed:
                     editorBody(model)
@@ -310,12 +324,6 @@ struct ConnectHostScreen: View {
 
             disconnectRow(model, host: host)
 
-            if let outcome = model.lastDisconnectOutcome, outcome == .forgottenHostNotTold {
-                Text(ConnectHostCopy.disconnectedHostNotTold)
-                    .font(Design.Typography.caption)
-                    .foregroundStyle(Design.Brand.forgeText)
-            }
-
             MonoLabel(ConnectHostCopy.chatKeepsWorkingFootnote, tracking: Design.Tracking.mono,
                       color: Design.Colors.dimForeground)
                 .frame(maxWidth: .infinity)
@@ -438,7 +446,10 @@ struct ConnectHostScreen: View {
 
         GhostButton(title: ConnectHostCopy.addAnotherHost, systemImage: "plus") {
             model.isShowingHostList = false
-            router.navigate(to: .connectHost(nil))
+            // "Add another host" always starts in the wizard — that is what
+            // adding one IS, whatever the active profile happens to hold.
+            router.navigate(to: .connectHost(
+                ConnectHostEntry(profileID: nil, startsInWizard: true)))
         }
 
         HUDPanel(cornerRadius: Design.CornerRadius.lg) {

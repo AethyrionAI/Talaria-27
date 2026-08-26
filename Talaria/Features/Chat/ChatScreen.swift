@@ -1317,7 +1317,7 @@ struct ChatScreen: View {
 
             Button("Connect") {
                 router.dismissSheet()
-                router.navigate(to: .connectHost(nil))
+                router.navigate(to: .connectHost(container.connectHostEntry()))
             }
             .font(Design.Typography.mono(11, weight: .medium))
             .foregroundStyle(Design.Brand.accentText)

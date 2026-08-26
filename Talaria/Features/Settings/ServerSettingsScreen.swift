@@ -425,7 +425,7 @@ struct ServerSettingsScreen: View {
         // destination screen's `onDisappear` — a target that outlived a
         // mis-dismissed screen pointed the next visit at the wrong profile.
         router.dismissSheet()
-        router.navigate(to: .connectHost(profile.id))
+        router.navigate(to: .connectHost(container.connectHostEntry(profileID: profile.id)))
     }
 
     private func deleteProfile(_ profile: BackendProfile) {

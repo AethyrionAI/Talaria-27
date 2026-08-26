@@ -1,20 +1,33 @@
 import XCTest
 
-/// #135: the template pairing-flow tests, refreshed for the #31
+/// #135: the template connect-flow tests, refreshed for the #31
 /// no-pairing-wall world. First launch lands in a working on-device chat;
-/// pairing is a Settings-level upgrade (Settings → Connect Hermes Desktop →
-/// the relocated ConnectHermesScreen). #137: a successful pair pops straight
-/// back to chat — no permissions interstitial exists anymore (sensor
-/// streaming is a separate Settings-level opt-in).
+/// connecting a host is a Settings-level upgrade. #137: a successful connect
+/// pops straight back to chat — no permissions interstitial exists anymore
+/// (sensor sharing is a separate Settings-level opt-in).
+///
+/// **REWRITTEN, NOT DELETED, by #309 Lane B (bar 309-B10, 2026-08-25.)** The
+/// journeys below drove `ConnectHermesScreen`: an 8-character relay code, a
+/// Relay URL field, and a redeem against a service retired on both hosts.
+/// Every one of those is gone. What the journeys were actually FOR is not —
+/// "a user can reach the connect flow from Settings, complete it, and land
+/// back in chat", and "a disconnect returns cleanly to standalone" are the
+/// same two claims about the same product — so each was re-pointed at
+/// Connect Host rather than tombstoned. Only the code-field mechanics died,
+/// because only they were about the relay.
 ///
 /// The mock scaffolding survives from the template: `UITEST_PAIRING_MODE=mock`
-/// routes `PairingStore` at `MockPairingService` (any well-formed code
-/// redeems), and `/tmp/talariamobile-uitest-config.json` can inject a live
-/// setup code + pairing mode for an end-to-end run against a real relay.
+/// (or any detected test run, per #144's `TestRunGuard`) routes the app at its
+/// doubles, where the Connect Host PROBE answers connected for any well-formed
+/// pair of values — the direct heir of `MockPairingService`, and for the same
+/// reason: a UITest has no host to reach, and the journey under test is the
+/// flow. The wire itself is `ConnectHostProbeTests`' subject, on stubs that
+/// can fail four different ways.
 final class TalariaUITests: XCTestCase {
     private struct UITestLaunchContext {
         private struct ExternalConfiguration: Decodable {
-            let setupCode: String?
+            let gatewayURL: String?
+            let apiKey: String?
             let pairingMode: String?
         }
 
@@ -22,24 +35,27 @@ final class TalariaUITests: XCTestCase {
 
         let defaultsSuite = "uitest.defaults.\(UUID().uuidString)"
         let keychainService = "uitest.keychain.\(UUID().uuidString)"
-        let setupCode: String
+        /// #309 Lane B: the two values Connect Host acquires, replacing the
+        /// 8-character relay `setupCode`. The external-config injection point
+        /// survives so an end-to-end run against a REAL host is still possible
+        /// — it just names the gateway now, which is what a real run needs.
+        let gatewayURL: String
+        let apiKey: String
         let pairingMode: String
 
         init(
-            setupCodeOverride: String? = ProcessInfo.processInfo.environment["UITEST_SETUP_CODE"],
+            gatewayOverride: String? = ProcessInfo.processInfo.environment["UITEST_GATEWAY_URL"],
+            keyOverride: String? = ProcessInfo.processInfo.environment["UITEST_API_KEY"],
             pairingMode: String = ProcessInfo.processInfo.environment["UITEST_PAIRING_MODE"] ?? "mock"
         ) {
             let externalConfiguration = Self.loadExternalConfiguration()
             self.pairingMode = externalConfiguration?.pairingMode ?? pairingMode
 
-            let resolvedSetupCode = setupCodeOverride ?? externalConfiguration?.setupCode
-            if let resolvedSetupCode, !resolvedSetupCode.isEmpty {
-                self.setupCode = resolvedSetupCode
-                return
-            }
-
-            // Any 8 characters from PhonePairingCode's alphabet (no I/O/0/1).
-            self.setupCode = "ABCD-EFGH"
+            let resolvedGateway = gatewayOverride ?? externalConfiguration?.gatewayURL
+            self.gatewayURL = (resolvedGateway?.isEmpty == false)
+                ? resolvedGateway! : "http://127.0.0.1:8642"
+            let resolvedKey = keyOverride ?? externalConfiguration?.apiKey
+            self.apiKey = (resolvedKey?.isEmpty == false) ? resolvedKey! : "uitest-api-server-key"
         }
 
         private static func loadExternalConfiguration() -> ExternalConfiguration? {
@@ -71,24 +87,35 @@ final class TalariaUITests: XCTestCase {
         XCTAssertTrue(composer.exists)
         XCTAssertTrue(app.buttons["Start voice mode"].exists)
         XCTAssertTrue(app.buttons["Open settings"].exists)
-        XCTAssertFalse(app.buttons["Enter Code Manually"].exists,
-                       "the pairing screen must not be the landing state (#31)")
+        // #309 Lane B: the negative used to name the pairing screen's manual
+        // arm. Both wizard steps are named instead — the wizard is ENTERED,
+        // never imposed (bar 309-B1), so neither step 0's choice nor step 1's
+        // disclosure may exist at launch.
+        XCTAssertFalse(app.buttons["connectHostWizard.connectMyHost"].exists,
+                       "the Connect Host wizard must not be the landing state (#31)")
+        XCTAssertFalse(app.buttons["connectHostWizard.enterManually"].exists,
+                       "no part of the connect flow may be imposed at launch (#31)")
     }
 
-    /// Pairing is a Settings-level upgrade now: Settings → Connect Hermes
-    /// Desktop → manual code entry → mock redeem → straight back in chat
-    /// (#137: no post-pair permissions interstitial).
+    /// Connecting a host is a Settings-level upgrade: Settings → the upgrade
+    /// row → the Connect Host WIZARD → the manual arm → a green check → step 3
+    /// → straight back in chat (#137: no post-connect permissions
+    /// interstitial).
+    ///
+    /// **Renamed from `testMockPairingViaSettingsEntryPoint`** with the flow
+    /// it drives; the claim is unchanged.
     @MainActor
-    func testMockPairingViaSettingsEntryPoint() throws {
+    func testConnectingAHostViaSettingsEntryPointLandsBackInChat() throws {
         let context = UITestLaunchContext()
         let app = makeApp(context: context)
         app.launch()
 
-        completePairing(in: app, setupCode: context.setupCode)
+        completeConnect(in: app, context: context)
 
         XCTAssertNotNil(waitForComposer(in: app, timeout: 15),
-                        "a successful pair should land back in chat")
+                        "a successful connect should land back in chat")
     }
+
 
     /// Chat send against the deterministic on-device synthetic turn (the #120
     /// seam): no live model or host required. Routing note: with no Hermes API
@@ -207,16 +234,19 @@ final class TalariaUITests: XCTestCase {
                        "no permission dialog may appear on a dispatched send (238-A)")
     }
 
-    /// The paired skip-path: a relaunch on the same defaults suite + keychain
-    /// service restores the pairing — straight to chat, no repeated
-    /// permissions onboarding, and Settings no longer offers the unpaired
-    /// upgrade row.
+    /// The connected skip-path: a relaunch on the same defaults suite +
+    /// keychain service restores the host — straight to chat, no repeated
+    /// permissions onboarding, and Settings no longer offers the upgrade row.
+    ///
+    /// **Renamed from `testPairedRelaunchSkipsPairingEntry`.** What it proves
+    /// is now stronger than it was: the credentials it checks survived are the
+    /// ones chat actually routes on, rather than a relay pairing record.
     @MainActor
-    func testPairedRelaunchSkipsPairingEntry() throws {
+    func testConnectedRelaunchSkipsTheConnectEntry() throws {
         let context = UITestLaunchContext()
         let app = makeApp(context: context)
         app.launch()
-        completePairing(in: app, setupCode: context.setupCode)
+        completeConnect(in: app, context: context)
         XCTAssertNotNil(waitForComposer(in: app, timeout: 15))
 
         app.terminate()
@@ -225,239 +255,217 @@ final class TalariaUITests: XCTestCase {
         relaunchedApp.launch()
 
         guard let composer = waitForComposer(in: relaunchedApp, timeout: 15) else {
-            XCTFail("paired relaunch should land directly in chat")
+            XCTFail("a connected relaunch should land directly in chat")
             return
         }
         XCTAssertTrue(composer.exists)
-        XCTAssertFalse(relaunchedApp.buttons["Enter Code Manually"].exists)
 
-        // Paired state survived the relaunch: the Settings upgrade row only
-        // renders while unpaired. #252: the index is the subsystem grid now
-        // — assert the grid presents, then assert `settings.upgradeBanner`
-        // (the new id) is absent, plus the legacy containment text as a
-        // second, independent negative probe.
+        // The host survived the relaunch: the Settings upgrade row only
+        // renders with no host configured. #252: the index is the subsystem
+        // grid — assert the grid presents, then assert `settings.upgradeBanner`
+        // is absent, plus the containment text as a second, independent probe.
         relaunchedApp.buttons["Open settings"].tap()
         XCTAssertTrue(relaunchedApp.otherElements["settings.grid"].waitForExistence(timeout: 5),
                       "the Settings index (subsystem grid) should present")
         XCTAssertFalse(relaunchedApp.buttons["settings.upgradeBanner"].exists,
-                       "a paired install must not offer the settings.upgradeBanner row (#252)")
+                       "a connected install must not offer the settings.upgradeBanner row (#252)")
         XCTAssertNil(waitForButton(containing: "Connect Hermes Desktop", in: relaunchedApp, timeout: 2),
-                     "a paired install must not offer the unpaired upgrade row")
+                     "a connected install must not offer the upgrade row")
     }
 
     /// Disconnect returns cleanly to the standalone chat — the wall is gone
-    /// (#31), and the Settings upgrade row comes back. Traverses the paired
-    /// host-management screen on the way (the old host-status assertions live
-    /// here now).
+    /// (#31), and the Settings upgrade row comes back. Traverses the Connect
+    /// Host settings screen on the way.
+    ///
+    /// **Renamed from `testDisconnectReturnsToStandaloneChat`'s twin and
+    /// re-pointed at the new surface.** It also now traverses the CONFIRM
+    /// SHEET, which the old one-tap Disconnect had no equivalent of — design
+    /// B4's "one button, both halves spelled out".
     @MainActor
-    func testDisconnectReturnsToStandaloneChat() throws {
+    func testDisconnectingAHostReturnsToStandaloneChat() throws {
         let context = UITestLaunchContext()
         let app = makeApp(context: context)
         app.launch()
-        completePairing(in: app, setupCode: context.setupCode)
+        completeConnect(in: app, context: context)
         XCTAssertNotNil(waitForComposer(in: app, timeout: 15))
 
-        // Paired management path: Settings → Uplink card → Pairing & Devices
-        // (routes to .connectHost, which resolves to the host status screen
-        // while paired). #152 renamed this action from "Pair Device" — the
-        // surface owns revoke and disconnect, not just pairing. #252: the
-        // Uplink card opens the deck directly onto UplinkSettingsScreen
-        // (embedded: true) — there is no separate "Hermes Host" row to
-        // traverse first anymore, so Pairing & Devices is one tap away.
+        // Connected management path: Settings → Uplink card → Connect Host
+        // (routes to .connectHost, which resolves to the manual screen once
+        // credentials exist). #252: the Uplink card opens the deck directly
+        // onto UplinkSettingsScreen, so Connect Host is one tap away.
         app.buttons["Open settings"].tap()
         let uplinkCard = app.buttons["settings.card.uplink"]
         XCTAssertTrue(uplinkCard.waitForExistence(timeout: 5),
                       "Settings should offer the settings.card.uplink card")
         uplinkCard.tap()
 
-        guard let pairingRow = waitForButton(containing: "Pairing & Devices", in: app, timeout: 5) else {
-            XCTFail("the Uplink deck page should offer the Pairing & Devices action")
+        guard let connectRow = waitForButton(containing: "Connect Host", in: app, timeout: 5) else {
+            XCTFail("the Uplink deck page should offer the Connect Host action")
             return
         }
-        pairingRow.tap()
+        connectRow.tap()
 
         // iOS 27 beta: this tap dismisses the settings sheet AND pushes the
-        // host screen in one tick — under bundle-warm timing the synthesized
-        // tap occasionally lands without invoking the action at all (screen
-        // recording shows the sheet untouched 5s later; the same flow passes
-        // in isolation). The pre-#137 CONTINUE interstitial masked this by
-        // rebuilding the root after pairing. Re-tap once if nothing moved —
-        // same spirit as the per-keystroke setup-code hedge above.
-        var disconnect = waitForButton(containing: "Disconnect", in: app, timeout: 5)
-        if disconnect == nil, pairingRow.exists {
-            pairingRow.tap()
-            disconnect = waitForButton(containing: "Disconnect", in: app, timeout: 5)
+        // screen in one tick — under bundle-warm timing the synthesized tap
+        // occasionally lands without invoking the action at all (screen
+        // recording shows the sheet untouched 5 s later; the same flow passes
+        // in isolation). Re-tap once if nothing moved.
+        var disconnect = app.buttons["connectHost.disconnect"]
+        if !disconnect.waitForExistence(timeout: 5), connectRow.exists {
+            connectRow.tap()
+            disconnect = app.buttons["connectHost.disconnect"]
+            _ = disconnect.waitForExistence(timeout: 5)
         }
-        guard let disconnect else {
-            XCTFail("the paired host screen should offer Disconnect")
+        guard disconnect.exists else {
+            XCTFail("the Connect Host screen should offer the disconnect row")
             return
         }
         disconnect.tap()
 
+        // Design B4: one button, both halves spelled out. The confirm sheet is
+        // part of the contract — a disconnect that skipped it would pass the
+        // old test and fail the design.
+        let confirm = app.buttons["connectHost.disconnectConfirm"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5),
+                      "disconnect must confirm before it forgets anything (design B4)")
+        confirm.tap()
+
+        // The screen falls back to its EMPTY state in place — and the empty
+        // state is not an error: it names the local brain as the current
+        // answer (design A1).
+        XCTAssertTrue(app.buttons["connectHost.scan"].waitForExistence(timeout: 10),
+                      "after a disconnect the screen must return to its empty state")
+
+        // …and it REPORTS the second half rather than assuming it: with no
+        // plugin link in the test doubles the host cannot be told, and the
+        // screen says so instead of claiming both halves happened (309-B6).
+        XCTAssertTrue(
+            app.staticTexts.matching(
+                NSPredicate(format: "label CONTAINS[c] %@", "wasn't reachable")
+            ).firstMatch.waitForExistence(timeout: 5),
+            "a disconnect the host was not told about must say so"
+        )
+
         // #31: back in the standalone chat, no wall.
+        app.navigationBars.buttons.firstMatch.tap()
         guard let composer = waitForComposer(in: app, timeout: 15) else {
             XCTFail("disconnect should land back in the standalone chat")
             return
         }
         XCTAssertTrue(composer.exists)
-        // #164: assert the wall is GONE, not that it was never momentarily in
-        // the tree. The composer and the dismissing wall coexist for a beat —
-        // the reproduction on 2026-07-24 checked the composer at t=41.93s and
-        // the wall 50ms later, catching the dismissal mid-flight.
-        //
-        // This deliberately does NOT paper over #31. A wall that genuinely
-        // returned never disappears, so it still fails — it just fails after
-        // the timeout instead of during someone else's animation. Do not
-        // replace this with a sleep or a plain `.exists` check in either
-        // direction: one masks the real defect, the other re-opens the flake.
-        XCTAssertTrue(app.buttons["Enter Code Manually"].waitForNonExistence(timeout: 5),
-                      "no pairing wall may return after disconnect (#31)")
 
-        // Standalone again: the upgrade banner is back. #252: assert both
-        // the id and the legacy containment text, same as the entry point.
+        // Standalone again: the upgrade banner is back. #252: assert both the
+        // id and the containment text, same as the entry point.
         app.buttons["Open settings"].tap()
-        XCTAssertTrue(app.buttons["settings.upgradeBanner"].waitForExistence(timeout: 5),
-                      "an unpaired install should offer the settings.upgradeBanner row again (#252)")
+        XCTAssertTrue(app.buttons["settings.upgradeBanner"].waitForExistence(timeout: 10),
+                      "a hostless install should offer the settings.upgradeBanner row again (#252)")
         XCTAssertNotNil(waitForButton(containing: "Connect Hermes Desktop", in: app, timeout: 5),
-                        "an unpaired install should offer the Settings upgrade row again")
+                        "a hostless install should offer the Settings upgrade row again")
     }
 
-    // MARK: - Pairing helper
+    // MARK: - Connect helper
 
-    /// Drives the #31 Settings-level pairing flow end to end: opens Settings,
-    /// enters the relocated ConnectHermesScreen through the upgrade row,
-    /// types the code, and redeems — landing straight back in chat (#137).
+    /// Drives the Connect Host wizard end to end: Settings → the upgrade row →
+    /// step 0's CONNECT MY HOST → the manual arm → both values → CHECK →
+    /// CONTINUE → START CHATTING.
+    ///
+    /// **Replaces `completePairing`.** Three of its mechanics went with the
+    /// relay and are NOT ported, each for a stated reason:
+    /// - the per-character Relay URL typing (#310/#405) — there is no relay
+    ///   field, and the gateway field is bound to a local draft the model
+    ///   never canonicalizes, which `ConnectHostDraftIntegrityTests` now
+    ///   measures directly rather than inferring from a UI trace;
+    /// - the setup-code reformatter hedges — the code field's `onChange`
+    ///   formatter was the source of the dropped keystrokes those hedges
+    ///   repaired, and it is deleted with `PhonePairingCode`;
+    /// - the enablement poll before the pair button — kept, because the CHECK
+    ///   button is still disabled until both values are present, and a dropped
+    ///   keystroke must fail HERE rather than as a downstream timeout.
     @MainActor
-    private func completePairing(in app: XCUIApplication, setupCode: String) {
+    private func completeConnect(in app: XCUIApplication, context: UITestLaunchContext) {
         let settingsButton = app.buttons["Open settings"]
         XCTAssertTrue(settingsButton.waitForExistence(timeout: 10))
         settingsButton.tap()
 
-        // #252: the settings root is now the subsystem grid, and the
-        // unpaired upgrade row is `settings.upgradeBanner`. It is still a
-        // plain SwiftUI Button whose accessibility label concatenates
-        // title + subtitle + UPGRADE — assert BOTH the id and the legacy
-        // "Connect Hermes Desktop" containment match resolve to the same
-        // row, so a future relabel can't silently drop one contract while
-        // keeping the other green.
+        // #252: the settings root is the subsystem grid, and the hostless
+        // upgrade row is `settings.upgradeBanner`. Assert BOTH the id and the
+        // "Connect Hermes Desktop" containment match resolve to the same row,
+        // so a future relabel cannot silently drop one contract.
         let upgradeBanner = app.buttons["settings.upgradeBanner"]
         XCTAssertTrue(upgradeBanner.waitForExistence(timeout: 5),
-                      "Settings should offer the settings.upgradeBanner row while unpaired (#252)")
+                      "Settings should offer the settings.upgradeBanner row while hostless (#252)")
         XCTAssertNotNil(waitForButton(containing: "Connect Hermes Desktop", in: app, timeout: 5),
                         "the upgrade banner must still contain 'Connect Hermes Desktop' copy")
         upgradeBanner.tap()
 
-        // ConnectHermesScreen (the sheet dismissed; pushed on the main stack).
-        let manualEntry = app.buttons["Enter Code Manually"]
-        XCTAssertTrue(manualEntry.waitForExistence(timeout: 5))
-        manualEntry.tap()
+        // **The wizard — reached by a TAP, never imposed (bar 309-B1).** That
+        // it is here at all is the point: an install with no host gets the
+        // wizard, and it got here because the user asked for it.
+        let connectMyHost = app.buttons["connectHostWizard.connectMyHost"]
+        XCTAssertTrue(connectMyHost.waitForExistence(timeout: 8),
+                      "the Connect Host wizard should present from the Settings upgrade row")
+        // …and the local path is offered alongside it, on the same step.
+        XCTAssertTrue(app.buttons["connectHostWizard.startLocally"].exists,
+                      "step 0 must offer START LOCALLY beside CONNECT MY HOST")
+        XCTAssertTrue(app.buttons["connectHostWizard.notNow"].exists,
+                      "Not now must be on every step (bar 309-B1)")
+        connectMyHost.tap()
 
-        // #310: TYPE THE RELAY URL. Until 2026-08-20 this helper never
-        // touched the field, because the profile arrived pre-seeded and the
-        // button enabled on the setup code alone. #310's relay-retirement
-        // migration clears every profile's relay URL, so the field is now
-        // empty and `isRelayConfigurationValid` correctly refuses to enable
-        // the button — which is what put three tests RED on the #310 gate.
-        //
-        // **This is not a workaround for the migration; it removes a
-        // fragility the test already had.** The seed came from
-        // `UserSettings.swift:52`, which fills `customRelayBaseURL` with the
-        // development base URL *only* when `allowsEnvironmentOverrides` is
-        // true — i.e. in DEBUG/test builds. A RELEASE install has ALWAYS
-        // started empty and always required the user to type this. So the
-        // pre-#310 test drove a path no shipping user has ever taken, and
-        // would not have survived being pointed at a Release build. Typing
-        // it exercises the real flow.
-        //
-        // Ordered AFTER the manual-entry tap on purpose: that button sits
-        // low on the screen, and bringing the keyboard up first can put it
-        // under the keyboard plane. The code field is tapped explicitly
-        // below, so stealing focus here costs nothing.
-        let relayField = app.textFields["Relay URL"]
-        XCTAssertTrue(relayField.waitForExistence(timeout: 5),
-                      "the pairing screen must offer a Relay URL field (#310: the profile no longer arrives with one)")
-        relayField.tap()
-        // #405: this helper's diagnostics measured the scramble
-        // ('http:/v1127.0.0.1:8000/v1') that turned out to be the APP
-        // canonicalizing the mid-draft per keystroke — fixed in
-        // ConnectHermesScreen.setRelayURL, and pinned by
-        // RelayDraftIntegrityTests. Per-character typing plus one verified
-        // repair pass stay: they make any future input-path regression
-        // fail measured rather than blind.
-        let expectedRelay = "http://127.0.0.1:8000/v1"
-        for character in expectedRelay {
-            relayField.typeText(String(character))
-        }
-        if let relayValue = relayField.value as? String, relayValue != expectedRelay,
-           !relayValue.isEmpty {
-            relayField.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue,
-                                       count: relayValue.count))
-            for character in expectedRelay {
-                relayField.typeText(String(character))
-            }
-        }
+        // Step 1 is scan-first; the manual arm is a disclosure.
+        let enterManually = app.buttons["connectHostWizard.enterManually"]
+        XCTAssertTrue(enterManually.waitForExistence(timeout: 5),
+                      "step 1 should offer the manual arm alongside the scanner")
+        enterManually.tap()
 
-        let setupCodeField = app.textFields["Setup code"]
-        XCTAssertTrue(setupCodeField.waitForExistence(timeout: 5))
-        setupCodeField.tap()
-        // One keystroke per typeText call: the field's onChange formatter
-        // rewrites the binding when the display dash lands (5th character),
-        // and a single fast burst loses keystrokes inside that rewrite
-        // (observed on-sim: only ABCDEF of ABCDEFGH arrived). Per-call app
-        // idling lets each reformat settle. The dash itself is stripped —
-        // the formatter reinserts it, and skipping the "-" key avoids a
-        // keyboard-plane switch.
-        for character in setupCode.replacingOccurrences(of: "-", with: "") {
-            setupCodeField.typeText(String(character))
-        }
+        let gatewayField = app.textFields["Gateway URL"]
+        XCTAssertTrue(gatewayField.waitForExistence(timeout: 5),
+                      "the manual arm must offer a Gateway URL field")
+        gatewayField.tap()
+        gatewayField.typeText(context.gatewayURL)
 
-        // #405: on the beta7 sim runtime (24A5423a) the reformatter's
-        // keystroke loss documented above got frequent enough to red about
-        // one full-suite run in fourteen, rotating among this helper's
-        // callers — and the branch-point control proved it pre-existing, not
-        // any lane's. One verified repair pass: read the field back and type
-        // a cleanly-truncated tail. Anything messier (a mid-string drop)
-        // still fails, now with both field values in the message, so the
-        // next occurrence is measured rather than blind.
-        let expectedDigits = setupCode.replacingOccurrences(of: "-", with: "")
-        let typedDigits = (setupCodeField.value as? String ?? "")
-            .replacingOccurrences(of: "-", with: "")
-        if typedDigits != expectedDigits,
-           typedDigits.count < expectedDigits.count,
-           expectedDigits.hasPrefix(typedDigits) {
-            for character in expectedDigits.dropFirst(typedDigits.count) {
-                setupCodeField.typeText(String(character))
-            }
-        }
+        let keyField = app.secureTextFields["API key"]
+        XCTAssertTrue(keyField.waitForExistence(timeout: 5),
+                      "the manual arm must offer an API key field")
+        keyField.tap()
+        keyField.typeText(context.apiKey)
 
-        // The GlowButton is titled "Pair Device" but carries an explicit
-        // "Connect Hermes" accessibility label. It stays disabled until the
-        // code is complete AND the relay URL validates — wait for enablement
-        // so a dropped keystroke fails HERE, not as a downstream timeout.
-        let pairButton = app.buttons["Connect Hermes"]
-        XCTAssertTrue(pairButton.waitForExistence(timeout: 5))
+        // The check button stays disabled until BOTH values are present — so
+        // a dropped keystroke fails here, with the field values in the
+        // message, rather than as a downstream timeout.
+        let checkButton = app.buttons["connectHostWizard.check"]
+        XCTAssertTrue(checkButton.waitForExistence(timeout: 5))
         let enableDeadline = Date(timeIntervalSinceNow: 10)
-        while !pairButton.isEnabled, Date() < enableDeadline {
+        while !checkButton.isEnabled, Date() < enableDeadline {
             RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.5))
         }
-        XCTAssertTrue(pairButton.isEnabled,
+        XCTAssertTrue(checkButton.isEnabled,
                       """
-                      pair button should enable once the full code is present and the relay URL validates \
-                      (#405 diagnostics — code field: '\(setupCodeField.value as? String ?? "?")', \
-                      relay field: '\(relayField.value as? String ?? "?")')
+                      CHECK & CONNECT should enable once both values are present \
+                      (gateway field: '\(gatewayField.value as? String ?? "?")')
                       """)
-        pairButton.tap()
+        checkButton.tap()
 
-        // #137: a successful pair pops straight back to chat — no
-        // permissions interstitial may appear.
+        // Step 2 → the green card, then step 3.
+        let carryOn = app.buttons["connectHostWizard.continue"]
+        XCTAssertTrue(carryOn.waitForExistence(timeout: 15),
+                      "a green check should reach the connected card")
+        carryOn.tap()
+
+        let startChatting = app.buttons["connectHostWizard.startChatting"]
+        XCTAssertTrue(startChatting.waitForExistence(timeout: 5),
+                      "step 3 should offer START CHATTING")
+        startChatting.tap()
+
+        // #137: landing straight in chat — no permissions interstitial.
         guard waitForComposer(in: app, timeout: 15) != nil else {
-            XCTFail("a successful pair should land straight in chat (#137)")
+            XCTFail("a successful connect should land straight in chat (#137)")
             return
         }
         XCTAssertFalse(app.buttons["CONTINUE"].exists,
-                       "the post-pair permissions wall must not return (#137)")
+                       "the post-connect permissions wall must not return (#137)")
         XCTAssertTrue(app.buttons["Open settings"].waitForExistence(timeout: 10))
     }
+
 
     // MARK: - Shared locator helpers
 

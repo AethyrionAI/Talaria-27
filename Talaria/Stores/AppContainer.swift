@@ -785,6 +785,7 @@ final class AppContainer {
             chatBackendRouter: chatBackendRouter
         )
 
+        container.usesMockServices = usesMockServices
         container.chatAPIKeyBox = hermesAPIKeyBox
 
         // #304: the host-approval card's plumbing. The store's answer rides
@@ -2077,7 +2078,15 @@ final class AppContainer {
         talkStore.reset()
         router.selectedTab = .chat
         router.activeSheet = nil
-        router.resetAll()
+        // **#309 Lane B removed `router.resetAll()` here.** It popped the
+        // whole navigation stack, which under the relay flow meant leaving a
+        // host-management screen that had just become meaningless. Connect
+        // Host's empty state is NOT meaningless — it names the local brain as
+        // the current answer (design A1) — and it is where the disconnect
+        // REPORTS whether the host was actually told. Popping it would delete
+        // the one surface that answers "did both halves happen?", which is
+        // exactly the honesty bar 309-B6 exists for. The user leaves by the
+        // back button, having read the outcome.
         chatStore.reset()
         inboxStore.reset()
         hostStore.reset()
