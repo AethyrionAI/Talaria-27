@@ -10428,6 +10428,27 @@ NOT cut), **#215** (routed-vs-unrouted: these rows are the `armed` control),
 
 
 > **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** 336-C — the RED-witnessed recorder-captures-every-accepted-call pin; closes this entry. Rides the hygiene trio. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
+
+> **🔎 LANE-OPEN 2026-08-26 (hygiene trio): 336-C NEEDS NO AMENDMENT — it is
+> built exactly as pre-registered 2026-08-12.** Two facts fixed before the run
+> so the RED cannot be negotiated afterwards:
+> - **The call site is singular and located.** `grep -rn recordToolCall
+>   Talaria/` returns exactly two hits: the recorder's own definition
+>   (`BatteryRunStore.swift:497`) and ONE production caller —
+>   `ToolEventRelay.started(_:detail:)` in
+>   `DeviceTools/DeviceToolBelt.swift:277`, inside the `#if DEBUG` +
+>   `batteryTrialTag` guard. The pin drives that real call site, not the
+>   recorder in isolation; a test that only called `recorder.recordToolCall`
+>   directly could not go RED on the break the bar names.
+> - **The RED recipe, fixed in advance:** delete that one line from `started`,
+>   confirm the new pin fails, restore. **If the pin passes at HEAD with no fix,
+>   that is the GOOD outcome** — 336-C asks for an integrity pin, not a defect.
+>   The RED is witnessed against the deliberate break, which is what makes the
+>   pin load-bearing rather than decorative (`tests-written-after-a-defect`).
+> - **Scope note:** the pin also covers the governor's REFUSAL arm, because
+>   `started` deliberately records nothing for a refused call — the "no chip for
+>   work that never happened" rule (#180/#225). An integrity pin that only
+>   counted admissions would pass while a refusal quietly recorded a lie.
 ## 334. 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips 5/5→0/5 between ctxlen 575 and 4,073; `'Say that again more briefly'` misroutes at BOTH 551 and 4,073 — **MEASURED 2026-08-12 on the iPad (the #333 runner's first scored probe, n=5/band, errors=0). ~~Mechanism UNKNOWN and deliberately not guessed.~~ ⟵ 2026-08-25 (Opus investigation): the mechanism was NEVER unknown — archived #206 named, measured, and published it 2026-07-30, and this entry never cited it. This is a REPLICATION of #206's offer-tail finding, not a mystery. ~~Product question below awaits Owen; bars pre-register when a route is picked.~~ ⟵ ⚖️ RULED + 🟢 APP HALF LANDED 2026-08-25 (PR #377, merge `12217bdb`): ARMED IS SAFE, so **the rows were mislabelled, not the router** — three `expected:` labels corrected, E1/E2 added to the grid (band count **22 → 34**), the no-op suffix pinned, #206's retracted length rationale removed from the router's comment, and NO router behavior change (the production diff is comment-only). ⏳ **STAYS OPEN:** E1 and E2 are DEVICE rows — the simulator cannot generate (#324) — so this entry closes on the next `long-context-probe` device run, which rides the runbook.**
 
 > **🔬 2026-08-25 — MECHANISM INVESTIGATION (Opus agent, read-only; full
@@ -11619,6 +11640,61 @@ that looked up. A second `kill` (port verifiably free by then) came up clean.
 
 
 > **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** half 2 — the four `effectiveConnectionState` sites collapse into ONE signal (the #180-adopted convention's literal first bullet). Rides the hygiene trio. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
+
+> **🔎 LANE-OPEN 2026-08-26 (hygiene trio) — THE SITE INVENTORY DRIFTED. BARS
+> AMENDED BEFORE CODE (house rule).** Bar 264-C's "FOUR
+> `effectiveConnectionState` sites" was re-derived at HEAD (`0c290b78`) rather
+> than trusted, and the 08-09 count is **wrong in both directions**:
+>
+> - **The DERIVATION was already half-collapsed — by #350, 2026-08-18.** The
+>   four properties no longer carry bodies. Three settings surfaces
+>   (`AboutSettingsContent.swift:90`, `SettingsChannelsScreen.swift:499`,
+>   `UplinkSettingsScreen.swift:113`) delegate to
+>   `ChatConnectionPresentation.settingsEffectiveState`; `ChatScreen.swift:828`
+>   delegates to `ChatConnectionPresentation.effectiveState`. "Collapse four
+>   bodies into one" describes a tree that no longer exists.
+> - **There is a FIFTH site, and it is not named `effectiveConnectionState`:**
+>   `ContentView.swift:209` (`chatConnectionState`, the split-view sidebar
+>   footer) derives the same signal through the same mapping. A grep for the
+>   property name cannot see it, which is exactly why the 08-09 count missed
+>   it — and it is the sixth instance of this project's "count the identifier,
+>   miss the behaviour" shape.
+> - **What is actually left is TWO derivations and THREE hand-assembled
+>   argument lists — and the arguments DISAGREE.** `hostConfigured` is spelled
+>   `activeProfile?.hasGateway == true` in About and Channels but
+>   `!gatewayBaseURL.isEmpty` in Uplink, where that screen's `gatewayBaseURL`
+>   falls back to the legacy `settingsStore.settings.hermesAPIBaseURL`. **The
+>   chat plane dials `profilesStore.activeProfile?.gatewayBaseURL` with NO such
+>   fallback** (`AppContainer.swift:558/624/855/997`). So on a container with no
+>   active profile but a legacy settings URL, Uplink renders CHECKING, About and
+>   Channels render the hostless story, and chat can dial nothing at all. **One
+>   banner, three truths — the literal defect this half was opened for, and it
+>   was found by re-deriving the inventory instead of trusting its count.**
+>
+> **BARS, AMENDED AND PRE-REGISTERED BEFORE CODE:**
+>
+> - **264-C (restated as the inventory).** The HEAD inventory is published with
+>   the drift named: five call sites, two mappings, three argument lists. MET
+>   when this block is committed before the first code commit.
+> - **264-D (ONE derivation).** After the change exactly one type owns the
+>   connection mapping, and `grep -rn "settingsEffectiveState" Talaria/` plus
+>   `grep -rn "ChatConnectionPresentation.effectiveState" Talaria/` return
+>   **zero** hits outside it. The two surface mappings survive as arms of one
+>   function with the difference documented — chat's `.error → .offline` is NOT
+>   collapsed into settings' `.error → .unreachable`. **That is the 08-09
+>   ruling's warning honoured, not waived:** collapsing the wrong one silently
+>   changes chat-banner behaviour.
+> - **264-E (ONE `hostConfigured`, RED-witnessed).** No view spells the
+>   predicate: the three settings surfaces pass no `hostConfigured` argument at
+>   all. A unit test pins the profile-less-container-with-a-legacy-URL case to
+>   the SAME state on all three surfaces, and is witnessed RED by restoring
+>   Uplink's `!gatewayBaseURL.isEmpty` spelling.
+> - **264-F (nothing else moved).** #350's mapping pins in
+>   `SettingsChannelsTests` pass with no expectation edited — only the type
+>   name they call. A changed expectation anywhere else is a falsification, not
+>   a redefinition (#218's promoted-clause discipline).
+> - **No bar on the ops half.** Half 1 landed 2026-08-18 and is untouched here.
+
 ## 263. 🐛 Plugin transport: discovery-pass module reloads SPLIT the hub singleton (tool gated against a live phone), and the enqueue wake misses the parked drain (every query rides a full 25s poll cycle racing the 25s timeout) — **FILED 2026-08-06 late night from live forensics during the 260-E pass; absorbs 2A-B's owed transport instrumentation**
 
 Two related defects, one module-lifecycle root, both observed live tonight:
@@ -17601,6 +17677,54 @@ scope: **wholesale, or a permanent dual path?**
 
 
 > **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** the Private-Relay diagnostics row (names blocked tailnet HTTP). Rides the hygiene trio. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
+
+> **🔎 LANE-OPEN 2026-08-26 (hygiene trio) — RELEVANCE CHECK FIRST, THEN BARS.
+> This entry had NO bars; they are written here before any code (house rule).**
+>
+> **RELEVANCE VERDICT: the premise SURVIVES, but it has NARROWED to one plane.**
+> Re-derived at HEAD rather than assumed:
+> - **Gone.** The app-side sensor upload path (#352, deleted), the relay `:8000`
+>   and the models shim `:8765` (#375 — retired on BOTH hosts; `ModelsShimClient`
+>   is not in the tree). **#24e's two measured victims — "502s for the relay and
+>   30-second timeouts for the shim" — are both retired components.** Any row
+>   scoped to them would name a condition on a path that no longer exists.
+> - **Alive, and it is the one that matters.** Chat/runs, the `/v1/models` Test
+>   Connection probe and the plugin webhook (`/api/platforms/talaria/events`) all
+>   ride **cleartext HTTP to a `100.64.0.0/10` literal on `:8642`** — one CGNAT
+>   address, one listener, three consumers. Private Relay proxies unencrypted app
+>   HTTP; this is precisely that path, and it is now the ONLY one.
+> - **So the row is scoped to the gateway plane, and #24e's legacy-relay half
+>   dies with its component.** The narrowing makes the row MORE valuable, not
+>   less: the surviving path is the one carrying every turn.
+>
+> **THE HONESTY CONSTRAINT, WRITTEN BEFORE THE CODE. A generic timeout is NOT
+> Private Relay.** iOS ships no public API for "is Private Relay on", so the row
+> must reason from evidence or say nothing. The only client-side signal that
+> DISCRIMINATES is a **proxy-shaped HTTP status** — #24e measured 502 — returned
+> for a request that was cleartext `http` to a CGNAT literal, because our aiohttp
+> api_server does not answer `/v1/models` that way and a 502 there is an
+> intermediary talking. No answer, a refusal, and a DNS miss are all equally
+> consistent with an ordinary dead host, and must not be dressed up.
+>
+> **BARS, PRE-REGISTERED:**
+> - **377-A (the discriminator).** The row reads INDICATED only when all three
+>   legs hold: scheme `http`, host a literal inside `100.64.0.0/10`, and a
+>   proxy-shaped gateway status (502/504). Unit-pinned with three negative
+>   controls that each break exactly one leg — `https` to the same host, `http`
+>   to a non-CGNAT host, and a 502 arriving over `https`.
+> - **377-B (a timeout does not get named).** A `timedOut` failure on an
+>   interceptable path renders the WEAKER wording, which states the configuration
+>   fact and offers Private Relay as one candidate among others. Pinned by
+>   asserting the two verdicts differ and that the weaker string makes no claim.
+> - **377-C (silence when there is nothing to say).** A PASSED test, a REFUSED
+>   connection, a rejected key and a `hostNotFound` each render NO row. Refused
+>   and auth-rejected are *answers* — something on the path replied — which is
+>   not the proxy's failure shape.
+> - **377-D (it renders).** The row appears under the Test Connection result on
+>   the Uplink screen, the one surface holding a just-measured failure, and the
+>   gate is green.
+> - **No bar on detecting Private Relay itself.** Anything claiming to read that
+>   system setting would be invented. The row reports EVIDENCE, never a setting.
 ## 378. 🧭 156c — the MEMORY introspection surface — **FILED 2026-08-18 night, re-homed from #156's close. SCOPE DECISION FIRST, Owen routes: `~/.hermes/memories/*.md` vs the authoritative shared Honcho instance. Bars pre-register after scope.** **⟵ HEADER CORRECTED 2026-08-23: the SCOPE DECISION WAS MADE — Owen ruled 2026-08-18 ~22:40 for **local `~/.hermes/memories/*.md` first, read-only, no new dependency**, Honcho later if ever wanted. So bars can pre-register now; what is missing is a SCHEDULE, not a scope. *"Buildable when routed; not scheduled this week."***
 
 > **2026-08-18 ~22:40 — SCOPE RULED (Owen, recommendations batch): local
