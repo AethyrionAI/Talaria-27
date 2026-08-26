@@ -158,7 +158,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#408** 🐛 a guardrail-declined image turn has no route — on-device `.guardrailViolation` dead-ends at Retry (n=4: the declined photo stable at 0/2 on-device, 1/1 on PCC; a different shot passed on-device); post-#390 nothing can opt an image down to OCR on that tier. **⚖️ RULED auto-degrade-once 2026-08-25 and ✅ BUILT + MERGED the same night (PR #378, `b03fabfb`): BOTH turn paths retry once through #390-B's own `composeTurnInput(… imageInputEnabled: false)`, the reply says so in production copy, text-only + PCC declines untouched; 408-A..E met, RED-first, five mutations each reding one named pin; gate 2568(+16)/14/Release. OPEN on the device re-send only (runbook card in the entry)**
 - **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); the refusal wording is the lever — **✅ THE STRING SHIPPED 2026-08-25 (PR #376): both branches carry an explicit do-not-claim clause, RED-first, mutation-proven both ways, 409-A/B/C MET. OPEN on 409-D only — the wording changed, the model's behaviour is UNVERIFIED until the next device `refusal-words` run**
 - **#411** 🐛 four AppContainer lifecycle entry points hard-gate on relay `isPaired` — gateway-only/hostless installs get NO lifecycle refresh — **✅ FIXED + MERGED 2026-08-25 in #309 Lane A (PR #381, `69e2e7e6`): five gates re-keyed, local work unconditional, host work on `hasGatewayCredentials`; mutation-proven both ways. The owed redundancy measurement RAN and corrected the filed impact — five named paths had per-screen fallbacks (overstated), the BACKGROUND widget refresh has none by construction (understated), and `retryCredentialHoldIfNeeded` was vacuous rather than starved**
-- **#412** 🐛 the Pairing & Devices screen instructs a flow that cannot complete at either end — plugin-CLI copy (`hermes talaria pair`) over a relay-alphabet code field and a relay-plane gate — Owen's 3063 device find; absorbed by #309 Lane B (Connect Host), no separate lane. **✅ THE SECOND SIGHTING (Inbox, "COULD NOT REACH THE RELAY") IS FIXED 2026-08-25 by #309 Lane C bar C6 (PR #382, `46daa2cb`)** — the producer was the store's relay-plane capability gate reporting through a failure surface, not a failed fetch; new string `"COULD NOT REACH THE HERMES HOST — PULL TO RETRY"`. The pairing-screen half stays open for Lane B
+- **#412** ✅ CLOSED 2026-08-25 (#309 Lane B) — the Pairing & Devices screen instructs a flow that cannot complete at either end — plugin-CLI copy (`hermes talaria pair`) over a relay-alphabet code field and a relay-plane gate — Owen's 3063 device find; absorbed by #309 Lane B (Connect Host), no separate lane. **✅ THE SECOND SIGHTING (Inbox, "COULD NOT REACH THE RELAY") IS FIXED 2026-08-25 by #309 Lane C bar C6 (PR #382, `46daa2cb`)** — the producer was the store's relay-plane capability gate reporting through a failure surface, not a failed fetch; new string `"COULD NOT REACH THE HERMES HOST — PULL TO RETRY"`. The pairing-screen half stays open for Lane B
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it**. **MEASURED 2026-08-11; clipping RULED OUT.** ~~Mechanism UNKNOWN~~ ~~⟵ INVESTIGATED 2026-08-25, candidates ranked~~ **⟵ ✅ MECHANISM MEASURED 2026-08-25 (measurement lane, unit repro): `openSession`'s wholesale replace + `mapStoredMessage`'s role refusal and empty usage fields zero BOTH totals inputs in ONE event, and the 9→7 row drop is the same event. Candidate ① CONFIRMED; candidate ③ (the `.voiceHermes` predicate split) is REAL but mutation-proven NOT the cause; the entry's "receipts render normally" claim is FALSIFIED — no reopened row carries `usage` or `turnDuration`, and the quoted numbers are the card's LAST TURN block via `SessionUsageIndex`. Shipped: 16 pins in `SessionTotalsAfterReopenTests`, a verbose-gated `/usage` instrument (NOT `#if DEBUG`), 3 seam breadcrumbs at `.notice`, and 330-G's six-step device script.** 330-A/B/E DISCHARGED. **⟵ ✅ FIXED 2026-08-25 (fix lane, `330-receipts-sidecar`): the `TurnReceiptSidecar` — session-id-keyed, replayed at open, `AgentAttachmentSidecar`'s pattern plus a priming tier — restores `usage`/`turnDuration`/`servingModel`/`isContextPriming` across the replace, and `mapStoredMessage` re-maps the STORED primer (a `user` row host-side) into the priming notice, collapsing its ack; that also closes a compounding defect where every reopen fed the primer back into the journal the next transplant is composed from. 330-C CONVERGED (four sites, one `isAgentAuthored` predicate — hygiene, M2 already proved it is not the cause). 330-D MET with its token source NAMED: `postPrimingTurn` returns nil whenever the priming run misses the 20 s `runsSyncBudget`, so the run id is kept and re-read off the interactive path onto the journal hop. 5 of 16 pins flipped RED-first (9 expectations), all rewritten; 16 → 34 tests; 3 isolating mutations.** **330-C/330-D DISCHARGED; only 330-G (Owen's device close) is left, and #312 (f) flips with it**
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
@@ -4912,13 +4912,57 @@ Logged 2026-07-23.
 > OPEN as the register until the members drain; what closed is the
 > DESIGN question it was filed to force.
 
-## 182. 🎲 Second flaky UI test — `testMockPairingViaSettingsEntryPoint` launch timeout
+> **📜 THE CONVENTION, WRITTEN UP — 2026-08-25 night (#309 Lane B's close-out,
+> discharging Owen's ruling above). It lives in ONE place in the code:
+> `Talaria/Features/Settings/ConnectHostCopy.swift`'s header**, next to the
+> strings it governs, because a convention filed only in a tracker is one the
+> next lane has to be told about.
+>
+> **Six rules. Every one of them is a thing the app used to do and stopped.**
+>
+> 1. **MEASURED, OR NAMED AS UNMEASURED.** Every status is something the app
+>    watched happen (`REACHABLE · 18MS`, `LAST ANSWERED 7:32 AM`) or is
+>    labelled `NOT CHECKED`. There is no third option. *Why it is a rule:*
+>    #350 — a surface that renders "unknown" as good news trains the reader to
+>    ignore it, and one that renders it as bad news sends them to fix nothing.
+> 2. **SAVED ≠ REACHABLE.** Holding credentials and being answerable are two
+>    facts with two labels; a host that stops answering is `NOT ANSWERING`,
+>    still saved, and every action's copy stays truthful offline. *Why:* the
+>    #412 family — a capability gate reporting through a failure surface.
+> 3. **EMPTY IS NOT AN ERROR.** "No host" names the current answer
+>    (`RUNNING LOCALLY · ON-DEVICE BRAIN`) instead of rendering a failure for a
+>    state the user chose. *Why:* #31/#384 — the hostless install is the
+>    DEFAULT user, and the app kept describing them as broken.
+> 4. **FAILURES ARE NAMED PER CHECK.** A ladder of real discriminations, so a
+>    card can point at the rung that broke — never a bare "failed", and never
+>    an HTTP code quoted at a human.
+> 5. **THE GUILTY FIELD, AND ONLY IT.** A failure re-offers one input and
+>    leaves the others alone, carrying the measurement that exonerates them.
+> 6. **NO CLAIM THE CODE CANNOT VERIFY.** Storage claims, not encryption
+>    claims; tier claims that survive the tier's own escape hatches. *Why:*
+>    #385/#390's tier honesty, and the `END-TO-END ENCRYPTED` footnote this
+>    lane deleted.
+>
+> **Migrations so far, as named steps in this register:**
+> **#1** — Lane C's 309-C6, the inbox error surface (rule 2).
+> **#2** — Lane B's own sweep: the DIRECT/RELAY link qualifiers on three cards
+> (rule 6 — the branch printing "RELAY" had become unreachable, and an
+> unreachable branch that can still be read as a claim is exactly what rule 6
+> forbids), the Talk footer's `RELAY-BOOTSTRAPPED`, the chat banner's two
+> strings, and the Developer screen's relay-origin endpoint row (rule 1: it
+> now prints the ACTIVE PROFILE's gateway host, or "—").
+> **Still outstanding**, unchanged by this lane: the #241-inherited
+> prose-failure instance, the health-permission card, the `lastErrorMessage`
+> gate, and #139's residual copy.
+
+## 182. 🎲 Second flaky UI test — `testMockPairingViaSettingsEntryPoint` launch timeout — **⟵ THE TEST WAS RENAMED 2026-08-25 (#309 Lane B): it is `testConnectingAHostViaSettingsEntryPointLandsBackInChat` now, and it drives the Connect Host wizard rather than the deleted pairing screen. Counter still 1; a recurrence would be recorded under the new name.**
 
 **Observed 2026-07-24 during the Bundle B lane (PR #144).** Flaked once mid-session with a launch
 timeout; passed in three other runs including the final clean one. **Filed, not fixed** — per the
 #164 spec's standing rule that a flake-hunting lane which widens is a lane that never closes.
 
-**This is NOT #164.** That one is `testDisconnectReturnsToStandaloneChat`, fails on bundle-warm
+**This is NOT #164.** That one is `testDisconnectReturnsToStandaloneChat` (renamed
+`testDisconnectingAHostReturnsToStandaloneChat` by #309 Lane B, 2026-08-25), fails on bundle-warm
 runs, and its failure mode impersonates a real disconnect regression. This is a different test with
 a different symptom (launch timeout, not a missed element). Do not merge the two items; do not let
 a fix for one be credited to the other.
@@ -16197,6 +16241,30 @@ strengthens Q4 (make it real or delete both halves).
 **Related:** #309 (the absorbing design), #411 (wrong-plane gates,
 sibling class), #405 (the pairing-screen family's last defect), #406
 (the relay field's draft pattern — reused by Connect Host).
+
+> **✅ CLOSED 2026-08-25 night (#309 Lane B, PR #PRNUM, squash `SQUASH`) —
+> THE SCREEN IS DELETED, WHICH IS THE ONLY FIX THIS COULD HAVE HAD.**
+>
+> `ConnectHermesHostScreen.swift` and `ConnectHermesScreen.swift` are gone as
+> files, and with them every part of what Owen photographed: the SETUP card's
+> `hermes talaria pair` instruction (a verb Lane D deleted host-side), the
+> 8-character relay-alphabet field (`PhonePairingCode`, whose file was named
+> `RelaySetupCodePayload.swift` for a type that never existed), the redeem
+> against `phone-pairing/redeem`, and `HermesHostStore`'s relay-plane
+> availability gate.
+>
+> **What replaced it is not a repaired screen.** Connect Host acquires two
+> values — the gateway URL and the API key — and PROVES them with an
+> authenticated request before storing anything. The instruction it prints,
+> `hermes talaria pair-qr`, is the verb Lane D shipped, and its payload is
+> pinned byte-for-byte on both sides of the repo boundary
+> (`ConnectHostPayloadTests`). **The old code is refused rather than
+> ignored:** a stale relay QR or a typed 8-character code fails at the scan
+> with a sentence naming the command that does exist, instead of being carried
+> into a flow that cannot complete — which was this entry's whole complaint.
+>
+> **Both sightings are now discharged:** the Inbox half by Lane C (bar 309-C6,
+> `46daa2cb`), the pairing-screen half here.
 
 > **📏 2026-08-25 ~22:19 — A SECOND SIGHTING, Owen's device (Inbox
 > screen): "Inbox Unreachable — COULD NOT REACH THE RELAY — PULL TO

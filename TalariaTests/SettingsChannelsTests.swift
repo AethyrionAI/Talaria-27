@@ -52,9 +52,14 @@ struct SettingsChannelsTests {
         #expect(SettingsCardValues.uplink(state: .notConnected) == "NOT LINKED")
     }
 
+    /// **#309 Lane B re-cut the no-name fallback from "PAIRED" to "HOST SET".**
+    /// "Paired" named a ceremony that no longer happens — a profile that holds
+    /// credentials is described by what it can do, not by what it once
+    /// redeemed. The named-profile arm is untouched, which is the arm a real
+    /// install always takes.
     @Test func serverValue() {
         #expect(SettingsCardValues.server(activeProfileName: "Studio", hasHost: true) == "STUDIO")
-        #expect(SettingsCardValues.server(activeProfileName: nil, hasHost: true) == "PAIRED")
+        #expect(SettingsCardValues.server(activeProfileName: nil, hasHost: true) == "HOST SET")
         #expect(SettingsCardValues.server(activeProfileName: nil, hasHost: false) == "NO PROFILE")
     }
 
