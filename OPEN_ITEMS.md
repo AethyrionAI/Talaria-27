@@ -17788,6 +17788,91 @@ scope: **wholesale, or a permanent dual path?**
 
 
 > **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** all four chores (runColdCalfixBattery registration, #342's two remaining invariants checks — one false-positived on a lane TONIGHT, the tripwire structural fix, #335's conductor hardening). Rides the bundle lane. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
+
+> **🔎 LANE-OPEN 2026-08-26 (bundle lane, branch `373-378-bundle`) — PREMISE
+> RE-DERIVED AT HEAD FIRST, THEN BARS. This entry had NO bars for the four
+> chores; they are written here before any code (house rule).**
+>
+> **Two of the four chores are ALREADY DONE, and finding that out was the
+> first hour's work rather than a lucky escape.** #279 and #389 both cost a
+> session by dispatching against a stale premise, so each chore was checked at
+> HEAD before a line was written:
+>
+> - **🔴 #342's "two remaining checks" DO NOT EXIST as work — all three of the
+>   checks that phrase refers to shipped in the script's FIRST commit.** #342's
+>   evidence block names them exactly: *"duplicate headers, claimed-merge-state
+>   vs git, open PRs vs their entry's latest ruling."* `cf65e96b`
+>   (**2026-08-15**) implemented `check_duplicate_numbers`,
+>   `check_claimed_merge_state` and `check_open_prs_against_entries` — the whole
+>   list, three days BEFORE #342's close wrote *"it already caught the #319/#348
+>   collision, and the two remaining checks are #373's."* The close-out counted
+>   the one check whose catch it remembered and inferred the other two were
+>   unwritten. **The residual was discharged on the day it was filed, and has
+>   been carried on two boards for eight days.** (The script has since grown to
+>   SEVEN checks — four more were added by later lanes that each hit a new
+>   failure class.) So this chore's honest content is not "write two checks": it
+>   is the residual that IS real, below.
+> - **🟡 #335's conductor hazard was FIXED on 2026-08-21 by this bundle's own
+>   five-item pass** — `InstrumentConductor.swift:139-141` is a set difference
+>   today, and the ✅ block above says so. What that pass did NOT leave behind
+>   is a **test that fails if anyone reverts it**: no case in
+>   `InstrumentConductorTests` distinguishes the set difference from
+>   `loadRuns().first`, because every existing test starts from an EMPTY store
+>   where the two are identical. So the remaining work is the pin, not the fix.
+>
+> **⚠️ A WORD COLLISION WORTH NAMING, because the rule it collides with is
+> standing and absolute.** "Hardening" here is **app-side instrument safety** —
+> a unit test over our own DEBUG conductor. It is **not** relay or connector
+> hardening, which Owen forbade outright (CLAUDE.md, 2026-08-02: *"I beg not to
+> harden"*). Nothing in this lane touches the relay, the connector, or any
+> component with a planned end-of-life; the no-harden rule is not in scope and
+> is not being read narrowly.
+>
+> **BARS, PRE-REGISTERED:**
+> - **373-A (`cold-calfix` registered, and reachable by the name it is
+>   registered under).** `InstrumentRegistry.spec(named:)` resolves it; its
+>   capability flags are DERIVED from what `runColdCalfixBattery` actually does
+>   (`runActionBattery` on the default remind/alarm/calendar prompt set under
+>   accept ⇒ EventKit **and** alarms, so it is never unattended-eligible), not
+>   copied from a sibling; the Developer screen taps that exact string; and the
+>   `InstrumentRegistry.all.count` tripwire moves in the SAME commit.
+> - **373-B (the button-name tripwire stops being blind to its own
+>   omissions).** A test derives the names from the **VIEW's source** at test
+>   time and asserts each resolves — the design #373 recorded, and the only one
+>   that can catch an omission (deriving from `InstrumentRegistry.all` would
+>   make the test agree with itself). Two things make it trustworthy rather than
+>   decorative: a **POSITIVE CONTROL**, because a scan that CANNOT fire is
+>   indistinguishable from one that found nothing wrong; and an honest
+>   off-simulator arm — the sources are not in the bundle on a device, so the
+>   bar is UNSCORABLE there and says so rather than passing. RED-witnessed by
+>   the real thing: the `cold-calfix` button lands BEFORE its registry entry, so
+>   the new test reds on the exact class it exists for while the old literal
+>   list stays green — the blindness demonstrated mechanically, not argued.
+> - **373-C (#342's residual, executed as what it actually is).** Two
+>   deliverables, both RED-first: (i) the **`STALE_MERGE` narrowing** #409 filed
+>   to *"whoever owns #342's tooling"* — the check must stop firing on the
+>   English sense *"not merged **with** X"* while still catching every real
+>   stale-merge spelling it catches today, which is the only way a narrowing can
+>   be wrong; and (ii) the **fixture harness the script has never had**
+>   (`scripts/oi-invariants-test.py`, in `lane-gate-classify-test.sh`'s spirit
+>   and `score-eras-test.py`'s shape): crafted tracker snippets in, verdicts
+>   asserted out, ~1 s. The harness is the load-bearing half — a checker with no
+>   test is how the archived #300 classifier gave one wrong verdict for the
+>   whole of this project's history — and every existing check gets a case,
+>   including a POSITIVE case per check so a narrowing cannot silently blind one.
+> - **373-D (#335's conductor hazard PINNED, not re-fixed).** A regression test
+>   constructs the case the set difference exists for — a foreign record sitting
+>   at index 0 of the store AFTER the run — and asserts the conductor embeds the
+>   record the run produced. It must go RED on a reversion to `loadRuns().first`,
+>   and that is verified by mutation, not asserted.
+> - **373-E (one gate, and the count moves by exactly the additions).** The
+>   Swift Testing total moves by the number of tests added and no more; Release
+>   builds; `xcodegen` twice byte-identical if any file is added.
+> - **NOT in this lane, and named so it is not mistaken for an omission:**
+>   `score-due-omission.py`'s warm-up row (the fifth "still open" bullet, added
+>   2026-08-21). It is real and it stays open — this lane's four chores are the
+>   elected ones, and quietly widening a bundle is how a lane stops being
+>   scoreable against its own bars.
 ## 377. 🔧 Private Relay detection row in diagnostics — **FILED 2026-08-18 night, re-homed from #24e's second half at #24's close (the rollup's one live residue). ⟵ ✅ BUILT 2026-08-26 (hygiene trio): relevance re-derived first — the premise SURVIVES but NARROWS to one plane, because #24e's two measured victims (relay `:8000`, shim `:8765`) are retired and only cleartext HTTP to a CGNAT literal on `:8642` remains. Bars 377-A..D written at lane-open and all MET, two RED-witnessed. The row names Private Relay ONLY on a proxy-shaped 502/504 over cleartext HTTP to `100.64.0.0/10`; a timeout gets weaker wording and an answer gets no row. Honest limit recorded: INDICATED is an inference, unobserved live in this configuration.**
 
 - iCloud Private Relay intercepts HTTP to Tailscale IPs, and chat still speaks
@@ -17906,6 +17991,77 @@ scope: **wholesale, or a permanent dual path?**
 
 
 > **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** the local memories read, per the 08-18 scope ruling (read-only, no new dependency). Rides the bundle lane. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
+
+> **🔎 LANE-OPEN 2026-08-26 (bundle lane, branch `373-378-bundle`) — WHAT THE
+> RULED SCOPE MEANS ON A PHONE, SETTLED BEFORE ANY CODE. This entry had NO
+> bars; they are written here first (house rule).**
+>
+> **The ruling is unambiguous about the SOURCE and silent about the SURFACE,
+> and the gap between those two is the whole design question.** Owen ruled
+> local `~/.hermes/memories/*.md`, read-only, no new dependency. Follow that
+> literally and one fact decides the shape:
+>
+> - **`~` on iOS is the APP CONTAINER, not a host home directory.** There is no
+>   `~/.hermes` on `whoGoesThere` and there never will be — not because the
+>   install is hostless, but because those files live on OJAMD's filesystem and
+>   the phone has no path to it. A literal read on a device returns nothing, on
+>   every device, forever.
+> - **A SIMULATOR process shares the Mac's filesystem**, which is the same
+>   property `Phase0ActionCautionTests` already leans on to read the repo's own
+>   Swift sources at test time. So on the Mac Mini the ruled read genuinely
+>   resolves — `/Users/<user>/.hermes/memories/*.md` is right there, and on this
+>   box it is populated.
+> - **The two shapes that would make this user-facing are BOTH excluded by the
+>   ruling itself.** Host-delivering the files over the talaria plugin means a
+>   new verb and a host deploy — *a new dependency*, which the ruling forbids in
+>   the same sentence that set the scope. Honcho is *"later if ever wanted."*
+>
+> **SO THE LEAST-CLAIMING READING, adopted and stated rather than assumed: a
+> READ-ONLY DEVELOPER-SURFACE introspection panel over whatever local memories
+> directory is reachable, which reports UNREACHABLE on a device instead of
+> EMPTY.** That distinction is the entire honesty of the feature. "No memory
+> files found" on a phone would be a true sentence about the filesystem and a
+> false impression about the agent — the agent's memory is fine, this build
+> simply cannot see it. **A user-facing panel is NOT claimed by this lane**, and
+> the reason is recorded here so the next reader does not mistake the ceiling
+> for an oversight: under the ruled scope there is nothing for a device user to
+> look at, and lifting that needs a routing decision (plugin delivery or Honcho)
+> that Owen has not made.
+>
+> **AND THE CONTENT IS A PARTIAL VIEW EVEN WHERE IT WORKS — #158's hard caveat,
+> which #159 turned from hypothetical into fact.** Owen runs the built-in file
+> backend *and* a shared Honcho instance. If the profile's `memory.provider` is
+> Honcho or Mem0 these `.md` files are one layer and may be stale, while the
+> authoritative store is remote. A panel that renders them unlabelled would
+> present a partial view as complete, which is #25's invariant wearing a
+> different hat.
+>
+> **BARS, PRE-REGISTERED:**
+> - **378-A (the reader is pure, and it parses what the format actually is).**
+>   A directory URL in, a parsed result out — `§`-separated free-text entries
+>   per #158's source-confirm, `.md` files only, deterministic order, CRLF and
+>   blank-run tolerant, empty entries dropped rather than counted. No global
+>   state, no `FileManager` default-singleton reach-around, so every arm below
+>   is unit-reachable with a temp directory.
+> - **378-B (four states, and NONE of them says the agent has no memories).**
+>   Absent directory · present-but-empty · unreadable · *this build cannot
+>   reach a host filesystem* each render a DISTINCT message. Pinned by
+>   asserting the four differ AND that not one of them contains a claim about
+>   what the agent remembers — the specific dishonesty available here.
+> - **378-C (the completeness caveat is not optional).** Whenever content is
+>   shown, the surface says these files are one layer and may not be
+>   authoritative (#158/#159). Pinned structurally, so a future edit that drops
+>   the label reds.
+> - **378-D (read-only, and no new dependency — pinned, not promised).** No
+>   write path exists on the reader; no new package, no new network call, no new
+>   plugin verb. Pinned by source-level assertion over the new files, the same
+>   way this project pins its other "must not grow a call site" invariants.
+> - **378-E (it renders, and the gate is green).** The panel lives on the
+>   Developer settings channel — where host/dev introspection already lives —
+>   and builds Debug and Release.
+> - **No bar on showing a device user their agent's memory.** That is the thing
+>   this scope cannot do, and a bar claiming it would be met by a screen that
+>   lies.
 ## 379. 🧭 156e — the PROJECTS introspection surface — **FILED 2026-08-18 night, re-homed from #156's close (Projects exist in hermes-agent — #159's correction). Post-launch candidate; Owen routes.** **⟵ HEADER CORRECTED 2026-08-23: RULED — Owen PARKED this post-launch on 2026-08-18 ~22:40. Not an open routing question; do not re-raise it before launch.**
 
 > **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): PARKED
