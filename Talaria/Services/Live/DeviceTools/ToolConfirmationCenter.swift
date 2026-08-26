@@ -111,6 +111,54 @@ final class ToolConfirmationCenter {
     /// refused for want of calendar access it never needs.
     nonisolated(unsafe) static var batteryWritesArmed = false
 
+    /// **#372(a) — how many times this process has produced a DECLINE.**
+    ///
+    /// #372 filed that the shipping blurb's decline half — *"if they decline,
+    /// accept that gracefully"* — **has never been exercised by a measurement**,
+    /// and the reason it went unnoticed for so long is that no instrument could
+    /// SEE a decline. `toolCallsAdmitted` counts calls the governor let
+    /// through, which is a different fact: a trial can admit a call and still
+    /// never reach the gate, and a trial can reach the gate under a mode that
+    /// approves. Reading "the half was exercised" off the call count is the
+    /// #215 error one layer down — inferring the configuration from a number
+    /// that does not carry it.
+    ///
+    /// So this counts the thing itself, at every site that can produce
+    /// `.declined`, and instruments read a per-trial DELTA off it. A trial with
+    /// a zero delta did not exercise the decline half, and per #215 must not be
+    /// scored as though it had — which is what
+    /// `LocalChatBackend.declineHalfRow` enforces.
+    ///
+    /// `nonisolated(unsafe)` for the same reason `batteryWritesArmed` is: the
+    /// readers are `nonisolated` static instrument helpers with no reference to
+    /// this instance. Monotonic within a process; instruments never reset it,
+    /// they subtract.
+    nonisolated(unsafe) static var batteryDeclineCount = 0
+
+    /// The same count for THIS gate only. Instruments cannot use it — they
+    /// reach the gate through tools they do not own — but tests can, and that
+    /// is the point: an exact-equality assertion against the process-global
+    /// counter is a flake generator, because Swift Testing runs suites in
+    /// parallel and another suite's decline lands in the window. The negative
+    /// control ("an approval must not move it") is only writable against a
+    /// count nothing else can touch.
+    private(set) var declineCount = 0
+
+    /// The ONE place either counter moves. Every `.declined` this class can
+    /// produce routes through here — the battery auto-decline, the defensive
+    /// second-request decline, and the user's own `decline()` — because a
+    /// counter incremented at two of three sites reports a lower rate than the
+    /// truth and reads exactly like a clean result.
+    ///
+    /// Both counters move together in one statement pair, so the instance count
+    /// the tests assert on and the static the instruments read cannot drift
+    /// apart — a test passing against a mirror that had stopped mirroring is
+    /// the failure this shape exists to make impossible.
+    private func noteDecline() {
+        declineCount += 1
+        Self.batteryDeclineCount += 1
+    }
+
     /// #200: every artifact created under auto-accept carries this marker —
     /// injected into the "title"/"request" field at approval — so the run
     /// teardown can find and delete everything the battery created.
@@ -155,6 +203,7 @@ final class ToolConfirmationCenter {
         // fail-safe direction is never-create.
         if autoDeclineForBattery {
             Self.logger.notice("confirmation auto-declined (#196 battery): \(title, privacy: .public)")
+            noteDecline()
             recordBatteryOutcome("declined")
             return .declined
         }
@@ -198,6 +247,9 @@ final class ToolConfirmationCenter {
         }
         guard continuation == nil else {
             Self.logger.warning("confirmation requested while another is pending — auto-declining the new one")
+            #if DEBUG
+            noteDecline()
+            #endif
             return .declined
         }
         return await withCheckedContinuation { newContinuation in
@@ -233,6 +285,7 @@ final class ToolConfirmationCenter {
         if case .declined = decision {
             Self.logger.notice("confirmation declined")
             #if DEBUG
+            noteDecline()
             recordBatteryOutcome("declined")
             #endif
         } else {

@@ -845,11 +845,74 @@ enum InstrumentRegistry {
         // on ZERO-TOOL turns, where the confirmation mode is unreachable, so
         // the mode does not touch the arm that matters.
         // Button: `instrumentButton("card-clause", …)`.
+        //
+        // #372, 2026-08-26 — TWO successors landed on this same instrument and
+        // the entry above does not describe either. (a) every trial now
+        // records whether the gate actually DECLINED, and scores the reply with
+        // #392's `DeclineAttributionScorer` only when it did — the decline half
+        // of the shipping blurb had never been exercised by a measurement
+        // because nothing could see a decline. (b) a seventh arm,
+        // `toolmode-required`, is 337-H's remedy: belt and instructions
+        // production verbatim, `.required` with the mandatory demote exit as
+        // the sole delta. **Production sets no tool-calling mode and this
+        // changes none** — the remedy ships as an arm and the device A/B
+        // decides.
         InstrumentSpec(name: "card-clause", confirmationMode: .autoDecline,
                        writesEventKit: false, writesAlarms: false,
                        run: { backend, trials, _ in
                            guard let backend else { return }
                            await backend.runCardClauseAB(trials: trials)
+                       }),
+        // #372(b) / 337-H — the REMEDY A/B on its own, and it exists because
+        // the full instrument now costs 210 trials.
+        //
+        // Two arms, `control` first and the remedy SECOND: this is the run
+        // whose primary is that single contrast, and the five prose arms of
+        // the full sweep buy it nothing while inserting ~90 trials of thermal
+        // drift between the two arms being compared. The remedy sits LAST in
+        // the seven-arm run (the worst slot, conservative for a positive) and
+        // SECOND here (adjacent to its control, which is what a two-arm A/B
+        // wants) — the same reasoning #211A's arm order records, and the two
+        // placements answer different questions rather than contradicting.
+        //
+        // Same flags as `card-clause`, DERIVED not copied: auto-DECLINE,
+        // nothing written, the phenomenon lives on zero-tool turns where the
+        // confirmation mode is unreachable anyway.
+        //
+        // Surface: auto-DECLINE, so nothing is written.
+        // Button: `instrumentButton("card-clause-remedy", …)`.
+        InstrumentSpec(name: "card-clause-remedy", confirmationMode: .autoDecline,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runCardClauseAB(
+                                trials: trials, arms: [.control, .toolmodeRequired])
+                       }),
+        // #211A offer-instead-of-act on READ paths: three arms × four read
+        // prompts × n. Production (routed) vs #211's pinned `readMotion`
+        // rollback vs a read-tool-free CEILING.
+        //
+        // The ceiling arm is a POSITIVE CONTROL, not a candidate: a detector
+        // that never fires cannot be told from a clean run, so one arm must
+        // make it fire. If `no-read-belt` does not offer, the run is
+        // uninterpretable and no other arm may be read.
+        //
+        // FLAGS DERIVED, NOT COPIED: the prompt set is four READ questions
+        // (#211's two step/motion rows, #209's two bare-field rows), answered
+        // by `readHealth` / `readMotion` / `currentWeather`. Nothing is
+        // written. The production belt still carries the action tools —
+        // removing them would be a second manipulation — so the mode is
+        // auto-DECLINE and a grab still creates nothing, which is what keeps
+        // this unattended-eligible under Owen's 2026-08-11 ruling.
+        //
+        // Surface: read-only — READ tools; nothing is written and the reap is
+        // a no-op.
+        // Button: `instrumentButton("offer-read", …)`.
+        InstrumentSpec(name: "offer-read", confirmationMode: .autoDecline,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runOfferReadBattery(trials: trials)
                        }),
         // #388 beta5 surface sweep: bars 388-A (capabilities, BOTH tiers),
         // 388-B (quota, plus the log needle it must be correlated against)

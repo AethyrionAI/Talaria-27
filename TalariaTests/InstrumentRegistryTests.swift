@@ -67,8 +67,9 @@ struct InstrumentRegistryTests {
     /// same commit. `>=` so a future addition does not red the suite for the
     /// lane that made it.
     @Test func registryCoversEveryDeveloperScreenInstrument() {
-        // 50 since #373 registered `cold-calfix` (2026-08-26).
-        #expect(InstrumentRegistry.all.count >= 50)
+        // 52 since #211A registered `offer-read` and #372(b) registered
+        // `card-clause-remedy` (2026-08-26).
+        #expect(InstrumentRegistry.all.count >= 52)
     }
 
     /// The pin above counts; this one checks the count is of the right things.
@@ -120,6 +121,11 @@ struct InstrumentRegistryTests {
             // the structural test works — the button landed first and the
             // derived scan caught it while this list stayed happily green.
             "cold-calfix",
+            // #211A (2026-08-26): the offer-instead-of-act READ battery.
+            "offer-read",
+            // #372(b) (2026-08-26): 337-H's `.required` remedy against
+            // production, two arms.
+            "card-clause-remedy",
         ]
         for name in namesTheViewPasses {
             #expect(InstrumentRegistry.spec(named: name) != nil,
