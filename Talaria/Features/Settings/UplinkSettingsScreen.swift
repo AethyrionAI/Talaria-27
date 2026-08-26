@@ -107,14 +107,17 @@ struct UplinkSettingsScreen: View {
     /// paywall instead of enabling a new host. Inert while dormant.
     @State private var paywallPresented = false
 
-    /// #350: the shared measured truth — one function, three surfaces. The
-    /// direct probe still outranks relay-based host state; it just may no
-    /// longer claim online without a measurement.
+    /// #264 half 2: the app's ONE connection derivation, argument-free.
+    ///
+    /// **This screen is the one that was wrong.** It used to pass
+    /// `hostConfigured: !gatewayBaseURL.isEmpty`, and this screen's
+    /// `gatewayBaseURL` falls back to the legacy
+    /// `settingsStore.settings.hermesAPIBaseURL` — a migration seed, not an
+    /// endpoint. With no active profile but a stale legacy value, this screen
+    /// promised CHECKING against a URL the chat plane cannot dial, while About
+    /// and Channels told the hostless story. One signal, three truths.
     private var effectiveConnectionState: HermesHostConnectionState {
-        ChatConnectionPresentation.settingsEffectiveState(
-            direct: container.chatStore.directConnectionStatus,
-            hostFallback: hostStore.connectionState,
-            hostConfigured: !gatewayBaseURL.isEmpty)
+        ConnectionSignal.settingsState(container: container, hostStore: hostStore)
     }
 
     private var isDirect: Bool {
@@ -527,8 +530,29 @@ struct UplinkSettingsScreen: View {
                     Text(failure.detail)
                         .font(Design.Typography.caption)
                         .foregroundStyle(Design.Colors.secondaryForeground)
+                    privateRelayRow(for: failure)
                 }
             }
+        }
+    }
+
+    /// **#377: the Private Relay row.** Renders only when the evidence has
+    /// something to say — see `PrivateRelayIndicator`, which owns the rule that
+    /// a generic timeout is not a diagnosis. Absent by default, because a row
+    /// that guesses is worse than no row (#25).
+    @ViewBuilder
+    private func privateRelayRow(for failure: ConnectionTestFailure) -> some View {
+        if let verdict = PrivateRelayIndicator.verdict(
+            baseURL: gatewayBaseURL, failure: failure) {
+            VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                MonoLabel(verdict.label, size: 10, weight: .medium,
+                          tracking: Design.Tracking.mono,
+                          color: Design.Colors.mutedForeground)
+                Text(verdict.detail)
+                    .font(Design.Typography.caption)
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+            }
+            .padding(.top, Design.Spacing.xs)
         }
     }
 

@@ -495,12 +495,9 @@ struct SettingsChannelsScreen: View {
 
     // MARK: Telemetry (live stores → Task 2 formatters)
 
-    /// #350: the shared measured truth — one function, three surfaces.
+    /// #264 half 2: the app's ONE connection derivation, argument-free.
     private var effectiveConnectionState: HermesHostConnectionState {
-        ChatConnectionPresentation.settingsEffectiveState(
-            direct: container.chatStore.directConnectionStatus,
-            hostFallback: hostStore.connectionState,
-            hostConfigured: container.profilesStore?.activeProfile?.hasGateway == true)
+        ConnectionSignal.settingsState(container: container, hostStore: hostStore)
     }
 
     private func cardValue(_ subsystem: SettingsSubsystem) -> String {

@@ -84,14 +84,11 @@ struct AboutSettingsContent: View {
             connectionOnline: effectiveConnectionState == .online)
     }
 
-    /// #350: the shared measured truth — see
-    /// `ChatConnectionPresentation.settingsEffectiveState` (one function,
-    /// three surfaces; the verbatim private copies are gone).
+    /// #264 half 2: the app's ONE connection derivation. This surface supplies
+    /// no arguments — not even `hostConfigured` — because the three settings
+    /// screens used to spell that predicate differently and disagree.
     private var effectiveConnectionState: HermesHostConnectionState {
-        ChatConnectionPresentation.settingsEffectiveState(
-            direct: container.chatStore.directConnectionStatus,
-            hostFallback: hostStore.connectionState,
-            hostConfigured: container.profilesStore?.activeProfile?.hasGateway == true)
+        ConnectionSignal.settingsState(container: container, hostStore: hostStore)
     }
 
     // MARK: Status panel

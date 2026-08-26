@@ -3,23 +3,10 @@ import SwiftUI
 /// Lane J (J-8): connection presentation shared by ChatScreen and the
 /// split-view sidebar footer (MainTabView) — one mapping, two surfaces.
 enum ChatConnectionPresentation {
-    /// Chat talks directly to the Sessions API — the relay-sourced host
-    /// state must not paint chat status (see ChatScreen's original note).
-    static func effectiveState(_ direct: ConnectionStatus) -> HermesHostConnectionState {
-        switch direct {
-        case .connected:
-            return .online
-        case .error:
-            return .offline
-        case .connecting, .disconnected:
-            // #350: not yet probed (or a probe is in flight) is CHECKING,
-            // never online. The old "stay optimistic" arm rendered
-            // LINKED · ONLINE against a dead port across a cold launch —
-            // #25: an unknown must render as unknown, never confident green.
-            return .checking
-        }
-    }
-
+    /// #264 half 2: the connection MAPPINGS moved to `ConnectionSignal`, the
+    /// app's one derivation of "can we reach the host?". What stays here is
+    /// presentation — turning an already-derived state into words and into a
+    /// banner decision. Nothing in this enum derives connection state any more.
     static func sessionsHostDetail(_ state: HermesHostConnectionState) -> String {
         switch state {
         case .online: return "LINKED · ONLINE"
@@ -30,27 +17,6 @@ enum ChatConnectionPresentation {
             // Paired IS a known local fact; reachability is absent until
             // measured (#25).
             return "LINKED · —"
-        }
-    }
-
-    /// #350: the settings surfaces' one shared truth (previously three
-    /// verbatim private copies — the #256 drift shape). A measured direct
-    /// verdict always outranks relay-plane memory: `.connected` is the only
-    /// way to green, and a measured `.error` cannot stay green through a
-    /// stale relay-online fallback. With no direct verdict, a configured
-    /// host is `.checking`; hostless keeps the host-store story unchanged.
-    static func settingsEffectiveState(
-        direct: ConnectionStatus,
-        hostFallback: HermesHostConnectionState,
-        hostConfigured: Bool
-    ) -> HermesHostConnectionState {
-        switch direct {
-        case .connected:
-            return .online
-        case .error:
-            return .unreachable
-        case .connecting, .disconnected:
-            return hostConfigured ? .checking : hostFallback
         }
     }
 
@@ -820,13 +786,13 @@ struct ChatScreen: View {
         return unread > 0 ? "Open inbox. \(unread) unread." : "Open inbox"
     }
 
-    /// Connection state for the chat UI. Chat talks **directly** to the Hermes
-    /// Sessions API (localhost:8642), not the relay, so the banner and status
-    /// indicators must reflect that direct reachability. `hostStore.connectionState`
-    /// is relay-sourced and the relay is offline by design, which would otherwise
-    /// paint a false "Hermes host offline" banner and a stale/offline model chip.
+    /// Connection state for the chat UI, from the app's one derivation
+    /// (`ConnectionSignal`, #264 half 2). Chat talks **directly** to the Hermes
+    /// Sessions API (`:8642`), not the relay, so the banner and status
+    /// indicators must reflect that direct reachability — the reason the
+    /// `.chat` surface takes no host-store fallback.
     private var effectiveConnectionState: HermesHostConnectionState {
-        ChatConnectionPresentation.effectiveState(chatStore.directConnectionStatus)
+        ConnectionSignal.chatState(direct: chatStore.directConnectionStatus)
     }
 
     // Explicitly-typed projections of `effectiveConnectionState`. Keeping these

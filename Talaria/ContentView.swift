@@ -203,10 +203,14 @@ struct MainTabView: View {
         }
     }
 
-    /// Chat-path connection state for the sidebar footer — the same direct
-    /// Sessions-API mapping ChatScreen uses (never the relay-sourced state).
+    /// Chat-path connection state for the sidebar footer — the same one
+    /// derivation ChatScreen uses (never the relay-sourced state).
+    ///
+    /// #264 half 2: this is the FIFTH site of that signal and the one the
+    /// 08-09 inventory missed, because it is not spelled
+    /// `effectiveConnectionState` and a grep for that name cannot see it.
     private var chatConnectionState: HermesHostConnectionState {
-        ChatConnectionPresentation.effectiveState(chatStore.directConnectionStatus)
+        ConnectionSignal.chatState(direct: chatStore.directConnectionStatus)
     }
 
     @ViewBuilder
