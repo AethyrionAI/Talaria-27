@@ -8071,10 +8071,23 @@ argument for making the relay more robust.
 > Step 4 is what settles it: the same bytes, the same command, both outcomes.
 > **The journeys are FLAKY at that tap, in the #164/#182 bundle-warm
 > signature** — a synthesized tap that lands without invoking the action — and
-> a single re-tap hedge was not enough. The test now waits on the CONDITION
-> with a bounded retry (#164's own fix shape): re-tap while CONTINUE is still
-> showing, up to 30 s, so a dropped tap is retried and a wizard that genuinely
-> never advances still reds.
+> a single re-tap hedge was not enough.
+>
+> **And the bounded retry is what finally NAMED it.** After thirty re-taps a
+> gate run still reported `continue=true`: a button present, its action never
+> run. **That is not a dropped tap — the tap is landing somewhere else.**
+> `.exists` is true for an element under the keyboard plane or below the fold,
+> and `.tap()` on one of those hits whatever is actually at those coordinates,
+> which from the test's side is indistinguishable from a tap that vanished.
+> Two fixes, and the product one stands on its own merits: **the wizard now
+> dismisses the keyboard when the check starts** (the fields dim for the
+> duration anyway, so a keyboard over a spinner is noise — and on the step
+> that follows it can sit over the primary action) and its scroll view
+> dismisses interactively. The test scrolls the button into reach, falls back
+> to a coordinate tap, taps through a springboard alert if one is up — those
+> are invisible to `app.buttons`, which is why every earlier diagnostic
+> pointed at the wrong thing — and reports `isHittable` and the keyboard count
+> so a next failure is measured rather than guessed.
 >
 > **Filed as a fourth occurrence in the #164/#182 flake family** — see #182's
 > counter, and note the renames recorded there. **And the product got one
