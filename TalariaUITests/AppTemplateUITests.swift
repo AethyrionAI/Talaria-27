@@ -491,7 +491,14 @@ final class TalariaUITests: XCTestCase {
                 // is indistinguishable from a dropped one. Scroll it into
                 // reach first, then tap the coordinate space rather than the
                 // frame.
-                if !carryOn.isHittable { app.swipeUp() }
+                if !carryOn.isHittable {
+                    // Swipe the SCROLL VIEW, not the app: `app.swipeUp()`
+                    // targets the window and can land on chrome that does not
+                    // scroll, which is a gesture that looks like it did
+                    // something and did not.
+                    let scroller = app.scrollViews.firstMatch
+                    if scroller.exists { scroller.swipeUp() } else { app.swipeUp() }
+                }
                 if carryOn.isHittable {
                     carryOn.tap()
                 } else {
@@ -518,7 +525,10 @@ final class TalariaUITests: XCTestCase {
             composer=\(composerInput(in: app).exists) \
             springboardAlerts=\(springboard.alerts.count) \
             continueHittable=\(app.buttons["connectHostWizard.continue"].isHittable) \
-            keyboards=\(app.keyboards.count)
+            keyboards=\(app.keyboards.count) \
+            scrollViews=\(app.scrollViews.count) \
+            continueFrame=\(app.buttons["connectHostWizard.continue"].frame) \
+            window=\(app.windows.firstMatch.frame)
             """
         )
         startChatting.tap()

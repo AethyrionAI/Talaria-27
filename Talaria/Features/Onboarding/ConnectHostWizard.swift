@@ -374,13 +374,26 @@ struct ConnectHostWizard: View {
                         .font(Design.Typography.callout)
                         .foregroundStyle(Design.Colors.secondaryForeground)
 
-                    ConnectHostCard(host: host)
-
+                    // **CONTINUE sits ABOVE the details card, not below it.**
+                    // Design A5 draws it under, and on a phone that puts the
+                    // step's only forward action below a card whose height
+                    // grows with what the probe found (MODELS SEEN appears
+                    // only when there is a count) — so on a short screen it
+                    // lands below the fold. MEASURED: a gate run reported the
+                    // button present and `isHittable=false`, with no keyboard
+                    // and no alert, and re-tapping it thirty times changed
+                    // nothing because the taps were landing on whatever WAS at
+                    // those coordinates.
+                    //
+                    // The confirmation the user needs is the headline above;
+                    // the card is detail, and detail can scroll.
                     GlowButton(title: ConnectHostCopy.carryOn) {
                         commitName(model)
                         step = .done
                     }
                     .accessibilityIdentifier("connectHostWizard.continue")
+
+                    ConnectHostCard(host: host)
 
                     // "Name this host" is editable HERE and later (the profile
                     // name) — spec §3.4.
