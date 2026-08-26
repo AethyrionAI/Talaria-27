@@ -253,12 +253,20 @@ struct MainTabView: View {
         }
     }
 
-    /// #127: classify what the pairing flow would do. A named pair target
-    /// that is already paired is a re-pair of an existing pairing (fail
+    /// #127: classify what the pairing flow would do. A named target that
+    /// ALREADY has a working host is a re-pair of an existing connection (fail
     /// open); everything else reaching the flow is a new connect.
+    ///
+    /// **#309 Lane C re-homed the predicate.** It used to ask
+    /// `ProfileRelaySessionFactory.isPaired` — "does this profile hold a
+    /// relay-era pairing record?" — which the retirement made permanently true
+    /// for every profile that ever paired (the record persists its own relay
+    /// URL and nothing clears it) and permanently false for a gateway-only
+    /// one. Both answers were wrong for #127's question, which is whether the
+    /// user already has this host set up.
     private var pairingFlowAttempt: ConnectAttempt {
         if let targetID = pairingStore.pairingTargetProfileID,
-           container.profileRelaySessions?.isPaired(profileID: targetID) == true {
+           container.hasGatewayCredentials(forProfileID: targetID) {
             return .existingPairing
         }
         return .newConnect

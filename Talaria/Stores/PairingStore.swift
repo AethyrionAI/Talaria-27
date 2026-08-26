@@ -58,6 +58,25 @@ final class PairingStore {
         pairedRelayConfiguration != nil
     }
 
+    /// Whether a NAMED profile still holds a relay-era pairing record.
+    ///
+    /// **#309 Lane C moved this here from `ProfileRelaySessionFactory.isPaired
+    /// (profileID:)`, and deliberately did NOT re-home it onto gateway
+    /// credentials with that factory's other reader.** Three of its four call
+    /// sites were asking "is this profile connected to a host?", which is a
+    /// gateway question and now reads `AppContainer.hasGatewayCredentials
+    /// (forProfileID:)`. The fourth — the Server screen's FORGET PAIRING row —
+    /// asks whether there is a pairing record to forget, which is a question
+    /// about this store's own data. Answering it with the gateway predicate
+    /// would offer the action on gateway-only profiles, where `forgetPairing`
+    /// has nothing to clear and the row would silently do nothing.
+    ///
+    /// It is dying vocabulary and it dies with this store, in Lane B.
+    func hasPairingRecord(profileID: UUID) -> Bool {
+        guard let profile = profileResolver(profileID) else { return false }
+        return persistence.loadPairedRelayConfiguration(profileScope: profile.credentialScopeID) != nil
+    }
+
     /// The active profile's credential scope (nil = legacy keys — the
     /// migrated profile, or a pre-profile test construction).
     private var activeCredentialScope: UUID? {

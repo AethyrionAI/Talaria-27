@@ -63,7 +63,7 @@ final class TalariaPlatformInboxService: InboxServiceProtocol {
         }
     }
 
-    func fetchInbox(accessToken: String?) async throws -> [InboxItem] {
+    func fetchInbox() async throws -> [InboxItem] {
         persistence.loadInboxState().platformItems.sorted(by: Self.newestFirst)
     }
 
@@ -86,7 +86,7 @@ final class TalariaPlatformInboxService: InboxServiceProtocol {
     /// caller's own local bookkeeping (`InboxStore.updateLocalState`) is what
     /// records a dismiss. It does not throw, because a throw would paint the
     /// Inbox with an error the user cannot act on.
-    func submitAction(itemID: UUID, actionID: String, accessToken: String?) async throws -> InboxActionResult {
+    func submitAction(itemID: UUID, actionID: String) async throws -> InboxActionResult {
         InboxActionResult(itemID: itemID, actionID: actionID, status: .pending, completedAt: .now)
     }
 }

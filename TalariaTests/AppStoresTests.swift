@@ -100,23 +100,11 @@ struct AppStoresTests {
         var currentHost: HermesHostStatus?
         var fetchError: Error?
 
-        func fetchCurrentHost(accessToken: String?) async throws -> HermesHostStatus? {
+        func fetchCurrentHost() async throws -> HermesHostStatus? {
             if let fetchError {
                 throw fetchError
             }
             return currentHost
-        }
-
-        func createEnrollmentCode(accessToken: String?) async throws -> HostEnrollmentCode {
-            HostEnrollmentCode(
-                setupCode: "HC1:test-setup-code",
-                expiresAt: .distantFuture,
-                relayHost: "relay.example.test"
-            )
-        }
-
-        func revokeCurrentHost(accessToken: String?) async throws {
-            currentHost = nil
         }
     }
 
@@ -2857,96 +2845,165 @@ struct AppStoresTests {
 
     // #309 (2026-08-25, Owen's ruling 1 — LiveHermesClient deleted as
     // production-dead): `liveHermesClientRefreshesExpiredAccessTokenDuringConversationLoad`
-    // was DELETED here rather than repointed.
+    // was DELETED here rather than repointed. It pinned the relay's
+    // 401 → refresh-once → retry ladder (#15/#94) on
+    // `LiveHermesClient.performAuthorizedRequest`, and the same ladder had a
+    // live copy in `LiveHermesHostService` that this file pinned instead.
     //
-    // It pinned the relay's 401 -> refresh-once -> retry ladder (#15/#94) on
-    // `LiveHermesClient.performAuthorizedRequest`: one refresher call, two
-    // requests, a connected client. That ladder is NOT gone from production —
-    // it is a per-service copy, and `LiveHermesHostService` still carries its
-    // own (`LiveHermesHostService.swift`, `performAuthorizedRequest`) on a
-    // service the app really constructs. The very next test in this file,
-    // `liveHermesHostServiceRefreshesExpiredAccessTokenDuringFetch`, pins that
-    // live copy with the same three assertions against the same
-    // `RelayAPIClient` 401 mapping. So the ladder keeps a live regression
-    // guard and this one was a duplicate riding a dead client.
+    // **2026-08-25, #309 Lane C: THAT PIN IS NOW TOMBSTONED TOO —
+    // `liveHermesHostServiceRefreshesExpiredAccessTokenDuringFetch` is gone
+    // with the service it measured.** Lane A had already removed the ladder's
+    // last production rung (`accessTokenRefresher` defaulted to `{ nil }`, so
+    // the test kept the argument alive by itself); this lane deleted
+    // `LiveHermesHostService` outright with relay row 7's adapt. There is no
+    // 401 → refresh → retry shape left anywhere in the app: the relay session
+    // tokens that ladder renewed are gone, and the gateway plane's credential
+    // is a static API key with nothing to refresh.
     //
-    // `LiveSessionBootstrapService` — the other live relay tenant — has no
-    // in-client ladder to port to: it OWNS `auth/refresh`, and the retry
-    // decision sits a layer up in the session store.
-    //
-    // **2026-08-25 (#309 Lane A): that service is now DELETED too**, along
-    // with the session store's whole retry ladder. The test below is
-    // therefore the LAST live pin on the 401 → refresh-once → retry shape,
-    // which is why it kept its `accessTokenRefresher` argument even though
-    // production now passes the parameter's `{ nil }` default.
+    // What replaces it is not a port — it is the pin for the NEW mechanism.
+    // The four tests below measure `GatewayHermesHostService` on the three
+    // outcomes the store renders differently, plus the durability property the
+    // relay's host record used to supply for free.
 
+    /// **309-C2** — a reachable gateway is a reachable HOST, and every field
+    /// of the record it produces is either measured or drawn from the profile.
+    ///
+    /// RED against `main`: the type does not exist there.
     @Test @MainActor
-    func liveHermesHostServiceRefreshesExpiredAccessTokenDuringFetch() async throws {
+    func gatewayHostProbeReportsAReachableHostFromAHealthAnswer() async throws {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubURLProtocol.self]
         let session = URLSession(configuration: configuration)
 
-        let accessToken = MutableBox("expired-token")
-        let refreshCallCount = MutableBox(0)
         let requestCount = MutableBox(0)
-        let hostID = UUID()
-
+        let seenAuthorization = MutableBox<String?>(nil)
         StubURLProtocol.requestHandler = { request in
             requestCount.value += 1
             let url = try #require(request.url)
-            #expect(url.absoluteString == "https://relay.example.com/v1/hosts/current")
-
-            let authHeader = request.value(forHTTPHeaderField: "Authorization")
-            if authHeader == "Bearer expired-token" {
-                let response = HTTPURLResponse(url: url, statusCode: 401, httpVersion: nil, headerFields: nil)!
-                let data = #"{"error":{"code":"unauthorized","message":"expired or invalid access token","retryable":false}}"#.data(using: .utf8)!
-                return (response, data)
-            }
-
-            #expect(authHeader == "Bearer refreshed-token")
+            // The trailing slash on the configured base must not produce
+            // `//health` — a shape that 404s on the api_server.
+            #expect(url.absoluteString == "http://ojamd.tailnet.test:8642/health")
+            seenAuthorization.value = request.value(forHTTPHeaderField: "Authorization")
             let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
-            let data = #"""
-            {"data":{
-              "host":{
-                "id":"\#(hostID.uuidString)",
-                "displayName":"Home Mac mini",
-                "hostname":"test-host",
-                "platform":"macos",
-                "connectorVersion":"0.1.0",
-                "hermesCommand":"/usr/local/bin/hermes",
-                "hermesVersion":"hermes 0.7.0",
-                "lastSeenAt":"2026-04-03T21:15:00Z",
-                "lastConnectedAt":"2026-04-03T21:10:00Z",
-                "isOnline":true
-              }
-            }}
-            """#.data(using: .utf8)!
+            let data = #"{"status":"ok","version":"0.20.5","model":"kimi-k2"}"#.data(using: .utf8)!
             return (response, data)
         }
+        defer { StubURLProtocol.requestHandler = nil }
 
-        defer {
-            StubURLProtocol.requestHandler = nil
-        }
-
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" },
+        let profileID = UUID()
+        let service = GatewayHermesHostService(
+            baseURLProvider: { "http://ojamd.tailnet.test:8642/" },
+            apiKeyProvider: { "gateway-key" },
+            displayNameProvider: { "OJAMD" },
+            identityProvider: { profileID },
             session: session
         )
-        let hostService = LiveHermesHostService(
-            apiClient: apiClient,
-            accessTokenRefresher: {
-                refreshCallCount.value += 1
-                accessToken.value = "refreshed-token"
-                return accessToken.value
-            }
+
+        let host = try #require(await service.fetchCurrentHost())
+
+        #expect(requestCount.value == 1)
+        #expect(seenAuthorization.value == "Bearer gateway-key")
+        #expect(host.isOnline)
+        #expect(host.id == profileID)
+        // The name is the PROFILE's — the gateway has none to report, and the
+        // relay's `displayName` was the connector's enrollment label.
+        #expect(host.resolvedDisplayName == "OJAMD")
+        #expect(host.hostname == "ojamd.tailnet.test")
+        #expect(host.hermesVersion == "0.20.5")
+        #expect(host.hermesModel == "kimi-k2")
+        // Real data only (#45): the gateway reports neither, and inventing a
+        // connector version for a retired connector is exactly the failure
+        // this rule exists to stop.
+        #expect(host.platform == nil)
+        #expect(host.connectorVersion == nil)
+    }
+
+    /// **309-C2** — a host that answers but refuses the key is a FAILURE, not
+    /// an offline host. `HermesHostStore` renders the two differently
+    /// (`.unreachable` with the message vs `.notConnected`), and a rejected
+    /// key that read as "offline" would send the user to check their network.
+    @Test @MainActor
+    func gatewayHostProbeSurfacesARejectedKeyAsAnHonestFailure() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+
+        StubURLProtocol.requestHandler = { request in
+            let url = try #require(request.url)
+            let response = HTTPURLResponse(url: url, statusCode: 401, httpVersion: nil, headerFields: nil)!
+            return (response, Data())
+        }
+        defer { StubURLProtocol.requestHandler = nil }
+
+        let service = GatewayHermesHostService(
+            baseURLProvider: { "http://ojamd.tailnet.test:8642" },
+            apiKeyProvider: { "wrong-key" },
+            session: session
         )
 
-        let host = try await hostService.fetchCurrentHost(accessToken: accessToken.value)
+        // …and the store turns that into the unreachable state, carrying the
+        // service's own sentence rather than a manufactured one.
+        let store = HermesHostStore(hostService: service)
+        await store.refresh()
+        #expect(store.currentHost == nil)
+        #expect(store.connectionState == .unreachable)
+        #expect(store.lastErrorMessage == "The Hermes host rejected this device's API key.")
+    }
 
-        #expect(refreshCallCount.value == 1)
-        #expect(requestCount.value == 2)
-        #expect(host?.id == hostID)
-        #expect(host?.isOnline == true)
+    /// **309-C2** — an unconfigured profile asks NOTHING and reports no host.
+    ///
+    /// Not an error: `.notConnected` is the honest state for "you have not set
+    /// a host up yet", and throwing here would paint a fresh install as broken
+    /// — the misattribution #412 filed against this surface's Inbox twin.
+    @Test @MainActor
+    func gatewayHostProbeWithNoGatewayConfiguredAsksNothingAndReportsNoHost() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+
+        let requestCount = MutableBox(0)
+        StubURLProtocol.requestHandler = { request in
+            requestCount.value += 1
+            let url = try #require(request.url)
+            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Data("{}".utf8))
+        }
+        defer { StubURLProtocol.requestHandler = nil }
+
+        let service = GatewayHermesHostService(
+            baseURLProvider: { "   " },
+            apiKeyProvider: { "gateway-key" },
+            session: session
+        )
+
+        let host = try await service.fetchCurrentHost()
+        #expect(host == nil)
+        #expect(requestCount.value == 0)
+
+        let store = HermesHostStore(hostService: service)
+        await store.refresh()
+        #expect(store.connectionState == .notConnected)
+        #expect(store.lastErrorMessage == nil)
+    }
+
+    /// **309-C2** — the host record's identity is STABLE across refreshes.
+    ///
+    /// The relay supplied a durable host UUID; the gateway supplies none, so
+    /// the service derives one. A fresh `UUID()` per probe would make every
+    /// poll a host CHANGE — `HermesHostStatus` is `Hashable` and the widget
+    /// hook fires on the record changing — which is the App Group I/O storm
+    /// `relaylessRefreshAnnouncesAHostChangeOnlyOnATransition` was written
+    /// after. Derived from the base URL with FNV-1a rather than `Hasher`,
+    /// because Swift's hashing is seeded per process: a `Hasher` id would be
+    /// stable within every test run and different on the user's next launch.
+    @Test @MainActor
+    func gatewayHostProbeIdentityIsStableForAHostAndDistinctBetweenHosts() {
+        let first = GatewayHermesHostService.stableIdentity(for: "http://ojamd.tailnet.test:8642")
+        let again = GatewayHermesHostService.stableIdentity(for: "http://ojamd.tailnet.test:8642")
+        let other = GatewayHermesHostService.stableIdentity(for: "http://mac-mini.tailnet.test:8642")
+
+        #expect(first == again)
+        #expect(first != other)
     }
 
     // #238: the retired notificationsEnabled key survives in persisted JSON on
@@ -3137,48 +3194,24 @@ struct AppStoresTests {
         #expect(sessionStore.state.displayName == "Morgan")
     }
 
-    @Test @MainActor
-    func hostStoreGeneratesEnrollmentCodeAndClearsOnRevoke() async throws {
-        let service = RecordingHermesHostService()
-        service.currentHost = HermesHostStatus(
-            id: UUID(),
-            displayName: "Home Mac mini",
-            hostname: "test-host",
-            platform: "macos",
-            connectorVersion: "0.1.0",
-            hermesCommand: "hermes",
-            hermesVersion: "hermes 1.2.3",
-            hermesModel: "gpt-5.4-mini",
-            lastSeenAt: .now,
-            lastConnectedAt: .now,
-            isOnline: false
-        )
-
-        let hostStore = HermesHostStore(
-            hostService: service,
-            accessTokenProvider: { "access-token" }
-        )
-
-        await hostStore.refresh()
-        #expect(hostStore.currentHost?.resolvedDisplayName == "Home Mac mini")
-
-        await hostStore.generateEnrollmentCode()
-        #expect(hostStore.activeEnrollmentCode?.setupCode == "HC1:test-setup-code")
-
-        await hostStore.revokeCurrentHost()
-        #expect(hostStore.currentHost == nil)
-        #expect(hostStore.activeEnrollmentCode == nil)
-    }
+    // **TOMBSTONE — #309 Lane C, 2026-08-25.**
+    // `hostStoreGeneratesEnrollmentCodeAndClearsOnRevoke` is deleted with the
+    // two store methods it drove. `generateEnrollmentCode()` (relay row 8) and
+    // `revokeCurrentHost()` (row 9) both spoke to the relay's ENROLLMENT
+    // record — a host registering with a third party so the phone could ask
+    // about it — and the gateway plane has no such record: the gateway IS the
+    // host. Neither behaviour is re-pointed anywhere, so there is nothing to
+    // port; the surviving half of what this test covered (a refresh landing a
+    // host record on the store) is pinned by
+    // `gatewayHostProbeReportsAReachableHostFromAHealthAnswer` above and by
+    // `hostStoreKeepsKnownOnlineHostDuringRefreshErrors` below.
 
     @Test @MainActor
     func hostStoreMarksReachabilityErrorsWithoutPretendingHostIsOffline() async throws {
         let service = RecordingHermesHostService()
-        service.fetchError = RelayAPIClient.ClientError.requestFailed("Relay unreachable.")
+        service.fetchError = APIClientError.requestFailed("Relay unreachable.")
 
-        let hostStore = HermesHostStore(
-            hostService: service,
-            accessTokenProvider: { "access-token" }
-        )
+        let hostStore = HermesHostStore(hostService: service)
 
         await hostStore.refresh()
 
@@ -3204,13 +3237,10 @@ struct AppStoresTests {
             isOnline: true
         )
 
-        let hostStore = HermesHostStore(
-            hostService: service,
-            accessTokenProvider: { "access-token" }
-        )
+        let hostStore = HermesHostStore(hostService: service)
 
         await hostStore.refresh()
-        service.fetchError = RelayAPIClient.ClientError.requestFailed("Relay unreachable.")
+        service.fetchError = APIClientError.requestFailed("Relay unreachable.")
         await hostStore.refresh()
 
         #expect(hostStore.currentHost?.resolvedDisplayName == "Home Mac mini")
@@ -3372,8 +3402,7 @@ struct AppStoresTests {
 
         let inboxStore = InboxStore(
             inboxService: MockInboxService(),
-            persistence: persistence,
-            sessionStore: sessionStore
+            persistence: persistence
         )
 
         await inboxStore.loadInbox(force: true)
@@ -3389,8 +3418,7 @@ struct AppStoresTests {
 
         let reloadedStore = InboxStore(
             inboxService: MockInboxService(),
-            persistence: persistence,
-            sessionStore: sessionStore
+            persistence: persistence
         )
 
         await reloadedStore.loadInbox(force: true)
@@ -3945,21 +3973,11 @@ struct AppStoresTests {
             self.host = host
         }
 
-        func fetchCurrentHost(accessToken: String?) async throws -> HermesHostStatus? {
+        func fetchCurrentHost() async throws -> HermesHostStatus? {
             fetchCallCount += 1
             try await gate.wait()
             return host
         }
-
-        func createEnrollmentCode(accessToken: String?) async throws -> HostEnrollmentCode {
-            HostEnrollmentCode(
-                setupCode: "HC1:blackhole-setup-code",
-                expiresAt: .distantFuture,
-                relayHost: "relay.example.test"
-            )
-        }
-
-        func revokeCurrentHost(accessToken: String?) async throws {}
     }
 
     @MainActor
@@ -3971,13 +3989,13 @@ struct AppStoresTests {
             self.gate = gate
         }
 
-        func fetchInbox(accessToken: String?) async throws -> [InboxItem] {
+        func fetchInbox() async throws -> [InboxItem] {
             fetchCallCount += 1
             try await gate.wait()
             return [InboxItem(type: .alert, title: "Landed after uplink", body: "Delivered by background init")]
         }
 
-        func submitAction(itemID: UUID, actionID: String, accessToken: String?) async throws -> InboxActionResult {
+        func submitAction(itemID: UUID, actionID: String) async throws -> InboxActionResult {
             InboxActionResult(itemID: itemID, actionID: actionID, status: .completed, completedAt: .now)
         }
     }
@@ -4217,12 +4235,6 @@ struct AppStoresTests {
         /// behaviour for a paired install and keeps every inherited caller
         /// measuring what it measured before.
         gatewayCredentials: Bool = true,
-        /// #310: injected so a test can count RELAY requests. Every caller
-        /// that forms a request asks the base-URL provider exactly once, so
-        /// counting provider invocations counts attempts — including the
-        /// command-catalog fetch, which is otherwise unreachable from this
-        /// harness (its guard is `probeAPIClient ?? apiClient`, both nil).
-        relayAPIClient: RelayAPIClient? = nil,
         /// #389: injected so a test can PARK the activation chain inside
         /// `reloadCapabilities()` — between the hoisted widget write and the
         /// host fetch. Defaulted, so every existing caller is unchanged.
@@ -4282,10 +4294,7 @@ struct AppStoresTests {
                 isOnline: true
             )
         )
-        let hostStore = HermesHostStore(
-            hostService: hostService,
-            accessTokenProvider: { await sessionStore.currentAccessToken() }
-        )
+        let hostStore = HermesHostStore(hostService: hostService)
         let inboxService = BlackHoleInboxService(gate: inboxGate)
         let voiceService = RecordingVoiceSessionService()
         let container = AppContainer(
@@ -4295,8 +4304,7 @@ struct AppStoresTests {
             chatStore: ChatStore(hermesClient: chatClient ?? RecordingHermesClient(), persistence: persistence),
             inboxStore: InboxStore(
                 inboxService: inboxService,
-                persistence: persistence,
-                sessionStore: sessionStore
+                persistence: persistence
             ),
             permissionsStore: PermissionsStore(
                 locationService: MockLocationService(),
@@ -4305,7 +4313,6 @@ struct AppStoresTests {
             ),
             settingsStore: SettingsStore(persistence: persistence),
             talkStore: TalkStore(voiceService: voiceService),
-            apiClient: relayAPIClient
         )
         container.gatewayCredentialsProbe = { gatewayCredentials }
         return LaunchHarness(
@@ -4407,44 +4414,43 @@ struct AppStoresTests {
     // counts 1 bootstrap register, 1 host fetch, 1 inbox fetch and 1
     // readiness call. Verified in that state before the gate landed.
 
-    /// A counter a `RelayAPIClient` base-URL provider can bump. A class so
-    /// the escaping `@MainActor` closure mutates the test's own count rather
-    /// than a copy.
+    /// A plain main-actor counter box. A class so an escaping `@MainActor`
+    /// closure mutates the test's own count rather than a copy.
+    ///
+    /// **#309 Lane C renamed it from `RelayRequestCounter` and deleted
+    /// `makeCountingRelayClient`** — there is no `RelayAPIClient` left to
+    /// count. See `relayBearingProfileActivationBehavesExactlyLikeAGatewayOnlyOne`
+    /// for what replaced the counting.
     @MainActor
-    private final class RelayRequestCounter {
+    private final class MainActorCounter {
         var count = 0
     }
 
-    /// Builds a relay client that COUNTS request attempts and, if one escapes
-    /// the gate, fails in milliseconds instead of hanging the suite.
+    /// **309-C2/C3 — a gateway-only profile's switch REFRESHES the host plane,
+    /// and does it behind the switch rather than inside it.**
     ///
-    /// Port 1 on loopback is closed, so an escaped request is REFUSED
-    /// immediately — a black-holed host would instead sit on the timeout and
-    /// turn a bar failure into a slow suite, which reads like a flake.
-    @MainActor
-    private func makeCountingRelayClient(_ counter: RelayRequestCounter) -> RelayAPIClient {
-        RelayAPIClient(baseURLProvider: {
-            counter.count += 1
-            return "http://127.0.0.1:1/v1"
-        })
-    }
-
-    /// **310-C, rewritten by #309 Lane A** — activating a relay-less profile
-    /// issues ZERO relay requests. Unchanged in claim; kept because the gate
-    /// it pinned is gone and only a live test can say the calls stayed gone.
+    /// This is 310-C's slot, and the claim has moved twice. 310-C asserted
+    /// ZERO relay requests on a relay-less activation; #309 Lane A kept that
+    /// claim after deleting the relay block outright. Lane C re-homes the
+    /// three deleted steps onto the gateway (`/health`), the plugin inbox
+    /// cache, and `/v1/skills` — so "zero" is no longer the interesting
+    /// number, and the relay counter that carried it cannot exist: the client
+    /// is deleted. **What replaces it is a positive measurement** — the switch
+    /// does the work again — plus the structural fact that no relay client
+    /// remains to call (the tombstones, and `git grep RelayAPIClient`).
+    ///
+    /// The counts are polled rather than asserted straight after `await`,
+    /// because the refresh is DETACHED on purpose (see the next test).
     @Test @MainActor
-    func relaylessProfileActivationIssuesNoRelayRequests() async throws {
-        let counter = RelayRequestCounter()
-        let harness = await makeLaunchHarness(
-            suiteName: "310-relayless-activation",
-            relayAPIClient: makeCountingRelayClient(counter)
-        )
+    func gatewayOnlyProfileActivationRefreshesTheHostPlaneAfterTheSwitch() async throws {
+        let harness = await makeLaunchHarness(suiteName: "309-gateway-only-activation")
         harness.openAllGates()
         let container = harness.container
 
-        // The install IS paired and DOES hold an access token — the two
-        // conditions that used to be the whole gate. If either were false the
-        // test would pass for the wrong reason, so both are asserted.
+        // The install IS paired on the relay plane and DOES hold a relay
+        // access token — the two conditions that used to be the whole gate.
+        // Neither is consulted any more; asserting them keeps the test from
+        // passing for the wrong reason if either ever changed.
         #expect(container.pairingStore.isPaired)
         #expect(await container.sessionStore.currentAccessToken() != nil)
 
@@ -4453,50 +4459,40 @@ struct AppStoresTests {
             gatewayBaseURL: "http://gateway-only:8642"
         ))
 
-        #expect(harness.hostService.fetchCallCount == 0)
-        #expect(harness.inboxService.fetchCallCount == 0)
-        // **#383-G: this line changed sides, and 310-C did not.** Readiness
-        // used to be #309 paths 11–12 ON THE RELAY, so zero was the right
-        // number for a relay-less profile. #383 moved the voice bootstrap to
-        // the talaria plugin, which a gateway-only profile can reach — so a
-        // relay-less activation now SHOULD ask, exactly once.
-        //
-        // 310-C's actual claim is untouched and is carried entirely by
-        // `counter.count` below: no request reached the RELAY client. That is
-        // the assertion to protect if these two ever seem to disagree.
+        let refreshed = await pollUntil(timeout: .seconds(3)) {
+            harness.hostService.fetchCallCount == 1 && harness.inboxService.fetchCallCount == 1
+        }
+        await container.profileSwitchRefreshTask?.value
+
+        #expect(refreshed, "the switch must re-home host presence and the inbox onto the gateway plane")
+        // 383-G: a relay-less activation asks the voice host too — that line
+        // changed sides when voice moved to the talaria plugin.
         #expect(harness.voiceService.refreshReadinessCallCount == 1)
-        #expect(counter.count == 0)
     }
 
-    /// **309-A4's NEW PIN — and it inverts the test that used to stand here.**
+    /// **309-C2's structural pin, and 309-A4's claim in the form that still
+    /// has teeth** — a relay-BEARING profile's switch behaves EXACTLY like a
+    /// gateway-only one.
     ///
-    /// The old `relayBearingProfileActivationStillUsesTheRelayPlane` was
-    /// 310-C's positive control: it asserted a relay-BEARING profile still ran
-    /// bootstrap, host fetch and inbox fetch, so that "delete the calls
-    /// outright" could not pass 310-C by vacuum. **That control encoded
-    /// #365's residual cause as a requirement.** #310 fixed the gateway-only
-    /// half of the stall; every profile paired before the relay retirement —
-    /// i.e. the daily-driver ones — kept running the whole doomed chain on
-    /// every switch, and this test is what would have gone red if anyone had
-    /// tried to stop it.
+    /// Lane A's `relayBearingProfileActivationAlsoMakesZeroRelayCalls` proved
+    /// #365's residual was gone by counting relay-client requests. With the
+    /// client deleted that count is zero by construction, and a test whose
+    /// subject cannot exist is the "green result that proves nothing" shape
+    /// arriving by deletion — the exact trap Lane A named when it retired
+    /// 310-D's `isBootstrapping` sampler.
     ///
-    /// So the bar moves rather than the number: a relay-bearing profile's
-    /// switch is now relay-SILENT too, and the vacuum risk is covered by the
-    /// three positive controls immediately below, which assert the switch
-    /// still does its non-relay work.
+    /// So the claim is restated as the property that is now load-bearing:
+    /// **`relayBaseURL` changes NOTHING about a switch.** Under the pre-Lane-A
+    /// code this is #365 exactly (the relay-bearing arm ran a doomed chain the
+    /// gateway-only arm skipped); under this code the two arms are
+    /// indistinguishable, and this test is what would go red if a relay-shaped
+    /// branch were ever reintroduced.
     @Test @MainActor
-    func relayBearingProfileActivationAlsoMakesZeroRelayCalls() async throws {
-        let counter = RelayRequestCounter()
-        let harness = await makeLaunchHarness(
-            suiteName: "309-relay-bearing-activation",
-            relayAPIClient: makeCountingRelayClient(counter)
-        )
+    func relayBearingProfileActivationBehavesExactlyLikeAGatewayOnlyOne() async throws {
+        let harness = await makeLaunchHarness(suiteName: "309-relay-bearing-activation")
         harness.openAllGates()
         let container = harness.container
 
-        // Every condition the deleted chain required is TRUE here — paired,
-        // token present, and the incoming profile carries a relay URL. That
-        // is what makes this the residual case rather than a repeat of 310-C.
         #expect(container.pairingStore.isPaired)
         #expect(await container.sessionStore.currentAccessToken() != nil)
 
@@ -4506,36 +4502,40 @@ struct AppStoresTests {
             relayBaseURL: "https://relay.example.test/v1"
         ))
 
-        #expect(counter.count == 0, "a relay-bearing switch reached the relay client — #365's residual is back")
-        #expect(harness.hostService.fetchCallCount == 0)
-        #expect(harness.inboxService.fetchCallCount == 0)
+        let refreshed = await pollUntil(timeout: .seconds(3)) {
+            harness.hostService.fetchCallCount == 1 && harness.inboxService.fetchCallCount == 1
+        }
+        await container.profileSwitchRefreshTask?.value
+
+        #expect(refreshed, "a relay-bearing switch must take the same gateway path as a gateway-only one")
+        #expect(harness.voiceService.refreshReadinessCallCount == 1)
 
         // POSITIVE CONTROLS — the switch still switches. Without these,
         // `handleActiveProfileChanged` returning immediately would pass the
-        // three zeros above.
-        #expect(harness.voiceService.refreshReadinessCallCount == 1)
-        #expect(container.chatStore.commandCatalog == SlashCommand.allBuiltIn,
-                "the switch must still reset the catalog to built-ins")
+        // assertions above.
         #expect(container.chatStore.activeModelName == nil)
     }
 
-    /// **310-D, rewritten by #309 Lane A** — the switch cannot stall on a
-    /// dead host, because it no longer touches one.
+    /// **310-D, rewritten by #309 Lane A, and the line Lane C's re-home had to
+    /// keep** — the switch cannot stall on a dead host, because it does not
+    /// wait for one.
     ///
     /// **The old instrument is gone with its mechanism.** 310-D sampled
-    /// `sessionStore.isBootstrapping` across the handler's lifetime, because
-    /// that flag was the switch's own clause of `shouldShowLaunchSplash` and
-    /// #365's stall was a bootstrap parked in a black hole holding it true.
-    /// There is no bootstrap and no `isBootstrapping` any more, so sampling it
-    /// would be sampling a constant — the "green result that proves nothing"
-    /// shape, arriving by deletion instead of by luck.
+    /// `sessionStore.isBootstrapping`, the switch's own clause of
+    /// `shouldShowLaunchSplash`, and #365's stall was a bootstrap parked in a
+    /// black hole holding it true. There is no bootstrap and no
+    /// `isBootstrapping` any more, so sampling it would be sampling a
+    /// constant.
     ///
     /// What replaces it is stronger and needs no sampler: **run the switch
     /// with every host gate SHUT and never opened, and require it to
-    /// complete.** Under the old code this is exactly #365 — the bootstrap
-    /// parks in `BlackHoleGate.wait()` and the handler never returns. Under
-    /// this code the relay is not on the path at all, so completion is
-    /// structural rather than merely fast.
+    /// complete.** Under the pre-Lane-A code this is exactly #365. Under Lane
+    /// A's code it was structural, because nothing on the switch touched a
+    /// host at all. **Under THIS lane's code it is a live requirement again:**
+    /// the switch re-homes host presence, the inbox and the catalog onto the
+    /// gateway, and a black-holed gateway hangs precisely the way a
+    /// black-holed relay did. Awaiting any of the three inside the handler
+    /// reds this test — which is why they are detached.
     ///
     /// The gates are opened AFTER the verdict is taken, never before: a bar
     /// whose failure mode is a hang reports no verdict at all (the trap that
@@ -4543,15 +4543,11 @@ struct AppStoresTests {
     /// `lane-gate.sh`), so the failing arm gets a clean, terminating RED.
     @Test @MainActor
     func aProfileSwitchCompletesWithEveryHostSurfaceBlackHoled() async throws {
-        let counter = RelayRequestCounter()
-        let harness = await makeLaunchHarness(
-            suiteName: "309-switch-under-blackhole",
-            relayAPIClient: makeCountingRelayClient(counter)
-        )
+        let harness = await makeLaunchHarness(suiteName: "309-switch-under-blackhole")
         let container = harness.container
         // Gates deliberately NOT opened. Every host surface hangs forever.
 
-        let completions = RelayRequestCounter()
+        let completions = MainActorCounter()
         let switchTask = Task { @MainActor in
             await container.handleActiveProfileChanged(to: BackendProfile(
                 name: "Has a relay",
@@ -4566,11 +4562,9 @@ struct AppStoresTests {
         // wedging the suite, then take the verdict.
         harness.openAllGates()
         await switchTask.value
+        await container.profileSwitchRefreshTask?.value
 
         #expect(completed, "the switch did not complete against a black-holed host — #365 is back")
-        #expect(counter.count == 0)
-        #expect(harness.hostService.fetchCallCount == 0)
-        #expect(harness.inboxService.fetchCallCount == 0)
     }
 
     /// **383-G** — a profile with no relay STILL ASKS the voice host.
@@ -4657,31 +4651,43 @@ struct AppStoresTests {
         #expect(container.talkStore.blockedReason?.lowercased().contains("relay") != true)
     }
 
-    /// **310-E, the store half — and the reason the gate is not only at the
-    /// switch.** `ConnectHermesHostScreen` and `InboxScreen` each run their
-    /// own `.task { await refresh()/loadInbox() }`, so a gate that lived only
-    /// in `handleActiveProfileChanged` would be walked straight past by
-    /// opening the tab. These pin the capability where the capability lives.
+    /// **310-E's store half, re-keyed by #309 Lane C bar C6 — and the reason
+    /// the gate is not only at the switch.** `ConnectHermesHostScreen` and
+    /// `InboxScreen` each run their own `.task { await refresh()/loadInbox()
+    /// }`, so a gate that lived only in `handleActiveProfileChanged` would be
+    /// walked straight past by opening the tab. That argument is unchanged;
+    /// what changed is the capability the gate asks about — the GATEWAY's
+    /// credentials, not a relay URL.
+    ///
+    /// **The message half of 310-E is deliberately inverted here, and the
+    /// inversion is #412's fix.** #310 required a nil host WITH a stated
+    /// reason, on the argument that silence is indistinguishable from "asked,
+    /// nothing there". On the gateway plane those two ARE the same state —
+    /// the gateway is the host, and the plugin inbox has no other source — so
+    /// the message is gone and the honest states are `.notConnected` and an
+    /// empty inbox. On the Inbox that message was the whole of what Owen saw
+    /// on his phone: `InboxScreen` renders any `lastErrorMessage` as
+    /// "Inbox Unreachable", so a capability gate was reporting through a
+    /// failure surface.
     @Test @MainActor
-    func relayFedStoresRefuseToFetchAndSayWhyWhenTheProfileHasNoRelay() async throws {
+    func hostFedStoresRefuseToFetchAndStayHONESTWhenTheProfileHasNoGatewayCredentials() async throws {
         let hostGate = BlackHoleGate()
         hostGate.open()
         let hostService = BlackHoleHermesHostService(gate: hostGate, host: nil)
         let hostStore = HermesHostStore(
             hostService: hostService,
-            accessTokenProvider: { "token" },
-            relayAvailabilityProvider: { false }
+            hasGatewayCredentials: { false }
         )
         await hostStore.refresh()
         #expect(hostService.fetchCallCount == 0)
         #expect(hostStore.currentHost == nil)
-        // The distinguishing fact: nil host WITH a stated reason. Without the
-        // message this is byte-identical to "asked, no host enrolled", and
-        // the two lead the user to opposite actions.
-        #expect(hostStore.lastErrorMessage == HermesHostStore.relayUnavailableMessage)
+        // NOT an error state: "you have not set a host up" is `.notConnected`
+        // ("No Host / Set up from your Hermes machine"), never `.unreachable`.
+        #expect(hostStore.lastErrorMessage == nil)
+        #expect(hostStore.connectionState == .notConnected)
 
-        let defaults = UserDefaults(suiteName: "310-relayless-inbox")!
-        defaults.removePersistentDomain(forName: "310-relayless-inbox")
+        let defaults = UserDefaults(suiteName: "309-credential-less-inbox")!
+        defaults.removePersistentDomain(forName: "309-credential-less-inbox")
         let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
         let inboxGate = BlackHoleGate()
         inboxGate.open()
@@ -4689,27 +4695,29 @@ struct AppStoresTests {
         let inboxStore = InboxStore(
             inboxService: inboxService,
             persistence: persistence,
-            sessionStore: AppSessionStore(
-                secureStore: MockSecureStore(),
-                persistence: persistence,
-            ),
-            relayAvailabilityProvider: { false }
+            hasGatewayCredentials: { false }
         )
         await inboxStore.loadInbox(force: true)
         #expect(inboxService.fetchCallCount == 0)
-        #expect(inboxStore.lastErrorMessage == InboxStore.relayUnavailableMessage)
+        // 309-C6's pin, and the direct answer to #412: a credential-less
+        // profile lands on the EMPTY state, not on "COULD NOT REACH THE …".
+        // `InboxScreen` branches on `lastErrorMessage != nil`, so this one
+        // assertion is what separates the two screens the user sees.
+        #expect(inboxStore.lastErrorMessage == nil)
+        #expect(inboxStore.items.isEmpty)
     }
 
-    /// **The regression this lane's own gate caught.**
+    /// **The regression #310's own gate caught, re-keyed with the gate.**
     ///
-    /// A relay-less `refresh()` must not announce a host CHANGE on every
-    /// call. `onHostChanged` does real main-actor work — `updateWidgetData()`
-    /// writes the App Group container and a command-catalog Task is spawned
-    /// (`AppContainer.swift:1258`) — and `ChatScreen.monitorConnectionStatus()`
-    /// polls `refresh()` on a cadence the whole time chat is on screen. The
-    /// first version of the #310 guard fired the hook unconditionally, which
-    /// turned an idle chat screen on a gateway-only profile into periodic
-    /// App Group I/O and stalled a streaming turn past its 40 s budget
+    /// A gated `refresh()` must not announce a host CHANGE on every call.
+    /// `onHostChanged` does real main-actor work — `updateWidgetData()` writes
+    /// the App Group container and a command-catalog Task is spawned
+    /// (`AppContainer.makeDefault`) — and
+    /// `ChatScreen.monitorConnectionStatus()` polls `refresh()` on a cadence
+    /// the whole time chat is on screen. The first version of the #310 guard
+    /// fired the hook unconditionally, which turned an idle chat screen on a
+    /// gateway-only profile into periodic App Group I/O and stalled a
+    /// streaming turn past its 40 s budget
     /// (`testQueuedChipCancelRemovesHeldMessageWithNothingPosted`).
     ///
     /// **Note what did NOT catch it:** 2357 unit tests (they call `refresh()`
@@ -4718,7 +4726,7 @@ struct AppStoresTests {
     /// flake. Only a control gate with the lane's code stashed separated the
     /// two. This test exists so the next reader gets the cheap version.
     @Test @MainActor
-    func relaylessRefreshAnnouncesAHostChangeOnlyOnATransition() async throws {
+    func gatedRefreshAnnouncesAHostChangeOnlyOnATransition() async throws {
         let gate = BlackHoleGate()
         gate.open()
         let hostService = BlackHoleHermesHostService(
@@ -4730,23 +4738,22 @@ struct AppStoresTests {
                 lastSeenAt: .now, lastConnectedAt: .now, isOnline: true
             )
         )
-        var hasRelay = true
+        var hasCredentials = true
         let store = HermesHostStore(
             hostService: hostService,
-            accessTokenProvider: { "token" },
-            relayAvailabilityProvider: { hasRelay }
+            hasGatewayCredentials: { hasCredentials }
         )
 
-        let changes = RelayRequestCounter()
+        let changes = MainActorCounter()
         store.onHostChanged = { changes.count += 1 }
 
-        // A relay-bearing refresh lands a host and announces it.
+        // A credentialed refresh lands a host and announces it.
         await store.refresh()
         #expect(store.currentHost != nil)
         #expect(changes.count == 1)
 
-        // The profile loses its relay: ONE transition (host → nil) is news.
-        hasRelay = false
+        // The profile loses its credentials: ONE transition (host → nil) is news.
+        hasCredentials = false
         await store.refresh()
         #expect(store.currentHost == nil)
         #expect(changes.count == 2)
@@ -4757,26 +4764,153 @@ struct AppStoresTests {
             await store.refresh()
         }
         #expect(changes.count == 2)
-        #expect(store.lastErrorMessage == HermesHostStore.relayUnavailableMessage)
-        // And the relay was never actually asked, across all of it.
+        #expect(store.lastErrorMessage == nil)
+        // And the host was never actually asked, across all of it.
         #expect(hostService.fetchCallCount == 1)
     }
 
-    /// Positive control for the store gate — with a relay, both still fetch.
-    /// Without this, deleting the fetches would pass the test above.
+    /// Positive control for the store gate — with gateway credentials, both
+    /// fetch. Without this, deleting the fetches would pass the tests above.
+    ///
+    /// **This is also 309-C6's other half, and the one Owen's device needed:**
+    /// a profile that has a gateway and a key gets its WORKING plugin inbox.
+    /// Under the pre-lane gate this arm asserted `hasRelay`, which #310's own
+    /// migration had cleared on every profile — so the inbox was starved on
+    /// every install and the control could not see it.
     @Test @MainActor
-    func relayFedStoresStillFetchWhenTheProfileHasARelay() async throws {
+    func hostFedStoresStillFetchWhenTheProfileHasGatewayCredentials() async throws {
         let hostGate = BlackHoleGate()
         hostGate.open()
         let hostService = BlackHoleHermesHostService(gate: hostGate, host: nil)
         let hostStore = HermesHostStore(
             hostService: hostService,
-            accessTokenProvider: { "token" },
-            relayAvailabilityProvider: { true }
+            hasGatewayCredentials: { true }
         )
         await hostStore.refresh()
         #expect(hostService.fetchCallCount == 1)
         #expect(hostStore.lastErrorMessage == nil)
+
+        let defaults = UserDefaults(suiteName: "309-credentialed-inbox")!
+        defaults.removePersistentDomain(forName: "309-credentialed-inbox")
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let inboxGate = BlackHoleGate()
+        inboxGate.open()
+        let inboxService = BlackHoleInboxService(gate: inboxGate)
+        let inboxStore = InboxStore(
+            inboxService: inboxService,
+            persistence: persistence,
+            hasGatewayCredentials: { true }
+        )
+        await inboxStore.loadInbox(force: true)
+        #expect(inboxService.fetchCallCount == 1)
+        #expect(inboxStore.items.isEmpty == false)
+        #expect(inboxStore.lastErrorMessage == nil)
+    }
+
+    // MARK: - #309 row 16's adapt: the composer's catalog on `/v1/skills` (309-C3)
+
+    /// **309-C3** — the composer's catalog is built from the HOST'S SKILLS
+    /// merged with the built-ins, through the same `SkillsStore` the Skills
+    /// browser reads.
+    ///
+    /// RED against `main`: there, `performCommandCatalogRefresh` builds a
+    /// `RelayAPIClient` and asks the relay for `commands`, so a fixture skills
+    /// store changes nothing about the catalog.
+    ///
+    /// **Personalities and quick commands are the RULED accepted loss
+    /// (2026-08-19) and this test pins the honest degradation** — the catalog
+    /// gains exactly the built-ins plus the skills, and nothing invents a row
+    /// for a plane that no longer answers.
+    @Test @MainActor
+    func commandCatalogMergesTheHostsSkillsWithTheBuiltIns() async throws {
+        let harness = await makeLaunchHarness(
+            suiteName: "309-catalog-skills-\(UUID().uuidString)"
+        )
+        harness.openAllGates()
+        let container = harness.container
+
+        let skillsService = SkillsStoreTests.FixtureSkillsService()
+        skillsService.listResult = .success([
+            Skill(name: "deploy", description: "Ship the current branch", category: "Ops")
+        ])
+        container.skillsStore = SkillsStore(service: skillsService)
+
+        await container.refreshCommandCatalog(force: true)
+
+        let skillCommand = SlashCommand.fromSkill(name: "deploy", description: "Ship the current branch")
+        #expect(container.chatStore.commandCatalog.contains { $0.id == skillCommand.id })
+        // The built-ins survive the merge — the skills are added to
+        // `localCommands`, never a replacement for them.
+        for local in SlashCommand.localCommands {
+            #expect(container.chatStore.commandCatalog.contains { $0.id == local.id })
+        }
+        // Nothing beyond built-ins + the one skill: no personality row, no
+        // quick-command row, no placeholder for either.
+        #expect(container.chatStore.commandCatalog.count == SlashCommand.localCommands.count + 1)
+    }
+
+    /// **309-C3's failure arm** — a catalog refresh that FAILS keeps the
+    /// built-ins on screen and must not demote the CTX denominator.
+    ///
+    /// #4's rule, carried over from the relay implementation verbatim: the
+    /// host is offline by design much of the time, and a transient fetch
+    /// failure that reset `contextWindow` would swap a host-reported value for
+    /// the nominal client-side table without anything on screen changing.
+    @Test @MainActor
+    func aFailedCatalogRefreshKeepsBuiltInsAndTheHostReportedContextWindow() async throws {
+        let harness = await makeLaunchHarness(
+            suiteName: "309-catalog-failure-\(UUID().uuidString)"
+        )
+        harness.openAllGates()
+        let container = harness.container
+
+        container.chatStore.replaceCommandCatalog(
+            SlashCommand.localCommands,
+            activeModel: "kimi-k2",
+            contextWindow: 262_144
+        )
+
+        let skillsService = SkillsStoreTests.FixtureSkillsService()
+        skillsService.listResult = .failure(SkillsServiceError.timeout)
+        container.skillsStore = SkillsStore(service: skillsService)
+
+        await container.refreshCommandCatalog(force: true)
+
+        #expect(container.chatStore.commandCatalog == SlashCommand.allBuiltIn)
+        #expect(container.chatStore.activeModelName == "kimi-k2")
+        #expect(container.chatStore.contextWindow == 262_144)
+    }
+
+    /// **309-C3's capability gate** — no gateway credentials, no catalog
+    /// fetch, and no reset of what is already on screen.
+    ///
+    /// The catalog is a gateway read now, so it asks the gateway's own
+    /// question (#411/Lane A's predicate). Resetting here instead of returning
+    /// would blank a hostless install's composer on every foreground.
+    @Test @MainActor
+    func aHostlessInstallDoesNotFetchOrResetTheCommandCatalog() async throws {
+        let harness = await makeLaunchHarness(
+            suiteName: "309-catalog-hostless-\(UUID().uuidString)",
+            gatewayCredentials: false
+        )
+        harness.openAllGates()
+        let container = harness.container
+
+        container.chatStore.replaceCommandCatalog(
+            SlashCommand.localCommands,
+            activeModel: "local",
+            contextWindow: 4096
+        )
+
+        let skillsService = SkillsStoreTests.FixtureSkillsService()
+        skillsService.listResult = .success([Skill(name: "deploy", description: nil, category: nil)])
+        container.skillsStore = SkillsStore(service: skillsService)
+
+        await container.refreshCommandCatalog(force: true)
+
+        #expect(skillsService.listCallCount == 0)
+        #expect(container.chatStore.activeModelName == "local")
+        #expect(container.chatStore.contextWindow == 4096)
     }
 
     @Test @MainActor
@@ -4785,9 +4919,12 @@ struct AppStoresTests {
         // seconds against a black-holed host (firewall DROP → no TCP
         // refusal → the full request timeout, -1001) — never URLSession's
         // default 60s.
-        let session = RelayAPIClient.makeBootstrapProbeSession()
-        #expect(session.configuration.timeoutIntervalForRequest == RelayAPIClient.bootstrapProbeRequestTimeout)
-        #expect(session.configuration.timeoutIntervalForResource == RelayAPIClient.bootstrapProbeResourceTimeout)
+        // #309 Lane C: the budget moved out of the deleted `RelayAPIClient`
+        // into `BootstrapProbeSession`, unchanged. Its reader is now the
+        // gateway host probe — same probe class, same hazard.
+        let session = BootstrapProbeSession.make()
+        #expect(session.configuration.timeoutIntervalForRequest == BootstrapProbeSession.requestTimeout)
+        #expect(session.configuration.timeoutIntervalForResource == BootstrapProbeSession.resourceTimeout)
         #expect(session.configuration.timeoutIntervalForRequest <= 5)
         #expect(session.configuration.waitsForConnectivity == false)
     }
@@ -4914,7 +5051,7 @@ struct AppStoresTests {
     /// the hold clears and the host half runs, exactly once.
     @Test @MainActor
     func theCredentialHoldIsRetriedOnceTheCredentialBecomesReadable() async {
-        let credentialsReadable = RelayRequestCounter()  // 0 = not yet readable
+        let credentialsReadable = MainActorCounter()  // 0 = not yet readable
         let harness = await makeLaunchHarness(
             suiteName: "369-retry-\(UUID().uuidString)",
             seedAccessToken: false,
@@ -5292,11 +5429,9 @@ struct AppStoresTests {
     /// foreground, and asks no host anything.
     @Test @MainActor
     func aHostlessInstallStillRefreshesLocalStateOnForeground() async throws {
-        let counter = RelayRequestCounter()
         let harness = await makeLaunchHarness(
             suiteName: "411-hostless-foreground-\(UUID().uuidString)",
-            gatewayCredentials: false,
-            relayAPIClient: makeCountingRelayClient(counter)
+            gatewayCredentials: false
         )
         let container = harness.container
         await container.pairingStore.clearLocalPairing(notify: false)
@@ -5309,7 +5444,6 @@ struct AppStoresTests {
         // The host half stayed shut — and this is what makes the test a gate
         // check rather than a "does anything happen" check.
         #expect(harness.hostService.fetchCallCount == 0)
-        #expect(counter.count == 0)
         #expect(harness.voiceService.refreshReadinessCallCount == 0,
                 "voice readiness is host-backed and must stay behind the capability gate")
     }

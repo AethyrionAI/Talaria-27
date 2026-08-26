@@ -11,34 +11,28 @@ import Foundation
 /// voice compilation, which is exactly what the design doc §5b flagged.
 ///
 /// Nothing about the cases or their `errorDescription` text changed in the
-/// extraction — that is what "zero behaviour change" means here, and the
-/// mutation that proves it is restoring the old nesting. `RelayAPIClient`
-/// carries a `typealias ClientError = APIClientError` for as long as it
-/// survives, so its own throw sites and the tests that catch them are
-/// untouched by this move.
+/// extraction itself — that is what "zero behaviour change" meant for bar C1.
+///
+/// **Bar C5 then trimmed what the deletion left dead, in its own commit:**
+/// `payloadRejected` had exactly one producer (`RelayAPIClient.send`'s 400/422
+/// arm, for the #24a sensor uploaders — a pipeline #352 deleted) and zero
+/// consumers, so it went with the client; and the two case texts that named
+/// the relay were re-cut, because with the relay client gone the only thrower
+/// left is voice, and "Invalid relay URL: https://api.openai.com/…" is a
+/// sentence about a component neither end of that request has ever involved.
 enum APIClientError: LocalizedError {
     case unauthorized(String)
     case invalidURL(String)
     case requestFailed(String)
-    /// The relay parsed the request and rejected the PAYLOAD itself
-    /// (400/422 — e.g. Pydantic validation): retrying identical bytes can
-    /// never succeed. Distinct from `requestFailed` so uploaders can
-    /// isolate poison data instead of wedging on infinite retries of the
-    /// same rejected body (OPEN_ITEMS #24a follow-up). Other 4xx (403/404
-    /// etc.) intentionally stay `requestFailed` — they're about auth or
-    /// routing, not the payload, and other services key off that mapping.
-    case payloadRejected(statusCode: Int, message: String)
 
     var errorDescription: String? {
         switch self {
         case .unauthorized(let message):
             message
         case .invalidURL(let url):
-            "Invalid relay URL: \(url)"
+            "Invalid URL: \(url)"
         case .requestFailed(let message):
             message
-        case .payloadRejected(let statusCode, let message):
-            "Relay rejected the payload (\(statusCode)): \(message)"
         }
     }
 }

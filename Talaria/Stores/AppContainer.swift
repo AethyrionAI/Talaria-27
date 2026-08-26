@@ -59,9 +59,13 @@ final class AppContainer {
     private(set) var profilesStore: BackendProfilesStore?
     /// Lane M: session→birth-profile index, written by the Sessions client.
     private(set) var sessionProfileIndex: SessionProfileIndexStore?
-    /// Lane M PR 2: per-profile relay access for non-active backends —
-    /// pinned sensors (M-8), per-relay push (M-7), dormant refresh (M-9).
-    private(set) var profileRelaySessions: ProfileRelaySessionFactory?
+    // #309 Lane C: `profileRelaySessions` (`ProfileRelaySessionFactory`) is
+    // DELETED. Lane A left it with exactly one live method — `isPaired(
+    // profileID:)` — after the dormant-refresh chain went; its other four
+    // reads were already dead (the sensor pipeline's, #352, and the agent-file
+    // download's, #375). That last read is re-homed onto
+    // `hasGatewayCredentials(forProfileID:)` below, which answers what its
+    // four call sites actually wanted to show.
     /// Lane M PR 2: in-memory gateway API keys for EVERY profile (Keychain
     /// reads are async; per-session endpoint resolution is sync).
     fileprivate var gatewayKeyCache: ProfileGatewayKeyCache?
@@ -145,11 +149,12 @@ final class AppContainer {
     /// test containers and under the #144 mock-pairing gate. Foreground-only
     /// by design (spec §2.1) — see the scene observers in `makeDefault`.
     private(set) var talariaPlatformLink: TalariaPlatformLink?
-    private let apiClient: RelayAPIClient?
-    /// #136: short-timeout client for launch/bootstrap-class probes (command
-    /// catalog). Nil in bare test containers — probe calls fall back to
-    /// `apiClient`.
-    private let probeAPIClient: RelayAPIClient?
+    // #309 Lane C: `apiClient` / `probeAPIClient` (`RelayAPIClient`) are
+    // DELETED with the client. Their last two readers were the
+    // `device/app-state` beacon (row 10, deleted by bar C4) and the command
+    // catalog's `GET commands` (row 16, re-homed onto `/v1/skills` by bar C3).
+    // The #136 short-timeout budget the probe client carried survives on its
+    // own in `BootstrapProbeSession`, where the gateway host probe reads it.
     private let secureStore: (any SecureStoreProtocol)?
     private(set) var hermesAPIKey: String = ""
     private var _chatAPIKeyBox: MutableHermesAPIKeyBox?
@@ -198,11 +203,49 @@ final class AppContainer {
         // harness-visible seam — nil in production, so the derivation below
         // cannot be silently mis-wired by a forgotten assignment.
         if let gatewayCredentialsProbe { return gatewayCredentialsProbe() }
-        guard let profile = profilesStore?.activeProfile else { return false }
+        return Self.hasGatewayCredentials(profile: profilesStore?.activeProfile, apiKey: hermesAPIKey)
+    }
+
+    /// #309 Lane C: the derivation itself, hoisted to a static so the THREE
+    /// readers cannot drift apart. Lane A's container property above is one;
+    /// the host and inbox stores' capability gates (constructed in
+    /// `makeDefault`, before this container exists) are the other two, and a
+    /// second hand-inlined copy in each is how "the same predicate" becomes
+    /// three predicates that disagree about a whitespace-only key.
+    static func hasGatewayCredentials(profile: BackendProfile?, apiKey: String) -> Bool {
+        guard let profile else { return false }
         guard !profile.gatewayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return false
         }
-        return !hermesAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// #309 Lane C: the PER-PROFILE twin, and the re-home of
+    /// `ProfileRelaySessionFactory.isPaired(profileID:)` — the one live method
+    /// that factory had left when Lane A finished with it.
+    ///
+    /// `isPaired` answered "does this profile hold a relay-era pairing
+    /// record?", which is dying vocabulary about a retired plane: the record
+    /// persists its own `baseURLString`, so a profile the retirement cleared
+    /// still reads as paired forever. What its four call sites actually want
+    /// to show — a per-profile connected badge, and the #127 gate's
+    /// re-pair-vs-new-connect classification — is whether THIS profile can
+    /// talk to a Hermes host, which is exactly `hasGatewayCredentials` scoped
+    /// to a profile rather than to the active one.
+    ///
+    /// Synchronous, because every call site is a view body. The key comes from
+    /// `ProfileGatewayKeyCache` (loaded for every profile at startup, updated
+    /// on save and on switch) — the same cache `SessionsHermesClient`'s
+    /// per-profile endpoint resolver reads, so a profile this says yes about
+    /// is a profile a turn could actually be routed to. The ACTIVE profile
+    /// reads the container's own key mirror instead, which is briefly AHEAD of
+    /// the cache after a save.
+    func hasGatewayCredentials(forProfileID profileID: UUID) -> Bool {
+        guard let profile = profilesStore?.profile(id: profileID) else { return false }
+        let key = profile.id == profilesStore?.activeProfileID
+            ? hermesAPIKey
+            : (gatewayKeyCache?.key(forScope: profile.credentialScopeID) ?? "")
+        return Self.hasGatewayCredentials(profile: profile, apiKey: key)
     }
     // harness-visible: bare test containers hold no profiles store, so this is
     // the only way to exercise the credentialed arm of the #411 gates.
@@ -234,8 +277,6 @@ final class AppContainer {
         settingsStore: SettingsStore,
         talkStore: TalkStore,
         appLockGate: AppLockGate = AppLockGate(),
-        apiClient: RelayAPIClient? = nil,
-        probeAPIClient: RelayAPIClient? = nil,
         secureStore: (any SecureStoreProtocol)? = nil,
         localIntelligence: LocalIntelligenceService = LocalIntelligenceService(),
         chatBackendRouter: ChatBackendRouter? = nil
@@ -249,8 +290,6 @@ final class AppContainer {
         self.settingsStore = settingsStore
         self.talkStore = talkStore
         self.appLockGate = appLockGate
-        self.apiClient = apiClient
-        self.probeAPIClient = probeAPIClient
         self.secureStore = secureStore
         self.localIntelligence = localIntelligence
         self.chatBackendRouter = chatBackendRouter
@@ -462,27 +501,11 @@ final class AppContainer {
             pairingService = LivePairingService()
         }
 
-        // #310: `""` still means "no relay" here, because `RelayAPIClient`
-        // takes a non-optional provider and every one of its callers is a
-        // relay-plane caller that the gate upstream should already have
-        // stopped. The empty string is the LAST line of defence, not the
-        // gate — see `handleActiveProfileChanged`.
-        let relayBaseURLProvider: @MainActor () -> String = {
-            if let paired = activePairingStore?.pairedRelayConfiguration?.baseURLString {
-                return paired
-            }
-            return profilesStore.activeProfile.flatMap(\.resolvedRelayBaseURL) ?? ""
-        }
-        let apiClient = RelayAPIClient(baseURLProvider: relayBaseURLProvider)
-        // #136: launch/bootstrap probes ride a dedicated short-timeout
-        // session so a black-holed relay fails in seconds and background
-        // init converges quickly instead of chaining 60s hangs. Probe-class
-        // surfaces only — SSE, file downloads, and sensor uploads keep the
-        // default-session client.
-        let bootstrapProbeClient = RelayAPIClient(
-            baseURLProvider: relayBaseURLProvider,
-            session: RelayAPIClient.makeBootstrapProbeSession()
-        )
+        // #309 Lane C: the relay base-URL provider and the two `RelayAPIClient`
+        // instances built on it are DELETED — nothing calls the relay any more.
+        // `BackendProfile.relayBaseURL` itself (and `PairingStore`'s copy of a
+        // pairing-minted URL) outlive this lane by the fence: they go with Lane
+        // B's profile-editor pass, per the 2026-08-25 cleanup ruling.
 
         // #309 Lane A: the three-deep bootstrap service stack that stood here
         // (`ResilientSessionBootstrapService` over a live-or-mock primary with
@@ -506,20 +529,40 @@ final class AppContainer {
         )
         activePairingStore = runtimePairingStore
 
-        // #309 Lane A: #15's 401-recovery ladder is DELETED. Every rung of it
-        // — `refreshAccessTokenIfNeeded`, `recoverSessionByReRegistering`, the
-        // post-recovery `validateRestoredIdentity` check — went with the
-        // bootstrap chain, and each rung was a request to a retired relay. The
-        // host service keeps its `accessTokenRefresher` parameter (defaulted
-        // to `{ nil }`), so a 401 now falls straight through to the caller's
-        // error path instead of burning two more doomed round trips first.
-        // The host service itself is Lane C's to re-home onto gateway
-        // `/health`, which needs no relay token at all.
+        // The active profile's gateway key, in memory. Hoisted above the
+        // host-fed stores by #309 Lane C — both the gateway host probe and the
+        // capability predicate below read it, and both are constructed here.
+        let hermesAPIKeyBox = MutableHermesAPIKeyBox()
+
+        // #309 Lane C (row 7): HOST PRESENCE READS THE GATEWAY.
+        //
+        // `LiveHermesHostService` asked the relay `GET hosts/current` — a
+        // record the relay's connector kept about an ENROLLED machine, i.e. a
+        // third party's opinion of a second machine's liveness. Both relays
+        // are retired (#346/#375), so that question has had no answerer since
+        // the retirement: every refresh burned the full probe timeout and the
+        // UI reported "unreachable" for a service nobody runs.
+        //
+        // The gateway IS the host under #251/#269 — no enrollment, no
+        // connector, no third party — so the question reduces to "does :8642
+        // answer", which is one `GET /health` on the plane chat already uses.
+        // #309 Lane A's note here (the deleted #15 401-recovery ladder, and
+        // the `accessTokenRefresher` parameter it left behind) goes with the
+        // service: the gateway probe carries no relay token at all.
         let hostService: any HermesHostServiceProtocol
         if usesMockPairingService {
             hostService = MockHermesHostService()
         } else {
-            hostService = LiveHermesHostService(apiClient: bootstrapProbeClient)
+            hostService = GatewayHermesHostService(
+                baseURLProvider: {
+                    let raw = (profilesStore.activeProfile?.gatewayBaseURL ?? "")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    return raw.isEmpty ? nil : raw
+                },
+                apiKeyProvider: { hermesAPIKeyBox.value },
+                displayNameProvider: { profilesStore.activeProfile?.name },
+                identityProvider: { profilesStore.activeProfileID }
+            )
         }
 
         // #45: the Inbox is a live surface — no demo fallback; MockInboxService
@@ -528,27 +571,38 @@ final class AppContainer {
         // #251-2A: the feed is the talaria drain's local cache, not the relay
         // — `LiveInboxService` and its 401-recovery ladder went with the relay
         // inbox route. Nothing here fetches, so there is no longer a fetch that
-        // can fail: #45's "unreachable" Inbox state is now dead UI (its copy
-        // still names the relay — InboxScreen.unreachableState, left for the
-        // Inbox UI pass rather than adjusted blind here).
+        // can fail. (#309 Lane C bar C6 finished the job the parenthesis here
+        // used to defer: `InboxScreen.unreachableState`'s copy no longer names
+        // the relay, and the store's gate is the gateway-credential one below.)
         let inboxService: any InboxServiceProtocol = usesMockPairingService
             ? MockInboxService()
             : TalariaPlatformInboxService(persistence: persistence)
 
-        // #310: the ONE capability predicate the relay-fed stores share. It
-        // resolves per call rather than being captured, so a profile switch
-        // or a Server-settings edit changes the answer with no rewiring.
-        let relayAvailabilityProvider: @MainActor () -> Bool = {
-            profilesStore.activeProfile?.hasRelay == true
+        // **#309 Lane C: the ONE capability predicate the host-fed stores
+        // share — and it is now the GATEWAY's, not the relay's.**
+        //
+        // #310 put a shared predicate here and that shape survives untouched:
+        // it resolves per call rather than being captured, so a profile switch
+        // or a Server-settings edit changes the answer with no rewiring. What
+        // changed is what it asks. `profile.hasRelay` gated stores whose
+        // fetches now go to the gateway and to a local cache, so on every
+        // profile — #310's own migration cleared `relayBaseURL` everywhere —
+        // it answered NO and starved two working surfaces. That is #411's
+        // wrong-plane class, and #412 is Owen seeing it on the Inbox.
+        //
+        // Same derivation as `AppContainer.hasGatewayCredentials`, through the
+        // shared static so the two cannot drift.
+        let hasGatewayCredentials: @MainActor () -> Bool = {
+            AppContainer.hasGatewayCredentials(
+                profile: profilesStore.activeProfile,
+                apiKey: hermesAPIKeyBox.value
+            )
         }
 
         let hostStore = HermesHostStore(
             hostService: hostService,
-            accessTokenProvider: { await sessionStore.currentAccessToken() },
-            relayAvailabilityProvider: relayAvailabilityProvider
+            hasGatewayCredentials: hasGatewayCredentials
         )
-
-        let hermesAPIKeyBox = MutableHermesAPIKeyBox()
 
         // #26/#27: shared on-device intelligence — also the P1 condenser.
         let localIntelligence = LocalIntelligenceService()
@@ -649,15 +703,6 @@ final class AppContainer {
             }
         )
 
-        // Lane M PR 2: per-profile relay READS for the non-active backends.
-        // #309 Lane A removed its refresh half (and the `onTokensRefreshed`
-        // stamp that hung off it) with the bootstrap chain.
-        let profileRelaySessions = ProfileRelaySessionFactory(
-            persistence: persistence,
-            secureStore: secureStore,
-            profileResolver: { profilesStore.profile(id: $0) }
-        )
-
         let liveLocationService = LiveLocationService()
         let liveHealthService = LiveHealthService()
         let liveMotionService = LiveMotionService()
@@ -737,8 +782,7 @@ final class AppContainer {
             inboxStore: InboxStore(
                 inboxService: inboxService,
                 persistence: persistence,
-                sessionStore: sessionStore,
-                relayAvailabilityProvider: relayAvailabilityProvider
+                hasGatewayCredentials: hasGatewayCredentials
             ),
             permissionsStore: PermissionsStore(
                 locationService: liveLocationService,
@@ -749,8 +793,6 @@ final class AppContainer {
             settingsStore: settingsStore,
             talkStore: TalkStore(voiceService: voiceService, appLockGate: appLockGate),
             appLockGate: appLockGate,
-            apiClient: apiClient,
-            probeAPIClient: bootstrapProbeClient,
             secureStore: secureStore,
             localIntelligence: localIntelligence,
             chatBackendRouter: chatBackendRouter
@@ -794,7 +836,6 @@ final class AppContainer {
         // Lane M (#114): backend profiles + session→profile index.
         container.profilesStore = profilesStore
         container.sessionProfileIndex = sessionProfileIndex
-        container.profileRelaySessions = profileRelaySessions
         container.gatewayKeyCache = gatewayKeyCache
         container.sessionsChatClient = sessionsClient
         // #223 Lane 5: arm the per-turn model lock from the active profile's
@@ -1464,6 +1505,12 @@ final class AppContainer {
     /// stale state past the reset nor block the next run's single-flight
     /// gate.
     private func cancelBackgroundLaunchRefresh() {
+        // #309 Lane C: the switch's detached host-plane half is superseded by
+        // the same three sites, and for the same reason — it writes host,
+        // inbox and catalog state that must not land past a reset or into the
+        // next profile.
+        profileSwitchRefreshTask?.cancel()
+        profileSwitchRefreshTask = nil
         launchRefreshGeneration += 1
         guard let task = backgroundLaunchRefreshTask else { return }
         task.cancel()
@@ -1735,7 +1782,6 @@ final class AppContainer {
         // may as well publish what it learned. Guarding them would throw away
         // fetched state for no benefit (#145 Part B).
         reconcileLiveActivities()
-        await reportAppStateIfNeeded("foreground")
         updateWidgetData()
     }
 
@@ -1759,7 +1805,6 @@ final class AppContainer {
             return
         }
         await talkStore.refreshReadiness()
-        await reportAppStateIfNeeded("foreground")
     }
 
     /// #17: donate the currently-known content immediately — called when the
@@ -1878,8 +1923,10 @@ final class AppContainer {
         }
     }
 
-    /// Fetches the dynamic slash command catalog from the connected Hermes host.
-    /// Merges built-in commands, gateway commands, skills, and personality options.
+    /// Fetches the dynamic slash command catalog from the connected Hermes
+    /// host: built-in commands merged with the host's installed SKILLS
+    /// (`GET /v1/skills`). Personalities and quick commands were relay-only
+    /// and are a ruled loss — see `performCommandCatalogRefresh`.
     func refreshCommandCatalog(force: Bool = false) async {
         if !force,
            let lastCommandCatalogRefreshAt,
@@ -1902,130 +1949,88 @@ final class AppContainer {
         if commandCatalogRefreshTask == task { commandCatalogRefreshTask = nil }
     }
 
+    /// **#309 row 16's ADAPT, executed by Lane C (bar 309-C3): the composer's
+    /// catalog reads the GATEWAY's `/v1/skills`.**
+    ///
+    /// What it replaces: `GET commands` on the relay, which returned four
+    /// lists in one payload — remote built-in commands, skills, personalities
+    /// and quick commands — plus the host's active model and its context
+    /// window. The relay is retired on both hosts (#346/#375), so that fetch
+    /// has failed on every launch since the retirement and the composer has
+    /// been running on `SlashCommand.allBuiltIn` the whole time.
+    ///
+    /// **What comes back and what does not, per Owen's 2026-08-19 ruling:**
+    /// skills are re-homed; **personalities and quick commands are an ACCEPTED
+    /// LOSS** — `/v1/skills` is the only skill-or-command route on `:8642`
+    /// (route table, re-verified 2026-08-09), and neither has a gateway
+    /// equivalent to move to. Degrading honestly per #180 means exactly that:
+    /// nothing is fabricated and no empty section is rendered — the composer
+    /// simply offers built-ins plus real skills. `SlashCommand.fromPersonality`
+    /// and `.fromQuickCommand` are left in place unused; they belong to the
+    /// model, and deleting a constructor is not how a ruled loss is recorded.
+    ///
+    /// **The other thing the relay payload carried, stated because it is a
+    /// real degradation and not an oversight:** `activeModel.contextWindow`
+    /// was #191's host-reported CTX denominator, and `/v1/skills` has no such
+    /// field (nor does `/api/model/options` — checked). The meter falls back
+    /// to `ChatStore.inferredContextWindow`, which is what #4's own comment
+    /// anticipated, and to the `/model` chat response's "Context: N tokens"
+    /// when the user switches models. This did not regress here; it has been
+    /// the live behaviour since the retirement, and this lane is where it
+    /// stops being an accident.
     private func performCommandCatalogRefresh() async {
+        // The catalog is a gateway read now, so it asks the gateway's own
+        // capability question — the same predicate every other host-plane
+        // step uses since #411/Lane A. Without credentials there is nothing
+        // to ask and nothing to say: keep whatever is on screen rather than
+        // resetting it, exactly as a failed refresh does below.
+        guard hasGatewayCredentials, let skillsStore else { return }
 
-        // #136: the catalog fetch is a launch/bootstrap-class probe — ride
-        // the short-timeout client so a black-holed relay fails in seconds.
-        guard let token = await sessionStore.currentAccessToken(),
-              let client = probeAPIClient ?? apiClient else { return }
+        // #161's standing rule — zero new infrastructure. `SkillsStore` already
+        // owns a `SkillsService` pointed at this profile's gateway and key, it
+        // already resets per profile switch (#180), and its own contract is the
+        // one this path needs: **errors never replace content that already
+        // exists.** Sharing it also means the Skills browser and the composer
+        // cannot disagree about what the host has installed — the old code's
+        // two planes could, and its comment said so.
+        await skillsStore.refresh()
+        let skills = skillsStore.skills
 
-        struct CatalogResponse: Decodable {
-            let commands: [RemoteCommand]?
-            let skills: [RemoteSkill]?
-            let personalities: [RemotePersonality]?
-            let quickCommands: [RemoteQuickCommand]?
-            let activeModel: ActiveModel?
-
-            struct RemoteCommand: Decodable {
-                let name: String
-                let description: String
-                let category: String?
-                let args: String?
-            }
-            struct RemoteSkill: Decodable {
-                let name: String
-                let description: String
-            }
-            struct RemotePersonality: Decodable {
-                let name: String
-                let description: String
-            }
-            struct RemoteQuickCommand: Decodable {
-                let name: String
-                let description: String
-            }
-            struct ActiveModel: Decodable {
-                let name: String
-                let provider: String?
-                let contextWindow: Int?
-            }
+        // A refresh that FAILED leaves `skills` holding the last good rows (or
+        // empty if none ever landed). Treat it as the old code's catch arm:
+        // built-ins on screen, active model and CTX denominator preserved, no
+        // success stamp — so the next caller retries instead of being
+        // throttled out by a failure.
+        if skillsStore.lastErrorMessage != nil {
+            if skills.isEmpty { chatStore.restoreBuiltInCatalog() }
+            return
         }
 
-        do {
-            let response: CatalogResponse = try await client.get(
-                path: "commands",
-                accessToken: token
+        if skills.isEmpty {
+            // A host with no skills installed is a real answer, not a failure
+            // — and `resetCommandCatalog()` is what the old code did with the
+            // all-empty payload.
+            chatStore.resetCommandCatalog()
+            lastCommandCatalogRefreshAt = .now
+            return
+        }
+
+        var catalog = SlashCommand.localCommands
+        var catalogIDs = Set(catalog.map(\.id))
+        for skill in skills {
+            let command = SlashCommand.fromSkill(
+                name: skill.name,
+                description: skill.description ?? ""
             )
-
-            var catalog = SlashCommand.localCommands
-            var catalogIDs = Set(catalog.map(\.id))
-            let remoteCommands = response.commands ?? []
-            let skills = response.skills ?? []
-            let personalities = response.personalities ?? []
-            let quickCommands = response.quickCommands ?? []
-
-            // Add remote built-in commands (skip any that overlap with local)
-            for cmd in remoteCommands {
-                let command = SlashCommand.fromRemote(
-                    name: cmd.name,
-                    description: cmd.description,
-                    category: cmd.category ?? "Agent",
-                    args: cmd.args
-                )
-                if catalogIDs.insert(command.id).inserted {
-                    catalog.append(command)
-                }
+            if catalogIDs.insert(command.id).inserted {
+                catalog.append(command)
             }
-
-            // Add skill commands
-            for skill in skills {
-                let command = SlashCommand.fromSkill(name: skill.name, description: skill.description)
-                if catalogIDs.insert(command.id).inserted {
-                    catalog.append(command)
-                }
-            }
-
-            // `/personality <name>` suggestions only appear once the user starts
-            // typing `/personality`, keeping the top-level dropdown manageable.
-            for personality in personalities {
-                let command = SlashCommand.fromPersonality(
-                    name: personality.name,
-                    description: personality.description
-                )
-                if catalogIDs.insert(command.id).inserted {
-                    catalog.append(command)
-                }
-            }
-
-            // Hermes docs say quick commands resolve at dispatch time and are not
-            // included in built-in autocomplete tables, but we still track them so
-            // typed commands can be considered part of the known catalog.
-            for quickCommand in quickCommands {
-                let command = SlashCommand.fromQuickCommand(
-                    name: quickCommand.name,
-                    description: quickCommand.description
-                )
-                if catalogIDs.insert(command.id).inserted {
-                    catalog.append(command)
-                }
-            }
-
-            if remoteCommands.isEmpty && skills.isEmpty && personalities.isEmpty && quickCommands.isEmpty {
-                chatStore.resetCommandCatalog()
-            } else {
-                chatStore.replaceCommandCatalog(
-                    catalog,
-                    // #245: pick-wins. This call site used to write the HOST's
-                    // default over a persisted pick's label on every launch
-                    // and foreground refresh — while the per-turn lock kept
-                    // riding — so the header claimed a model the turns were
-                    // not using. CTX denominator deliberately stays
-                    // host-reported (#191's standing choice).
-                    activeModel: ModelSelection.headerName(
-                        pick: activeModelSelection,
-                        hostDefault: response.activeModel?.name
-                    ),
-                    contextWindow: response.activeModel?.contextWindow
-                )
-                lastCommandCatalogRefreshAt = .now
-            }
-        } catch {
-            // Fallback to built-in list — catalog is a nice-to-have. Keep the
-            // active model + Hermes-reported context window: the catalog rides
-            // the relay, and a transient fetch failure must not demote the CTX
-            // denominator to the nominal client-side table (#4).
-            chatStore.restoreBuiltInCatalog()
         }
+        // #245's pick-wins rule is preserved by omission: with no host default
+        // to merge, a persisted pick is never overwritten and the header keeps
+        // whatever `seedActiveModelFromGateway` resolved.
+        chatStore.replaceCommandCatalog(catalog)
+        lastCommandCatalogRefreshAt = .now
     }
 
     /// Best-effort seed for the model chip label. Uses the shim's cached model
@@ -2055,31 +2060,25 @@ final class AppContainer {
         }
     }
 
-    func reportAppStateIfNeeded(_ state: String) async {
-        // #310: #309 path 10 — a relay beacon, so it needs the relay gate
-        // like everything else on that plane. `isPaired` cannot stand in for
-        // it: the pairing RECORD outlives the profile's relay URL (it
-        // persists its own `baseURLString`), so a profile the retirement
-        // cleared still reads as paired and this would keep POSTing at the
-        // retired host on every foreground/background transition. It is
-        // fire-and-forget, so nobody would ever have seen it fail.
-        guard profilesStore?.activeProfile?.hasRelay == true else { return }
-        guard pairingStore.isPaired, let apiClient, let accessToken = await sessionStore.currentAccessToken() else {
-            return
-        }
-
-        struct AppStateBody: Encodable {
-            let state: String
-        }
-
-        struct AppStateResponse: Decodable {}
-
-        _ = try? await apiClient.post(
-            path: "device/app-state",
-            body: AppStateBody(state: state),
-            accessToken: accessToken
-        ) as AppStateResponse
-    }
+    // **#309 Lane C bar C4: `reportAppStateIfNeeded` is DELETED (row 10).**
+    //
+    // It POSTed `device/app-state` to the relay on every foreground and system
+    // launch — a fire-and-forget beacon nothing app-side ever read back, whose
+    // only consumer was the relay's own device table. The relay is retired on
+    // both hosts, so the beacon has been shouting into a closed socket since
+    // the retirement; being fire-and-forget is exactly why nobody ever saw it
+    // fail. #310 gave it a relay gate rather than deleting it, which was the
+    // right call for that lane and is what kept it silent until this one.
+    //
+    // Nothing replaces it. The gateway plane has no app-state verb, the plugin
+    // link's own POST cadence is the liveness signal the host actually uses
+    // (#347), and re-homing a beacon nobody reads would be building a second
+    // one.
+    //
+    // Row 5 (`POST device/provisioning`, `ProvisioningService`) was checked in
+    // the same pass and is ALREADY ABSENT from the tree — #375 deleted it, as
+    // that row's disposition predicted. `git grep -n 'device/provisioning\|
+    // ProvisioningService' -- '*.swift'` returns nothing.
 
     /// Snapshots current app state into the App Group shared container
     /// so Home Screen widgets and CarPlay widgets can display it.
@@ -2188,6 +2187,12 @@ final class AppContainer {
     private(set) var profileSwitchNotice: String?
     private var lastActivatedProfile: BackendProfile?
     private var switchNoticeTask: Task<Void, Never>?
+    /// #309 Lane C: the switch's host-plane half, run BEHIND the switch.
+    /// Superseded by the next switch and by an unpair — a late landing from
+    /// the outgoing profile is the same cross-profile leak `#285`/#136 guard
+    /// against everywhere else on this path.
+    // harness-visible
+    private(set) var profileSwitchRefreshTask: Task<Void, Never>?
 
     /// Pure and pinned (bars 247-B): the exact sentences. The all-hosts row
     /// is the diagnosis Owen had to derive by RDP elimination during the
@@ -2360,16 +2365,29 @@ final class AppContainer {
         // switch holds the UI. Deleting it makes the switch relay-silent for
         // EVERY profile, which is what 309-A4 pins.
         //
-        // Host presence (`hostStore.refresh`, #309 row 7) and the command
-        // catalog (`refreshCommandCatalog`, row 16) are Lane C's to re-home
-        // onto gateway `/health` and `/v1/skills`; until they land, the
-        // switch leaves both honestly empty rather than fetching from a
-        // retired service. The inbox reload is not lost — `InboxScreen` runs
-        // its own `.task { loadInbox() }`, and the drain feeds it locally.
-        chatStore.resetCommandCatalog()
+        // ── #309 Lane C: THE THREE RE-HOMED STEPS ARE BACK — AND OFF THE
+        //    SWITCH'S CRITICAL PATH, WHICH IS THE WHOLE POINT. ─────────────
+        //
+        // Lane A's note above ended "Lane C's to re-home onto gateway
+        // `/health` and `/v1/skills`; until they land, the switch leaves both
+        // honestly empty." They have landed (rows 7 and 16), and the inbox
+        // reload comes back with them now that its gate asks the right
+        // capability (bar C6).
+        //
+        // **They do NOT go back where they were.** #365's lesson is
+        // structural, not about which host answers: a switch that AWAITS a
+        // network probe stalls the UI for as long as the probe hangs, and a
+        // black-holed GATEWAY hangs exactly like a black-holed relay did
+        // (firewall DROP, no TCP refusal, the full timeout). Owen's phone is
+        // off-tailnet routinely — that is the case #412 was filed from. So the
+        // refresh lands BEHIND the switch, superseded by the next one, in the
+        // same shape #136 gives the launch path and #247 B2 gives the switch
+        // verdict beside it. `aProfileSwitchCompletesWithEveryHostSurfaceBlack-
+        // Holed` is what holds this line: awaiting any of these reds it.
         if chatStore.activeModelName == nil {
             await seedActiveModelFromGateway()
         }
+        startProfileSwitchRefresh()
         // #383-G: readiness is NOT gated any more, and the gate that stood
         // here was this item's finding #1 at a second site.
         //
@@ -2404,6 +2422,32 @@ final class AppContainer {
             talariaPlatformLink?.start()
         }
         updateWidgetData()
+    }
+
+    /// #309 Lane C: the profile switch's host-plane half — host presence (row
+    /// 7), the plugin inbox, and the command catalog (row 16), all on the
+    /// gateway now.
+    ///
+    /// Detached deliberately. Every step here is a network read against a host
+    /// that may be black-holed, and the switch handler must return whether or
+    /// not any of them answers; the alternative is #365, which is what these
+    /// three calls caused in their previous form. Cancellation is checked
+    /// between steps rather than only at entry, so a switch that lands
+    /// mid-flight cannot write the outgoing profile's host state over the
+    /// incoming one's.
+    private func startProfileSwitchRefresh() {
+        profileSwitchRefreshTask?.cancel()
+        profileSwitchRefreshTask = Task { @MainActor [weak self] in
+            guard let self, self.hasGatewayCredentials else { return }
+            await self.hostStore.refresh()
+            if Task.isCancelled { return }
+            self.lastKnownHostOnline = self.hostStore.isHostOnline
+            await self.inboxStore.loadInbox(force: true)
+            if Task.isCancelled { return }
+            await self.refreshCommandCatalog(force: true)
+            if Task.isCancelled { return }
+            self.updateWidgetData()
+        }
     }
 
     // #309 Lane A: `refreshDormantProfileTokensIfNeeded()` lived here — M-9's

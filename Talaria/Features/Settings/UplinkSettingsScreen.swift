@@ -249,24 +249,37 @@ struct UplinkSettingsScreen: View {
 
     // MARK: Unkeyed-profile notice (M-14, per #108)
 
-    /// True when the active profile is paired for the relay plane but has no
-    /// Sessions API key — chat would fail silently without this state.
-    /// Static so the rule is unit-testable (M-17).
-    static func unkeyedNudgeVisible(isPaired: Bool, apiKey: String) -> Bool {
-        isPaired && apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    /// True when the active profile names a Hermes host but has no Sessions
+    /// API key — chat would fail silently without this state. Static so the
+    /// rule is unit-testable (M-17).
+    ///
+    /// **#309 Lane C re-keyed the first argument from `isPaired`.** M-14's
+    /// original reading — "paired for SENSORS, but chat needs its API key" —
+    /// described two planes that no longer exist as two: the sensor upload
+    /// path was deleted by #352 and the relay pairing it rode is retired.
+    /// Worse, re-homing it onto gateway credentials (the other three
+    /// `isPaired` sites' answer) would have made the whole rule VACUOUS —
+    /// `hasGatewayCredentials` already requires a non-empty key, so
+    /// `hasGatewayCredentials && key.isEmpty` is false by construction and the
+    /// notice could never render again. The honest half of the pair is the
+    /// half the key is missing FROM: a configured gateway URL.
+    static func unkeyedNudgeVisible(hasGatewayEndpoint: Bool, apiKey: String) -> Bool {
+        hasGatewayEndpoint && apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    /// The active profile's relay-plane pairing state. Mirrors
-    /// ServerSettingsScreen's accessor (there is no `pairingStore` in this
-    /// view's environment); false when profiles haven't been wired yet.
-    private var activeProfileIsPaired: Bool {
-        guard let activeID = container.profilesStore?.activeProfileID,
-              let sessions = container.profileRelaySessions else { return false }
-        return sessions.isPaired(profileID: activeID)
+    /// Whether the active profile names a gateway at all. Read from the
+    /// profile record (there is no `pairingStore` in this view's environment);
+    /// false when profiles haven't been wired yet.
+    private var activeProfileHasGatewayEndpoint: Bool {
+        let raw = container.profilesStore?.activeProfile?.gatewayBaseURL ?? ""
+        return !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var showsUnkeyedNudge: Bool {
-        Self.unkeyedNudgeVisible(isPaired: activeProfileIsPaired, apiKey: container.hermesAPIKey)
+        Self.unkeyedNudgeVisible(
+            hasGatewayEndpoint: activeProfileHasGatewayEndpoint,
+            apiKey: container.hermesAPIKey
+        )
     }
 
     private var unkeyedProfileNotice: some View {
@@ -276,9 +289,9 @@ struct UplinkSettingsScreen: View {
                 .foregroundStyle(Design.Brand.forge)
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
-                MonoLabel("PAIRED — KEY MISSING", size: 10, weight: .medium,
+                MonoLabel("HOST SET — KEY MISSING", size: 10, weight: .medium,
                           tracking: Design.Tracking.monoWide, color: Design.Brand.forgeText)
-                Text("\(activeProfileName) is paired for sensors, but chat needs its API key. Paste the API_SERVER_KEY from ~/.hermes/.env below.")
+                Text("\(activeProfileName) has a gateway URL but no API key, so chat can't reach it. Paste the API_SERVER_KEY from your host's .env below.")
                     .font(Design.Typography.caption)
                     .foregroundStyle(Design.Colors.secondaryForeground)
             }

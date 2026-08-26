@@ -14,34 +14,34 @@ enum HermesHostConnectionState: Equatable, Sendable {
 @Observable
 final class HermesHostStore {
     var currentHost: HermesHostStatus?
-    var activeEnrollmentCode: HostEnrollmentCode?
     var isLoading = false
-    var isWorking = false
     var lastErrorMessage: String?
     var onHostChanged: (@MainActor () -> Void)?
 
     private let hostService: any HermesHostServiceProtocol
-    private let accessTokenProvider: @MainActor () async -> String?
-    /// #310: does the ACTIVE profile have a relay plane at all?
+    /// **#309 Lane C (row 7's adapt): the RELAY availability gate is now a
+    /// GATEWAY-CREDENTIAL gate.**
     ///
-    /// Gated here rather than only at the activation call site, because this
-    /// store's callers are not only `handleActiveProfileChanged` —
-    /// `ConnectHermesHostScreen` has its own `.task { await refresh() }`, so
+    /// #310 put a gate here rather than only at the activation call site,
+    /// because this store's callers are not only `handleActiveProfileChanged`
+    /// — `ConnectHermesHostScreen` has its own `.task { await refresh() }`, so
     /// a gate that lived at the switch alone would be bypassed the moment the
-    /// user opened Pairing & Devices. Capability detection belongs to the
-    /// capability, not to one of its callers.
+    /// user opened Pairing & Devices. That reasoning is untouched; only the
+    /// capability it asks about changed, because the capability the fetch
+    /// needs changed with it. Same predicate as
+    /// `AppContainer.hasGatewayCredentials` (#411/Lane A), derived per call so
+    /// a profile switch or a Server-settings edit changes the answer with no
+    /// rewiring.
     ///
     /// Defaults to "yes" so every existing construction is unchanged.
-    private let relayAvailabilityProvider: @MainActor () -> Bool
+    private let hasGatewayCredentials: @MainActor () -> Bool
 
     init(
         hostService: any HermesHostServiceProtocol,
-        accessTokenProvider: @escaping @MainActor () async -> String?,
-        relayAvailabilityProvider: @escaping @MainActor () -> Bool = { true }
+        hasGatewayCredentials: @escaping @MainActor () -> Bool = { true }
     ) {
         self.hostService = hostService
-        self.accessTokenProvider = accessTokenProvider
-        self.relayAvailabilityProvider = relayAvailabilityProvider
+        self.hasGatewayCredentials = hasGatewayCredentials
     }
 
     var isHostOnline: Bool {
@@ -64,43 +64,52 @@ final class HermesHostStore {
         return .notConnected
     }
 
-    /// #310: the honest empty state for a gateway-only profile. Stated
-    /// rather than left silent — `currentHost == nil` with no message is
-    /// indistinguishable from "asked the relay, no host enrolled", and the
-    /// two lead a user to opposite actions (enrol a host vs. add a relay).
-    static let relayUnavailableMessage =
-        "This profile has no relay URL, so host pairing and enrollment aren't available on it."
-
     func refresh() async {
         guard !isLoading else { return }
-        guard relayAvailabilityProvider() else {
+        // **#309 Lane C: the honest empty state is now `.notConnected`, with
+        // NO message — and the message's deletion is the correction, not a
+        // regression.**
+        //
+        // #310 stated a reason here (`relayUnavailableMessage`: "this profile
+        // has no relay URL…") on the argument that a nil host with no message
+        // is indistinguishable from "asked the relay, no host enrolled", and
+        // that the two lead the user to opposite actions. That argument was
+        // right about the RELAY plane, where host presence and phone pairing
+        // were separate facts with separate remedies. On the gateway plane
+        // they are one fact: the gateway IS the host, so "no gateway
+        // credentials" and "no host" are the same state and there is no second
+        // action to disambiguate. `.notConnected` already renders it —
+        // "No Host / Set up from your Hermes machine" — and routing it through
+        // `lastErrorMessage` would paint an unconfigured install as a BROKEN
+        // one (`.unreachable`), which is the misattribution #412 filed on the
+        // Inbox's twin of this gate.
+        guard hasGatewayCredentials() else {
             let hadHost = currentHost != nil
             currentHost = nil
-            activeEnrollmentCode = nil
-            lastErrorMessage = Self.relayUnavailableMessage
+            lastErrorMessage = nil
             // 🔴 FIRE THE HOOK ONLY ON AN ACTUAL TRANSITION — this line cost a
             // gate failure, and the reason is worth keeping.
             //
             // The first version of this guard called `onHostChanged?()`
             // unconditionally. That looked harmless beside the success path,
             // which also calls it every time — but the FAILURE path below
-            // never called it at all, and a relay-less profile is the failure
-            // case, not the success case. Meanwhile
+            // never called it at all, and a credential-less profile is the
+            // failure case, not the success case. Meanwhile
             // `ChatScreen.monitorConnectionStatus()` polls `refresh()` on a
             // cadence for as long as the chat screen is visible, and the hook
-            // (`AppContainer.swift:1258`) does real main-actor work on every
+            // (`AppContainer.makeDefault`) does real main-actor work on every
             // firing: `updateWidgetData()` writes the App Group container,
             // and it spawns a command-catalog refresh Task.
             //
-            // So a gateway-only profile turned an idle chat screen into a
+            // So a credential-less profile turned an idle chat screen into a
             // periodic burst of App Group I/O — which stalled a streaming
             // turn past its 40 s budget and failed
             // `testQueuedChipCancelRemovesHeldMessageWithNothingPosted`. The
             // unit tests missed it (they call `refresh()` once) and Release
             // built clean; only the full UI bundle caught it.
             //
-            // `onHostChanged` means "the host RECORD changed". With no relay
-            // the host is nil and stays nil, so announcing it on every poll
+            // `onHostChanged` means "the host RECORD changed". With no host
+            // the record is nil and stays nil, so announcing it on every poll
             // was wrong on its own terms, independently of the cost.
             if hadHost { onHostChanged?() }
             return
@@ -110,7 +119,7 @@ final class HermesHostStore {
         defer { isLoading = false }
 
         do {
-            let fetched = try await hostService.fetchCurrentHost(accessToken: await accessTokenProvider())
+            let fetched = try await hostService.fetchCurrentHost()
             // #136: a cancelled launch probe was superseded by a reset —
             // its result must not land over the canceller's state.
             guard !Task.isCancelled else { return }
@@ -125,44 +134,18 @@ final class HermesHostStore {
         }
     }
 
-    func generateEnrollmentCode() async {
-        guard !isWorking else { return }
-
-        isWorking = true
-        defer { isWorking = false }
-
-        do {
-            activeEnrollmentCode = try await hostService.createEnrollmentCode(accessToken: await accessTokenProvider())
-            currentHost = try await hostService.fetchCurrentHost(accessToken: await accessTokenProvider())
-            lastErrorMessage = nil
-            onHostChanged?()
-        } catch {
-            lastErrorMessage = error.localizedDescription
-        }
-    }
-
-    func revokeCurrentHost() async {
-        guard !isWorking else { return }
-
-        isWorking = true
-        defer { isWorking = false }
-
-        do {
-            try await hostService.revokeCurrentHost(accessToken: await accessTokenProvider())
-            currentHost = nil
-            activeEnrollmentCode = nil
-            lastErrorMessage = nil
-            onHostChanged?()
-        } catch {
-            lastErrorMessage = error.localizedDescription
-        }
-    }
+    // #309 Lane C: `generateEnrollmentCode()` and `revokeCurrentHost()` are
+    // DELETED with rows 8 and 9. Both spoke to the relay's enrollment record —
+    // a host registering with a third party so the phone could ask about it —
+    // and there is no third party left: the gateway is the host. "Revoke Host"
+    // on the Pairing & Devices screen went with them rather than becoming a
+    // button that clears a record the very next `refresh()` re-derives.
+    // Forgetting a host is local and already has an owner:
+    // `PairingStore.disconnect()` (the screen's Disconnect action).
 
     func reset() {
         currentHost = nil
-        activeEnrollmentCode = nil
         isLoading = false
-        isWorking = false
         lastErrorMessage = nil
         onHostChanged?()
     }

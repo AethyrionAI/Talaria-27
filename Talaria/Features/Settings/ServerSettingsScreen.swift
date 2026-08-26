@@ -233,14 +233,19 @@ struct ServerSettingsScreen: View {
 
     private func profileCard(_ profile: BackendProfile) -> some View {
         let isActive = container.profilesStore?.activeProfileID == profile.id
-        let isPaired = container.profileRelaySessions?.isPaired(profileID: profile.id) ?? false
+        // #309 Lane C: the badge asks whether this profile can reach a Hermes
+        // host — gateway URL + key — instead of whether it holds a relay-era
+        // pairing record. The old predicate answered YES forever for any
+        // profile that ever paired (the record outlives the relay it names)
+        // and NO for every gateway-only one.
+        let isKeyed = container.hasGatewayCredentials(forProfileID: profile.id)
         let probes = reachability[profile.id] ?? ServerProfileReachability()
 
         return ZStack(alignment: .topTrailing) {
             profileCardBody(
                 profile,
                 isActive: isActive,
-                isPaired: isPaired,
+                isKeyed: isKeyed,
                 probes: probes
             )
 
@@ -252,7 +257,8 @@ struct ServerSettingsScreen: View {
                 profileActions(
                     profile,
                     isActive: isActive,
-                    isPaired: isPaired
+                    isKeyed: isKeyed,
+                    hasPairingRecord: pairingStore.hasPairingRecord(profileID: profile.id)
                 )
             } label: {
                 Image(systemName: "ellipsis.circle")
@@ -268,7 +274,7 @@ struct ServerSettingsScreen: View {
     private func profileCardBody(
         _ profile: BackendProfile,
         isActive: Bool,
-        isPaired: Bool,
+        isKeyed: Bool,
         probes: ServerProfileReachability
     ) -> some View {
         Button {
@@ -314,9 +320,14 @@ struct ServerSettingsScreen: View {
                 HStack(spacing: Design.Spacing.md) {
                     statusRow("GATEWAY", result: probes.gateway)
                     Spacer(minLength: 0)
-                    MonoLabel(isPaired ? "PAIRED" : "NOT PAIRED", size: 9, weight: .medium,
+                    // #309 Lane C: "KEYED"/"NO KEY", not "PAIRED"/"NOT
+                    // PAIRED". The badge reports gateway credentials now, and
+                    // the app already speaks this word — `ServerProbeResult`
+                    // classifies a 401/403 gateway answer as `.unkeyed`, and
+                    // the Uplink screen's nudge is the unkeyed-profile notice.
+                    MonoLabel(isKeyed ? "KEYED" : "NO KEY", size: 9, weight: .medium,
                               tracking: Design.Tracking.mono,
-                              color: isPaired ? Design.Brand.accentText : Design.Colors.mutedForeground)
+                              color: isKeyed ? Design.Brand.accentText : Design.Colors.mutedForeground)
                 }
             }
             .padding(Design.Spacing.md)
@@ -330,12 +341,13 @@ struct ServerSettingsScreen: View {
             )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(profile.name)\(isActive ? ", active" : ""), \(isPaired ? "paired" : "not paired")")
+        .accessibilityLabel("\(profile.name)\(isActive ? ", active" : ""), \(isKeyed ? "keyed" : "no key")")
         .contextMenu {
             profileActions(
                 profile,
                 isActive: isActive,
-                isPaired: isPaired
+                isKeyed: isKeyed,
+                hasPairingRecord: pairingStore.hasPairingRecord(profileID: profile.id)
             )
         }
     }
@@ -346,7 +358,8 @@ struct ServerSettingsScreen: View {
     private func profileActions(
         _ profile: BackendProfile,
         isActive: Bool,
-        isPaired: Bool
+        isKeyed: Bool,
+        hasPairingRecord: Bool
     ) -> some View {
         Button {
             editorTarget = .edit(profile)
@@ -356,9 +369,13 @@ struct ServerSettingsScreen: View {
         Button {
             startPairing(profile)
         } label: {
-            Label(isPaired ? "Re-Pair" : "Pair", systemImage: "link")
+            Label(isKeyed ? "Re-Pair" : "Pair", systemImage: "link")
         }
-        if isPaired {
+        // #309 Lane C: offered on the RECORD, not on the gateway credentials
+        // — `forgetPairing` clears a relay-era pairing record, so on a profile
+        // that has none the row would do nothing at all. Both this action and
+        // the record it clears go with Lane B.
+        if hasPairingRecord {
             Button(role: .destructive) {
                 pendingForget = profile
             } label: {
@@ -428,8 +445,8 @@ struct ServerSettingsScreen: View {
         // that is already paired is an existing pairing and always passes
         // (the fail-open rule — a flaky entitlement check must never stand
         // between the user and re-establishing a host they already have).
-        let isPaired = container.profileRelaySessions?.isPaired(profileID: profile.id) ?? false
-        guard container.connectGateVerdict(for: isPaired ? .existingPairing : .newConnect) == .allow else {
+        let isKeyed = container.hasGatewayCredentials(forProfileID: profile.id)
+        guard container.connectGateVerdict(for: isKeyed ? .existingPairing : .newConnect) == .allow else {
             paywallPresented = true
             return
         }

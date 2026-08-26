@@ -122,7 +122,7 @@ struct TalariaPlatformInboxServiceTests {
         persistence.saveInboxState(state)
 
         let service = TalariaPlatformInboxService(persistence: persistence)
-        let items = try await service.fetchInbox(accessToken: nil)
+        let items = try await service.fetchInbox()
 
         #expect(items.map { $0.payload?["platformID"] } == ["b", "a"])
     }
@@ -145,7 +145,7 @@ struct TalariaPlatformInboxServiceTests {
         persistence.saveInboxState(state)
 
         let service = TalariaPlatformInboxService(persistence: persistence)
-        let items = try await service.fetchInbox(accessToken: nil)
+        let items = try await service.fetchInbox()
 
         #expect(items.map { $0.payload?["platformID"] } == ["bbb", "aaa"])
     }
@@ -165,7 +165,7 @@ struct TalariaPlatformInboxServiceTests {
         persistence.saveInboxState(state)
 
         let service = TalariaPlatformInboxService(persistence: persistence)
-        let items = try await service.fetchInbox(accessToken: nil)
+        let items = try await service.fetchInbox()
 
         #expect(items.map { $0.payload?["platformID"] } == ["aaa", "zzz"])
     }
@@ -535,14 +535,9 @@ struct TalariaPlatformInboxServiceTests {
         persistence: MemoryPersistence,
         service: (any InboxServiceProtocol)? = nil
     ) async -> InboxStore {
-        let sessionStore = AppSessionStore(
-            secureStore: MockSecureStore(),
-            persistence: persistence,
-        )
         return InboxStore(
             inboxService: service ?? TalariaPlatformInboxService(persistence: persistence),
-            persistence: persistence,
-            sessionStore: sessionStore
+            persistence: persistence
         )
     }
 
@@ -552,8 +547,8 @@ struct TalariaPlatformInboxServiceTests {
     private final class StubRelayInboxService: InboxServiceProtocol {
         let rows: [InboxItem]
         init(rows: [InboxItem]) { self.rows = rows }
-        func fetchInbox(accessToken: String?) async throws -> [InboxItem] { rows }
-        func submitAction(itemID: UUID, actionID: String, accessToken: String?) async throws -> InboxActionResult {
+        func fetchInbox() async throws -> [InboxItem] { rows }
+        func submitAction(itemID: UUID, actionID: String) async throws -> InboxActionResult {
             InboxActionResult(itemID: itemID, actionID: actionID, status: .completed, completedAt: .now)
         }
     }

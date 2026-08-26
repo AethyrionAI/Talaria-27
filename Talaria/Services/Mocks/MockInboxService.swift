@@ -4,15 +4,14 @@ import Foundation
 final class MockInboxService: InboxServiceProtocol {
     private var items = DemoData.sampleInboxItems
 
-    func fetchInbox(accessToken: String?) async throws -> [InboxItem] {
+    func fetchInbox() async throws -> [InboxItem] {
         try? await Task.sleep(for: .seconds(0.2))
         return items
     }
 
     func submitAction(
         itemID: UUID,
-        actionID: String,
-        accessToken: String?
+        actionID: String
     ) async throws -> InboxActionResult {
         try? await Task.sleep(for: .seconds(0.1))
 
