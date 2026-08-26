@@ -293,14 +293,246 @@ struct CardClauseRegistryTests {
         #expect(!spec.writesEventKit && !spec.writesAlarms)
     }
 
+    /// #372(b): the focused remedy A/B is registered with the SAME derived
+    /// flags. A two-arm sibling that quietly declared different capabilities
+    /// would be a spec bug the conductor acts on, not a documentation nit.
+    @Test func theRemedyABIsRegisteredWithTheSameWriteFreeDeclineFlags() throws {
+        let spec = try #require(InstrumentRegistry.spec(named: "card-clause-remedy"))
+        #expect(spec.confirmationMode == .autoDecline)
+        #expect(!spec.writesEventKit && !spec.writesAlarms)
+        #expect(spec.defaultCells == nil)
+    }
+
     /// 372-C5: this pin is what makes adding an arm without naming it a
     /// failure rather than a silent widening of the export vocabulary — the
     /// same shape as `ActionBatteryCell.allCases.count`, which caught #340's
-    /// new case on 2026-08-21. Five → six with #372(c)'s rollback.
-    @Test func theABHasSixNamedArmsWithTheRollbackOneLast() {
+    /// new case on 2026-08-21. Five → six with #372(c)'s rollback; **six →
+    /// seven with #372(b)'s `.required` remedy (2026-08-26)**, and it fired as
+    /// designed: the arm landed, this pin went red, and the arm had to be
+    /// named before the suite would pass.
+    @Test func theABHasSevenNamedArmsWithTheRemedyOneLast() {
         #expect(LocalChatBackend.CardClauseArm.allCases.map(\.rawValue)
                 == ["control", "tools-stripped", "tools-blurb-stripped",
-                    "blurb-stripped", "blurb-reworded", "blurb-rollback"])
+                    "blurb-stripped", "blurb-reworded", "blurb-rollback",
+                    "toolmode-required"])
+    }
+
+    // MARK: - #372(b) / 337-H — the `.required` remedy's structural bars
+
+    /// 🔴 **372-H1 — EXACTLY ONE arm forces the tool-calling mode.**
+    ///
+    /// The remedy's whole claim is that it is a DECODING change rather than a
+    /// prose one, so it is only interpretable against arms that leave the mode
+    /// alone. An arm that quietly inherited the forced mode would turn its own
+    /// prose result into a bundle of two treatments.
+    @Test func theOnlyArmThatForcesToolCallingIsTheRemedy() {
+        for arm in LocalChatBackend.CardClauseArm.allCases {
+            #expect(LocalChatBackend.cardClauseForcesToolCalling(arm: arm)
+                    == (arm == .toolmodeRequired),
+                    "\(arm.rawValue) disagrees with the one-forced-arm rule")
+        }
+    }
+
+    /// 🔴 **372-H2 — the remedy changes NEITHER descriptions NOR instructions.**
+    /// If it moved a string as well as the mode, its delta would be
+    /// unattributable — the exact confound `cardClauseBelt`'s enumerated
+    /// switch and `cardClauseInstructions`' explicit cases exist to prevent.
+    @MainActor
+    @Test func theRemedyArmLeavesEveryStringAlone() {
+        let belt: [any Tool] = [
+            ReminderCreateTool(relay: ToolEventRelay(), confirmations: ToolConfirmationCenter())
+        ]
+        let swapped = LocalChatBackend.cardClauseBelt(from: belt, arm: .toolmodeRequired)
+        #expect(swapped.swapped == 0, "the remedy arm must not touch descriptions")
+
+        let production = LocalChatBackend.instructionsText(
+            deviceContext: "Device: iPhone running iOS 27.0.",
+            hasTools: true, hasImageTools: false)
+        let result = LocalChatBackend.cardClauseInstructions(production, arm: .toolmodeRequired)
+        #expect(result.removed == false)
+        #expect(result.text == production,
+                "the remedy arm moved an instruction byte — its delta would be a bundle, not a mode")
+    }
+
+    /// 🔴 **372-H3 — PRODUCTION SETS NO TOOL-CALLING MODE, and this lane does
+    /// not change that.** #337-H named the remedy and Owen's direction was
+    /// explicit that it ships as an ARM: the device A/B decides, not the build.
+    /// This is the pin that goes red if a later lane promotes it by editing
+    /// `chatGenerationOptions` instead of by measuring it.
+    @Test func productionGenerationOptionsStillSetNoToolCallingMode() {
+        // Both tiers named as literals rather than swept: `LocalModelTier` is
+        // not `CaseIterable`, and widening a production enum to satisfy a test
+        // is a change to the thing under test.
+        for tier: LocalChatBackend.LocalModelTier in [.onDevice, .privateCloud] {
+            #expect(LocalChatBackend.chatGenerationOptions(for: tier).toolCallingMode == nil,
+                    "production now sets a tool-calling mode for \(tier) — 337-H's remedy was promoted without a run")
+        }
+    }
+
+    /// 🔴 **The manipulation column, and the DEFECT #372's lane found in it.**
+    ///
+    /// The expression that stood at the call site was
+    /// `arm == .control ? 1 : (swapped > 0 ? 1 : 0)`, so every arm whose
+    /// treatment is an INSTRUCTION swap scored 0 — `blurb-stripped` and
+    /// `blurb-rollback` both applied cleanly on 2026-08-21 and both were
+    /// recorded as treatments that had failed to apply. The column built to
+    /// catch a silent no-op was itself silently wrong.
+    ///
+    /// `blurbReworded` returning false on `blurbRemoved == false` is CORRECT
+    /// and is 372-C1's finding: post-promotion that arm is identity with
+    /// control and the column should say so.
+    @Test func theManipulationColumnIsTrueOnlyForArmsThatActuallyApplied() {
+        typealias A = LocalChatBackend.CardClauseArm
+        let applied = LocalChatBackend.cardClauseManipulationApplied
+
+        #expect(applied(A.control, 0, false))
+        #expect(applied(A.toolsStripped, 3, false))
+        #expect(!applied(A.toolsStripped, 0, false))
+        // Two-part treatment: half is not applied.
+        #expect(applied(A.toolsAndBlurbStripped, 3, true))
+        #expect(!applied(A.toolsAndBlurbStripped, 3, false))
+        #expect(!applied(A.toolsAndBlurbStripped, 0, true))
+        // The instruction arms — the three the old expression got wrong.
+        #expect(applied(A.blurbStripped, 0, true))
+        #expect(!applied(A.blurbStripped, 0, false))
+        #expect(applied(A.blurbRollback, 0, true))
+        #expect(!applied(A.blurbReworded, 0, false))
+        // The remedy applies on its own terms and swaps nothing at all.
+        #expect(applied(A.toolmodeRequired, 0, false))
+    }
+
+    // MARK: - #372(a) — the decline half, finally observable
+
+    /// 🔴 **372-A1 — a trial with NO decline is NOT scored, and that is #215's
+    /// rule rather than tidiness.**
+    ///
+    /// This is the bar the whole (a) half turns on. A reply cannot misattribute
+    /// a refusal that never happened, so scoring a zero-decline trial enters a
+    /// free verdict into the tally and dilutes the rate with rows that had no
+    /// opportunity to fail. The text below WOULD score `.attributedToTool` if
+    /// the guard were removed — which is exactly what makes this test
+    /// isolating rather than decorative.
+    @Test func aTrialWithNoDeclineIsNotScoredEvenWhenTheTextWouldScore() {
+        let misattributing = "It seems the event couldn't be added."
+        #expect(DeclineAttributionScorer.verdict(for: misattributing) == .attributedToTool,
+                "the specimen no longer scores — this test's premise is gone")
+
+        let row = LocalChatBackend.declineHalfRow(replyText: misattributing,
+                                                  declinesObserved: 0)
+        #expect(row.exercised == false)
+        #expect(row.verdict == nil,
+                "a trial where nothing was declined was scored for decline attribution")
+    }
+
+    /// The other side: when the half WAS exercised, the reply is scored, and it
+    /// is scored by #392's scorer rather than by a second implementation.
+    @Test func anExercisedDeclineIsScoredByTheSharedScorer() {
+        let blamesTheTool = "It seems the event couldn't be added."
+        let blamesNobody = "No event was created."
+        let namesTheUser = "You declined, so the event wasn't created."
+
+        #expect(LocalChatBackend.declineHalfRow(replyText: blamesTheTool, declinesObserved: 1)
+                == (true, .attributedToTool))
+        #expect(LocalChatBackend.declineHalfRow(replyText: blamesNobody, declinesObserved: 1)
+                == (true, .actorUnnamed))
+        #expect(LocalChatBackend.declineHalfRow(replyText: namesTheUser, declinesObserved: 2)
+                == (true, .attributedToUser))
+    }
+
+    /// An exercised decline whose trial produced no text at all is EXERCISED
+    /// with no verdict — not `unscorable`. The distinction is real: an absent
+    /// reply is instrument state (a throw, a timeout), while `unscorable` is a
+    /// reply nobody could classify, which is behaviour.
+    @Test func anExercisedDeclineWithNoReplyIsExercisedButUnverdicted() {
+        let row = LocalChatBackend.declineHalfRow(replyText: nil, declinesObserved: 1)
+        #expect(row.exercised == true)
+        #expect(row.verdict == nil)
+    }
+}
+
+/// 🔴 **372-A2 — the gate COUNTS every decline it can produce.**
+///
+/// #372(a) went unfiled for so long because no instrument could see a decline:
+/// `toolCallsAdmitted` is the governor's number and says a call got through,
+/// not that the gate ever answered it. The counter is the thing instruments
+/// read a delta off, so a site that forgot to increment would report a lower
+/// decline rate than the truth and read exactly like a clean result.
+///
+/// **The assertions run against the PER-INSTANCE count, deliberately.** The
+/// static mirror is what instruments read — they reach the gate through tools
+/// they do not own — but it is process-global, and Swift Testing runs suites in
+/// parallel, so an exact-equality assertion against it would fail whenever
+/// another suite declined in the same instant. The negative control below ("an
+/// approval must not move it") is the assertion that makes all three site tests
+/// mean something, and it is only writable against a count nothing else can
+/// touch. One test pins that the two counters move together.
+@MainActor
+struct ConfirmationDeclineCountingTests {
+
+    @Test func theBatteryAutoDeclinePathIncrementsTheCounter() async {
+        let center = ToolConfirmationCenter()
+        center.autoDeclineForBattery = true
+        _ = await center.requestConfirmation(
+            title: "Create this reminder?",
+            fields: [.init(key: "title", label: "Title", value: "t")])
+        #expect(center.declineCount == 1,
+                "the auto-decline path produced a decline the counter never saw")
+    }
+
+    @Test func theUsersOwnDeclineIncrementsTheCounter() async {
+        let center = ToolConfirmationCenter()
+        async let decision = center.requestConfirmation(
+            title: "Schedule on this iPhone?",
+            fields: [.init(key: "request", label: "Alarm", value: "6:30am")])
+        while center.pending == nil { await Task.yield() }
+        center.decline()
+        _ = await decision
+        #expect(center.declineCount == 1, "an explicit decline produced no count")
+    }
+
+    /// The defensive second-request decline — the site most likely to be
+    /// forgotten, because it is the one that never renders a card and never
+    /// passes through `resolve`.
+    @Test func theDefensiveSecondRequestDeclineIncrementsTheCounter() async {
+        let center = ToolConfirmationCenter()
+        async let first = center.requestConfirmation(
+            title: "First?", fields: [.init(key: "a", label: "A", value: "1")])
+        while center.pending == nil { await Task.yield() }
+        _ = await center.requestConfirmation(
+            title: "Second?", fields: [.init(key: "b", label: "B", value: "2")])
+        #expect(center.declineCount == 1,
+                "the pending-collision decline is invisible to the counter")
+        center.approve()
+        _ = await first
+        // The approval that followed must not have added one.
+        #expect(center.declineCount == 1)
+    }
+
+    /// 🔴 The negative half, and it is what stops the three tests above from
+    /// passing against a counter incremented on EVERY resolution.
+    @Test func anApprovalDoesNotIncrementTheDeclineCounter() async {
+        let center = ToolConfirmationCenter()
+        async let decision = center.requestConfirmation(
+            title: "Create?", fields: [.init(key: "title", label: "T", value: "x")])
+        while center.pending == nil { await Task.yield() }
+        center.approve()
+        _ = await decision
+        #expect(center.declineCount == 0, "an approval incremented the DECLINE counter")
+    }
+
+    /// The static mirror is the one instruments actually read, so it has to
+    /// move with the instance count. Asserted as a `>= 1` delta for the reason
+    /// in this suite's note — the point here is that the mirror moves AT ALL,
+    /// which a drifted `noteDecline` would break silently.
+    @Test func theStaticMirrorMovesWithTheInstanceCount() async {
+        let center = ToolConfirmationCenter()
+        center.autoDeclineForBattery = true
+        let before = ToolConfirmationCenter.batteryDeclineCount
+        _ = await center.requestConfirmation(
+            title: "Create?", fields: [.init(key: "title", label: "T", value: "x")])
+        #expect(center.declineCount == 1)
+        #expect(ToolConfirmationCenter.batteryDeclineCount - before >= 1,
+                "the instance counted a decline the static mirror did not — instruments read the mirror")
     }
 
     // MARK: - #372(c) — the rollback arm's structural bars
@@ -452,7 +684,24 @@ struct CardClauseInstrumentRunTests {
             #expect(row.metrics?["trialsWithToolCalls"] != nil, "the BEHAVIOUR reading is missing")
             #expect(row.metrics?["generationErrors"] != nil)
             #expect(row.metrics?["timeouts"] != nil)
+            // #372(a): the decline half's own tallies, and the note that names
+            // its denominator. Without the note a later reader divides the
+            // misattribution count by `attempted` and reports a defect rate
+            // that falls whenever the model simply calls nothing.
+            #expect(row.metrics?["declineHalfExercised"] != nil,
+                    "#372(a)'s count is missing — the entry still cannot say whether the half is reached")
+            #expect(row.metrics?["declineAttributedToTool"] != nil)
+            #expect(row.metrics?["declineAttributedToUser"] != nil)
+            #expect(row.metrics?["declineActorUnnamed"] != nil)
+            #expect(row.metrics?["declineUnscorable"] != nil)
+            #expect(row.notes?["declineReading"] != nil)
+            // #372(b): which decoding regime produced these rows.
+            #expect(row.metrics?["toolCallingForced"] != nil)
         }
+        // The remedy arm is the ONLY one whose summary reports a forced mode.
+        let forced = summaries.filter { $0.metrics?["toolCallingForced"] == 1 }
+        #expect(forced.count == 1)
+        #expect(forced.first?.variant == LocalChatBackend.CardClauseArm.toolmodeRequired.rawValue)
     }
 
     @Test func everyTrialProducesARowCarryingBothMetrics() async throws {
@@ -470,6 +719,13 @@ struct CardClauseInstrumentRunTests {
             #expect(row.metrics?["toolCallsAdmitted"] != nil)
             #expect(row.errors != nil)
             #expect(row.notes?["outcome"] != nil)
+            // #372(a): kept SEPARATE from `toolCallsAdmitted` rather than
+            // derived from it — a call admitted by the governor is not a call
+            // the gate answered, and reading one off the other is the inference
+            // that let the decline half go unmeasured.
+            #expect(row.metrics?["declinesObserved"] != nil)
+            #expect(row.metrics?["declineHalfExercised"] != nil)
+            #expect(row.metrics?["toolCallingForced"] != nil)
         }
         #expect(record.trials.count == expected)
     }

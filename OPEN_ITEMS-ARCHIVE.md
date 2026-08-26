@@ -26623,6 +26623,33 @@ on CREATE paths where #211A says the confirmation gate at least partly excuses i
 > Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
 
 
+
+> **📌 POINTER 2026-08-26 (append-only per #317's archive carve-out — the
+> original bytes above are untouched). 337-H IS NO LONGER UNBUILT.**
+>
+> This entry named the `GenerationOptions.toolCallingMode = .required` remedy
+> and closed without building it; the successor filing is #372(b). It was
+> **BUILT + MERGED 2026-08-26** as `CardClauseArm.toolmodeRequired` in this
+> entry's own instrument — belt and instructions production verbatim, the sole
+> delta being `.required` with the mandatory demote exit (a static `.required`
+> loops, #200E) — plus a two-arm `card-clause-remedy` registry entry so the A/B
+> does not have to pay for the five prose arms.
+>
+> **What this entry's text says that remains TRUE and load-bearing:**
+> production sets no tool-calling mode. That is now a PINNED invariant
+> (`productionGenerationOptionsStillSetNoToolCallingMode`, both tiers) rather
+> than an observation, because Owen's direction was that the remedy ships as an
+> ARM and the device A/B decides. **The remedy is unmeasured** — bars
+> 372-HD1..HD4 are pre-registered and unrun, and #337's own caution stands
+> verbatim: *"the model may still choose the wrong tool, so this is a
+> measurement, not an obvious win."*
+>
+> Two further corrections to this entry's surroundings, filed in #372 rather
+> than here: the DECLINE half of the shipping blurb was never exercised because
+> **nothing could see a decline** (the gate now counts them), and the
+> manipulation band's `correct` column was wrong for every instruction arm from
+> #337-F-2 onward.
+
 ## 335. 🔬 THREE READ-ONLY FM MEASUREMENT INSTRUMENTS — `tokencount-preflight` (#257's owed gate), `fm-asymmetries` (#324-W3), `condensation-fit` (#210's residual) — **FILED 2026-08-12, the day the #333 runner made them runnable. BARS BELOW PRE-REGISTERED BEFORE ANY RUN — the build is sim + unit only, by instruction; every number these produce comes from the iPad afterwards.**
 
 **Why these three, and why now.** #333 shipped the unattended runner and its own

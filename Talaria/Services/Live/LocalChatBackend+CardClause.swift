@@ -105,6 +105,95 @@ extension LocalChatBackend {
         /// UNINTERPRETABLE rather than convenient. A null here needs a
         /// reversed-order re-run, not a conclusion.
         case blurbRollback = "blurb-rollback"
+        /// **#372(b) / 337-H — the `.required` REMEDY, wired 2026-08-26. The
+        /// first arm in this instrument that does not try to persuade the model
+        /// with prose.**
+        ///
+        /// #337-H named it and nobody built it: `GenerationOptions
+        /// .toolCallingMode` is iOS-27 API that moves tool use from
+        /// model-decided to developer-set, and **production does not set it at
+        /// all** (`chatGenerationOptions` passes samplingMode / temperature /
+        /// maximumResponseTokens only, so every production turn runs the
+        /// default). The candidate is: on a turn already classified as needing
+        /// a device tool, make the call MANDATORY rather than asking for it.
+        ///
+        /// This instrument is the right host because its failure mode IS
+        /// 337-H's target — the zero-tool turn that writes the confirmation
+        /// card out in prose and calls nothing. Belt and instructions are
+        /// production verbatim here; the ONLY delta is the decoding mode, which
+        /// is why it can be read against the same control as every prose arm.
+        ///
+        /// **The demote exit is mandatory, not stylistic** (#200E, and Apple's
+        /// own doc comment): a static `.required` loops until a tool throws, so
+        /// the arm rides `toolmodeMode(after:)` — `.required` until the first
+        /// call, `.allowed` after — through `ToolmodeBatteryProfile`.
+        ///
+        /// **It ships as an ARM and nothing else.** Owen's night-batch
+        /// direction was explicit: no production default moves, the device A/B
+        /// decides. `theOnlyArmThatForcesToolCallingIsTheRemedy` pins that, and
+        /// `productionGenerationOptionsSetNoToolCallingMode` pins the default it
+        /// must not disturb.
+        ///
+        /// **Position LAST, for this instrument's recorded reason:** it calls
+        /// `beginTurn()` per trial so it carries no #343 governor confound,
+        /// leaving thermal as the only order effect — and in #337-F's run
+        /// thermal moved AGAINST the result. The worst slot makes a positive
+        /// finding conservative and leaves a null uninterpretable rather than
+        /// convenient.
+        case toolmodeRequired = "toolmode-required"
+    }
+
+    /// #372(b): whether an arm forces the tool-calling mode. A function rather
+    /// than a comparison at the call site, for `isRouted`'s reason one
+    /// instrument over — the property is the thing a new arm must state, and a
+    /// call site that tested `arm == .toolmodeRequired` inline would be a rule
+    /// living in one place with no way to assert it.
+    nonisolated static func cardClauseForcesToolCalling(arm: CardClauseArm) -> Bool {
+        switch arm {
+        case .control, .toolsStripped, .toolsAndBlurbStripped,
+             .blurbStripped, .blurbReworded, .blurbRollback: return false
+        case .toolmodeRequired: return true
+        }
+    }
+
+    /// **Did this arm's treatment actually APPLY?** — the manipulation band's
+    /// `correct` column, extracted here so it can be asserted.
+    ///
+    /// 🔴 **This is a DEFECT FOUND BY #372's lane, not a refactor.** The
+    /// expression that stood at the call site was
+    /// `arm == .control ? 1 : (swapped > 0 ? 1 : 0)` — i.e. **every arm whose
+    /// treatment is an INSTRUCTION swap scored 0**, because instruction arms
+    /// swap no descriptions. `blurb-stripped` and `blurb-rollback` both applied
+    /// cleanly on 2026-08-21 and both were recorded in the artifact's `correct`
+    /// column as treatments that had failed to apply. Nobody was misled, and
+    /// only because the reader went to the `instructionsChars` /
+    /// `rewordedSentencePresent` METRICS instead — which is to say the column
+    /// built to catch a silent no-op was itself silently wrong, and the
+    /// evidence that saved the reading came from somewhere else.
+    ///
+    /// #372(b) is what made it urgent: the remedy arm swaps no description AND
+    /// changes no instruction byte, so under the old expression it would have
+    /// been permanently indistinguishable from a broken arm.
+    ///
+    /// Each arm is asked about the manipulation it actually performs.
+    /// `toolsAndBlurbStripped` requires BOTH, deliberately — it is the only arm
+    /// that claims two, and an arm that applied half of a two-part treatment is
+    /// not a treatment that applied.
+    ///
+    /// **`blurbReworded` returning false is CORRECT and is 372-C1's finding,
+    /// not a regression:** production has shipped the reworded sentence since
+    /// 2026-08-15, so that arm's substitution matches nothing and it is
+    /// identity with control. The column should say so.
+    nonisolated static func cardClauseManipulationApplied(arm: CardClauseArm,
+                                                          swapped: Int,
+                                                          blurbRemoved: Bool) -> Bool {
+        switch arm {
+        case .control: return true
+        case .toolsStripped: return swapped > 0
+        case .toolsAndBlurbStripped: return swapped > 0 && blurbRemoved
+        case .blurbStripped, .blurbReworded, .blurbRollback: return blurbRemoved
+        case .toolmodeRequired: return cardClauseForcesToolCalling(arm: arm)
+        }
     }
 
     /// The belt each arm registers: identity for the control, and for the
@@ -125,7 +214,12 @@ extension LocalChatBackend {
         // #372(c): the rollback arm moves ONE instruction string and leaves
         // the descriptions alone — stated here rather than inherited, which is
         // what this switch being enumerated is for.
-        case .control, .blurbStripped, .blurbReworded, .blurbRollback: return (tools, 0)
+        // #372(b): the `.required` remedy moves the DECODING MODE and nothing
+        // else — belt and instructions production verbatim, so its delta is
+        // attributable to the mode rather than to a bundle. Stated here for the
+        // same reason the rollback states it.
+        case .control, .blurbStripped, .blurbReworded, .blurbRollback,
+             .toolmodeRequired: return (tools, 0)
         case .toolsStripped, .toolsAndBlurbStripped: break
         }
         var swapped = 0
@@ -186,7 +280,10 @@ extension LocalChatBackend {
         // #337-F-2: two arms remove the blurb — arm C (with the descriptions)
         // and the isolating arm (without them).
         switch arm {
-        case .control, .toolsStripped: return (instructions, false)
+        // #372(b): production instructions VERBATIM. The remedy's whole claim
+        // is that it does not need words, so an arm that also moved a sentence
+        // would be unable to make it.
+        case .control, .toolsStripped, .toolmodeRequired: return (instructions, false)
         case .toolsAndBlurbStripped, .blurbStripped: break
         case .blurbReworded, .blurbRollback: break  // both handled above
         }
@@ -234,6 +331,40 @@ extension LocalChatBackend {
         return confirmationCardImitationShapes.first { normalized.contains($0) }
     }
 
+    /// **#372(a) — was the DECLINE HALF actually exercised on this trial, and
+    /// if so what did the model say about it?**
+    ///
+    /// The shipping blurb is two clauses: *"Every action tool asks the user to
+    /// approve it before anything changes; **if they decline, accept that
+    /// gracefully**."* #337-F-2b kept the second clause on purpose — the
+    /// blurb-stripped arm bought its 0/30 by deleting decline guidance — and
+    /// #372(a) filed that **no trial has ever exercised it**, so the clause has
+    /// been carried on faith through a promotion and a rollback arm.
+    ///
+    /// **The thing that made it unfileable is that the instrument could not
+    /// see a decline.** `toolCallsAdmitted` is the governor's number: it says a
+    /// call got through, not that the gate ever answered it. This reads the
+    /// gate's own counter instead.
+    ///
+    /// **`verdict` is nil unless the half was exercised, and that is #215's
+    /// rule rather than tidiness.** Scoring decline attribution on a trial
+    /// where nothing was declined measures a configuration the trial never
+    /// entered — the reply cannot misattribute a refusal that did not happen,
+    /// so a zero-decline trial would enter the tally as a free `.actorUnnamed`
+    /// or `.unscorable` and dilute the rate with rows that had no opportunity
+    /// to fail. That is exactly the unarmed-cell error, one instrument over.
+    ///
+    /// The scorer is #392's, reached rather than re-implemented: this is its
+    /// first call site inside an instrument, which is its own small finding —
+    /// it shipped 2026-08-23 with unit tests and a Mac-side log scorer and no
+    /// Swift caller at all.
+    nonisolated static func declineHalfRow(replyText: String?, declinesObserved: Int)
+        -> (exercised: Bool, verdict: DeclineAttributionScorer.Verdict?) {
+        guard declinesObserved > 0 else { return (false, nil) }
+        guard let replyText else { return (true, nil) }
+        return (true, DeclineAttributionScorer.verdict(for: replyText))
+    }
+
     /// One trial of the A/B.
     struct CardClauseTrialOutcome {
         var armedText: String?
@@ -241,6 +372,10 @@ extension LocalChatBackend {
         var timedOut = false
         var cutFired = false
         var toolCallsAdmitted = 0
+        /// #372(a): declines produced by the gate DURING this trial, as a delta
+        /// on `ToolConfirmationCenter.batteryDeclineCount`. Zero means the
+        /// decline half was not reached, whatever the call count says.
+        var declinesObserved = 0
         /// The post-cut toolless retry — recorded for the same reason 337-D
         /// records it (#225 B2), but read differently here: the retry turn
         /// registers NO belt in any arm, so an imitation in the retry is
@@ -306,7 +441,8 @@ extension LocalChatBackend {
             Self.batteryRecorder.recordProbe(
                 probe: "337-F manipulation check \(arm.rawValue)",
                 expected: true,
-                correct: arm == .control ? 1 : (swapped > 0 ? 1 : 0),
+                correct: Self.cardClauseManipulationApplied(
+                    arm: arm, swapped: swapped, blurbRemoved: blurbRemoved) ? 1 : 0,
                 trials: 1, variant: arm.rawValue, band: "manipulation", errors: 0,
                 metrics: [
                     "descriptionsSwapped": Double(swapped),
@@ -324,6 +460,13 @@ extension LocalChatBackend {
                     "rewordedSentencePresent":
                         instructions.contains(
                             DeviceActionClauses.armedBlurbCardSentenceReworded337F2) ? 1 : 0,
+                    // #372(b): the remedy arm's manipulation is INVISIBLE in
+                    // every column above — belt identical, instructions
+                    // byte-identical, description count zero — so without this
+                    // row it would be indistinguishable from the control in the
+                    // artifact, which is the "treatment that silently no-ops"
+                    // failure the whole manipulation band exists to prevent.
+                    "toolCallingForced": Self.cardClauseForcesToolCalling(arm: arm) ? 1 : 0,
                 ],
                 notes: [
                     "expectedSwaps": arm == .control ? "0 (control)" : "3 action tools",
@@ -344,6 +487,13 @@ extension LocalChatBackend {
             var timeouts = 0
             var retryErrors = 0
             var armedRepliesNonEmpty = 0
+            // #372(a): the decline half's own tallies. `declineHalfExercised`
+            // is the count this entry has been unable to state since it was
+            // filed; the verdict tally is scored over THAT denominator and
+            // never over `attempted`, because a trial with no decline had no
+            // opportunity to misattribute one (#215).
+            var declineHalfExercised = 0
+            var declineVerdicts: [DeclineAttributionScorer.Verdict: Int] = [:]
 
             for (tag, prompt) in prompts {
                 for trial in 1...trials {
@@ -355,8 +505,13 @@ extension LocalChatBackend {
                     attempted += 1
 
                     let outcome = await executeCardClauseTrial(
-                        belt: belt, instructions: instructions, options: options, prompt: prompt)
+                        belt: belt, instructions: instructions, options: options,
+                        prompt: prompt, arm: arm)
 
+                    let decline = Self.declineHalfRow(replyText: outcome.armedText,
+                                                      declinesObserved: outcome.declinesObserved)
+                    if decline.exercised { declineHalfExercised += 1 }
+                    if let verdict = decline.verdict { declineVerdicts[verdict, default: 0] += 1 }
                     let armedHit = outcome.armedText.flatMap { Self.confirmationCardImitation(in: $0) }
                     let retryHit = outcome.retryText.flatMap { Self.confirmationCardImitation(in: $0) }
                     if armedHit != nil { armedImitations += 1 }
@@ -369,7 +524,8 @@ extension LocalChatBackend {
                     if let text = outcome.armedText, !text.isEmpty { armedRepliesNonEmpty += 1 }
 
                     recordCardClauseTrial(outcome, arm: arm, promptTag: tag, trial: trial,
-                                          trialTag: trialTag, armedHit: armedHit, retryHit: retryHit)
+                                          trialTag: trialTag, armedHit: armedHit, retryHit: retryHit,
+                                          decline: decline)
                 }
             }
             // `correct` = trials whose ARMED reply carried the imitation shape.
@@ -394,9 +550,30 @@ extension LocalChatBackend {
                     "retryErrors": Double(retryErrors),
                     "descriptionsSwapped": Double(swapped),
                     "blurbRemoved": blurbRemoved ? 1 : 0,
+                    "toolCallingForced": Self.cardClauseForcesToolCalling(arm: arm) ? 1 : 0,
+                    // #372(a): the number this entry has been owed since it was
+                    // filed — how many trials actually REACHED the decline
+                    // half. Reported next to the verdict tally rather than as a
+                    // rate, because the rate's own denominator is this count
+                    // and a reader must be able to see when it is zero.
+                    "declineHalfExercised": Double(declineHalfExercised),
+                    "declineAttributedToUser":
+                        Double(declineVerdicts[.attributedToUser] ?? 0),
+                    "declineAttributedToTool":
+                        Double(declineVerdicts[.attributedToTool] ?? 0),
+                    "declineActorUnnamed": Double(declineVerdicts[.actorUnnamed] ?? 0),
+                    "declineUnscorable": Double(declineVerdicts[.unscorable] ?? 0),
                 ],
-                notes: ["reading": "mechanism = armedImitations/attempted; behaviour = trialsWithToolCalls/attempted"])
-            Self.batteryEmit("battery: ARM SUMMARY \(arm.rawValue) attempted=\(attempted) imitations=\(armedImitations) calls=\(trialsWithToolCalls) cut=\(cutTrials) genErrors=\(generationErrors) timeouts=\(timeouts) (#337-F)")
+                notes: [
+                    "reading": "mechanism = armedImitations/attempted; behaviour = trialsWithToolCalls/attempted",
+                    // Spelled out in the artifact because the wrong
+                    // denominator here is the whole #215 error: dividing the
+                    // misattribution count by `attempted` folds in every trial
+                    // that was never declined and reports a defect rate that
+                    // falls whenever the model simply calls nothing.
+                    "declineReading": "decline verdicts are scored over declineHalfExercised, NEVER over attempted — a trial with no decline had no opportunity to misattribute one",
+                ])
+            Self.batteryEmit("battery: ARM SUMMARY \(arm.rawValue) attempted=\(attempted) imitations=\(armedImitations) calls=\(trialsWithToolCalls) declines=\(declineHalfExercised) toolTold=\(declineVerdicts[.attributedToTool] ?? 0) cut=\(cutTrials) genErrors=\(generationErrors) timeouts=\(timeouts) (#337-F)")
             emitThermal(cell: arm.rawValue, at: "end")
         }
         ToolEventRelay.batteryTrialTag = nil
@@ -406,12 +583,38 @@ extension LocalChatBackend {
 
     private func executeCardClauseTrial(belt: [any Tool], instructions: String,
                                         options: GenerationOptions,
-                                        prompt: String) async -> CardClauseTrialOutcome {
+                                        prompt: String,
+                                        arm: CardClauseArm) async -> CardClauseTrialOutcome {
         var outcome = CardClauseTrialOutcome()
         let executedBefore = toolRelay?.executedCallsThisTurn ?? 0
-        let session = LanguageModelSession(model: model, tools: belt,
+        // #372(a): sampled ACROSS the trial, so the delta counts only what this
+        // trial's gate answered. A run-level total could not tell a trial that
+        // was declined from one that merely followed twenty that were.
+        let declinesBefore = ToolConfirmationCenter.batteryDeclineCount
+        // #372(b) / 337-H: the remedy arm is the ONE session in this instrument
+        // built through a DynamicProfile — the mode has to be re-evaluated per
+        // model turn for the demote exit to exist at all, and a plain
+        // `GenerationOptions.toolCallingMode = .required` is fixed for the
+        // whole request and loops (#200E, Apple's own doc comment). Every other
+        // arm keeps the plain session it has always had, so the remedy adds a
+        // construction rather than changing one.
+        let session: LanguageModelSession
+        // The generation options ride the PROFILE on the remedy arm and the
+        // respond() call gets an empty set — #200E's own discipline, and it is
+        // load-bearing rather than cosmetic: options passed to respond() are
+        // fixed for the whole request, so re-supplying them there is how a
+        // demote exit silently stops existing.
+        let respondOptions: GenerationOptions
+        if Self.cardClauseForcesToolCalling(arm: arm) {
+            session = LanguageModelSession(profile: ToolmodeBatteryProfile(
+                model: model, belt: belt, instructionsText: instructions, options: options))
+            respondOptions = GenerationOptions()
+        } else {
+            session = LanguageModelSession(model: model, tools: belt,
                                            instructions: Instructions(instructions))
-        let respondTask = Task { try await session.respond(to: Prompt(prompt), options: options) }
+            respondOptions = options
+        }
+        let respondTask = Task { try await session.respond(to: Prompt(prompt), options: respondOptions) }
         let timeoutTask = Task { try? await Task.sleep(for: .seconds(35)); respondTask.cancel() }
         do {
             outcome.armedText = try await respondTask.value.content
@@ -425,6 +628,7 @@ extension LocalChatBackend {
             outcome.cutFired = Self.isToolPhaseCut(error)
         }
         outcome.toolCallsAdmitted = max(0, (toolRelay?.executedCallsThisTurn ?? 0) - executedBefore)
+        outcome.declinesObserved = max(0, ToolConfirmationCenter.batteryDeclineCount - declinesBefore)
         if outcome.cutFired {
             let shaped = Self.routedTrialShape(
                 needsTool: false, armedBelt: belt, armedInstructions: instructions,
@@ -446,7 +650,8 @@ extension LocalChatBackend {
 
     private func recordCardClauseTrial(_ outcome: CardClauseTrialOutcome, arm: CardClauseArm,
                                        promptTag: String, trial: Int, trialTag: String,
-                                       armedHit: String?, retryHit: String?) {
+                                       armedHit: String?, retryHit: String?,
+                                       decline: (exercised: Bool, verdict: DeclineAttributionScorer.Verdict?)) {
         if let text = outcome.armedText {
             let lower = text.lowercased()
             let cant = lower.hasPrefix("i can\u{2019}t") || lower.hasPrefix("i cant")
@@ -468,6 +673,11 @@ extension LocalChatBackend {
         if let retryText = outcome.retryText { notes["retryText"] = retryText }
         if let retryError = outcome.retryError { notes["retryError"] = String(retryError.prefix(400)) }
         if let error = outcome.error { notes["armedError"] = String(error.prefix(400)) }
+        // #372(a): only present when the half was reached. An ABSENT key is a
+        // trial that had no decline, which is a different fact from a trial
+        // whose decline nobody could classify — the latter is
+        // `unscorable` and is present.
+        if let verdict = decline.verdict { notes["declineVerdict"] = verdict.rawValue }
         notes["outcome"] = {
             if outcome.cutFired { return outcome.retryText == nil ? "cut-retry-failed" : "cut-retry-answered" }
             if outcome.timedOut { return "timeout" }
@@ -492,10 +702,19 @@ extension LocalChatBackend {
                 "cutFired": outcome.cutFired ? 1 : 0,
                 "timedOut": outcome.timedOut ? 1 : 0,
                 "claimsCreation": Self.claimsCreation(outcome.armedText ?? "") ? 1 : 0,
+                // #372(a): kept SEPARATE from `toolCallsAdmitted` rather than
+                // derived from it. A call admitted by the governor is not a
+                // call the gate answered, and reading one off the other is the
+                // inference that let the decline half go unmeasured this long.
+                "declinesObserved": Double(outcome.declinesObserved),
+                "declineHalfExercised": decline.exercised ? 1 : 0,
+                // #372(b): recorded per trial as well as per arm, so a partial
+                // run still says which decoding regime produced its rows.
+                "toolCallingForced": Self.cardClauseForcesToolCalling(arm: arm) ? 1 : 0,
             ],
             notes: notes)
 
-        Self.batteryEmit("battery: \(trialTag) imitation=\(armedHit ?? "—") calls=\(outcome.toolCallsAdmitted) outcome=\(notes["outcome"] ?? "—") (#337-F)")
+        Self.batteryEmit("battery: \(trialTag) imitation=\(armedHit ?? "—") calls=\(outcome.toolCallsAdmitted) declines=\(outcome.declinesObserved) declineVerdict=\(decline.verdict?.rawValue ?? "—") outcome=\(notes["outcome"] ?? "—") (#337-F)")
     }
 }
 #endif

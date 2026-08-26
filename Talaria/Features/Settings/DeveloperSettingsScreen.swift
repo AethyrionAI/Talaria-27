@@ -1085,9 +1085,29 @@ struct DeveloperSettingsScreen: View {
                 // #337 bar 337-F: does the "Confirmation card:" prose shape
                 // track the tool-description clause? 3 arms x 3 prompts x n.
                 // Auto-DECLINE — nothing written, nothing to grant or reap.
+                // #337 bar 337-F, plus #372's two successors on the same
+                // instrument: every trial now records whether the gate actually
+                // declined (#372a), and a seventh arm forces `.required` with
+                // the demote exit (#372b / 337-H). 7 arms x 3 prompts x n.
                 HStack(spacing: Design.Spacing.sm) {
                     instrumentButton("card-clause", trials: 10,
-                                     label: "Card clause A/B (#337-F) n=10 (90)")
+                                     label: "Card clause A/B (#337-F/#372) n=10 (210)")
+                }
+                // #372(b) / 337-H: the `.required` remedy against production,
+                // two arms only — the five prose arms of the full sweep buy
+                // this contrast nothing and insert ~90 trials of thermal drift
+                // between the two arms being compared.
+                HStack(spacing: Design.Spacing.sm) {
+                    instrumentButton("card-clause-remedy", trials: 20,
+                                     label: "Required-mode remedy A/B (#372b) n=20 (120)")
+                }
+                // #211A: does the model OFFER to do a read instead of doing
+                // it? Production (routed) vs #211's pinned readMotion rollback
+                // vs a read-tool-free ceiling. 3 arms x 4 read prompts x n.
+                // Auto-DECLINE — read tools only, nothing written or reaped.
+                HStack(spacing: Design.Spacing.sm) {
+                    instrumentButton("offer-read", trials: 10,
+                                     label: "Offer-instead-of-act READ (#211A) n=10 (120)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton
