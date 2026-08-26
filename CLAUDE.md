@@ -607,6 +607,25 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   string unmeasured until the next device log pass) — the fleet is ALIGNED
   for the first time since beta 5 and the adoption freeze is LIFTED. PCC may
   now be sim-testable (beta 7 fix): probe is #402.**
+  **⟵ PROVENANCE CORRECTED 2026-08-26 (#398-A, and the head of this bullet was
+  wrong in two ways). (1) The build string does NOT come from a `callservicesd`
+  `BuildVersion` — a predicate query against that process returns NOTHING on the
+  very archive cited. It comes from `Extra/logd.0.log` inside a collected device
+  logarchive, as `assertion failed: <build>`. (2) It is NOT dated 2026-08-22 —
+  that is the archive's COLLECTION date; the line is stamped **2026-08-17
+  15:55:40**. So the skew opened Aug 17 and was noticed Aug 22: a SEVEN-DAY
+  window, not an unknown one.
+  **And the skew was far smaller than this bullet implies.** The device
+  timeline is now MEASURED end to end (71 logd lines / 22 distinct date+build
+  rows, plus 57 run artifacts — two
+  independent sources that agree): `24A5390f` from 2026-07-20 to 08-11, then
+  `24A5408d` to 08-15 — **both of which we still hold as sim runtimes**, so for
+  most of the measurement era there WAS an exact local twin. The genuine gap is
+  one week on `24A5418b`. Full table + the extraction recipe:
+  `planning/reports/2026-08-26-398-device-runtime-timeline.md`. ⚠️ The device's
+  CURRENT (beta 7) build string is still unmeasured — the newest logarchive on
+  this Mac is Aug 22 and predates the upgrade, so `24A5423a`-vs-device parity is
+  ASSUMED, not measured.**
 - **Xcode-beta6** (`/Applications/Xcode-beta6.app`, Xcode 27.0 build 27A5252f, swiftlang
   6.4.0.33.1, iOS SDK 24A5422a — the *iOS beta 7* vintage) is the standard toolchain for
   iOS 27 targets — **promoted from beta5 on 2026-08-24 on Owen's explicit word** (#401:
@@ -909,6 +928,37 @@ becomes worse than the bug it fixes."*
 - **Related, same lane:** `cant` is **model behaviour** (set by prefix-matching the
   model's own reply, `LocalChatBackend+Battery.swift:318`), never instrument error —
   scoring it as an error deletes the #214 composition-denial finding entirely.
+
+**🟡 A THIRD AXIS ON THE SAME CHECK (#398-A, 2026-08-26): A RATE ALSO CARRIES A
+RUNTIME.** #215 asks whether the row was ROUTED; #343 asks whether the run
+predates the governor. This asks **which OS build the device was on**, because
+the brain's behaviour is only ever device-answerable (#324: the simulator cannot
+generate on this model at all — still true, re-measured #402).
+
+- **Most rates already carry it and nobody knew.** `BatteryRunStore` and
+  `InstrumentConductor` have recorded
+  `ProcessInfo.processInfo.operatingSystemVersionString` since **2026-07-28**
+  (`801e8728`), and on iOS that string is `"Version 27.0 (Build 24A5408d)"` —
+  **the build is in the artifact**. Read it, don't guess it:
+  `grep -rhoE '"osVersion" : "[^"]+"' planning/reports/<run>`.
+- **When the artifact is gone, resolve by DATE** against the measured device
+  timeline in `planning/reports/2026-08-26-398-device-runtime-timeline.md`.
+  Short form: `24A5390f` 07-20→08-11 · `24A5408d` 08-11→08-15 · `24A5418b`
+  08-17→08-24 · beta 7 from 08-24 (build string still unmeasured).
+- **No battery predates 2026-07-27** (`runShapeBattery`, `b9094ea3`; the
+  action battery followed 07-28), and the device had been on `24A5390f` since
+  07-20 — so **no rate in this project was ever measured on a beta-2 or beta-3
+  device build.** That worry is settled; the real gap is the one week on
+  `24A5418b`, which we never held a twin for. ⚠️ Mind the ONE-DAY seam: the
+  shape battery landed 07-27 but `BatteryRunStore`'s `osVersion` record only on
+  07-28, so a 07-27 run has a rate and no runtime field — resolve it by date.
+- **Do NOT annotate the historical entries.** ~1,500 rate-shaped numbers sit
+  across 66 entries, 47 of them in the archive where #261/#317(a) forbids
+  editing the bytes — and #215 already ruled the #200-series rates
+  "left un-annotated on purpose." A date-resolvable timeline is the fix; a
+  rewrite campaign would breach two standing rules to say the same thing.
+- **The gate now names its own runtime** on the preflight AND verdict lines
+  (398-C), so a green gate stops implying "green on the user's phone."
 
 **Where it lives (#216, 2026-08-01):** the battery and the DEBUG instruments were
 split out of `LocalChatBackend.swift` (5,727 → 1,826 lines) into

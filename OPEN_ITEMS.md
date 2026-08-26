@@ -180,7 +180,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#236** 🔧 MessageIdentityUITests flaked AGAIN — the #195 family's second variant: reply rendered a hair past the 20s …
 - **#223** 🎨 CONSOLIDATION TARGET: retire the shim, shrink the relay — the phone speaks gateway for everything the …
 - **#220** 🔍 ENGINE-AMBIGUITY AUDIT of past voice verdicts. **#128's mystery SOLVED from source 2026-08-01 (and this …
-- **#398** 🚨 the device is on a runtime we cannot reproduce — **premise MOVED 2026-08-24 (#401): the beta 6 Xcode EXISTS now (27A5252f, iOS-beta-7 SDK/runtime 24A5422a/24A5423a)**; **⟵ same day PM: FLEET ALIGNED — Owen upgraded the phone to beta 7**, first alignment since beta 5; 398-A..C unchanged and 398-B now lands on the runtime where Apple fixed FM excessive tool calling
+- **#398** 🚨 the device is on a runtime we cannot reproduce — **premise MOVED 2026-08-24 (#401): the beta 6 Xcode EXISTS now (27A5252f, iOS-beta-7 SDK/runtime 24A5422a/24A5423a)**; **⟵ same day PM: FLEET ALIGNED — Owen upgraded the phone to beta 7**, first alignment since beta 5; 398-A..C unchanged and 398-B now lands on the runtime where Apple fixed FM excessive tool calling; **⟵ ✅ RAN 2026-08-26 — 398-A + 398-C MET (device runtime timeline measured; gate names its runtime), 398-B DEVICE-OWED (card written). Header provenance corrected: the build string is `logd.0.log`'s, stamped 08-17 not 08-22, so the skew was SEVEN DAYS — and the device ran `24A5390f`/`24A5408d`, both of which we hold, for most of the measurement era. STAYS OPEN on 398-B**
 - **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity — **un-parked and ✅ BUILT + MERGED 2026-08-25 (PR #371, squash `02c45440`)** — awaited off-main transitions + guards + the #397 generation close; 198B-B/C/D met, both prescribed mutations isolating, gate 2547(+4)/14/Release; **only 198B-A remains** (zero fault lines on device — the runbook card targets build 3022)
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
@@ -15955,7 +15955,7 @@ test that directly before assuming it needs its own words.
 
 
 > **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** the offer-instead-of-act READ-path battery is BUILT (cells + scorer); the device run becomes a runbook card. Rides the instruments lane. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
-## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.** **⟵ PREMISE MOVED 2026-08-24 (#401): Apple SHIPPED the beta 6 Xcode (27A5252f) carrying the iOS-beta-7 SDK/runtime (24A5422a / 24A5423a) — the "no beta 6 Xcode" clause is dead, and the sim now LEAPFROGS the device instead of trailing it. Dated block at the foot; bars 398-A..C unchanged.**
+## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.** **⟵ PREMISE MOVED 2026-08-24 (#401): Apple SHIPPED the beta 6 Xcode (27A5252f) carrying the iOS-beta-7 SDK/runtime (24A5422a / 24A5423a) — the "no beta 6 Xcode" clause is dead, and the sim now LEAPFROGS the device instead of trailing it. Dated block at the foot; bars 398-A..C unchanged.** **⟵ ✅ RAN 2026-08-26 on the aligned fleet — 398-A and 398-C MET (device runtime timeline MEASURED end-to-end from two independent sources; the gate now names its runtime on the preflight AND verdict lines), 398-B DEVICE-OWED (runbook card written; the sim still cannot generate, #324/#402). **THIS HEADER'S OWN PROVENANCE WAS WRONG TWICE and is corrected in the result block: the build string comes from `Extra/logd.0.log`, NOT `callservicesd` BuildVersion, and it is stamped 2026-08-17, NOT the 08-22 collection date — so the skew was a SEVEN-DAY window.** Owen's founding worry measures FALSE: no battery ever ran on a beta-2/beta-3 device build, and the device ran builds we still hold (`24A5390f`, `24A5408d`) for most of the measurement era. **STAYS OPEN on 398-B.**
 
 **What was measured, not inferred:**
 
@@ -16058,6 +16058,177 @@ configuration the system never enters), **#388** (the beta5 surface sweep).
 
 
 > **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** 398-A..C executed at last on the aligned fleet. Own lane; sim/Mac-side halves run tonight, device halves become runbook cards. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
+
+
+> **✅ RESULT 2026-08-26 — 398-A MET, 398-C MET, 398-B DEVICE-OWED. Measurement
+> only: zero app/test code changed, so the suite count is unmoved at 2666 by
+> construction and that is the control, not a coincidence.** Evidence artifact:
+> `planning/reports/2026-08-26-398-device-runtime-timeline.md`.
+>
+> **🔴 FIRST, THIS ENTRY'S OWN HEADER WAS WRONG TWICE — and both errors are the
+> kind the house rules already name.**
+> 1. **The build string does not come from `callservicesd`'s `BuildVersion`.** A
+>    predicate query against that process on the very archive this entry cites
+>    (`talaria-138-fork.logarchive`) returns **nothing**. The string lives in
+>    `Extra/logd.0.log`, emitted as `assertion failed: <build>`. This is the
+>    standing "confirm which LOGGER emits a line before making it a bar" rule
+>    arriving a second time — a verification step keyed on a marker its component
+>    cannot emit is a step that always fails.
+> 2. **The measurement is not dated 2026-08-22.** That is the archive's
+>    COLLECTION date. The `24A5418b` line inside it is stamped **2026-08-17
+>    15:55:40**. The skew therefore opened on **Aug 17** and closed on Aug 24 —
+>    a **seven-day window**, not the "unknown number of days" recorded here.
+>
+> **📐 398-A — MET, and the shape of the fix is not what the bar assumed.**
+> The bar asked that every entry quoting a battery rate carry its runtime. Two
+> facts made a per-entry annotation campaign both unnecessary and forbidden:
+> - **Most rates already carry it.** `BatteryRunStore` and `InstrumentConductor`
+>   have recorded `ProcessInfo.processInfo.operatingSystemVersionString` since
+>   **2026-07-28** (`801e8728`), and on iOS that string renders as
+>   `"Version 27.0 (Build 24A5408d)"` — the build is *in the artifact*. Across
+>   `planning/reports/`, **53 files carry `24A5408d` and 4 carry `24A5418b`**;
+>   no other build appears anywhere.
+> - **Annotating the rest would breach two standing rules.** ~1,500 rate-shaped
+>   numbers sit across 66 entries, **47 of them in the archive**, where #261 /
+>   #317(a) forbid editing the bytes — and #215 already ruled the #200-series
+>   rates *"left un-annotated on purpose."* So the deliverable is the
+>   **resolution path**, not the annotation: a measured date→build timeline, in
+>   CLAUDE.md's measurement-discipline section as a THIRD axis beside #215's
+>   routed check and #343's governor-date check.
+>
+> **📊 THE TIMELINE — measured from two independent sources that agree.**
+>
+> | device build | window | evidence | twin held? |
+> |---|---|---|---|
+> | `24A5355q` | 06-08 → 06-13 | logd | no |
+> | `24A5370h` | 06-23 → 07-05 | logd | no |
+> | `24A5380h` | 07-06 → 07-20 | logd | no |
+> | `24A5390f` | 07-20 → 08-11 | logd | **yes (beta4)** |
+> | `24A5408d` | 08-11 → 08-15 | logd + 53 artifacts | **yes (beta5)** |
+> | `24A5418b` | ≤08-17 → 08-24 | logd + 4 artifacts | **no** |
+> | beta 7 | 08-24 → now | Owen's word only | `24A5423a`; **unconfirmed** |
+>
+> **The control that makes this a measurement:** an archive collected 2026-08-15
+> (`340g`) holds the whole history and **no `24A5418b` line**; one collected
+> 08-22 (`talaria-138e`) holds the identical history **plus** that line. An
+> archive predating a transition cannot see it; one postdating it can.
+>
+> **⚖️ OWEN'S FOUNDING WORRY MEASURES FALSE.** *"We based everything on beta 2
+> stuff"* — **no battery in this project ever ran on a beta-2 or beta-3 device
+> build, because the instrument did not exist yet.** The earliest is
+> `runShapeBattery`, `b9094ea3`, **2026-07-27** (the action battery followed
+> 07-28) — a week after the device moved to `24A5390f`. *(Self-correction, and
+> exactly this lane's own subject: the first draft of this block dated it 07-28
+> off `BatteryRunStore`'s commit, which is the RECORD's origin, not the
+> instrument's. The one-day seam is real — a 07-27 run has a rate and no
+> `osVersion` field, so it resolves by date like any pre-artifact run.)* And for most of
+> the measurement era the device ran builds **we still hold as sim runtimes**
+> (`24A5390f`, then `24A5408d`). The genuine gap is one week on `24A5418b`.
+> The worry was reasonable; the answer is better than the worry.
+>
+> **⚠️ What 398-A could NOT close: the device's CURRENT build string is still
+> unmeasured.** The newest logarchive on this Mac is 2026-08-22 and predates the
+> beta-7 upgrade, so `24A5423a`-vs-device parity remains **assumed**. It is not
+> a separate chore — 398-B's run stamps it into the artifact automatically.
+>
+> **🛠 398-C — MET.** The gate now reports the runtime it measured, on the
+> **preflight AND the verdict line**, because the verdict is the line that gets
+> copied into a tracker entry and the preflight scrolls away. Live output this
+> run: `PASS  runtime: iOS 27.0 (24A5423a) on "CC-lane-3"`, followed by the
+> caveat that a green gate is green on *that* runtime and not the phone's, and
+> `GATE: PASS on 24A5423a`.
+> **The probe is not the obvious one, and the two obvious ones are both wrong:**
+> `simctl list devices` reports only the runtime IDENTIFIER
+> (`…SimRuntime.iOS-27-0`), which **three different builds on this Mac share** —
+> precise-looking and uninformative; and `device.plist` records
+> `runtimePolicy: System`, i.e. the sim **pins nothing** and follows the system
+> runtime match, which is exactly how the gate silently advanced to `24A5423a`
+> on 08-24. So the gate asks the booted OS itself via
+> `simctl getenv <udid> SIMULATOR_RUNTIME_BUILD_VERSION` (`sw_vers` does not
+> exist inside an iOS runtime — probed, NSPOSIXErrorDomain code=2). Reported,
+> never checked: an unreadable build prints `runtime: UNKNOWN` rather than
+> vanishing, following the SKIPPED-report precedent. Classifier self-test green
+> (15 checks), including 300-C's scan for tracker numbers in emitted text.
+> **Both verdict branches were witnessed live** — this run ended
+> `GATE: FAIL (3 check(s)) on 24A5423a`, so the build rides the FAIL line too
+> and not only the happy path. The `UNKNOWN` fallback was exercised separately
+> against an unreadable device and resolves to the literal `UNKNOWN`, never to
+> an empty string (which would have printed a verdict reading `PASS on ` — a
+> silent hole exactly where the fix is supposed to speak).
+>
+> **⚠️ THE GATE RUN WAS RED, AND IT IS NOT THIS LANE'S RED — but it is not
+> being waved off either.** Swift Testing **2666 / 219 suites PASSED** (the
+> branch-point baseline, unmoved, which is the control a measurement-only lane
+> should produce); Release build **clean**; all **14** XCUITest executed, **13
+> passed, 1 failed** — `TalariaUITests.testConnectedRelaunchSkipsTheConnectEntry`
+> at `AppTemplateUITests.swift:538`, *"a successful connect should land straight
+> in chat"*. **This lane's diff contains ZERO Swift files** (docs, a report, and
+> `lane-gate.sh`), so it cannot have caused a UI regression — and #309 Lane B,
+> whose Connect Host wizard this test covers and which is the commit at this
+> branch point, recorded 14/14 green on the same code. The failure is the
+> 15-second `waitForComposer` budget after tapping START CHATTING, on a box with
+> a second lane running. *(Correction made in-flight: the gate's
+> "XCUITest tests run — 2" is its documented MAX-over-`with 0 failures`-lines
+> quirk on a run that HAS a failure, not a truncated bundle — an earlier reading
+> in this lane called it a mid-bundle runner death and that was wrong.)*
+>
+> **Isolation re-run: the same test PASSED alone on the same simulator** —
+> `** TEST SUCCEEDED **`, **38.470 s**. Note the durations: **38.396 s when it
+> failed, 38.470 s when it passed.** The test sits right on its own wait budget
+> either way, so the margin — not the load — is the thing worth looking at.
+> **This is deliberately NOT filed as "a flake."** An isolation-passes /
+> suite-fails split is exactly the shape a real order-dependence takes, and the
+> standing lesson is not to dismiss one as noise. What this lane can honestly
+> say is bounded: **the red is not from this diff** (zero Swift files in it, and
+> the Swift Testing count is the branch-point baseline to the test), it
+> reproduces under a loaded box and clears alone, and it belongs to whoever owns
+> the Connect Host wizard. **A clean-box full-suite re-run is owed before anyone
+> calls `main` green on XCUITest.** No PR was opened from this lane, so nothing
+> merged behind this red.
+>
+> **📱 398-B — DEVICE-OWED, and its target build is SUPERSEDED.** The bar reads
+> "re-measure on `24A5418b`"; that build is dead — the device left it on 08-24.
+> The bar's SUBSTANCE (re-measure the two load-bearing rates on the device)
+> stands unchanged and now lands on beta 7. Still device-only: #324's
+> cannot-generate finding was re-measured as recently as #402 (generation dead on
+> both tiers on sim), so no simulator can answer this.
+> **Both rates now have a known prior runtime**, which is what makes the
+> re-measure a contrast rather than a fresh guess:
+> - **#215 routing contrast** (run `F486F103`, 2026-08-01) → `24A5390f` by date.
+>   Also predates the governor, so it is governor-free on #343's axis too.
+> - **#343 canary** (2026-08-15) → `24A5408d`, from its own 30-plus artifacts.
+>   An earlier reading of this lane placed it inside the unresolved
+>   Aug-11-to-Aug-17 window; the artifacts close it.
+>
+> **📱 DEVICE CARD (for the runbook — the orchestrator owns the file):**
+> > **#398-B — re-measure the two load-bearing rates on beta 7.** Developer
+> > screen, device only, brain = **on-device**. Roughly 25 min attended.
+> > **Run, in this order:**
+> > 1. **`motion-scope`** (canary #1) — the retention canary. Read-only, no
+> >    confirmations fire.
+> > 2. **`routed`** — the #215 contrast: cells `armed` (unrouted control) vs
+> >    `routed-production`, all four prompts, grab canary IN. **Auto-ACCEPT and
+> >    it writes real reminders/alarms/events** — they are reaped before DONE,
+> >    but do not run it on a day the calendar matters.
+> > 3. **`motion-scope`** again (canary #2) — start-vs-end drift check.
+> > **EXPECT / BARS:** canary #1 and canary #2 each **20/20** on
+> > `stepsdirect`/`readHealth`; ANY drop, even one trial, is the finding
+> > (retention, not delta). For `routed`, the 2026-08-01 reading to contrast
+> > against is unrouted **6/10 grabs + 4/10 disclaimer tics, zero clean
+> > composition turns** vs routed **10/10 clean, 0 grabs**; creates were 10/10 in
+> > both arms.
+> > **FAILS IF:** a cell reports zero trials (instrument state, not behaviour —
+> > check the error counter before reading any rate), or the two canaries
+> > disagree (within-night drift; the run's rates are then not comparable to
+> > anything).
+> > **⚠️ READ THE RATES AGAINST THE RIGHT RUNTIME.** Apple fixed FM excessive
+> > tool calling in this OS, so the old over-serving numbers describe a dead
+> > runtime twice over — governor window, then runtime change.
+> > **🎁 THIS RUN ALSO CLOSES 398-A's LAST GAP FOR FREE:** every artifact stamps
+> > `osVersion`, so the phone's beta-7 build string — currently unmeasured
+> > anywhere — lands in the JSON without a separate step. Read it back with
+> > `grep -rhoE '"osVersion" : "[^"]+"' planning/reports/<run>` and record it in
+> > this entry; that is the one line 398-A still owes.
 ## 407. 📝 Text TYPED while dictation is live is DISCARDED on the next transcript tick — `mergedDictationText` recomputes from a base snapshot that predates the typing — **FILED 2026-08-24 night per #268, from #405's class sweep (read-only, verdict MINOR-adjacent). NOT a per-keystroke scrambler — the trigger is the dictation tick, not typing — but it is real input loss. ~~NOT STARTED; bars pre-register here before any code.~~** **⟵ RULED block-typing 2026-08-24 (decision pass) and ✅ BUILT + GATED the same night (trio lane) — 407-A..D met; only the 10-second device look remains (runbook).**
 
 `ChatInputBar.swift:946-953` recomputes the composer text from an immutable

@@ -228,6 +228,49 @@ if ! xcrun simctl bootstatus "$SIM_UDID" -b >/dev/null 2>&1; then
     bad "could not boot simulator $SIM_UDID — TCC cannot be granted and the suite would hang"
     echo; echo "GATE: FAIL (cannot run)"; exit 1
 fi
+
+# WHICH RUNTIME DID THIS GATE ACTUALLY MEASURE? Reported, never checked — the
+# gate has no business failing a lane over the OS it was handed. But it must
+# SAY it, because a verdict with no runtime on it is read as "green on the
+# user's phone" and that has not been true for most of this project's life.
+#
+# The naive answers are both wrong, and that is the whole reason this is here:
+#
+#   * `simctl list devices` reports the runtime IDENTIFIER
+#     (com.apple.CoreSimulator.SimRuntime.iOS-27-0). Three DIFFERENT builds on
+#     this Mac share that one identifier, so the listing cannot tell them
+#     apart. A gate that printed it would look precise and say nothing.
+#   * the device's own device.plist records `runtimePolicy: System`, meaning it
+#     does not pin a build at all — it FOLLOWS the system runtime match. So the
+#     simulator under this gate can change OS between two runs with no commit,
+#     no flag, and nothing in this repo to show for it. That has already
+#     happened once, silently, on the day a newer runtime landed.
+#
+# So ask the booted OS itself. `sw_vers` does not exist inside an iOS runtime
+# (probed: NSPOSIXErrorDomain code=2), but the simulator exports its own build
+# into the device environment, and that value comes from the runtime that is
+# actually running rather than from a policy that describes what should be.
+# Boot first — this necessarily sits after the bootstatus above.
+SIM_RUNTIME_BUILD="$(xcrun simctl getenv "$SIM_UDID" SIMULATOR_RUNTIME_BUILD_VERSION 2>/dev/null | tr -d '[:space:]')"
+SIM_RUNTIME_VERSION="$(xcrun simctl getenv "$SIM_UDID" SIMULATOR_RUNTIME_VERSION 2>/dev/null | tr -d '[:space:]')"
+: "${SIM_RUNTIME_BUILD:=UNKNOWN}"
+: "${SIM_RUNTIME_VERSION:=?}"
+if [[ "$SIM_RUNTIME_BUILD" == "UNKNOWN" ]]; then
+    # Not a FAIL: an unreadable build does not make the suite less valid. But
+    # it is not silence either — the point of the line is that the reader can
+    # never assume a runtime, and "UNKNOWN" says that better than omission.
+    echo "  NOTE  runtime: UNKNOWN on \"$SIM_NAME\" — could not read the booted"
+    echo "        runtime's build. Do not read this run's verdict as applying"
+    echo "        to any particular OS."
+else
+    ok "runtime: iOS $SIM_RUNTIME_VERSION ($SIM_RUNTIME_BUILD) on \"$SIM_NAME\""
+fi
+echo "        THIS GATE IS GREEN ON THAT RUNTIME, not on the phone's. The two are"
+echo "        different builds unless someone has checked today, and this"
+echo "        simulator follows the system runtime match, so it can advance"
+echo "        between runs on its own. A battery rate or a behavioural claim"
+echo "        carries the build it was measured on or it is ambiguous."
+
 TCC_FAILED=""
 for service in calendar reminders; do
     xcrun simctl privacy "$SIM_UDID" grant "$service" "$TCC_BUNDLE_ID" >/dev/null 2>&1 \
@@ -377,9 +420,15 @@ if (( RUN_RELEASE )); then
 fi
 
 # ----------------------------------------------------------------- verdict
+#
+# The runtime rides the VERDICT line, not only the preflight one. A verdict is
+# the line that gets copied into a tracker entry, a PR body and a handoff; the
+# preflight scrolls away. "GATE: PASS" quoted with no runtime is exactly the
+# ambiguity this is meant to end, so the two travel together or the fix does
+# not work.
 if (( FAIL == 0 )); then
-    echo "GATE: PASS — logs in $LOGDIR"
+    echo "GATE: PASS on $SIM_RUNTIME_BUILD — logs in $LOGDIR"
     exit 0
 fi
-echo "GATE: FAIL ($FAIL check(s)) — logs in $LOGDIR"
+echo "GATE: FAIL ($FAIL check(s)) on $SIM_RUNTIME_BUILD — logs in $LOGDIR"
 exit 1
