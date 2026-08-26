@@ -68,9 +68,14 @@ enum SettingsSubsystem: Int, CaseIterable, Identifiable {
 enum SettingsCardValues {
     // #256 verbiage round (Owen): "DIRECT" answered a question users don't
     // ask — and the DIRECT/RELAY distinction dies with #251 Phase 4 anyway.
-    static func uplink(state: HermesHostConnectionState, isDirect: Bool) -> String {
+    //
+    // **#309 Lane B: it died.** The `isDirect` argument is gone with the
+    // second transport it distinguished; an ONLINE host is reached one way
+    // now, so the qualifier had exactly one possible value and printing the
+    // other was unreachable code that could still be read as a claim.
+    static func uplink(state: HermesHostConnectionState) -> String {
         switch state {
-        case .online: isDirect ? "CONNECTED" : "RELAY"
+        case .online: "CONNECTED"
         case .offline: "STANDBY"
         case .unreachable: "OFFLINE"
         case .notConnected: "NOT LINKED"
@@ -79,9 +84,13 @@ enum SettingsCardValues {
         }
     }
 
-    static func server(activeProfileName: String?, isPaired: Bool) -> String {
+    /// #309 Lane B re-keyed the second argument off relay pairing. The
+    /// fallback word changed with it: "PAIRED" named a ceremony that no longer
+    /// exists, and a profile-less install that HOLDS credentials is described
+    /// by what it can do, not by what it once redeemed.
+    static func server(activeProfileName: String?, hasHost: Bool) -> String {
         if let name = activeProfileName, !name.isEmpty { return name.uppercased() }
-        return isPaired ? "PAIRED" : "NO PROFILE"
+        return hasHost ? "HOST SET" : "NO PROFILE"
     }
 
     static func models(activeModelName: String?, brainLabel: String?) -> String {
@@ -134,17 +143,16 @@ enum SettingsCardValues {
     /// #256: the grid's at-a-glance status strip — LINK · HOST · MODEL.
     /// Hostless collapses to the on-device story (no "—" host noise);
     /// unknowable hosts render "—" (real data only).
-    static func statusStrip(state: HermesHostConnectionState, isDirect: Bool,
+    static func statusStrip(state: HermesHostConnectionState,
                             hostName: String?, modelName: String?, brainLabel: String?) -> String {
         let model = models(activeModelName: modelName, brainLabel: brainLabel)
         if case .notConnected = state {
             return model == "ON-DEVICE" ? "ON-DEVICE" : "ON-DEVICE · \(model)"
         }
         let host = (hostName?.isEmpty == false) ? hostName!.uppercased() : "—"
-        // Direct is the norm — no transport qualifier; RELAY is the anomaly
-        // worth flagging (#256 verbiage round).
+        // #309 Lane B: one transport, so no qualifier — see `uplink` above.
         let link: String = switch state {
-        case .online: isDirect ? "LINKED" : "LINKED · RELAY"
+        case .online: "LINKED"
         case .offline: "STANDBY"
         case .unreachable: "OFFLINE"
         case .notConnected: "ON-DEVICE" // unreachable — handled above
@@ -153,9 +161,12 @@ enum SettingsCardValues {
         return "\(link) · \(host) · \(model)"
     }
 
-    static func sessions(count: Int?, isPaired: Bool) -> String {
+    /// #309 Lane B: SYNCED now means "there is a host these sessions live
+    /// on", which is what the word always implied and what relay pairing
+    /// stopped being able to answer.
+    static func sessions(count: Int?, hasHost: Bool) -> String {
         guard let count else { return "…" }
-        if isPaired { return "\(count) · SYNCED" }
+        if hasHost { return "\(count) · SYNCED" }
         return "\(count) SESSION\(count == 1 ? "" : "S")"
     }
 

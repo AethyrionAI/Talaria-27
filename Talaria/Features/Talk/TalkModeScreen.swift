@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct TalkModeScreen: View {
+    @Environment(AppContainer.self) private var container
     @Environment(TalkStore.self) private var talkStore
-    @Environment(AppSessionStore.self) private var sessionStore
 
     private var isSpeaking: Bool { talkStore.voiceState == .speaking }
     private var isLive: Bool {
@@ -262,7 +262,13 @@ struct TalkModeScreen: View {
     // MARK: - Mock Indicator
 
     private var mockIndicator: some View {
-        let live = !sessionStore.state.isMockMode
+        // **#309 Lane B re-keyed this.** It read
+        // `AppSessionStore.state.isMockMode` — a RELAY session flag that
+        // defaulted to `true` and was only ever cleared by a relay redeem, so
+        // since the retirement it has said MOCK on every install including
+        // live ones. The honest question is whether this process is running
+        // the UI-test doubles, which is exactly what `usesMockServices` means.
+        let live = !container.usesMockServices
         return HStack(spacing: Design.Spacing.xxs) {
             StatusPip(color: live ? Design.Brand.accent : Design.Brand.forge, diameter: 5, blinks: false)
             MonoLabel(

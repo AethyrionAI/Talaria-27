@@ -488,7 +488,10 @@ struct VoiceSettingsScreen: View {
             {
                 switch talkStore.voiceEngine {
                 case .native: "TALK ENGINE · ON-DEVICE · SPEECHANALYZER + TTS"
-                case .realtime: "TALK ENGINE · RELAY-BOOTSTRAPPED · WEBRTC"
+                // #309 Lane B: #383 re-homed the realtime bootstrap onto
+                // the talaria PLUGIN; this footer had gone on naming the
+                // component it left.
+                case .realtime: "TALK ENGINE · PLUGIN-BOOTSTRAPPED · WEBRTC"
                 case nil: "TALK ENGINE · NOT YET SELECTED"
                 }
             }(),

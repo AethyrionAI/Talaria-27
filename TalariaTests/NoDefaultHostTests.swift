@@ -67,7 +67,9 @@ struct NoDefaultHostTests {
     @Test func aProfileWithNoGatewayIsCoherentRatherThanBroken() throws {
         let fresh = BackendProfile(name: "My Hermes", gatewayBaseURL: "")
         #expect(fresh.hasGateway == false)
-        #expect(fresh.hasRelay == false)
+        // #309 Lane B: the `hasRelay == false` line that stood here is gone
+        // with the property. It said the same thing twice on a gateway-only
+        // build — every profile is relay-less now, by construction.
 
         // It survives a persistence round trip unchanged — an empty host must
         // not decode into something else on the next launch.

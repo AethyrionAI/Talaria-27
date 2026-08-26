@@ -6,9 +6,13 @@ protocol AppPersistenceStoreProtocol {
     func saveUserSettings(_ settings: UserSettings)
     // Relay session state — profile-scoped (Lane M): a nil scope resolves the
     // legacy pre-profile key, which the migrated first profile keeps.
-    func loadSessionState(profileScope: UUID?) -> AppSessionState?
-    func saveSessionState(_ state: AppSessionState, profileScope: UUID?)
-    func clearSessionState(profileScope: UUID?)
+    /// #309 Lane B (bar 309-B9): deletes the relay-era residue for ONE
+    /// credential scope — the `sessionState` and `pairedRelayConfiguration`
+    /// blobs, in UserDefaults and in the Keychain mirror. It replaces the
+    /// load/save/clear pairs for both, because nothing can read either type
+    /// any more: `AppSessionState`, `AuthTokens` and `PairedRelayConfiguration`
+    /// are deleted with the stores that owned them.
+    func purgeRelayCredentialResidue(profileScope: UUID?)
     // #133/#143: the installation identity. App-wide (NOT profile-scoped) and
     // never cleared by unpair — it names this install, not a session. It rode
     // inside the profile-scoped session state until 2026-08-02, so every
@@ -21,9 +25,6 @@ protocol AppPersistenceStoreProtocol {
     func clearInboxState()
     // Paired relay configuration — profile-scoped (Lane M), same nil-scope
     // rule. Pairing profile B must never touch profile A's record (#114).
-    func loadPairedRelayConfiguration(profileScope: UUID?) -> PairedRelayConfiguration?
-    func savePairedRelayConfiguration(_ configuration: PairedRelayConfiguration, profileScope: UUID?)
-    func clearPairedRelayConfiguration(profileScope: UUID?)
     // Backend profiles (Lane M / #114) — the profile list plus the active id,
     // one blob, Keychain-mirrored like the pairing config so profile UUIDs
     // survive reinstalls with the credentials they key.
@@ -138,28 +139,4 @@ extension AppPersistenceStoreProtocol {
     func loadTurnReceiptSidecar() -> TurnReceiptSidecar { TurnReceiptSidecar() }
     func saveTurnReceiptSidecar(_ sidecar: TurnReceiptSidecar) {}
     func clearTurnReceiptSidecar() {}
-
-    func loadSessionState() -> AppSessionState? {
-        loadSessionState(profileScope: nil)
-    }
-
-    func saveSessionState(_ state: AppSessionState) {
-        saveSessionState(state, profileScope: nil)
-    }
-
-    func clearSessionState() {
-        clearSessionState(profileScope: nil)
-    }
-
-    func loadPairedRelayConfiguration() -> PairedRelayConfiguration? {
-        loadPairedRelayConfiguration(profileScope: nil)
-    }
-
-    func savePairedRelayConfiguration(_ configuration: PairedRelayConfiguration) {
-        savePairedRelayConfiguration(configuration, profileScope: nil)
-    }
-
-    func clearPairedRelayConfiguration() {
-        clearPairedRelayConfiguration(profileScope: nil)
-    }
 }

@@ -93,14 +93,6 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         save(settings, key: Keys.userSettings)
     }
 
-    func loadSessionState(profileScope: UUID?) -> AppSessionState? {
-        load(AppSessionState.self, key: BackendProfileScopedKeys.sessionState(profileScope))
-    }
-
-    func saveSessionState(_ state: AppSessionState, profileScope: UUID?) {
-        save(state, key: BackendProfileScopedKeys.sessionState(profileScope))
-    }
-
     /// #133/#143 — app-wide, scope-free, and NOT cleared by unpair. See the
     /// note on `Keys.installationID`.
     func loadInstallationID() -> UUID? {
@@ -112,10 +104,20 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         defaults.set(id.uuidString, forKey: Keys.installationID)
     }
 
-    func clearSessionState(profileScope: UUID?) {
-        // NOTE: deliberately does NOT touch Keys.installationID — that
-        // coupling was the #133/#143 root cause.
-        defaults.removeObject(forKey: BackendProfileScopedKeys.sessionState(profileScope))
+    /// #309 Lane B (bar 309-B9). Removes BOTH dead blobs for one scope, from
+    /// UserDefaults AND the Keychain mirror — `pairedRelayConfiguration` was
+    /// dual-stored (#41), so a UserDefaults-only sweep would leave the mirror
+    /// holding a relay user id forever and a reinstall would restore it.
+    ///
+    /// NOTE: deliberately does NOT touch `Keys.installationID` — that coupling
+    /// was the #133/#143 root cause, and it outlives every credential here.
+    func purgeRelayCredentialResidue(profileScope: UUID?) {
+        let sessionKey = BackendProfileScopedKeys.sessionState(profileScope)
+        let pairingKey = BackendProfileScopedKeys.pairedRelayConfiguration(profileScope)
+        defaults.removeObject(forKey: sessionKey)
+        keychainMirror?.deleteSync(key: sessionKey)
+        defaults.removeObject(forKey: pairingKey)
+        keychainMirror?.deleteSync(key: pairingKey)
     }
 
     func loadInboxState() -> InboxLocalState {
@@ -135,23 +137,6 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
     // re-pairs even though session tokens were sitting safe in the Keychain).
     // Load prefers the Keychain and re-hydrates whichever store is missing.
     // Profile-scoped since Lane M — each backend profile has its own slot.
-
-    func loadPairedRelayConfiguration(profileScope: UUID?) -> PairedRelayConfiguration? {
-        loadDualStored(
-            PairedRelayConfiguration.self,
-            key: BackendProfileScopedKeys.pairedRelayConfiguration(profileScope)
-        )
-    }
-
-    func savePairedRelayConfiguration(_ configuration: PairedRelayConfiguration, profileScope: UUID?) {
-        saveDualStored(configuration, key: BackendProfileScopedKeys.pairedRelayConfiguration(profileScope))
-    }
-
-    func clearPairedRelayConfiguration(profileScope: UUID?) {
-        let key = BackendProfileScopedKeys.pairedRelayConfiguration(profileScope)
-        defaults.removeObject(forKey: key)
-        keychainMirror?.deleteSync(key: key)
-    }
 
     // Backend profiles ride the same dual-store (Lane M): the profile UUIDs
     // key every per-profile credential, so they must survive reinstalls

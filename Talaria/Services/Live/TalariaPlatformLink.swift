@@ -172,6 +172,60 @@ final class TalariaPlatformLink {
         return true
     }
 
+    // MARK: - Unpair (#309 Lane B — the host half of Disconnect)
+
+    /// Tells the host to retire its record for this phone.
+    ///
+    /// **Best-effort by construction, and that is not a shrug.** The plugin's
+    /// `unpair` verb is authorised by the DEVICE TOKEN — the exact credential
+    /// the caller deletes a moment later — so this has to go out while the
+    /// credential still exists, and it cannot be retried afterwards from a
+    /// phone that has honestly forgotten it. Returns whether the host actually
+    /// took it, so the surface can say which of the two halves happened
+    /// instead of promising both.
+    ///
+    /// Never MINTS a pair to unpair: an install that holds no token has
+    /// nothing the host would recognise, and `ensurePaired` here would create
+    /// a device row purely in order to deactivate it.
+    func unpairFromHost() async -> Bool {
+        guard let context = makeTurnContext() else { return false }
+        guard let token = await secureStore.retrieve(key: context.tokenKey),
+              let deviceID = await secureStore.retrieve(key: context.deviceIDKey)
+        else { return false }
+        let body: [String: Any] = [
+            "type": "unpair",
+            "auth": token,
+            "device_id": deviceID,
+        ]
+        guard let (status, data) = await post(body, context: context, bearer: token,
+                                              timeout: Self.unpairTimeout)
+        else {
+            Self.logger.notice("talaria unpair: no response — the host keeps its record")
+            return false
+        }
+        guard status == 200 else {
+            logEnvelopeError(status: status, data: data, verb: "unpair")
+            return false
+        }
+        // The envelope answers 200 with an error BODY on the failure path
+        // (#383 hazard 5), so a status check alone would report a refusal as
+        // a success — which is precisely the half of the disconnect copy that
+        // must not lie.
+        if let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           object["code"] is String {
+            logEnvelopeError(status: status, data: data, verb: "unpair")
+            return false
+        }
+        Self.logger.notice("talaria unpair: host retired device \(deviceID, privacy: .public)")
+        return true
+    }
+
+    /// A disconnect is interactive and the user is watching. `requestTimeout`
+    /// is 40 s because the DRAIN long-polls; inheriting it here would park the
+    /// confirm sheet for most of a minute against a sleeping host, when the
+    /// honest answer — "it can't be told right now" — is already available.
+    private static let unpairTimeout: TimeInterval = 6
+
     // MARK: - Drain
 
     /// One drain turn: pair if needed, pull the outbox, ack what arrived and

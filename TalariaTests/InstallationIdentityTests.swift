@@ -11,7 +11,7 @@ import Testing
 /// installation ids a week apart (`3b6f41e8` born 07-16, `c718cc64` born
 /// 07-23), which is the churn in two rows.
 ///
-/// **Mechanism:** the installation id lived inside `AppSessionState`, which is
+/// **Mechanism:** the installation id lived inside `AppSessionState`, which was
 /// PROFILE-SCOPED and deleted by `clearSession`. `AppSessionStore.init` fell
 /// back to `AppSessionState()` when no state was persisted — and that mints a
 /// fresh `UUID()`. So unpair → cold launch → new identity → the relay
@@ -23,6 +23,23 @@ import Testing
 /// An installation id identifies an app INSTALLATION. It must outlive pairing,
 /// unpairing, and profile scope — otherwise it is a session id wearing the
 /// wrong name.
+///
+/// ---
+///
+/// **PORTED TWICE, NEVER TOMBSTONED.** #309 Lane A moved the logic out of
+/// `AppSessionStore.init` into `InstallationIdentity`; Lane B deleted the
+/// store, `AppSessionState`, and the profile-scoped session blob the id used
+/// to ride inside. These tests followed the code both times, and the second
+/// move is the more interesting one:
+///
+/// **Three of the six defects below are now STRUCTURALLY IMPOSSIBLE rather
+/// than guarded against, and the tests say which.** There is no session state
+/// to clear, no per-scope store to construct, and no `stamp(_:onto:)` for a
+/// rebind to mis-apply — the id is one unscoped key that nothing but
+/// `InstallationIdentity` reads or writes, and the residue purge is written to
+/// avoid it by name. The tests still assert the OUTCOMES, because "impossible
+/// by construction" is a claim about today's construction: they will fail the
+/// day someone re-couples the two, which is the only thing they were ever for.
 @MainActor
 struct InstallationIdentityTests {
 
@@ -32,24 +49,25 @@ struct InstallationIdentityTests {
         return UserDefaultsAppPersistenceStore(defaults: defaults)
     }
 
-    private func makeStore(_ persistence: UserDefaultsAppPersistenceStore) -> AppSessionStore {
-        AppSessionStore(secureStore: MockSecureStore(), persistence: persistence)
-    }
-
-    /// THE defect. Unpair clears the profile-scoped session state; the next
-    /// COLD LAUNCH constructs a store with nothing persisted. Before the fix
-    /// that minted a brand-new identity and the relay minted a brand-new
-    /// device row — 99 times over.
+    /// THE defect. Disconnect clears the profile's credentials; the next COLD
+    /// LAUNCH resolves the identity with nothing session-shaped persisted.
+    /// Before the fix that minted a brand-new identity and the relay minted a
+    /// brand-new device row — 99 times over.
+    ///
+    /// The "unpair" is now the residue purge plus a credential wipe, which is
+    /// what Connect Host's Disconnect actually does.
     @Test func identitySurvivesUnpairFollowedByAColdLaunch() async {
         let persistence = makePersistence("install-identity-unpair-\(UUID().uuidString)")
+        let secureStore = MockSecureStore()
 
-        let firstLaunch = makeStore(persistence)
-        let original = firstLaunch.state.installationID
+        let original = InstallationIdentity.resolve(persistence: persistence)
 
-        await firstLaunch.clearSession()          // unpair
-        let coldLaunch = makeStore(persistence)   // relaunch: init reads persistence
+        await RelayCredentialHygiene.purge(
+            scopes: [nil, UUID()], secureStore: secureStore, persistence: persistence)
 
-        #expect(coldLaunch.state.installationID == original,
+        let afterColdLaunch = InstallationIdentity.resolve(persistence: persistence)
+
+        #expect(afterColdLaunch == original,
                 "unpair + cold launch minted a NEW installation identity — this is the #133/#143 churn")
     }
 
@@ -57,32 +75,33 @@ struct InstallationIdentityTests {
     /// with nothing else happening are the same installation.
     @Test func identityIsStableAcrossAnOrdinaryRelaunch() {
         let persistence = makePersistence("install-identity-relaunch-\(UUID().uuidString)")
-        let first = makeStore(persistence).state.installationID
-        let second = makeStore(persistence).state.installationID
+        let first = InstallationIdentity.resolve(persistence: persistence)
+        let second = InstallationIdentity.resolve(persistence: persistence)
         #expect(first == second)
     }
 
-    /// One physical install, many relays (Lane M). Switching or clearing a
+    /// One physical install, many hosts (Lane M). Switching or clearing a
     /// PROFILE must not re-identify the device — the id is app-wide, not
     /// scope-wide, and a per-scope id is precisely what let two profiles
     /// produce two device rows for one handset.
+    ///
+    /// Since Lane B the resolver takes NO scope at all, so this reads as a
+    /// tautology — and that is the point. It is the pin that reds if a future
+    /// lane reintroduces a scope parameter "for symmetry".
     @Test func identityIsSharedAcrossProfileScopes() async {
         let persistence = makePersistence("install-identity-scopes-\(UUID().uuidString)")
+        let secureStore = MockSecureStore()
         let scopeA = UUID()
         let scopeB = UUID()
 
-        let storeA = AppSessionStore(
-            secureStore: MockSecureStore(),
-            persistence: persistence,
-            credentialScopeProvider: { scopeA }
-        )
-        let storeB = AppSessionStore(
-            secureStore: MockSecureStore(),
-            persistence: persistence,
-            credentialScopeProvider: { scopeB }
-        )
+        let underA = InstallationIdentity.resolve(persistence: persistence)
+        // Sweep BOTH scopes between the reads: a scope-coupled identity would
+        // not survive its own scope being purged.
+        await RelayCredentialHygiene.purge(
+            scopes: [scopeA, scopeB], secureStore: secureStore, persistence: persistence)
+        let underB = InstallationIdentity.resolve(persistence: persistence)
 
-        #expect(storeA.state.installationID == storeB.state.installationID)
+        #expect(underA == underB)
     }
 
     /// The id is minted ONCE and then read back — not regenerated per call.
@@ -90,50 +109,46 @@ struct InstallationIdentityTests {
         let persistence = makePersistence("install-identity-persist-\(UUID().uuidString)")
         #expect(persistence.loadInstallationID() == nil)
 
-        let minted = makeStore(persistence).state.installationID
+        let minted = InstallationIdentity.resolve(persistence: persistence)
 
         #expect(persistence.loadInstallationID() == minted)
     }
 
-    /// The partial-fix trap. Fixing only `init` leaves
-    /// `rebindToCurrentScope()` assigning a persisted state DIRECTLY
-    /// (`state = persisted`) — and a state persisted before this fix, or
-    /// under another scope, carries its own churned id. Adopting it would
-    /// re-identify the device on the next profile switch and mint another
-    /// relay device row, which is the whole defect coming back through the
-    /// one door the first patch left open.
-    @Test func aProfileSwitchDoesNotAdoptAPersistedStatesStaleIdentity() {
-        let persistence = makePersistence("install-identity-rebind-\(UUID().uuidString)")
-        let scope = UUID()
+    /// **The partial-fix trap, re-pointed at the mechanism that replaced it.**
+    ///
+    /// The original defect's second door was `rebindToCurrentScope()` adopting
+    /// a persisted state's own churned id on a profile switch. There is no
+    /// persisted state and no rebind any more — Lane B deleted `stamp(_:onto:)`
+    /// with `AppSessionState`. What could reopen the door is the RESIDUE PURGE
+    /// widening onto `talaria.installationID`, which lives in the same
+    /// UserDefaults and looks adjacent to the keys the purge does take.
+    ///
+    /// So the test asks the same question of the new code: after a full sweep
+    /// of every scope, is the device still itself?
+    @Test func theResiduePurgeDoesNotTakeTheInstallationIdWithIt() async {
+        let persistence = makePersistence("install-identity-purge-\(UUID().uuidString)")
+        let secureStore = MockSecureStore()
+        let minted = InstallationIdentity.resolve(persistence: persistence)
 
-        // A pre-fix (or foreign-scope) session state carrying its OWN id.
-        let stale = AppSessionState(installationID: UUID(), deviceRegistered: true)
-        persistence.saveSessionState(stale, profileScope: scope)
+        // Every scope shape a real install can present: legacy-unscoped, and
+        // two profile scopes.
+        await RelayCredentialHygiene.purge(
+            scopes: [nil, UUID(), UUID()], secureStore: secureStore, persistence: persistence)
 
-        let store = AppSessionStore(
-            secureStore: MockSecureStore(),
-            persistence: persistence,
-            credentialScopeProvider: { scope }
-        )
-        let durable = persistence.loadInstallationID()
-        #expect(durable != nil)
-        #expect(stale.installationID != durable, "fixture must differ, or this test proves nothing")
-
-        store.rebindToCurrentScope()
-
-        #expect(store.state.installationID == durable,
-                "rebind adopted the persisted state's stale identity — #133/#143 churn via the profile-switch path")
+        #expect(persistence.loadInstallationID() == minted,
+                "the residue purge took the installation id — #133/#143 churn through a new door")
+        #expect(InstallationIdentity.resolve(persistence: persistence) == minted)
     }
 
-    /// `clearSessionState` must not take the installation id with it — that
-    /// coupling IS the bug. Asserted at the persistence layer so a future
-    /// refactor of the store cannot silently reintroduce it.
-    @Test func clearingSessionStateLeavesTheInstallationIdAlone() {
+    /// The persistence-layer half of the same rule, asserted directly so a
+    /// future refactor of the purge cannot silently reintroduce the coupling
+    /// that IS the bug.
+    @Test func purgingResidueLeavesTheInstallationIdAlone() {
         let persistence = makePersistence("install-identity-clear-\(UUID().uuidString)")
-        let minted = makeStore(persistence).state.installationID
+        let minted = InstallationIdentity.resolve(persistence: persistence)
 
-        persistence.clearSessionState(profileScope: nil)
-        persistence.clearSessionState(profileScope: UUID())
+        persistence.purgeRelayCredentialResidue(profileScope: nil)
+        persistence.purgeRelayCredentialResidue(profileScope: UUID())
 
         #expect(persistence.loadInstallationID() == minted)
     }

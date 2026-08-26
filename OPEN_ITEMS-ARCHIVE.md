@@ -5198,6 +5198,25 @@ Not urgent; it costs minutes per lane, not correctness — but it should not sur
 
 Logged 2026-07-22.
 
+
+> **⟵ APPEND-ONLY POINTER, 2026-08-25 (#317 ruling (a) — the original bytes
+> above are untouched). THE TEST THIS ITEM IS NAMED FOR WAS RENAMED, and the
+> screen it drove was deleted.**
+>
+> #309 Lane B replaced the relay pairing flow with Connect Host.
+> `testDisconnectReturnsToStandaloneChat` is now
+> `testDisconnectingAHostReturnsToStandaloneChat`, and it drives
+> Settings → Connect Host → the confirm sheet rather than the deleted
+> `ConnectHermesHostScreen`'s one-tap Disconnect.
+>
+> **The fix this item closed on SURVIVES VERBATIM and is still the reason the
+> journey is not flaky:** the rewritten test keeps
+> `waitForNonExistence`-shaped assertions rather than a plain `.exists` check
+> in either direction, for exactly the reason recorded above — the composer
+> and a dismissing surface coexist for a beat, and a same-instant `.exists`
+> read catches the dismissal mid-flight. A future recurrence would be recorded
+> under the new name.
+
 ## 167. ✅ #166a/#166b/#166d landed (PR #138, merge cbcc824) — and #164 hits its third occurrence
 
 **2026-07-23 — THE ATS EXCEPTION IS INERT, AND MagicDNS IS A LATENT LANDMINE.**

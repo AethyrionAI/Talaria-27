@@ -24,8 +24,16 @@ struct DeveloperSettingsScreen: View {
     var embedded: Bool = false
     @Environment(\.dismiss) private var dismiss
     @Environment(SettingsStore.self) private var settingsStore
-    #if DEBUG
+    // **#218's rule, caught by #218's own check.** This declaration was inside
+    // `#if DEBUG` — correct while its only readers were the DEBUG-only
+    // monetization and migration-stamp controls. #309 Lane B gave it a
+    // PRODUCTION reader (`endpointLabel`, which now resolves the active
+    // profile's gateway instead of a deleted relay config), and the Debug
+    // suite could not see the difference: the Release arm of the gate failed
+    // with `cannot find 'container' in scope`. A promoted reader promotes its
+    // dependency.
     @Environment(AppContainer.self) private var container
+    #if DEBUG
     // #127: local mirrors of MonetizationDebugSettings (UserDefaults-backed,
     // DEBUG-only) — seeded in onAppear, written through on change.
     @State private var monetizationGateEnabled = false
@@ -163,16 +171,21 @@ struct DeveloperSettingsScreen: View {
         .buttonStyle(.plain)
     }
 
-    /// Real endpoint string for an environment. Production/Staging route through
-    /// the configured relay (no hardcoded host), so they show the relay origin or
-    /// "—" when none is configured.
+    /// Real endpoint string for an environment.
+    ///
+    /// **#309 Lane B:** production and staging used to print the configured
+    /// RELAY's origin here. There is no relay, so the honest answer is the
+    /// ACTIVE PROFILE's gateway — the host those environments actually talk
+    /// to — and "—" when none is set (#45's real-data-only rule).
     private func endpointLabel(_ env: AppEnvironment) -> String {
         if !env.baseURLString.isEmpty {
             return env.baseURLString.replacingOccurrences(of: "https://", with: "")
                 .replacingOccurrences(of: "http://", with: "")
         }
-        let origin = settingsStore.settings.relayConfiguration.relayOriginLabel
-        return origin == "Not Configured" ? "—" : origin
+        guard let gateway = container.profilesStore?.activeProfile?.resolvedGatewayBaseURL,
+              let host = URL(string: gateway)?.host, !host.isEmpty
+        else { return "—" }
+        return host
     }
 
     // MARK: Flags

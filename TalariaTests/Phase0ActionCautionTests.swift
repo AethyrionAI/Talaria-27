@@ -331,8 +331,7 @@ struct ApprovalModeScaffoldTests {
     /// switch hosts is a footgun with no upside.
     @Test func approvalModeIsNotAPerProfileSetting() throws {
         let profile = BackendProfile(
-            name: "OJAMD", gatewayBaseURL: "http://ojamd:8642",
-            relayBaseURL: "http://ojamd:8000/v1")
+            name: "OJAMD", gatewayBaseURL: "http://ojamd:8642")
         let json = try JSONSerialization.jsonObject(
             with: JSONEncoder().encode(profile)) as? [String: Any]
         let keys = Set((json ?? [:]).keys)

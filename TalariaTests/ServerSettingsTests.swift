@@ -3,9 +3,13 @@ import Testing
 @testable import Talaria
 
 /// Lane M PR 3 (OPEN_ITEMS #114): the Server settings surface — activation
-/// flow, per-profile pairing hygiene, the unkeyed-profile nudge (M-14), the
-/// profile editor draft, probe classification, and the hosted-relay
-/// retirement's decode compatibility (M-13).
+/// flow, the unkeyed-profile nudge (M-14), the profile editor draft, probe
+/// classification, and the hosted-relay retirement's decode compatibility
+/// (M-13).
+///
+/// **#309 Lane B (2026-08-25):** the per-profile FORGET PAIRING section is
+/// tombstoned in place with its property's new home named, and the editor
+/// draft lost its relay field with `BackendProfile.relayBaseURL`.
 @Suite(.serialized)
 struct ServerSettingsTests {
 
@@ -19,7 +23,6 @@ struct ServerSettingsTests {
 
     private static let ojamdSeeds = BackendProfilesStore.MigrationSeeds(
         gatewayBaseURL: "http://ojamd:8642",
-        relayBaseURL: "http://ojamd:8000/v1",
         shimBaseURL: "http://ojamd:8765"
     )
 
@@ -30,7 +33,7 @@ struct ServerSettingsTests {
         let persistence = makePersistence("activation")
         let profilesStore = BackendProfilesStore(persistence: persistence, migrationSeeds: Self.ojamdSeeds)
         let ojamd = try #require(profilesStore.activeProfile)
-        let mac = BackendProfile(name: "Mac Mini", gatewayBaseURL: "http://macmini:8642", relayBaseURL: "http://macmini:8000/v1")
+        let mac = BackendProfile(name: "Mac Mini", gatewayBaseURL: "http://macmini:8642")
         profilesStore.upsert(mac)
 
         var activated: [BackendProfile] = []
@@ -57,58 +60,22 @@ struct ServerSettingsTests {
         #expect(reloaded.profile(id: ojamd.id) != nil)
     }
 
-    // MARK: - M-12: per-profile forget hygiene
+    // MARK: - M-12: per-profile forget hygiene — TOMBSTONED 2026-08-25
+    //
+    // **#309 Lane B deleted `PairingStore.forgetPairing` and the FORGET
+    // PAIRING row it backed**, so `forgettingDormantProfilePairingLeavesActiveProfileIntact`
+    // has no subject. The row was already living on borrowed time: Lane C
+    // found it could only be offered on profiles that still held a relay-era
+    // pairing RECORD, and offering it anywhere else would have been a button
+    // that silently did nothing.
+    //
+    // **Its property survives in two places, both stronger.** Per-scope
+    // credential isolation is `theRelayResiduePurgeIsScopedAndDoesNotWiden`
+    // (BackendProfilesTests), which additionally proves the sweep does not
+    // widen onto the gateway key. And "forgetting one host leaves the others
+    // alone" is `ConnectHostTests`'
+    // `disconnectClearsOnlyTheTargetProfilesCredentials`.
 
-    @Test @MainActor
-    func forgettingDormantProfilePairingLeavesActiveProfileIntact() async throws {
-        let persistence = makePersistence("forget")
-        let secureStore = MockSecureStore()
-        let profilesStore = BackendProfilesStore(persistence: persistence, migrationSeeds: Self.ojamdSeeds)
-        let mac = BackendProfile(name: "Mac Mini", gatewayBaseURL: "http://macmini:8642", relayBaseURL: "http://macmini:8000/v1")
-        profilesStore.upsert(mac)
-
-        let sessionStore = AppSessionStore(
-            secureStore: secureStore,
-            persistence: persistence,
-            credentialScopeProvider: { profilesStore.activeProfile?.credentialScopeID }
-        )
-        let pairingStore = PairingStore(
-            pairingService: MockPairingService(),
-            sessionStore: sessionStore,
-            persistence: persistence,
-            environmentProvider: { .production },
-            relayBaseURLProvider: { profilesStore.activeProfile?.relayBaseURL },
-            profileResolver: { id in profilesStore.resolvedProfile(id: id) }
-        )
-
-        // Seed BOTH slots as paired: OJAMD (active, legacy scope) + Mac.
-        let ojamdConfig = PairedRelayConfiguration(
-            baseURLString: "http://ojamd:8000/v1", hostDisplayName: "ojamd", pairedAt: Date(timeIntervalSince1970: 1_752_600_000), relayUserID: UUID()
-        )
-        persistence.savePairedRelayConfiguration(ojamdConfig, profileScope: nil)
-        await secureStore.store(key: "session.accessToken", value: "ojamd-token")
-        let macScope = try #require(mac.credentialScopeID)
-        persistence.savePairedRelayConfiguration(
-            PairedRelayConfiguration(baseURLString: "http://macmini:8000/v1", hostDisplayName: "mac", pairedAt: Date(timeIntervalSince1970: 1_752_600_000), relayUserID: UUID()),
-            profileScope: macScope
-        )
-        await secureStore.store(key: BackendProfileScopedKeys.accessToken(macScope), value: "mac-token")
-        pairingStore.rebindToActiveProfile()
-        #expect(pairingStore.isPaired)
-
-        // Forget the DORMANT Mac pairing.
-        await pairingStore.forgetPairing(profileID: mac.id)
-
-        // Mac's slot is gone…
-        #expect(persistence.loadPairedRelayConfiguration(profileScope: macScope) == nil)
-        let macToken = await secureStore.retrieve(key: BackendProfileScopedKeys.accessToken(macScope))
-        #expect(macToken == nil)
-        // …and the ACTIVE profile is completely untouched.
-        #expect(pairingStore.isPaired)
-        #expect(persistence.loadPairedRelayConfiguration(profileScope: nil) == ojamdConfig)
-        let ojamdToken = await secureStore.retrieve(key: "session.accessToken")
-        #expect(ojamdToken == "ojamd-token")
-    }
 
     // MARK: - M-14: unkeyed-profile nudge
 
@@ -193,26 +160,20 @@ struct ServerSettingsTests {
         #expect(draft.validationMessage != nil) // not absolute http(s)
 
         draft.gatewayBaseURL = "http://100.79.222.100:8642"
-        #expect(draft.isValid) // relay is optional
-
-        draft.relayBaseURL = "not a url"
-        #expect(draft.validationMessage != nil)
-        draft.relayBaseURL = "http://100.79.222.100:8000"
-        #expect(draft.isValid) // normalizes to …/v1 on apply
+        #expect(draft.isValid)
 
         draft.note = "  Apple ecosystem  "
         #expect(draft.isValid)
 
         // Applying onto an existing profile preserves identity + scope.
         let existing = BackendProfile(
-            name: "Old", gatewayBaseURL: "http://old:8642", relayBaseURL: "",
+            name: "Old", gatewayBaseURL: "http://old:8642",
             usesLegacyCredentialKeys: true
         )
         let updated = draft.apply(to: existing)
         #expect(updated.id == existing.id)
         #expect(updated.usesLegacyCredentialKeys)
         #expect(updated.name == "Mac Mini")
-        #expect(updated.relayBaseURL == "http://100.79.222.100:8000/v1")
         // #223 Lane 5: the editor no longer touches shimBaseURL — an existing
         // profile's stored value survives apply() untouched.
         #expect(updated.shimBaseURL == existing.shimBaseURL)
@@ -242,26 +203,44 @@ struct ServerSettingsTests {
     // and every behavior (including the empty-string-is-not-a-token rule)
     // is pinned in TalariaLinkObservationTests.
 
-    // MARK: - M-13: hosted-relay retirement decode compatibility
+    // MARK: - M-13: hosted-relay retirement decode compatibility — TOMBSTONED
+    //
+    // **#309 Lane B deleted `RelayConfiguration`**, so
+    // `legacyRelayConfigurationBlobsDecodeWithHostedKeysIgnored` has no type
+    // to decode into. It proved a pre-Lane-M blob's dead `relayMode` /
+    // `hostedRelay*` keys were ignored rather than fatal.
+    //
+    // **The property it guarded is now stronger and lives one level up.** The
+    // whole struct is a dead key on `UserSettings` — `init(from:)` never asks
+    // for `relayConfiguration` — so the tolerance is structural rather than
+    // per-field, and it is pinned where it can actually fail:
+    // `aLegacyUserSettingsBlobWithARelayConfigurationStillDecodes` below.
 
+    /// **#309 Lane B's replacement for the M-13 decode pin.** Every settings
+    /// blob on every device carries `relayConfiguration`; a decoder that
+    /// choked on it would read as "no settings" and silently reset the user's
+    /// preferences on the first launch after the update.
+    ///
+    /// RED against `main`: there, the key is decoded into a real property.
     @Test @MainActor
-    func legacyRelayConfigurationBlobsDecodeWithHostedKeysIgnored() throws {
-        // A pre-Lane-M persisted blob: relayMode + hosted keys present.
+    func aLegacyUserSettingsBlobWithARelayConfigurationStillDecodes() throws {
         let legacyJSON = """
         {
-            "relayMode": "hosted",
-            "customRelayBaseURL": "http://ojamd:8000/v1",
-            "hostedRelayBaseURL": "https://hosted.example.com/v1",
-            "hostedRelayEnabled": true
+            "environment": "production",
+            "verboseLogging": true,
+            "relayConfiguration": {
+                "relayMode": "hosted",
+                "customRelayBaseURL": "http://ojamd:8000/v1",
+                "hostedRelayEnabled": true
+            }
         }
         """
-        let decoded = try JSONDecoder().decode(RelayConfiguration.self, from: Data(legacyJSON.utf8))
-        #expect(decoded.customRelayBaseURL == "http://ojamd:8000/v1")
-        #expect(decoded.activeBaseURLString == "http://ojamd:8000/v1")
+        let decoded = try JSONDecoder().decode(UserSettings.self, from: Data(legacyJSON.utf8))
+        #expect(decoded.verboseLogging, "the blob's real settings must survive the dead key")
 
-        // Round-trips cleanly through the new shape.
+        // …and the dead key does not come back on the next save.
         let reEncoded = try JSONEncoder().encode(decoded)
-        let reDecoded = try JSONDecoder().decode(RelayConfiguration.self, from: reEncoded)
-        #expect(reDecoded == decoded)
+        let json = try #require(try JSONSerialization.jsonObject(with: reEncoded) as? [String: Any])
+        #expect(json["relayConfiguration"] == nil)
     }
 }

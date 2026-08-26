@@ -285,19 +285,16 @@ struct ProfileSwitchAtomicityTests {
             persistence: persistence,
             migrationSeeds: BackendProfilesStore.MigrationSeeds(
                 gatewayBaseURL: Self.gatewayA,
-                relayBaseURL: "http://a.local:8000/v1",
                 shimBaseURL: nil
             )
         )
         let profileB = BackendProfile(
             name: "B",
-            gatewayBaseURL: Self.gatewayB,
-            relayBaseURL: "http://b.local:8000/v1"
+            gatewayBaseURL: Self.gatewayB
         )
         let profileC = BackendProfile(
             name: "C",
-            gatewayBaseURL: "http://gateway-c.local:8642",
-            relayBaseURL: "http://c.local:8000/v1"
+            gatewayBaseURL: "http://gateway-c.local:8642"
         )
         store.upsert(profileB)
         store.upsert(profileC)
@@ -337,14 +334,12 @@ struct ProfileSwitchAtomicityTests {
             persistence: persistence,
             migrationSeeds: BackendProfilesStore.MigrationSeeds(
                 gatewayBaseURL: Self.gatewayA,
-                relayBaseURL: "http://a.local:8000/v1",
                 shimBaseURL: nil
             )
         )
         let profileB = BackendProfile(
             name: "B",
-            gatewayBaseURL: Self.gatewayB,
-            relayBaseURL: "http://b.local:8000/v1"
+            gatewayBaseURL: Self.gatewayB
         )
         store.upsert(profileB)
 
@@ -815,8 +810,6 @@ struct ProfileSwitchAtomicityTests {
     private struct ChainHarness {
         let container: AppContainer
         let profiles: BackendProfilesStore
-        let sessionStore: AppSessionStore
-        let pairingStore: PairingStore
         let secure: GatedSecureStore
         let events: InvocationsBox
         let profileA: BackendProfile
@@ -860,20 +853,17 @@ struct ProfileSwitchAtomicityTests {
             persistence: persistence,
             migrationSeeds: BackendProfilesStore.MigrationSeeds(
                 gatewayBaseURL: "http://127.0.0.1:9",
-                relayBaseURL: "http://127.0.0.1:9/v1",
                 shimBaseURL: nil
             )
         )
         let profileA = try #require(profiles.activeProfile)
         let profileB = BackendProfile(
             name: "B",
-            gatewayBaseURL: "http://127.0.0.2:9",
-            relayBaseURL: "http://127.0.0.2:9/v1"
+            gatewayBaseURL: "http://127.0.0.2:9"
         )
         let profileC = BackendProfile(
             name: "C",
-            gatewayBaseURL: "http://127.0.0.3:9",
-            relayBaseURL: "http://127.0.0.3:9/v1"
+            gatewayBaseURL: "http://127.0.0.3:9"
         )
         profiles.upsert(profileB)
         profiles.upsert(profileC)
@@ -889,44 +879,11 @@ struct ProfileSwitchAtomicityTests {
             Self.apiKeySlot(profileB): "B.apiKey",
             Self.apiKeySlot(profileC): "C.apiKey",
         ]
-        for (profile, label) in [(profileA, "A"), (profileB, "B"), (profileC, "C")] {
-            persistence.savePairedRelayConfiguration(
-                PairedRelayConfiguration(
-                    // #310: these three fixtures are all relay-BEARING by
-                    // construction, so the fallback is unreachable — it is
-                    // here only because the type is now optional.
-                    baseURLString: profile.relayBaseURL ?? "",
-                    hostDisplayName: "host-\(label)",
-                    pairedAt: .now,
-                    relayUserID: UUID()
-                ),
-                profileScope: profile.credentialScopeID
-            )
-            persistence.saveSessionState(
-                AppSessionState(displayName: "session-\(label)"),
-                profileScope: profile.credentialScopeID
-            )
-        }
-
-        // The session store keeps its OWN (empty) secure store: its token
-        // reads must not land in the gate's trace, and an absent access token
-        // keeps the handler's relay-bootstrap block skipped.
-        let sessionStore = AppSessionStore(
-            secureStore: MockSecureStore(),
-            persistence: persistence,
-            credentialScopeProvider: { profiles.activeProfile?.credentialScopeID }
-        )
-        let pairingStore = PairingStore(
-            pairingService: MockPairingService(),
-            sessionStore: sessionStore,
-            persistence: persistence,
-            environmentProvider: { .production },
-            relayBaseURLProvider: { profiles.activeProfile?.relayBaseURL },
-            profileResolver: { profiles.resolvedProfile(id: $0) }
-        )
+        // #309 Lane B: the per-profile relay pairing records and session
+        // blobs this harness used to seed are gone with the types that read
+        // them. The API-KEY seeding above is what the switch actually moves
+        // now, and it is what every "ended on C" assertion below reads.
         let container = AppContainer(
-            sessionStore: sessionStore,
-            pairingStore: pairingStore,
             hostStore: HermesHostStore(hostService: MockHermesHostService()),
             chatStore: ChatStore(hermesClient: MockHermesClient(), persistence: persistence),
             inboxStore: InboxStore(
@@ -953,8 +910,6 @@ struct ProfileSwitchAtomicityTests {
         return ChainHarness(
             container: container,
             profiles: profiles,
-            sessionStore: sessionStore,
-            pairingStore: pairingStore,
             secure: secure,
             events: events,
             profileA: profileA,
@@ -1019,11 +974,16 @@ struct ProfileSwitchAtomicityTests {
         #expect(events.names == ["enter(B)"])
         // Nothing shared has been written yet — the park is BEFORE the writes.
         #expect(container.hermesAPIKey.isEmpty)
-        // …but the scoped stores have already rebound to B (they rebind
-        // synchronously, ahead of the first await). So "ends on C" below is a
-        // real move, not a store that never left A.
-        #expect(harness.pairingStore.pairedRelayConfiguration?.hostDisplayName == "host-B")
-        #expect(harness.sessionStore.state.displayName == "session-B")
+        // …but the PROFILE scope has already moved to B — it moves
+        // synchronously, ahead of the first await (#285). So "ends on C" below
+        // is a real move, not a switch that never left A.
+        //
+        // #309 Lane B: this used to read the two credential-scoped STORES'
+        // rebound state (`pairingStore.pairedRelayConfiguration`,
+        // `sessionStore.state`). Both stores are deleted; everything
+        // scope-sensitive that survives resolves the scope per call from the
+        // profiles store, so the profiles store IS the observation now.
+        #expect(harness.profiles.activeProfileID == harness.profileB.id)
 
         // ── 2. Switch to C while B is suspended ────────────────────────────
         harness.profiles.setActiveProfile(harness.profileC.id)
@@ -1078,9 +1038,10 @@ struct ProfileSwitchAtomicityTests {
         #expect(harness.profiles.activeProfile?.gatewayBaseURL == harness.profileC.gatewayBaseURL)
         // The container's live gateway key: C's, never B's.
         #expect(container.hermesAPIKey == "apikey-C")
-        // The credential-scoped stores: rebound from B onto C.
-        #expect(harness.pairingStore.pairedRelayConfiguration?.hostDisplayName == "host-C")
-        #expect(harness.sessionStore.state.displayName == "session-C")
+        // #309 Lane B: the two scoped stores this line used to read are
+        // deleted. The live scope is the profiles store's, asserted above, and
+        // the credential the switch actually moves is the gateway key —
+        // asserted on the line above this comment and in the trace below.
         // The whole switch touched exactly two credential slots, once each,
         // and wrote none of them — B's key is byte-untouched.
         #expect(secure.trace == ["retrieve(B.apiKey)", "retrieve(C.apiKey)"])

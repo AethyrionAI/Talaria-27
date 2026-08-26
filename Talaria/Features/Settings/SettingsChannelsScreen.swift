@@ -9,9 +9,7 @@ import SwiftUI
 struct SettingsChannelsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppContainer.self) private var container
-    @Environment(AppSessionStore.self) private var sessionStore
     @Environment(HermesHostStore.self) private var hostStore
-    @Environment(PairingStore.self) private var pairingStore
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(TalkStore.self) private var talkStore
     @Environment(TabRouter.self) private var router
@@ -246,7 +244,7 @@ struct SettingsChannelsScreen: View {
                 if isSearching {
                     searchResultsList
                 } else {
-                    if !pairingStore.isPaired { upgradeBanner }
+                    if !container.hasGatewayCredentials { upgradeBanner }
                     cardGrid
                     developerRow
                 }
@@ -365,7 +363,6 @@ struct SettingsChannelsScreen: View {
     private var statusStripText: String {
         SettingsCardValues.statusStrip(
             state: effectiveConnectionState,
-            isDirect: container.chatStore.directConnectionStatus == .connected,
             hostName: container.profilesStore?.activeProfile?.name,
             modelName: container.chatStore.activeModelName,
             brainLabel: container.chatBackendRouter?.activeBrain.monoLabel)
@@ -403,7 +400,7 @@ struct SettingsChannelsScreen: View {
     private var upgradeBanner: some View {
         Button {
             router.dismissSheet()
-            router.navigate(to: .connectHost)
+            router.navigate(to: .connectHost(container.connectHostEntry()))
         } label: {
             VStack(alignment: .leading, spacing: Design.Spacing.xs) {
                 HStack {
@@ -504,12 +501,11 @@ struct SettingsChannelsScreen: View {
         switch subsystem {
         case .uplink:
             SettingsCardValues.uplink(
-                state: effectiveConnectionState,
-                isDirect: container.chatStore.directConnectionStatus == .connected)
+                state: effectiveConnectionState)
         case .server:
             SettingsCardValues.server(
                 activeProfileName: container.profilesStore?.activeProfile?.name,
-                isPaired: pairingStore.isPaired)
+                hasHost: container.hasGatewayCredentials)
         case .models:
             SettingsCardValues.models(
                 activeModelName: container.chatStore.activeModelName,
@@ -529,7 +525,7 @@ struct SettingsChannelsScreen: View {
                 location: settingsStore.settings.locationCollectionEnabled,
                 motion: settingsStore.settings.motionCollectionEnabled)
         case .sessions:
-            SettingsCardValues.sessions(count: sessionCount, isPaired: pairingStore.isPaired)
+            SettingsCardValues.sessions(count: sessionCount, hasHost: container.hasGatewayCredentials)
         case .about:
             SettingsCardValues.about(isHealthy: aboutIsHealthy)
         case .privateCloud:
@@ -587,7 +583,7 @@ struct SettingsChannelsScreen: View {
     // of truth for both).
     private var aboutIsHealthy: Bool {
         SettingsCardValues.aboutIsHealthy(
-            hostConfigured: container.profilesStore?.activeProfile != nil || pairingStore.isPaired,
+            hostConfigured: container.hasGatewayCredentials,
             connectionOnline: effectiveConnectionState == .online)
     }
 

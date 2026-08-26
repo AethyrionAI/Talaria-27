@@ -38,13 +38,13 @@ enum SensorStreamingGrandfathering {
     @discardableResult
     static func migrateIfNeeded(
         settings: inout UserSettings,
-        isPaired: Bool,
+        hasHost: Bool,
         hadPersistedSettings: Bool,
         persistence: any AppPersistenceStoreProtocol
     ) -> Bool {
         guard !persistence.loadSensorStreamingMigrationStamp() else { return false }
         persistence.saveSensorStreamingMigrationStamp()
-        guard isPaired else { return false }
+        guard hasHost else { return false }
 
         settings.sensorStreamingEnabled = true
         // Motion never had a #6 revoke gate — it was always streaming.

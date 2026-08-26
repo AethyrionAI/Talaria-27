@@ -49,51 +49,8 @@ struct AppStoresTests {
         let timestamp: Date
     }
 
-    private func makeSetupCode(_ code: String = "ABCD-EFGH") -> String {
-        code
-    }
-
-    @MainActor
-    private final class RecordingPairingService: PairingServiceProtocol {
-        private(set) var lastMintedUserID: UUID?
-
-        func normalizePairingCode(_ rawCode: String) throws -> String {
-            try PhonePairingCode.normalize(rawCode)
-        }
-
-        func redeemPairingCode(
-            _ normalizedCode: String,
-            request: DeviceRegistrationRequest
-        ) async throws -> PairingRedeemResult {
-            let mintedUserID = UUID()
-            lastMintedUserID = mintedUserID
-            return PairingRedeemResult(
-                configuration: PairedRelayConfiguration(
-                    baseURLString: request.relayBaseURLString,
-                    hostDisplayName: URL(string: request.relayBaseURLString)?.host ?? request.relayBaseURLString,
-                    pairedAt: .now,
-                    relayUserID: mintedUserID
-                ),
-                state: AppSessionState(
-                    userID: mintedUserID,
-                    displayName: "Morgan",
-                    deviceID: UUID(),
-                    installationID: request.installationID,
-                    deviceRegistered: true,
-                    connectionStatus: .connected,
-                    syncStatus: .synced,
-                    isMockMode: false,
-                    backendEndpoint: request.relayBaseURLString,
-                    lastSyncAt: .now
-                ),
-                tokens: AuthTokens(
-                    accessToken: "paired-access-token-\(normalizedCode)",
-                    refreshToken: "paired-refresh-token-\(normalizedCode)",
-                    expiresAt: .distantFuture
-                )
-            )
-        }
-    }
+    // #309 Lane B: `RecordingPairingService` and `makeSetupCode` are deleted
+    // with `PairingServiceProtocol` and `PhonePairingCode`.
 
     @MainActor
     private final class RecordingHermesHostService: HermesHostServiceProtocol {
@@ -3074,29 +3031,18 @@ struct AppStoresTests {
         #expect(settingsStore.availableEnvironments == [.production])
     }
 
-    @Test @MainActor
-    func settingsStorePersistsCustomRelayConfiguration() async throws {
-        let suiteName = "settings-store-relay-config-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-
-        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
-        let settingsStore = SettingsStore(
-            persistence: persistence,
-            buildConfiguration: AppBuildConfiguration(
-                supportURL: nil,
-                termsOfServiceURL: nil,
-                privacyPolicyURL: nil
-            )
-        )
-
-        settingsStore.settings.relayConfiguration = RelayConfiguration(
-            customRelayBaseURL: "https://demo.example.com/v1"
-        )
-
-        let reloaded = persistence.loadUserSettings()
-        #expect(reloaded?.relayConfiguration.activeBaseURLString == "https://demo.example.com/v1")
-    }
+    // **TOMBSTONED 2026-08-25 (#309 Lane B).**
+    // `settingsStorePersistsCustomRelayConfiguration` wrote a relay URL into
+    // `UserSettings` and read it back. `RelayConfiguration` is deleted — its
+    // last live reader was a Developer-screen row printing a relay origin for
+    // hosts that have none.
+    //
+    // The PERSISTENCE property it was really about — the settings store
+    // round-trips a mutation through `UserDefaults` — keeps its own pins
+    // above (`settingsStorePersistsEnvironmentChanges` and siblings), and the
+    // decode tolerance the deleted key now needs is
+    // `aLegacyUserSettingsBlobWithARelayConfigurationStillDecodes`
+    // (ServerSettingsTests).
 
     @Test
     func relayDecoderParsesFractionalSecondsWithoutTimezone() throws {
@@ -3155,56 +3101,23 @@ struct AppStoresTests {
         #expect(cleared.hostName == "keep-me")
     }
 
-    @Test
-    func phonePairingCodeNormalizesAndFormatsManualEntry() throws {
-        let normalized = try PhonePairingCode.normalize("ab cd-efgh")
+    // **TOMBSTONED 2026-08-25 (#309 Lane B) — two tests, one deletion.**
+    //
+    // `phonePairingCodeNormalizesAndFormatsManualEntry` pinned the 8-character
+    // relay alphabet (`ABCD-EFGH`, no I/O/0/1) that `PhonePairingCode` parsed.
+    // `pairingStorePersistsRelayConfigurationAndTokens` pinned that a redeem
+    // wrote the pairing record and both relay JWTs. Neither type exists: the
+    // code was minted by a CLI verb Lane D deleted and redeemed at a relay
+    // retired on both hosts (#412 is the entry where the flow's two dead ends
+    // were finally written down).
+    //
+    // **Ported, not lost.** The code-shape pin becomes
+    // `ConnectHostPayloadTests` — which is a stronger contract than this one
+    // was, because it pins BYTES shared with another repository rather than an
+    // alphabet this repo invented. The credential-write pin becomes
+    // `ConnectHostTests.aGreenProbeCommitsExactlyOnce`, which counts writes
+    // instead of reading the record afterwards.
 
-        #expect(normalized == "ABCDEFGH")
-        #expect(PhonePairingCode.format("ab cd-efgh") == "ABCD-EFGH")
-        #expect(PhonePairingCode.isComplete("ABCD-EFGH"))
-    }
-
-    @Test @MainActor
-    func pairingStorePersistsRelayConfigurationAndTokens() async throws {
-        let suiteName = "pairing-store-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-
-        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
-        let secureStore = MockSecureStore()
-        let sessionStore = AppSessionStore(
-            secureStore: secureStore,
-            persistence: persistence,
-        )
-        let pairingStore = PairingStore(
-            pairingService: RecordingPairingService(),
-            sessionStore: sessionStore,
-            persistence: persistence,
-            environmentProvider: { .production },
-            relayBaseURLProvider: { "https://relay.example.test/v1" }
-        )
-
-        let setupCode = makeSetupCode()
-        let didPair = await pairingStore.pair(using: setupCode)
-
-        #expect(didPair)
-        #expect(pairingStore.pairedRelayConfiguration?.hostDisplayName == "relay.example.test")
-        #expect(persistence.loadPairedRelayConfiguration()?.baseURLString == "https://relay.example.test/v1")
-        #expect(await secureStore.retrieve(key: "session.accessToken") == "paired-access-token-ABCDEFGH")
-        #expect(sessionStore.state.displayName == "Morgan")
-    }
-
-    // **TOMBSTONE — #309 Lane C, 2026-08-25.**
-    // `hostStoreGeneratesEnrollmentCodeAndClearsOnRevoke` is deleted with the
-    // two store methods it drove. `generateEnrollmentCode()` (relay row 8) and
-    // `revokeCurrentHost()` (row 9) both spoke to the relay's ENROLLMENT
-    // record — a host registering with a third party so the phone could ask
-    // about it — and the gateway plane has no such record: the gateway IS the
-    // host. Neither behaviour is re-pointed anywhere, so there is nothing to
-    // port; the surviving half of what this test covered (a refresh landing a
-    // host record on the store) is pinned by
-    // `gatewayHostProbeReportsAReachableHostFromAHealthAnswer` above and by
-    // `hostStoreKeepsKnownOnlineHostDuringRefreshErrors` below.
 
     @Test @MainActor
     func hostStoreMarksReachabilityErrorsWithoutPretendingHostIsOffline() async throws {
@@ -3248,145 +3161,29 @@ struct AppStoresTests {
         #expect(hostStore.lastErrorMessage == "Relay unreachable.")
     }
 
-    @Test @MainActor
-    func pairingStoreDisconnectClearsRelayConfigurationAndSession() async throws {
-        let suiteName = "pairing-store-disconnect-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
+    // **TOMBSTONED 2026-08-25 (#309 Lane B) — three tests, one plane.**
+    //
+    // `pairingStoreDisconnectClearsRelayConfigurationAndSession`,
+    // `pairingWipesStaleKeychainIdentityAndRecordsMintedUser` and
+    // `validateRestoredIdentityFlagsResurrectedStaleUser` all measured the
+    // #3/#46 stale-identity guard: a reinstall could resurrect a previous
+    // relay user from the Keychain, so a redeem adopted its new identity on a
+    // clean slate and `validateRestoredIdentity()` flagged a survivor.
+    //
+    // **The defect they guard cannot occur on the gateway plane, and that is
+    // why they are tombstoned rather than ported.** There is no minted
+    // identity to resurrect: a gateway credential is a key the USER pasted,
+    // not a user id a server issued, so "the Keychain's identity disagrees
+    // with the pairing's" has no two things to disagree. What survives of the
+    // clean-slate rule — a connect writes one profile's slots and only after
+    // the remote step passed — is `ConnectHostTests`, and Disconnect's own
+    // wipe of BOTH credential families is
+    // `disconnectClearsOnlyTheTargetProfilesCredentials` there.
+    //
+    // The Keychain-slot mechanics they exercised end to end keep a live pin in
+    // `theRelayResiduePurgeIsScopedAndDoesNotWiden` (BackendProfilesTests),
+    // which additionally proves the sweep does not widen onto the gateway key.
 
-        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
-        let secureStore = MockSecureStore()
-        let sessionStore = AppSessionStore(
-            secureStore: secureStore,
-            persistence: persistence,
-        )
-        let pairingStore = PairingStore(
-            pairingService: RecordingPairingService(),
-            sessionStore: sessionStore,
-            persistence: persistence,
-            environmentProvider: { .production },
-            relayBaseURLProvider: { "https://relay.example.test/v1" }
-        )
-
-        let setupCode = makeSetupCode()
-        _ = await pairingStore.pair(using: setupCode)
-
-        await pairingStore.disconnect()
-
-        // Clear-on-disconnect guard (#3): the Keychain must hold NO relay
-        // identity after an unpair — both token keys gone, config gone from
-        // both stores.
-        #expect(pairingStore.pairedRelayConfiguration == nil)
-        #expect(persistence.loadPairedRelayConfiguration() == nil)
-        #expect(await secureStore.retrieve(key: "session.accessToken") == nil)
-        #expect(await secureStore.retrieve(key: "session.refreshToken") == nil)
-        #expect(sessionStore.state.deviceRegistered == false)
-    }
-
-    // MARK: - Stale Keychain identity (#3 / #46)
-
-    @Test @MainActor
-    func pairingWipesStaleKeychainIdentityAndRecordsMintedUser() async throws {
-        let suiteName = "pairing-store-stale-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-
-        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
-        let secureStore = MockSecureStore()
-
-        // Simulate a reinstall-resurrected identity: stale tokens in the
-        // Keychain, a stale pairing config, and a stale session user.
-        let staleUserID = UUID()
-        await secureStore.store(key: "session.accessToken", value: "stale-access-token")
-        await secureStore.store(key: "session.refreshToken", value: "stale-refresh-token")
-        persistence.savePairedRelayConfiguration(
-            PairedRelayConfiguration(
-                baseURLString: "https://old.relay.test/v1",
-                hostDisplayName: "old.relay.test",
-                pairedAt: .distantPast,
-                relayUserID: staleUserID
-            )
-        )
-        persistence.saveSessionState(AppSessionState(userID: staleUserID, deviceRegistered: true))
-
-        let sessionStore = AppSessionStore(
-            secureStore: secureStore,
-            persistence: persistence,
-        )
-        let pairingService = RecordingPairingService()
-        let pairingStore = PairingStore(
-            pairingService: pairingService,
-            sessionStore: sessionStore,
-            persistence: persistence,
-            environmentProvider: { .production },
-            relayBaseURLProvider: { "https://relay.example.test/v1" }
-        )
-
-        let didPair = await pairingStore.pair(using: makeSetupCode())
-
-        // No stale survivor: tokens are the freshly minted ones, the pairing
-        // records the minted relay user, and the session matches it.
-        #expect(didPair)
-        #expect(await secureStore.retrieve(key: "session.accessToken") == "paired-access-token-ABCDEFGH")
-        #expect(await secureStore.retrieve(key: "session.refreshToken") == "paired-refresh-token-ABCDEFGH")
-        #expect(pairingStore.pairedRelayConfiguration?.relayUserID == pairingService.lastMintedUserID)
-        #expect(sessionStore.state.userID == pairingService.lastMintedUserID)
-        #expect(pairingStore.identityMismatchDetected == false)
-        pairingStore.validateRestoredIdentity()
-        #expect(pairingStore.identityMismatchDetected == false)
-    }
-
-    @Test @MainActor
-    func validateRestoredIdentityFlagsResurrectedStaleUser() async throws {
-        let suiteName = "pairing-store-mismatch-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-
-        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
-        let sessionStore = AppSessionStore(
-            secureStore: MockSecureStore(),
-            persistence: persistence,
-        )
-
-        let pairedUserID = UUID()
-        persistence.savePairedRelayConfiguration(
-            PairedRelayConfiguration(
-                baseURLString: "https://relay.example.test/v1",
-                hostDisplayName: "relay.example.test",
-                pairedAt: .now,
-                relayUserID: pairedUserID
-            )
-        )
-        let pairingStore = PairingStore(
-            pairingService: RecordingPairingService(),
-            sessionStore: sessionStore,
-            persistence: persistence,
-            environmentProvider: { .production },
-            relayBaseURLProvider: { "https://relay.example.test/v1" }
-        )
-
-        // Session restored as a DIFFERENT user than the pairing minted —
-        // the reinstall-resurrection signature (#46).
-        sessionStore.state.userID = UUID()
-        pairingStore.validateRestoredIdentity()
-        #expect(pairingStore.identityMismatchDetected)
-
-        // Matching identity clears the flag.
-        sessionStore.state.userID = pairedUserID
-        pairingStore.validateRestoredIdentity()
-        #expect(pairingStore.identityMismatchDetected == false)
-
-        // Pre-#3 pairings (no recorded user) can't be validated — no flag.
-        persistence.clearPairedRelayConfiguration()
-        pairingStore.pairedRelayConfiguration = PairedRelayConfiguration(
-            baseURLString: "https://relay.example.test/v1",
-            hostDisplayName: "relay.example.test",
-            pairedAt: .now
-        )
-        sessionStore.state.userID = UUID()
-        pairingStore.validateRestoredIdentity()
-        #expect(pairingStore.identityMismatchDetected == false)
-    }
 
     @Test @MainActor
     func inboxStorePersistsReadAndDismissState() async throws {
@@ -3395,10 +3192,6 @@ struct AppStoresTests {
         defaults.removePersistentDomain(forName: suiteName)
 
         let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
-        let sessionStore = AppSessionStore(
-            secureStore: MockSecureStore(),
-            persistence: persistence,
-        )
 
         let inboxStore = InboxStore(
             inboxService: MockInboxService(),
@@ -4214,7 +4007,6 @@ struct AppStoresTests {
         /// owns the service privately, so the harness is the only place a
         /// test can reach it.
         let voiceService: RecordingVoiceSessionService
-        let pairedUserID: UUID
 
         func openAllGates() {
             hostGate.open()
@@ -4245,39 +4037,21 @@ struct AppStoresTests {
         let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
 
         let secureStore = MockSecureStore()
-        // #369: `seedAccessToken: false` is the defect's own shape — a pairing
-        // record present with an EMPTY access-token slot, which is what a
-        // pre-first-unlock Keychain read (or any other non-success OSStatus)
-        // is indistinguishable from upstream of `retrieve`.
+        // **#309 Lane B re-keyed this fixture from the relay plane onto the
+        // gateway one, and kept #369's shape.** `seedAccessToken: false` was
+        // "a pairing record present with an EMPTY access-token slot" — the
+        // pre-first-unlock Keychain read, indistinguishable upstream of
+        // `retrieve` from a missing item. The same defect has the same shape
+        // on the gateway plane, with the GATEWAY KEY as the credential that
+        // reads empty: `credentialsUnreadableHold` is about that slot now.
         if seedAccessToken {
-            await secureStore.store(key: "session.accessToken", value: "launch-access-token")
+            await secureStore.store(
+                key: BackendProfileScopedKeys.gatewayAPIKey(nil), value: "launch-gateway-key")
         }
-        await secureStore.store(key: "session.refreshToken", value: "launch-refresh-token")
-
-        let pairedUserID = UUID()
-        persistence.savePairedRelayConfiguration(
-            PairedRelayConfiguration(
-                baseURLString: "https://relay.example.test/v1",
-                hostDisplayName: "relay.example.test",
-                pairedAt: .now,
-                relayUserID: pairedUserID
-            )
-        )
 
         let hostGate = BlackHoleGate()
         let inboxGate = BlackHoleGate()
 
-        let sessionStore = AppSessionStore(
-            secureStore: secureStore,
-            persistence: persistence,
-        )
-        let pairingStore = PairingStore(
-            pairingService: RecordingPairingService(),
-            sessionStore: sessionStore,
-            persistence: persistence,
-            environmentProvider: { .production },
-            relayBaseURLProvider: { "https://relay.example.test/v1" }
-        )
         let hostService = BlackHoleHermesHostService(
             gate: hostGate,
             host: HermesHostStatus(
@@ -4298,8 +4072,6 @@ struct AppStoresTests {
         let inboxService = BlackHoleInboxService(gate: inboxGate)
         let voiceService = RecordingVoiceSessionService()
         let container = AppContainer(
-            sessionStore: sessionStore,
-            pairingStore: pairingStore,
             hostStore: hostStore,
             chatStore: ChatStore(hermesClient: chatClient ?? RecordingHermesClient(), persistence: persistence),
             inboxStore: InboxStore(
@@ -4322,9 +4094,86 @@ struct AppStoresTests {
             inboxGate: inboxGate,
             hostService: hostService,
             inboxService: inboxService,
-            voiceService: voiceService,
-            pairedUserID: pairedUserID
+            voiceService: voiceService
         )
+    }
+
+    /// **#309 Lane B — the splash is a LAUNCH surface, and a host-lifecycle
+    /// reset must never re-raise it.**
+    ///
+    /// Both host seams set `isInitialized = false` on purpose: the host-backed
+    /// work genuinely has to run again. But `shouldShowLaunchSplash` was
+    /// `hasGatewayCredentials && !isInitialized`, so committing credentials
+    /// from inside the Connect Host wizard flipped BOTH terms in one beat and
+    /// threw a full-screen splash over the user — for as long as the fresh
+    /// `initialize()`'s host half took, which against an unreachable address
+    /// is the full timeout.
+    ///
+    /// **Found by the UI journeys, not by reasoning:** all three connect
+    /// journeys failed the full-bundle gate at step 3 and passed in isolation,
+    /// because in isolation the splash cleared before the assertion looked.
+    ///
+    /// **This test drives DISCONNECT, and that is deliberate — the first draft
+    /// drove `handleHostConnected()` and the mutation SURVIVED it.** That
+    /// handler chases its own flag flip with an `await initialize()`, so on a
+    /// harness container the whole window closes inside one MainActor chunk
+    /// and a poll can never see it: a green test that measured timing rather
+    /// than the rule. `handleHostDisconnected()` performs the SAME flip and
+    /// does not re-initialize, so the state it leaves is exactly the one the
+    /// wizard's user stood in — observable, and not a race.
+    ///
+    /// Mutation that must turn this RED: drop
+    /// `&& !hasCompletedFirstInitialize` from `shouldShowLaunchSplash`.
+    /// (Verified: it does.)
+    @Test @MainActor
+    func aHostLifecycleResetNeverRaisesTheLaunchSplashAgain() async {
+        let harness = await makeLaunchHarness(
+            suiteName: "309-B-splash-\(UUID().uuidString)")
+        harness.openAllGates()
+        let container = harness.container
+
+        // A host-bearing launch DOES start on the splash — assert it, or the
+        // whole test could pass against a surface that never appears at all.
+        #expect(container.shouldShowLaunchSplash,
+                "fixture precondition: a host-bearing launch starts on the splash")
+        await container.initialize()
+        #expect(container.shouldShowLaunchSplash == false)
+
+        // The flag flip, in the seam that leaves it observable. The harness's
+        // credential probe still reports a host, which is what isolates the
+        // `isInitialized` term as the only thing that changed.
+        await container.handleHostDisconnected()
+        #expect(container.hasGatewayCredentials,
+                "fixture precondition: the probe still reports a host, so only isInitialized moved")
+        #expect(container.shouldShowLaunchSplash == false,
+                "a host-lifecycle reset re-raised the launch splash over the user")
+
+        // …and the connect seam, whose commit is where the defect was seen.
+        await container.handleHostConnected()
+        #expect(container.shouldShowLaunchSplash == false)
+    }
+
+    /// **#309 Lane B — `initialize()`'s share drain is a LAUNCH step, because
+    /// it NAVIGATES.**
+    ///
+    /// `drainShareInbox()` ends with `router.popToRoot()`. That is right at
+    /// launch: a staged share belongs in the composer, and the composer is the
+    /// root. It is wrong from `handleHostConnected()`, which re-runs
+    /// `initialize()` while the user is standing inside the Connect Host
+    /// wizard — with anything queued in the app group, committing the
+    /// credentials threw them out of step 2 into chat.
+    ///
+    /// **The behavioural evidence is the UI journeys**, which is where this was
+    /// found and where it is measured: the share inbox lives in the shared APP
+    /// GROUP, which — unlike the per-test defaults suite and Keychain service
+    /// — is NOT isolated between UI tests, so the drain only ever had anything
+    /// to do in a full-bundle run. Alone, all three journeys passed.
+    ///
+    /// This pins the RULE by its name, so the reason survives the fix.
+    @Test @MainActor
+    func theLaunchShareDrainRunsOnceAndNotOnEveryReInitialize() {
+        #expect(AppContainer.launchStepsShouldDrainShareInbox(hasCompletedFirstInitialize: false))
+        #expect(AppContainer.launchStepsShouldDrainShareInbox(hasCompletedFirstInitialize: true) == false)
     }
 
     /// Polls `condition` until it holds or the deadline passes; returns
@@ -4390,8 +4239,7 @@ struct AppStoresTests {
 
         await container.handleActiveProfileChanged(to: BackendProfile(
             name: "New Host",
-            gatewayBaseURL: "http://new-host:8642",
-            relayBaseURL: "http://new-host:8000/v1"
+            gatewayBaseURL: "http://new-host:8642"
         ))
 
         #expect(skillsStore.skills.isEmpty)
@@ -4447,12 +4295,13 @@ struct AppStoresTests {
         harness.openAllGates()
         let container = harness.container
 
-        // The install IS paired on the relay plane and DOES hold a relay
-        // access token — the two conditions that used to be the whole gate.
-        // Neither is consulted any more; asserting them keeps the test from
-        // passing for the wrong reason if either ever changed.
-        #expect(container.pairingStore.isPaired)
-        #expect(await container.sessionStore.currentAccessToken() != nil)
+        // **The install HOLDS gateway credentials** — the fixture's own
+        // precondition, asserted so the test cannot pass for the wrong reason
+        // (a refresh that happens because nothing is configured proves
+        // nothing). #309 Lane B re-keyed this from the two relay facts it used
+        // to name: a pairing record and a relay access token, neither of which
+        // exists.
+        #expect(container.hasGatewayCredentials)
 
         await container.handleActiveProfileChanged(to: BackendProfile(
             name: "Gateway only",
@@ -4493,13 +4342,11 @@ struct AppStoresTests {
         harness.openAllGates()
         let container = harness.container
 
-        #expect(container.pairingStore.isPaired)
-        #expect(await container.sessionStore.currentAccessToken() != nil)
+        #expect(container.hasGatewayCredentials)
 
         await container.handleActiveProfileChanged(to: BackendProfile(
             name: "Has a relay",
-            gatewayBaseURL: "http://has-relay:8642",
-            relayBaseURL: "https://relay.example.test/v1"
+            gatewayBaseURL: "http://has-relay:8642"
         ))
 
         let refreshed = await pollUntil(timeout: .seconds(3)) {
@@ -4551,8 +4398,7 @@ struct AppStoresTests {
         let switchTask = Task { @MainActor in
             await container.handleActiveProfileChanged(to: BackendProfile(
                 name: "Has a relay",
-                gatewayBaseURL: "http://has-relay:8642",
-                relayBaseURL: "https://relay.example.test/v1"
+                gatewayBaseURL: "http://has-relay:8642"
             ))
             completions.count += 1
         }
@@ -4992,24 +4838,30 @@ struct AppStoresTests {
     /// siblings — foreground activation, system launch, background refresh —
     /// all logged BLOCKED and returned; only this one destroyed.
     ///
-    /// Mutation that must turn this RED: put `await
-    /// pairingStore.clearLocalPairing()` on `initialize()`'s hold branch.
+    /// Mutation that must turn this RED: make `initialize()`'s hold branch
+    /// clear the profile's gateway credentials instead of holding.
+    ///
+    /// **#309 Lane B re-pointed the subject from the relay pairing record to
+    /// the profile's ENDPOINT.** The defect is unchanged and so is its shape —
+    /// a credential the Keychain would not hand over must never be read as
+    /// "the user unpaired" — but what a launch could destroy is now the
+    /// profile that names the host, not a redeemed record.
     @Test @MainActor
-    func anUnreadableCredentialAtLaunchNeverDestroysThePairing() async {
+    func anUnreadableCredentialAtLaunchNeverDestroysTheHost() async {
         let harness = await makeLaunchHarness(
             suiteName: "369-hold-\(UUID().uuidString)",
             seedAccessToken: false,
             gatewayCredentials: false
         )
         let container = harness.container
-        #expect(container.pairingStore.isPaired, "fixture precondition: the install starts paired")
+        let hostBefore = container.profilesStore?.activeProfile?.gatewayBaseURL
 
         await container.initialize()
 
-        #expect(container.pairingStore.isPaired,
-                "an unreadable credential slot must never unpair a healthy install")
-        #expect(container.pairingStore.pairedRelayConfiguration != nil,
-                "the pairing RECORD itself must survive, not just the isPaired flag")
+        #expect(container.credentialsUnreadableHold,
+                "fixture precondition: the launch HELD rather than proceeding")
+        #expect(container.profilesStore?.activeProfile?.gatewayBaseURL == hostBefore,
+                "an unreadable credential slot must never forget a healthy host")
     }
 
     /// **369-B.** The obvious fix — stop clearing, return early — ships a worse
@@ -5394,9 +5246,9 @@ struct AppStoresTests {
     /// critical path on cold launch — the case that ran none of it before,
     /// because `initialize()` opened with `guard pairingStore.isPaired`.
     ///
-    /// Mutation that must turn this RED: put any gate — `isPaired`, or
-    /// `hasGatewayCredentials` — back in front of the local block in
-    /// `initialize()`.
+    /// Mutation that must turn this RED: put any gate —
+    /// `hasGatewayCredentials`, or anything else — back in front of the local
+    /// block in `initialize()`.
     @Test @MainActor
     func aHostlessInstallStillRunsTheWholeLocalCriticalPathAtLaunch() async throws {
         let harness = await makeLaunchHarness(
@@ -5404,10 +5256,12 @@ struct AppStoresTests {
             gatewayCredentials: false
         )
         let container = harness.container
-        // The unpaired, hostless shape: no relay pairing at all. This is the
-        // install the four gates locked out entirely.
-        await container.pairingStore.clearLocalPairing(notify: false)
-        #expect(container.pairingStore.isPaired == false, "fixture precondition: nothing is paired")
+        // The hostless shape — the install the four gates locked out entirely.
+        // `gatewayCredentials: false` above is what makes it hostless; this
+        // line asserts it rather than arranging it, because a fixture that
+        // silently became host-bearing would make every claim below vacuous.
+        #expect(container.hasGatewayCredentials == false,
+                "fixture precondition: no host is configured")
 
         let widgetBefore = SharedWidgetDataStore.read().updatedAt
         await container.initialize()
@@ -5434,7 +5288,8 @@ struct AppStoresTests {
             gatewayCredentials: false
         )
         let container = harness.container
-        await container.pairingStore.clearLocalPairing(notify: false)
+        #expect(container.hasGatewayCredentials == false,
+                "fixture precondition: no host is configured")
         let widgetBefore = SharedWidgetDataStore.read().updatedAt
 
         await container.handleAppDidBecomeActive()
@@ -5502,7 +5357,7 @@ struct AppStoresTests {
 
         // Unpair while the host probe hangs (#136 non-negotiable 5 — the
         // reset site must cancel/supersede in-flight background init).
-        await container.handlePairingRemoved()
+        await container.handleHostDisconnected()
 
         harness.openAllGates()
         await initTask.value
@@ -5529,7 +5384,7 @@ struct AppStoresTests {
         // non-negotiable 5 — the reset site supersedes, and the fresh
         // initialize() must actually re-run the host half rather than
         // silently skipping it on the single-flight gate).
-        let rePairTask = Task { @MainActor in await container.handlePairingActivated() }
+        let rePairTask = Task { @MainActor in await container.handleHostConnected() }
         let secondRefreshStarted = await pollUntil { harness.hostService.fetchCallCount >= 2 }
         #expect(secondRefreshStarted, "re-pair must supersede the in-flight refresh and run a fresh one")
 
@@ -5539,7 +5394,10 @@ struct AppStoresTests {
 
         let settled = await pollUntil { container.hostStore.isHostOnline }
         #expect(settled)
-        #expect(container.pairingStore.identityMismatchDetected == false)
+        // #309 Lane B: the identity-mismatch assertion that stood here is
+        // gone with `PairingStore`. It was already the weakest line in this
+        // test — a check that nothing wrote a flag nothing writes. What the
+        // test is actually about is the reset race, asserted above.
     }
 
     @Test @MainActor
@@ -5565,7 +5423,7 @@ struct AppStoresTests {
         let streaming = await pollUntil { container.chatStore.isStreaming }
         #expect(streaming)
 
-        await container.handlePairingActivated()
+        await container.handleHostConnected()
 
         #expect(container.chatStore.pendingRunSessionId == nil, "re-pair must abandon the departing host's pending run")
         #expect(container.chatStore.isStreaming == false, "re-pair must tear down the departing host's streaming state")

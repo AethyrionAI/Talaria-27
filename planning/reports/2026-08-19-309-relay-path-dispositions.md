@@ -1,14 +1,20 @@
 # #309 — the 16 surviving relay paths, with adapt-or-delete dispositions
 
-> **🏁 EXECUTED — 2026-08-25. EVERY ROW IN THIS TABLE IS DONE EXCEPT ONE.**
+> **🏁 EXECUTED — 2026-08-25. EVERY ROW IN THIS TABLE IS DONE.**
 > Read the table below as history, not as work: it is the record of what
 > was decided, and each row now carries an outcome.
+>
+> **The last one closed the same night.** Row 6 (`POST phone-pairing/redeem`)
+> was the app's final relay HTTP call; #309 Lane B deleted
+> `LivePairingService` with it, together with `PairingStore`, both pairing
+> screens and the relay session store. **There is no code path from this app
+> to a relay any more** — the register that opened this report is empty.
 >
 > | rows | outcome |
 > |---|---|
 > | 1–4 (the auth chain) | DELETED — #309 Lane A, PR #381 |
 > | 5 (`device/provisioning`) | ALREADY ABSENT — #375 took it; re-verified by grep, Lane C |
-> | **6 (`phone-pairing/redeem`)** | **THE ONLY ROW LEFT — #309 Lane B's, with `LivePairingService`, `PairingStore` and the pairing screens** |
+> | **6 (`phone-pairing/redeem`)** | **DELETED — #309 Lane B, with `LivePairingService`, `PairingStore`, both pairing screens and `AppSessionStore`. The register's last row.** |
 > | 7 (`hosts/current`) | **ADAPTED → gateway `GET /health`** — Lane C bar C2, `GatewayHermesHostService` |
 > | 8, 9 (enrollment, revoke) | DELETED — Lane C, with the host-service protocol's shrink to one method |
 > | 10 (`device/app-state`) | DELETED — Lane C bar C4, at all three call sites |

@@ -23,100 +23,16 @@ struct AppBuildConfiguration: Equatable, Sendable {
     }
 }
 
-/// The user's relay endpoint. Lane M (#114) retired the "hosted relay" mode
-/// (never used, never will be — Owen) and the mode switch with it: every
-/// backend profile is its-own-relay by construction, and this struct
-/// survives only as the legacy seed the profile migration reads plus the
-/// pre-profile persistence shape. Old persisted blobs (with `relayMode` /
-/// hosted keys) decode by ignoring the dead keys.
-struct RelayConfiguration: Codable, Hashable, Sendable {
-    var customRelayBaseURL: String
+// **`RelayConfiguration` is DELETED — #309 Lane B, 2026-08-25.**
+//
+// It survived Lane M as "the legacy seed the profile migration reads plus the
+// pre-profile persistence shape". Lane B took both: the migration's
+// `relayBaseURL` seed is gone with `BackendProfile.relayBaseURL`, and the last
+// live reader was a Developer-screen row printing a relay origin for hosts
+// that have none. A persisted `UserSettings` blob still carrying the
+// `relayConfiguration` key decodes fine — `init(from:)` never asks for it —
+// and a re-encode drops it.
 
-    init(customRelayBaseURL: String = "") {
-        self.customRelayBaseURL = RelayConfiguration.normalizeBaseURL(customRelayBaseURL) ?? customRelayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case customRelayBaseURL
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        customRelayBaseURL = try container.decodeIfPresent(String.self, forKey: .customRelayBaseURL) ?? ""
-    }
-
-    static func defaultValue(
-        environmentPolicy: AppEnvironmentPolicy = .currentBuild
-    ) -> RelayConfiguration {
-        RelayConfiguration(
-            customRelayBaseURL: environmentPolicy.allowsEnvironmentOverrides ? AppEnvironment.development.baseURLString : ""
-        )
-    }
-
-    static func migratedLegacyValue(
-        environment: AppEnvironment,
-        environmentPolicy: AppEnvironmentPolicy = .currentBuild
-    ) -> RelayConfiguration {
-        if environmentPolicy.allowsEnvironmentOverrides, environment != .production {
-            return RelayConfiguration(customRelayBaseURL: environment.baseURLString)
-        }
-        return RelayConfiguration.defaultValue(environmentPolicy: environmentPolicy)
-    }
-
-    var activeBaseURLString: String? {
-        RelayConfiguration.normalizeBaseURL(customRelayBaseURL)
-    }
-
-    var relayOriginLabel: String {
-        guard let baseURLString = activeBaseURLString, let url = URL(string: baseURLString) else {
-            return "Not Configured"
-        }
-        return url.host ?? baseURLString
-    }
-
-    var validationMessage: String? {
-        let trimmed = customRelayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return "Enter your relay URL." }
-        guard RelayConfiguration.normalizeBaseURL(trimmed) != nil else {
-            return "Relay URL must be an absolute http(s) URL ending with /v1."
-        }
-        return nil
-    }
-
-    static func normalizeBaseURL(_ raw: String?) -> String? {
-        guard let raw else { return nil }
-        var trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-
-        if !trimmed.hasPrefix("http://"), !trimmed.hasPrefix("https://") {
-            return nil
-        }
-
-        while trimmed.hasSuffix("/") {
-            trimmed.removeLast()
-        }
-
-        guard var components = URLComponents(string: trimmed),
-              let scheme = components.scheme?.lowercased(),
-              ["http", "https"].contains(scheme)
-        else {
-            return nil
-        }
-
-        let normalizedPath: String
-        switch components.path {
-        case "", "/":
-            normalizedPath = "/v1"
-        default:
-            normalizedPath = components.path.hasSuffix("/") ? String(components.path.dropLast()) : components.path
-        }
-        guard normalizedPath.hasSuffix("/v1") else {
-            return nil
-        }
-        components.path = normalizedPath
-        return components.string
-    }
-}
 
 /// #144 — a test run must never enrol as a LIVE device.
 ///
@@ -357,7 +273,6 @@ struct UserSettings: Codable, Hashable, Sendable {
     var avatarInitials: String
     var hapticFeedbackEnabled: Bool
     var environment: AppEnvironment
-    var relayConfiguration: RelayConfiguration
     var autoConnectOnLaunch: Bool
     // In-app permission revocation (#6): the app can't rescind an iOS grant,
     // so revoke = durably stop USING it. Since #352 these gate
@@ -462,7 +377,6 @@ struct UserSettings: Codable, Hashable, Sendable {
         avatarInitials: String = "U",
         hapticFeedbackEnabled: Bool = true,
         environment: AppEnvironment = AppEnvironmentPolicy.currentBuild.defaultEnvironment,
-        relayConfiguration: RelayConfiguration = RelayConfiguration.defaultValue(),
         autoConnectOnLaunch: Bool = true,
         healthCollectionEnabled: Bool = false,
         locationCollectionEnabled: Bool = false,
@@ -495,7 +409,6 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.avatarInitials = avatarInitials
         self.hapticFeedbackEnabled = hapticFeedbackEnabled
         self.environment = environment
-        self.relayConfiguration = relayConfiguration
         self.autoConnectOnLaunch = autoConnectOnLaunch
         self.healthCollectionEnabled = healthCollectionEnabled
         self.locationCollectionEnabled = locationCollectionEnabled
@@ -538,7 +451,6 @@ struct UserSettings: Codable, Hashable, Sendable {
         case avatarInitials
         case hapticFeedbackEnabled
         case environment
-        case relayConfiguration
         case autoConnectOnLaunch
         case healthCollectionEnabled
         case locationCollectionEnabled
@@ -574,8 +486,6 @@ struct UserSettings: Codable, Hashable, Sendable {
         avatarInitials = try container.decodeIfPresent(String.self, forKey: .avatarInitials) ?? "U"
         hapticFeedbackEnabled = try container.decodeIfPresent(Bool.self, forKey: .hapticFeedbackEnabled) ?? true
         environment = try container.decodeIfPresent(AppEnvironment.self, forKey: .environment) ?? AppEnvironmentPolicy.currentBuild.defaultEnvironment
-        relayConfiguration = try container.decodeIfPresent(RelayConfiguration.self, forKey: .relayConfiguration)
-            ?? RelayConfiguration.migratedLegacyValue(environment: environment)
         autoConnectOnLaunch = try container.decodeIfPresent(Bool.self, forKey: .autoConnectOnLaunch) ?? true
         healthCollectionEnabled = try container.decodeIfPresent(Bool.self, forKey: .healthCollectionEnabled) ?? true
         locationCollectionEnabled = try container.decodeIfPresent(Bool.self, forKey: .locationCollectionEnabled) ?? true
@@ -658,8 +568,12 @@ enum AppEnvironment: String, Codable, CaseIterable, Hashable, Sendable {
 
     var baseURLString: String {
         switch self {
-        case .production: ""  // Use custom relay URL from RelayConfiguration
-        case .staging: ""     // Use custom relay URL from RelayConfiguration
+        // #309 Lane B: production and staging never had a base URL of
+        // their own — the string came from the user's relay config, and
+        // that type is deleted. Development keeps its loopback literal,
+        // which is the only one this enum ever actually owned.
+        case .production: ""
+        case .staging: ""
         case .development: "http://127.0.0.1:8000/v1"
         }
     }

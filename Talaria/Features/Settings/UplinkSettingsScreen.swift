@@ -91,7 +91,6 @@ struct UplinkSettingsScreen: View {
     var embedded: Bool = false
     @Environment(\.dismiss) private var dismiss
     @Environment(AppContainer.self) private var container
-    @Environment(AppSessionStore.self) private var sessionStore
     @Environment(HermesHostStore.self) private var hostStore
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(TabRouter.self) private var router
@@ -120,9 +119,9 @@ struct UplinkSettingsScreen: View {
         ConnectionSignal.settingsState(container: container, hostStore: hostStore)
     }
 
-    private var isDirect: Bool {
-        container.chatStore.directConnectionStatus == .connected
-    }
+    // #309 Lane B: `isDirect` is deleted with the DIRECT/RELAY link qualifier
+    // it fed. There is one transport now, so the property had one possible
+    // answer and its only reader printed the other branch's word.
 
     var body: some View {
         ZStack {
@@ -209,7 +208,8 @@ struct UplinkSettingsScreen: View {
 
     private var linkTitle: String {
         switch effectiveConnectionState {
-        case .online: isDirect ? "DIRECT LINK" : "RELAY LINK"
+        // #309 Lane B: there is one transport, so the qualifier is gone.
+        case .online: "CONNECTED"
         case .offline: "STANDBY"
         case .unreachable: "OFFLINE"
         case .notConnected: "NOT LINKED"
@@ -228,7 +228,7 @@ struct UplinkSettingsScreen: View {
 
     private var linkDetail: String {
         switch effectiveConnectionState {
-        case .online: "\(hostDisplay) · \(sessionStore.state.connectionStatus.displayLabel.uppercased())"
+        case .online: "\(hostDisplay) · CONNECTED"
         case .offline: "\(hostDisplay) · STANDBY"
         case .unreachable: "UNREACHABLE · CHECK UPLINK"
         case .notConnected: "NOT CONFIGURED"
@@ -392,11 +392,13 @@ struct UplinkSettingsScreen: View {
 
     private var actionButtons: some View {
         VStack(spacing: Design.Spacing.sm) {
-            // #152: the pairing surface owns revoke and disconnect too, so
-            // the label can't advertise only pairing.
-            GlowButton(title: "Pairing & Devices", systemImage: "link") {
+            // #309 Lane B: "Pairing & Devices" is now **Connect Host** — the
+            // screen it opens is a different screen, and #412 filed the old
+            // label's own advertisement as a defect (it instructed a flow that
+            // could not complete at either end).
+            GlowButton(title: ConnectHostCopy.screenTitle, systemImage: "link") {
                 router.dismissSheet()
-                router.navigate(to: .connectHost)
+                router.navigate(to: .connectHost(container.connectHostEntry()))
             }
             GhostButton(
                 title: testState == .testing ? "Testing…" : "Test Connection",

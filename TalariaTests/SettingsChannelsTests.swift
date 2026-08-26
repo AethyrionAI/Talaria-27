@@ -40,18 +40,27 @@ struct SettingsChannelsTests {
 
     /// #256-G: "DIRECT" → "CONNECTED" (Owen's verbiage round) — the
     /// DIRECT/RELAY distinction retires with the relay itself (#251 P4).
+    ///
+    /// **#309 Lane B: it retired.** The `isDirect` argument is gone with the
+    /// second transport, so the two lines that pinned "RELAY" and
+    /// "LINKED · RELAY" are gone with it — they described values the functions
+    /// can no longer produce, which is a pin on unreachable code.
     @Test func uplinkValueMirrorsRootRowLogic() {
-        #expect(SettingsCardValues.uplink(state: .online, isDirect: true) == "CONNECTED")
-        #expect(SettingsCardValues.uplink(state: .online, isDirect: false) == "RELAY")
-        #expect(SettingsCardValues.uplink(state: .offline, isDirect: false) == "STANDBY")
-        #expect(SettingsCardValues.uplink(state: .unreachable, isDirect: false) == "OFFLINE")
-        #expect(SettingsCardValues.uplink(state: .notConnected, isDirect: false) == "NOT LINKED")
+        #expect(SettingsCardValues.uplink(state: .online) == "CONNECTED")
+        #expect(SettingsCardValues.uplink(state: .offline) == "STANDBY")
+        #expect(SettingsCardValues.uplink(state: .unreachable) == "OFFLINE")
+        #expect(SettingsCardValues.uplink(state: .notConnected) == "NOT LINKED")
     }
 
+    /// **#309 Lane B re-cut the no-name fallback from "PAIRED" to "HOST SET".**
+    /// "Paired" named a ceremony that no longer happens — a profile that holds
+    /// credentials is described by what it can do, not by what it once
+    /// redeemed. The named-profile arm is untouched, which is the arm a real
+    /// install always takes.
     @Test func serverValue() {
-        #expect(SettingsCardValues.server(activeProfileName: "Studio", isPaired: true) == "STUDIO")
-        #expect(SettingsCardValues.server(activeProfileName: nil, isPaired: true) == "PAIRED")
-        #expect(SettingsCardValues.server(activeProfileName: nil, isPaired: false) == "NO PROFILE")
+        #expect(SettingsCardValues.server(activeProfileName: "Studio", hasHost: true) == "STUDIO")
+        #expect(SettingsCardValues.server(activeProfileName: nil, hasHost: true) == "HOST SET")
+        #expect(SettingsCardValues.server(activeProfileName: nil, hasHost: false) == "NO PROFILE")
     }
 
     @Test func modelsValuePrefersModelThenBrain() {
@@ -101,32 +110,28 @@ struct SettingsChannelsTests {
     @Test func statusStripComposesLinkHostModel() {
         // #256-G: direct is the norm — no transport qualifier in the strip.
         #expect(SettingsCardValues.statusStrip(
-            state: .online, isDirect: true, hostName: "OJAMD",
+            state: .online, hostName: "OJAMD",
             modelName: "deepseek-v4-flash", brainLabel: nil)
             == "LINKED · OJAMD · DEEPSEEK-V4-FLASH")
         #expect(SettingsCardValues.statusStrip(
-            state: .online, isDirect: false, hostName: "Mac Mini",
-            modelName: "kimi-k2", brainLabel: nil)
-            == "LINKED · RELAY · MAC MINI · KIMI-K2")
-        #expect(SettingsCardValues.statusStrip(
-            state: .unreachable, isDirect: false, hostName: "Mac Mini",
+            state: .unreachable, hostName: "Mac Mini",
             modelName: nil, brainLabel: nil)
             == "OFFLINE · MAC MINI · SELECT")
         #expect(SettingsCardValues.statusStrip(
-            state: .notConnected, isDirect: false, hostName: nil,
+            state: .notConnected, hostName: nil,
             modelName: nil, brainLabel: "On-Device")
             == "ON-DEVICE")
         #expect(SettingsCardValues.statusStrip(
-            state: .notConnected, isDirect: false, hostName: nil,
+            state: .notConnected, hostName: nil,
             modelName: "qwen-local", brainLabel: nil)
             == "ON-DEVICE · QWEN-LOCAL")
     }
 
     @Test func sessionsValueHandlesUnloaded() {
-        #expect(SettingsCardValues.sessions(count: nil, isPaired: false) == "…")
-        #expect(SettingsCardValues.sessions(count: 12, isPaired: false) == "12 SESSIONS")
-        #expect(SettingsCardValues.sessions(count: 1, isPaired: false) == "1 SESSION")
-        #expect(SettingsCardValues.sessions(count: 148, isPaired: true) == "148 · SYNCED")
+        #expect(SettingsCardValues.sessions(count: nil, hasHost: false) == "…")
+        #expect(SettingsCardValues.sessions(count: 12, hasHost: false) == "12 SESSIONS")
+        #expect(SettingsCardValues.sessions(count: 1, hasHost: false) == "1 SESSION")
+        #expect(SettingsCardValues.sessions(count: 148, hasHost: true) == "148 · SYNCED")
     }
 
     @Test func aboutAndDeveloper() {
@@ -439,9 +444,9 @@ struct SettingsChannelsTests {
     /// The card/strip values render `.checking` as explicitly unknown —
     /// no LINKED, no CONNECTED, no accent.
     @Test func checkingRendersExplicitlyUnknownInSettings() {
-        #expect(SettingsCardValues.uplink(state: .checking, isDirect: false) == "CHECKING")
+        #expect(SettingsCardValues.uplink(state: .checking) == "CHECKING")
         let strip = SettingsCardValues.statusStrip(
-            state: .checking, isDirect: false,
+            state: .checking,
             hostName: "OJAMD", modelName: "deepseek-v4-flash", brainLabel: nil)
         #expect(strip.contains("LINKED") == false)
         #expect(strip.contains("CONNECTED") == false)
@@ -455,11 +460,11 @@ struct SettingsChannelsTests {
     /// on every launch until the first probe lands. It fires only on a
     /// MEASURED non-online state, and never unpaired.
     @Test func connectionBannerWaitsForAMeasurement() {
-        #expect(ChatConnectionPresentation.showsConnectionBanner(isPaired: true, state: .checking) == false)
-        #expect(ChatConnectionPresentation.showsConnectionBanner(isPaired: true, state: .online) == false)
-        #expect(ChatConnectionPresentation.showsConnectionBanner(isPaired: true, state: .offline) == true)
-        #expect(ChatConnectionPresentation.showsConnectionBanner(isPaired: true, state: .unreachable) == true)
-        #expect(ChatConnectionPresentation.showsConnectionBanner(isPaired: false, state: .offline) == false)
+        #expect(ChatConnectionPresentation.showsConnectionBanner(hasHost: true, state: .checking) == false)
+        #expect(ChatConnectionPresentation.showsConnectionBanner(hasHost: true, state: .online) == false)
+        #expect(ChatConnectionPresentation.showsConnectionBanner(hasHost: true, state: .offline) == true)
+        #expect(ChatConnectionPresentation.showsConnectionBanner(hasHost: true, state: .unreachable) == true)
+        #expect(ChatConnectionPresentation.showsConnectionBanner(hasHost: false, state: .offline) == false)
     }
 
     // MARK: - #395-D: the Private Cloud tile

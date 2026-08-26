@@ -22,9 +22,7 @@ import UIKit
 struct AboutSettingsContent: View {
     @Environment(\.openURL) private var openURL
     @Environment(AppContainer.self) private var container
-    @Environment(AppSessionStore.self) private var sessionStore
     @Environment(HermesHostStore.self) private var hostStore
-    @Environment(PairingStore.self) private var pairingStore
     @Environment(PermissionsStore.self) private var permissionsStore
     @Environment(SettingsStore.self) private var settingsStore
 
@@ -48,7 +46,6 @@ struct AboutSettingsContent: View {
                 accented: isHealthy
             )
             statusPanel
-            legacyRelayPanel
             voicePanel
             phoneQueriesPanel
             infoGrid
@@ -80,7 +77,7 @@ struct AboutSettingsContent: View {
     /// connection signal.
     private var isHealthy: Bool {
         SettingsCardValues.aboutIsHealthy(
-            hostConfigured: container.profilesStore?.activeProfile != nil || pairingStore.isPaired,
+            hostConfigured: container.hasGatewayCredentials,
             connectionOnline: effectiveConnectionState == .online)
     }
 
@@ -120,33 +117,21 @@ struct AboutSettingsContent: View {
         }
     }
 
-    // MARK: Legacy relay (#353(b))
+    // MARK: Legacy relay — DELETED 2026-08-25 (#309 Lane B)
     //
-    // The relay is a retiring tier (#346/#223). Red here is reserved for
-    // "the phone-facing channel is down": with the plugin link measured
-    // LIVE, an unreachable relay renders muted OFFLINE — a fact, not an
-    // alarm. With the plugin NOT live the relay is the only channel and an
-    // outage stays red. Derivation:
-    // TalariaLinkObservation.legacyRelayReadsAsError (table-tested).
-
-    private var legacyRelayPanel: some View {
-        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
-            MonoLabel("// Legacy Relay", size: 10, tracking: Design.Tracking.monoXWide,
-                      color: Design.Colors.mutedForeground)
-
-            VStack(spacing: 0) {
-                statusRow("Relay Link", relayStatus)
-                rowDivider
-                statusRow("Relay Identity", identityStatus)
-            }
-            .hudPanel(
-                cornerRadius: Design.CornerRadius.lg,
-                borderColor: Design.Colors.accentTint(0.12),
-                fill: Design.Colors.background.opacity(0.5),
-                innerGlow: false
-            )
-        }
-    }
+    // `legacyRelayPanel`, `relayStatus` and `identityStatus` are gone with
+    // `AppSessionStore`/`PairingStore`. Every value they rendered was a RELAY
+    // fact: the session's `connectionStatus` against a service retired on both
+    // hosts (#346/#375), and the #3/#46 stale-identity check against a relay
+    // user id nothing mints any more. A panel whose two rows can only ever say
+    // OFFLINE and "—" is not a diagnostic; it is furniture that trains the
+    // reader to ignore this screen.
+    //
+    // The one live signal in there kept a home: the #369/#25 CREDENTIAL
+    // UNREADABLE hold now surfaces on Connect Host's key row, next to the
+    // credential it is about (`ConnectedHost.credentialUnreadable`).
+    // `TalariaLinkObservation.legacyRelayReadsAsError` lost its only caller
+    // here and went with it.
 
     private func statusRow(_ label: String, _ status: RowStatus) -> some View {
         HStack(spacing: Design.Spacing.sm) {
@@ -176,60 +161,6 @@ struct AboutSettingsContent: View {
         case .disconnected: RowStatus(text: "UNREACHABLE",  color: Design.Colors.dangerText,       blinks: false)
         case .error:        RowStatus(text: "ERROR",        color: Design.Colors.dangerText,       blinks: false)
         }
-    }
-
-    private var relayStatus: RowStatus {
-        // #353(b): severity derives from measurement. (The old permanently
-        // blinking STANDBY arm collapses into the derived pair — a forever
-        // pulse against a retired relay was the same training-to-ignore
-        // cost in miniature.)
-        let pluginLive = pluginLink == .livePaired || pluginLink == .liveNotPaired
-        switch sessionStore.state.connectionStatus {
-        case .connected:
-            return RowStatus(text: "LINKED", color: Design.Brand.accentText, blinks: false)
-        case .connecting:
-            return RowStatus(text: "CONNECTING", color: Design.Brand.forgeText, blinks: true)
-        case .disconnected, .error:
-            if TalariaLinkObservation.legacyRelayReadsAsError(
-                pluginLive: pluginLive, relayReachable: false) {
-                return RowStatus(text: "ERROR", color: Design.Colors.dangerText, blinks: false)
-            }
-            return RowStatus(text: "OFFLINE", color: Design.Colors.mutedForeground, blinks: false)
-        }
-    }
-
-    // #3/#46: which relay user this session actually authenticates as. A
-    // Keychain-resurrected identity from a previous install shows as a
-    // mismatch against the user the current pairing minted — the "sensors
-    // 202-forever while chat works" failure is a glance here, not a forensic
-    // session. "—" when there's no session user yet.
-    private var identityStatus: RowStatus {
-        // #369/#180: a launch that could not READ the credential holds instead
-        // of unpairing — so this row says so, rather than rendering the
-        // resulting absence of a session user as a bland "—".
-        //
-        // #25: the text names the OBSERVATION and not a cause. "Waiting for
-        // unlock" would have been the natural phrasing and it is exactly the
-        // claim this app cannot make: the Keychain read collapses "locked",
-        // "no item" and "no entitlement" into one nil, so which of them
-        // happened is unknown here. Warning-coloured rather than danger — the
-        // pairing is intact and a first unlock usually resolves it.
-        if container.credentialsUnreadableHold {
-            return RowStatus(text: "CREDENTIAL UNREADABLE", color: Design.Brand.forgeText, blinks: false)
-        }
-        if container.pairingStore.identityMismatchDetected {
-            return RowStatus(text: "STALE — RE-PAIR", color: Design.Colors.dangerText, blinks: true)
-        }
-        guard let userID = sessionStore.state.userID else {
-            return RowStatus(text: "—", color: Design.Colors.mutedForeground, blinks: false)
-        }
-        let short = userID.uuidString.prefix(8).uppercased()
-        if container.pairingStore.expectedRelayUserID == nil {
-            // Pre-#3 pairing: identity shown but unverifiable until a re-pair
-            // records the minted user.
-            return RowStatus(text: "USER \(short) · UNVERIFIED", color: Design.Brand.forgeText, blinks: false)
-        }
-        return RowStatus(text: "USER \(short)", color: Design.Brand.accentText, blinks: false)
     }
 
     private var locationStatus: RowStatus {

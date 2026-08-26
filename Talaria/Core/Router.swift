@@ -5,7 +5,14 @@ import SwiftUI
 enum Route: Hashable {
     case permissions
     case capture
-    case connectHost
+    /// #309 Lane B: the Connect Host seam.
+    ///
+    /// It used to be a bare case, with the target smuggled through
+    /// `PairingStore.pairingTargetProfileID` — a mutable store field set
+    /// before navigating and cleared on the way out, which meant the
+    /// destination depended on state a screen had to remember to reset. The
+    /// route carries it now, so a stale target cannot exist.
+    case connectHost(ConnectHostEntry)
     /// #45: the agent→phone Inbox — first reachable entry point (the screen
     /// shipped in every build with zero call sites).
     case inbox

@@ -112,8 +112,6 @@ struct TalariaApp: App {
             AppRootView()
                 .environment(container)
                 .environment(container.router)
-                .environment(container.sessionStore)
-                .environment(container.pairingStore)
                 .environment(container.hostStore)
                 .environment(container.chatStore)
                 .environment(container.inboxStore)

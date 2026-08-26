@@ -56,7 +56,7 @@ struct SessionsSettingsScreen: View {
                             title: SettingsSubsystem.sessions.title,
                             status: SettingsCardValues.sessions(
                                 count: isLoading ? nil : sessions.count,
-                                isPaired: container.pairingStore.isPaired),
+                                hasHost: container.hasGatewayCredentials),
                             statusColor: isLoading ? Design.Colors.mutedForeground : Design.Brand.accentText,
                             chip: SettingsSubsystem.sessions.chip,
                             accented: !isLoading

@@ -32,7 +32,6 @@ final class BackendProfilesStore {
         /// there, so his profile keeps the name it was minted with (384-D).
         var name: String = "My Hermes"
         var gatewayBaseURL: String
-        var relayBaseURL: String?
         var shimBaseURL: String?
     }
 
@@ -86,7 +85,6 @@ final class BackendProfilesStore {
             let migrated = BackendProfile(
                 name: migrationSeeds.name,
                 gatewayBaseURL: migrationSeeds.gatewayBaseURL,
-                relayBaseURL: migrationSeeds.relayBaseURL,
                 shimBaseURL: migrationSeeds.shimBaseURL,
                 usesLegacyCredentialKeys: true
             )
@@ -113,49 +111,22 @@ final class BackendProfilesStore {
         // a clear living there would silently wipe a relay URL the user had
         // just typed back in, on the very next save. The stamp is what makes
         // this one-shot, and bar 310-B's phase 2 is what proves it.
-        let migratedState: BackendProfilesState
-        if persistence.loadRelayRetirementMigrationStamp() {
-            migratedState = loaded
-        } else {
-            migratedState = Self.clearingRelayURLs(loaded)
-            // ⚠️ THE STAMP IS WRITTEN BEFORE THE STATE, DELIBERATELY — the
-            // opposite ordering looks safer and is worse.
-            //
-            // Both orderings have a torn-write window on this best-effort
-            // dual store, and they fail in opposite directions:
-            //   • stamp LAST — if the stamp write is the one that fails, the
-            //     next launch re-runs the migration and CLEARS A URL THE USER
-            //     MAY HAVE RE-ENTERED in between. That is bar 310-B phase 2's
-            //     failure, reached through a crash instead of through a
-            //     normalization pass.
-            //   • stamp FIRST (this) — if the state write fails, the URLs
-            //     simply stay and the #365 stall persists. The migration
-            //     failed to HELP; it did not DESTROY.
-            //
-            // A migration that can fail to help is strictly preferable to one
-            // that can eat user input, so the stamp goes first. Do not
-            // "correct" this to write-then-stamp.
-            persistence.saveRelayRetirementMigrationStamp()
-            if migratedState != loaded {
-                mustPersist = true
-                // Logged PUBLIC and BEFORE the write lands, because the write
-                // overwrites both halves of the #41 dual store: after this
-                // line the old string exists nowhere in persistence, and a
-                // revert of #310 restores the TYPE, not the value. This log
-                // is the only recovery route, so it must not be redacted.
-                for profile in loaded.profiles where profile.hasRelay {
-                    profilesLog.notice("""
-                        relay retirement (#310): cleared relay URL for profile \
-                        '\(profile.name, privacy: .public)' — was \
-                        '\(profile.relayBaseURL ?? "", privacy: .public)'
-                        """)
-                }
-            }
-        }
-
-        self.state = migratedState
+        // **#309 Lane B: THE #310 RELAY-URL MIGRATION IS DELETED, and it is
+        // satisfied rather than abandoned.** Its whole job was to clear a
+        // persisted `relayBaseURL` once, behind a stamp, so a repeating
+        // normalization could never eat a URL the user re-typed. That
+        // property no longer exists on `BackendProfile`, so `Codable` drops
+        // the key on the next encode and there is nothing left to clear —
+        // and nothing left to re-type, which is what made the one-shot
+        // discipline necessary in the first place.
+        //
+        // Its stamp (`loadRelayRetirementMigrationStamp` /
+        // `saveRelayRetirementMigrationStamp`) goes with it. Keeping a
+        // stamped no-op would leave a launch-path Keychain read answering a
+        // question nothing asks.
+        self.state = loaded
         if mustPersist {
-            persistence.saveBackendProfilesState(migratedState)
+            persistence.saveBackendProfilesState(loaded)
         }
     }
 
@@ -263,23 +234,6 @@ final class BackendProfilesStore {
     }
 
     // MARK: - Normalization
-
-    /// #310: the relay-retirement transform — every profile loses its relay
-    /// URL. Pure, so the one-shot decision (the stamp) and the transform stay
-    /// separable and testable apart from each other.
-    ///
-    /// It is `private static` and called from exactly ONE place, the
-    /// initializer's stamped branch. If a future lane finds itself wanting to
-    /// call this from `normalized(_:)` or from `upsert(_:)`, that is the
-    /// defect 310-B was written to catch — the answer is a new one-shot stamp,
-    /// never a repeating clear.
-    private static func clearingRelayURLs(_ state: BackendProfilesState) -> BackendProfilesState {
-        var cleared = state
-        for index in cleared.profiles.indices {
-            cleared.profiles[index].relayBaseURL = nil
-        }
-        return cleared
-    }
 
     /// Self-heal for dangling ids: the active id must always resolve to an
     /// existing profile (fall back to the first).
