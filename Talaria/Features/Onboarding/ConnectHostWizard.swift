@@ -383,7 +383,14 @@ struct ConnectHostWizard: View {
                     // shape this lane exists to remove, just with a cheaper
                     // payload. The field edits the draft; the commit moments
                     // are submit and CONTINUE.
-                    TextField(ConnectHostCopy.nameThisHost, text: $model.draft.name)
+                    // An explicit Binding, not `$model`: the view's `model` is
+                    // an OPTIONAL `@State`, and `$model` projects THAT rather
+                    // than the non-optional one this step was handed.
+                    TextField(
+                        ConnectHostCopy.nameThisHost,
+                        text: Binding(get: { model.draft.name },
+                                      set: { model.draft.name = $0 })
+                    )
                         .onSubmit { commitName(model) }
                         .font(Design.Typography.body(14, weight: .regular))
                         .foregroundStyle(Design.Colors.coolForeground)
