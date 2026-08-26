@@ -220,6 +220,18 @@ struct SemanticForegroundContrastTests {
     /// — 3.75 and 4.09 after the raise — because those themes' muted steps
     /// sit below 4.5 and a dim at 4.5 would invert the ramp).
     ///
+    /// **NOT tightened 2026-08-25 (the `mutedForeground` lane), and that is
+    /// the measurement rather than an omission.** All nine muted cells stay
+    /// listed: `deepField` ×3 unmoved by ruling, and `pulpNoir` ×3 /
+    /// `stickerBombToybox` ×3 RAISED (3.84 → 4.41, 4.20 → 4.40) but still
+    /// short of 4.5, because each is capped by its own `secondaryForeground`
+    /// — on both themes the smallest 8-bit blend that clears the floor is
+    /// literally that secondary hex. The tightening was still run, twice, as
+    /// a MUTATION either side of the palette move: RED at exactly six both
+    /// times, at 3.84/4.20 before and 4.41/4.40 after. A ratchet that is not
+    /// tightened because nothing crossed the floor has to SAY so, or the next
+    /// reader cannot tell it apart from one nobody checked.
+    ///
     /// 170 `token|theme|accent` cells. This is the artifact 393-A required
     /// recorded, in the one place that cannot go stale: a test reads it.
     ///
@@ -236,15 +248,23 @@ struct SemanticForegroundContrastTests {
     /// the suite — that is how a ratchet stops being a ratchet and starts
     /// being a reason not to fix things.
     private static let knownFailingCells: Set<String> = [
+        // NOT MOVED, by ruling: deepField's ramp is byte-pinned as pre-theming
+        // legacy identity and Owen ruled 2026-08-23 to keep the pin. It is the
+        // only one of the nine muted cells with real headroom (secondary 6.28).
         "mutedForeground|deepField|cyan",  // 4.12:1
         "mutedForeground|deepField|amber",  // 4.12:1
         "mutedForeground|deepField|violet",  // 4.12:1
-        "mutedForeground|pulpNoir|cyan",  // 3.84:1
-        "mutedForeground|pulpNoir|amber",  // 3.84:1
-        "mutedForeground|pulpNoir|violet",  // 3.84:1
-        "mutedForeground|stickerBombToybox|cyan",  // 4.20:1
-        "mutedForeground|stickerBombToybox|amber",  // 4.20:1
-        "mutedForeground|stickerBombToybox|violet",  // 4.20:1
+        // RAISED 2026-08-25 and STILL BELOW THE FLOOR — the muted lane's
+        // honest residue, not an untouched defect. Both themes are capped by
+        // their own `secondaryForeground` (4.52 / 4.51): the smallest 8-bit
+        // blend that clears 4.5 IS that secondary literal, so AA and a
+        // distinct muted step cannot coexist there. See #393's muted block.
+        "mutedForeground|pulpNoir|cyan",  // 4.41:1 (was 3.84)
+        "mutedForeground|pulpNoir|amber",  // 4.41:1 (was 3.84)
+        "mutedForeground|pulpNoir|violet",  // 4.41:1 (was 3.84)
+        "mutedForeground|stickerBombToybox|cyan",  // 4.40:1 (was 4.20)
+        "mutedForeground|stickerBombToybox|amber",  // 4.40:1 (was 4.20)
+        "mutedForeground|stickerBombToybox|violet",  // 4.40:1 (was 4.20)
         "dimForeground|deepField|cyan",  // 3.16:1
         "dimForeground|deepField|amber",  // 3.16:1
         "dimForeground|deepField|violet",  // 3.16:1
@@ -326,6 +346,73 @@ struct SemanticForegroundContrastTests {
                 dimForeground (\(String(format: "%.2f", dim))) — the ramp's \
                 de-emphasis order inverted
                 """)
+        }
+    }
+
+    /// **393-M-A — the WHOLE ramp order, not just its last step.**
+    ///
+    /// Call 2 pinned one relation (`muted > dim`, above) because that was the
+    /// step it moved. This lane moves `mutedForeground`, which has a neighbour
+    /// on each side, so the pin is extended to the relation the palette
+    /// actually promises — **measured across all 88 reachable cells at HEAD,
+    /// not asserted from the token names**:
+    ///
+    /// ```
+    /// foregroundBright ≥ foreground > secondaryForeground ≥ mutedForeground > dimForeground
+    ///                                                       coolForeground ≥ mutedForeground
+    /// ```
+    ///
+    /// **The mixed strictness is a measurement, not a preference.** 24 of the
+    /// 30 themes set `secondaryForeground`, `coolForeground` and
+    /// `mutedForeground` to ONE literal — #393 call 4 recorded it in so many
+    /// words ("the ramp was already collapsed there, by design") — so a strict
+    /// `>` on those pairs would be RED on arrival and would forbid a shipped
+    /// design decision. `foreground > secondary` and `muted > dim` are strict
+    /// because every cell in the catalogue separates those two pairs.
+    ///
+    /// **`coolForeground` is deliberately pinned only against `muted`.** It is
+    /// not a monotone step: on `deepField`, `paperTape`, `solarForge` and
+    /// `terminal` the cool-tinted step reads far STRONGER than
+    /// `secondaryForeground` (deepField 14.90 vs 6.28). Pinning it into the
+    /// linear chain would encode an order the palette has never had — the
+    /// aperture error #393 exists to name, pointed at a ramp instead of a
+    /// token.
+    ///
+    /// Mutation-proven: swapping one theme's `secondary`/`muted` literals turns
+    /// this RED naming that theme and its three cells.
+    @Test func theRampOrderHoldsAcrossEveryStep() {
+        /// Pairs of (stronger, weaker) with the strictness each one actually
+        /// has in the catalogue.
+        let relations: [(name: String,
+                         stronger: (ThemePalette) -> Color, strongerName: String,
+                         weaker: (ThemePalette) -> Color, weakerName: String,
+                         strict: Bool)] = [
+            ("bright ≥ foreground", \.foregroundBright, "foregroundBright",
+             \.foreground, "foreground", false),
+            ("foreground > secondary", \.foreground, "foreground",
+             \.secondaryForeground, "secondaryForeground", true),
+            ("secondary ≥ muted", \.secondaryForeground, "secondaryForeground",
+             \.mutedForeground, "mutedForeground", false),
+            ("cool ≥ muted", \.coolForeground, "coolForeground",
+             \.mutedForeground, "mutedForeground", false),
+            ("muted > dim", \.mutedForeground, "mutedForeground",
+             \.dimForeground, "dimForeground", true),
+        ]
+
+        for (theme, accent) in ThemeContrastCells.reachable {
+            let p = ThemePalette(theme: theme, accent: accent)
+            for relation in relations {
+                let strong = ThemeContrastMath.ratio(relation.stronger(p), on: p.background)
+                let weak = ThemeContrastMath.ratio(relation.weaker(p), on: p.background)
+                let holds = relation.strict ? (strong > weak) : (strong >= weak)
+                #expect(holds, """
+                    \(theme.rawValue)|\(accent.rawValue): the ramp order broke at \
+                    \(relation.name) — \(relation.strongerName) \
+                    (\(String(format: "%.2f", strong))) must read \
+                    \(relation.strict ? "strictly stronger than" : "at least as strong as") \
+                    \(relation.weakerName) (\(String(format: "%.2f", weak)))
+                    """)
+            }
         }
     }
 

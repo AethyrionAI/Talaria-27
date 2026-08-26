@@ -211,6 +211,109 @@ struct AccentTextVariantGeneratorTests {
         print(lines.joined(separator: "\n"))
     }
 
+    /// **#393 the mutedForeground lane (ruled 2026-08-25) — the generator
+    /// behind the muted raise, and the instrument that found its cap.**
+    ///
+    /// Same method as its call-2 sibling one step down the ramp: per theme
+    /// (the ramp is theme-level), blend `mutedForeground` toward the
+    /// background's opposite extreme, 8-bit-snapped, stopping at the first
+    /// value that clears the target — minimal movement, so the muted step
+    /// stays its theme's hue.
+    ///
+    /// **The cap comes from ABOVE this time, and that is the whole finding.**
+    /// Call 2's dim was capped by `mutedForeground` below it; muted is capped
+    /// by `secondaryForeground` above it. On the two light themes that fail,
+    /// `secondaryForeground` itself sits at 4.51–4.52 — because #393 call 4
+    /// solved *the same minimal-blend problem from the same starting literal*
+    /// when it raised secondary. So running the generator on the PRE-RAISE
+    /// muted reproduced secondary's exact hex: **on `pulpNoir` and
+    /// `stickerBombToybox`, a muted at 4.5:1 IS `secondaryForeground`**, and
+    /// the ladder has no 8-bit step in between (pulpNoir jumped 4.4771 →
+    /// 4.5246, toybox 4.4636 → 4.5100).
+    ///
+    /// **Run from the SHIPPED values it now states the same cap the other way
+    /// round** — the first AA rung *overshoots* secondary (pulpNoir 4.5410 vs
+    /// 4.5246) because blending from the raised literal walks a different
+    /// rounding path and skips the rung that sat exactly on secondary. Either
+    /// spelling says the one thing that matters: on these two themes there is
+    /// no AA landing at or below `secondaryForeground` except that literal
+    /// itself.
+    ///
+    /// Both landings are printed for every failing theme — the capped one this
+    /// lane ships, and the collapse one that would clear AA by making the two
+    /// steps identical — because that trade is a design call, not a
+    /// measurement, and the entry hands design calls to Owen.
+    ///
+    /// **`deepField` is SKIPPED for the same reason call 2 skipped it:** its
+    /// ramp is byte-pinned as pre-theming legacy identity (`DesignThemeTests`,
+    /// `mutedForeground == 0x5D7488`), and Owen RULED on 2026-08-23 —
+    /// "accept deepField at 3.16, keep the pin". It has headroom (secondary
+    /// 6.28) and would reach 4.50 at `0x647A8E`; it is not moved.
+    @Test func printMutedForegroundSuggestions() {
+        var lines: [String] = ["=== #393 muted lane — mutedForeground suggestions ==="]
+        for theme in ThemeID.allCases {
+            let accent = theme.lockedAccentSlot ?? .cyan
+            let p = ThemePalette(theme: theme, accent: accent)
+            let bg = p.background
+            let mutedRatio = ThemeContrastMath.ratio(p.mutedForeground, on: bg)
+            guard mutedRatio < 4.5 else { continue }
+            let secondaryRatio = ThemeContrastMath.ratio(p.secondaryForeground, on: bg)
+            let dimRatio = ThemeContrastMath.ratio(p.dimForeground, on: bg)
+
+            guard theme != .deepField else {
+                lines.append(String(
+                    format: "  %-22@ muted %.4f — SKIPPED (byte-pinned legacy ramp; ruled 2026-08-23)",
+                    theme.rawValue as NSString, mutedRatio))
+                continue
+            }
+
+            // Call 2's rule verbatim, one step up the ramp: keep a real gap
+            // below the neighbour instead of landing on top of it.
+            let target = min(4.6, secondaryRatio - 0.12)
+            if let fix = Self.solve(p.mutedForeground, on: bg, floor: target) {
+                lines.append(String(
+                    format: "  %-22@ muted %.4f → %@ %.4f   (secondary %.4f, dim %.4f, target %.4f)%@",
+                    theme.rawValue as NSString, mutedRatio,
+                    fix.hex as NSString, fix.ratio, secondaryRatio, dimRatio, target,
+                    (fix.ratio >= 4.5 ? "" : "  ← RAMP-CAPPED, stays baseline-listed") as NSString))
+            } else {
+                lines.append("  ⛔ \(theme.rawValue): UNREACHABLE even at full blend")
+            }
+
+            // The alternative landing, printed so the trade is legible: the
+            // smallest value that clears the 4.5 TEXT floor outright.
+            //
+            // **The collapse is detected by HEX IDENTITY, not by comparing
+            // ratios.** The two numbers are computed by different routes
+            // (`solve`'s snapped luminance vs `ThemeContrastMath.ratio`) and
+            // differ in the last float bit, so a `>=` on them printed nothing
+            // for two cells that are literally the same colour — a check that
+            // cannot see the thing it is checking for.
+            let secondaryHex = Self.hex(ThemeContrastMath.composite(p.secondaryForeground, over: bg))
+            if let aa = Self.solve(p.mutedForeground, on: bg, floor: 4.5) {
+                // **And the verdict must be re-derivable AFTER the raise, not
+                // only from the pre-raise literal.** Solving from the shipped
+                // (already-raised) muted walks a slightly different rounding
+                // path and skips the rung that sat exactly on secondary, so a
+                // bare hex-equality check prints nothing today and the finding
+                // would read as unreproducible. Both outcomes are named.
+                let verdict: String
+                if aa.hex == secondaryHex {
+                    verdict = "  ← that IS secondaryForeground (\(secondaryHex)): AA COLLAPSES the muted step"
+                } else if aa.ratio > secondaryRatio {
+                    verdict = String(format: "  ← OVERSHOOTS secondaryForeground (%.4f): AA INVERTS the ramp here",
+                                     secondaryRatio)
+                } else {
+                    verdict = ""
+                }
+                lines.append(String(
+                    format: "  %-22@   AA landing would be %@ %.4f%@",
+                    "" as NSString, aa.hex as NSString, aa.ratio, verdict as NSString))
+            }
+        }
+        print(lines.joined(separator: "\n"))
+    }
+
     /// **The check that makes call 4 safe, and the one call 2 would fail.**
     ///
     /// Raising a ramp step narrows its gap to the neighbours. A ramp whose

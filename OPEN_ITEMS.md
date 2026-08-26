@@ -117,7 +117,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#58** 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 …
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
-- **#393** 🔴 **THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES** — `accent` **18/21** light cells under AA (worst **1.24:1**), `accentBright` **13/21** (worst **1.16:1**, below even the DECORATIVE floor); dark themes 0/69. **Found by Owen USING the app right after #325 shipped — his eye landed on the two exact minima.** Worse than #325 in three ways: these are INTERACTIVE CONTROLS (`GhostButton`'s title), it is most of the light catalogue rather than an edge, and **the Appearance picker labels themes with `accent` — so the screen you would use to escape a theme is illegible in that theme.** 🔴 The lesson is about the INSTRUMENT: #325 built a catalog-wide sweep and pointed it at the one token already known to be broken — a sweep that only measures what you suspect is a confirmation, not a survey. Bars 393-A..E; 393-A extends the sweep to EVERY semantic foreground and demonstrates RED first
+- **#393** 🔴 **THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES** — `accent` **18/21** light cells under AA (worst **1.24:1**), `accentBright` **13/21** (worst **1.16:1**, below even the DECORATIVE floor); ~~dark themes 0/69~~ **(FALSIFIED by this item's own 393-A sweep — true of `accentBright` only; `accent` fails 5 dark cells and `dimForeground` 46)**. **Found by Owen USING the app right after #325 shipped — his eye landed on the two exact minima.** Worse than #325 in three ways: these are INTERACTIVE CONTROLS (`GhostButton`'s title), it is most of the light catalogue rather than an edge, and **the Appearance picker labels themes with `accent` — so the screen you would use to escape a theme is illegible in that theme.** 🔴 The lesson is about the INSTRUMENT: #325 built a catalog-wide sweep and pointed it at the one token already known to be broken — a sweep that only measures what you suspect is a confirmation, not a survey. Bars 393-A..E; 393-A extends the sweep to EVERY semantic foreground and demonstrates RED first. **Calls 1–5 BUILT + MERGED 2026-08-22/23; the `mutedForeground` lane BUILT 2026-08-25 with PR #380 OPEN, HOLDING for Owen's device eyeball** — `pulpNoir` 3.84→4.41 and `stickerBombToybox` 4.20→4.40, both ramp-capped because a muted at 4.5 IS that theme's `secondaryForeground` (same hex), `deepField` unmoved by ruling, so the token stays 9/88; ramp order now pinned as five relations. `retroSciFi`'s decorative accent is a STANDING ACCEPTED aesthetic, not an open defect
 - **#392** 🔴 **A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT** — *"your calendar didn't accept the request"* when the user declined the card. The calendar never saw it; `performCreate` returned *"The user declined"* and the model reported EventKit refused. **MEASURED 2/30 on device 2026-08-21, CALENDAR-ONLY (remind/alarm 0/20)** — which is the finding, not a detail: a fix aimed at declines in general would target the wrong surface. #180's family, #340's shape. Spawned from #199A's re-run rather than keeping that entry open under a changed meaning; bars 392-A..D pre-registered, and 392-A demands n>=30/arm after #372(c) proved tonight what a low base rate costs
 - **#390** 🔬 **`.vision` IS TRUE ON BOTH TIERS** — so #173's caption decision was made about a model that HAS vision, and routing images through on-device OCR (`readImageText`) is now a CHOICE, not a limitation. It has a real privacy upside nobody chose deliberately — **the picture never leaves the phone even on PCC** — and the alternative sends the image to Apple's servers. SPAWNED BY #388-A 2026-08-21; **RULED 2026-08-24 (true image input both tiers, OCR fallback) → ✅ BUILT + MERGED 2026-08-25 (PR #369, squash `25ba1d04`; gate 2543(+14)/14/Release, five mutations isolating) → ⚖️ Owen's publish go same day → ✅ 390-F FLIP PR: policy sentence live (effective 2026-08-25), `pccImageInputEnabled` TRUE — both arms sighted. Remaining: the 390-G device runbook card on the next staged OTA**
 - **#388** 🔬 BETA5 APPLE-INTELLIGENCE SURFACE SWEEP — `LanguageModelCapabilities` (`.vision`/`.toolCalling`/`.reasoning`/`.guidedGeneration`) exists and **the app has never called it**; `quotaUsage` **cannot report a number** (tri-state only) and may be **inert system-side** (`Usage limit status tracker delegate is nil` in the 08-20 device log); ImagePlayground / VisualIntelligence / MediaIntelligence present in the SDK and never examined. **NAMED BY OWEN 2026-08-20. 🟡 INSTRUMENT BUILT 2026-08-21 AM (`pcc-surface`, three bands, mutation-proven three ways) and 388-D ANSWERED AT THE DESK — the headless `ImageCreator` is DEPRECATED IN iOS 27, so image generation on this OS is a user-driven sheet and cannot be a tool the assistant calls; VisualIntelligence is an AppIntents extension point we would register with, not call; MediaIntelligence is photo-library face grouping with no Talaria use case. ✅ **388-A/B/C/D ALL ANSWERED ON DEVICE 2026-08-21.** 🔴 **The contrast is exactly ONE capability: PCC has `.reasoning`, on-device does not** (everything else matches; contextSize 8192 vs 32768). `.vision` is TRUE on BOTH — which reopens #173's caption decision as a tier question WITH a privacy dimension, spawned as its own entry. 🔴 **Quota is INERT, not healthy:** `quotaUsage` returns `belowLimit` with no resetDate while `com.apple.FoundationModels:QuotaTracker` logs *"Usage limit status tracker delegate is nil, skipping fetch"* 7x at ERROR severity, 233ms after our read — so any shipped quota surface is presenting a placeholder as a status (own entry). 388-C vindicated same-day: device variant is `AFM 3 Core Advanced`, the sim said `AFM 3 Core`. **🔴 `.toolCalling` HALF-ANSWERED FROM PRODUCTION 2026-08-21 07:12: a PCC turn executed `readImageText` — PCC calls tools, so the bar's "zero evidence either way" is retired and a `.toolCalling == false` reading tonight would be the FLAG being wrong. `.vision` untouched by this: `readImageText` is on-device Vision OCR, the model got text not the image (the reply quotes OCR misreads "3ETA"/"MARIAN"), so the picture never left the phone**
@@ -769,7 +769,7 @@ native pipeline), **#1** (voice transcripts).
 > half — which stays deliberately unbuilt behind the fault-2 author
 > measurement (§3 device row 12), per the ruling.
 
-## 393. 🔴 THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES — `accent` bottoms out at **1.24:1** and `accentBright` at **1.16:1**, and one of the casualties is the theme picker that would let you escape — **FOUND BY OWEN USING THE APP 2026-08-21, then measured. Same class as #325, different tokens, WORSE numbers. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): calls 1, 3 and 4 BUILT + MERGED 2026-08-22/23 (PRs #350, #351) — every text token now 0/88. Call 2 (`dimForeground`) and the fifth, decorative-floor call remain unelected.** **⟵ 2026-08-23 decision pass: call 2 is now ELECTED (build; ramp ordering pinned; Owen eyeballs on device before merge) and the fifth call is ELECTED danger-pips-only — ruling block at the foot of the entry.** **⟵ ✅ BUILT the same night — bars 393-C2-A..C + 393-P5-A all met, GATE PASS 2497/14/Release. PR #357 held for the closing bar, then ✅ CLOSING BAR MET + MERGED (squash `c8341df5`): Owen eyeballed the ramp on device (build 2971) — "toybox and pulp noir look good", the two ramp-capped themes named specifically. Result block at the foot. ~~What remains open on this entry: the deepField pinned-dim question, and the unelected residue (mutedForeground 9/88; retroSciFi's decorative accent).~~** **⟵ HEADER CORRECTED 2026-08-25 (orchestrated premise re-check): the deepField question was RESOLVED 2026-08-23 — Owen accepted 3.16, pin kept (the entry's own final ⚖️ block records it; this header missed the correction). What ACTUALLY remains: `mutedForeground` (9/88 — re-verified true at HEAD, palette byte-unchanged since the measurement) and `retroSciFi`'s decorative accent (same 1.24:1/1.16:1 literals, declined at election). Two decisions, both Owen's. ⟵ ⚖️ BOTH RULED 2026-08-25 (AskUserQuestion): `mutedForeground` FIX ELECTED — ramp ORDER pinned by test, merge waits on Owen's device eyeball (call 2's own precedent); `retroSciFi`'s decorative accent KEEP AS AESTHETIC — a STANDING ACCEPTED STATE, recorded so it stops resurfacing on ballots. After the muted lane merges and the eyeball lands, nothing remains on this entry.**
+## 393. 🔴 THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES — `accent` bottoms out at **1.24:1** and `accentBright` at **1.16:1**, and one of the casualties is the theme picker that would let you escape — **FOUND BY OWEN USING THE APP 2026-08-21, then measured. Same class as #325, different tokens, WORSE numbers. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): calls 1, 3 and 4 BUILT + MERGED 2026-08-22/23 (PRs #350, #351) — every text token now 0/88. Call 2 (`dimForeground`) and the fifth, decorative-floor call remain unelected.** **⟵ 2026-08-23 decision pass: call 2 is now ELECTED (build; ramp ordering pinned; Owen eyeballs on device before merge) and the fifth call is ELECTED danger-pips-only — ruling block at the foot of the entry.** **⟵ ✅ BUILT the same night — bars 393-C2-A..C + 393-P5-A all met, GATE PASS 2497/14/Release. PR #357 held for the closing bar, then ✅ CLOSING BAR MET + MERGED (squash `c8341df5`): Owen eyeballed the ramp on device (build 2971) — "toybox and pulp noir look good", the two ramp-capped themes named specifically. Result block at the foot. ~~What remains open on this entry: the deepField pinned-dim question, and the unelected residue (mutedForeground 9/88; retroSciFi's decorative accent).~~** **⟵ HEADER CORRECTED 2026-08-25 (orchestrated premise re-check): the deepField question was RESOLVED 2026-08-23 — Owen accepted 3.16, pin kept (the entry's own final ⚖️ block records it; this header missed the correction). What ACTUALLY remains: `mutedForeground` (9/88 — re-verified true at HEAD, palette byte-unchanged since the measurement) and `retroSciFi`'s decorative accent (same 1.24:1/1.16:1 literals, declined at election). Two decisions, both Owen's. ⟵ ⚖️ BOTH RULED 2026-08-25 (AskUserQuestion): `mutedForeground` FIX ELECTED — ramp ORDER pinned by test, merge waits on Owen's device eyeball (call 2's own precedent); `retroSciFi`'s decorative accent KEEP AS AESTHETIC — a STANDING ACCEPTED STATE, recorded so it stops resurfacing on ballots. After the muted lane merges and the eyeball lands, nothing remains on this entry.** **⟵ ✅ BUILT 2026-08-25 (the muted lane, branch `393-muted-foreground-ramp`): two literals moved — `pulpNoir` 3.84→4.41, `stickerBombToybox` 4.20→4.40 — both RAMP-CAPPED, because the finding is that a muted at 4.5 IS that theme's `secondaryForeground`, the same hex; `deepField` unmoved by the 08-23 pin ruling, so the token is **still 9/88** with every cell improved or ruled untouchable. Ramp order now pinned as FIVE relations across all 88 cells, mutation-proven on `solarForge`. 393-M-A/B/D + the gate met (PASS 2576/14/Release); 393-M-C met inverted — RED at exactly 6 on both sides of the palette move. **PR #380 OPEN — HOLDS for Owen's device eyeball**; the eyeball card is in the result block at the foot.**
 
 **How it was found, which matters.** #325 shipped that evening and Owen ran the
 device pass. Testing warning text on the light themes, he reported: *"Winter
@@ -1263,6 +1263,168 @@ Marquee ships three of the worst-affected palettes).
 >   waits on Owen's device eyeball of the ramp FEEL (call 2's closing-bar
 >   precedent verbatim). **Merge-on-green explicitly does NOT apply to
 >   this lane** — Owen's 2026-08-25 ruling.
+
+> **✅ 2026-08-25 — BUILT. 393-M-A, -B, -D met and -E's gate met; 393-M-C met
+> in an INVERTED form, named below rather than glossed. PR #380 is OPEN and
+> HOLDS for Owen's device eyeball — merge-on-green does not apply to this
+> lane. GATE: PASS 2576 / 14 / Release on `CC-lane-2`, first run (count moved
+> +2, measured at both ends — see the count note).**
+>
+> ### 🔴 The finding: on both movable themes, a `mutedForeground` at 4.5 IS `secondaryForeground`
+>
+> Not "the same ratio" — **the same hex.** Run the generator on the pre-raise
+> muted and it returns `0x716450` on `pulpNoir` and `0x756D64` on
+> `stickerBombToybox`, which are those themes' own `secondaryForeground`
+> literals. It has to: **call 4 solved that identical minimal-blend problem
+> from that identical starting hex** when it raised secondary, and muted still
+> carried the starting hex. The 8-bit ladder has nothing in between — pulpNoir
+> steps **4.4771 → 4.5246**, toybox **4.4636 → 4.5100**.
+>
+> **So AA is reachable on these two themes in exactly one form the ramp pin
+> permits: muted set to secondary's own literal — the two steps collapsed into
+> one.** Every other AA landing on the blend line reads STRONGER than
+> secondary, which is an inverted ramp, and the pin refuses it. The generator
+> prints that verdict live from the shipped values: *"AA landing would be
+> 0x706450 4.5410 ← OVERSHOOTS secondaryForeground (4.5246): AA INVERTS the
+> ramp here"*.
+>
+> This lane shipped **the capped raise** — call 2's rule verbatim, a real gap
+> kept below the neighbour — and left the collapse for Owen at the eyeball,
+> because it is a design call and this entry hands design calls to him.
+>
+> ### 393-M-B — all nine cells, before → after
+>
+> | cell (each ×3 accent slots) | before | after | |
+> |---|---|---|---|
+> | `mutedForeground` · `deepField` | 4.12 | **4.12** | **NOT MOVED, by ruling** — byte-pinned legacy ramp (`DesignThemeTests:74`), 2026-08-23 "keep the pin". The only one of the nine with real headroom (secondary 6.28; `0x647A8E` would land 4.50). |
+> | `mutedForeground` · `pulpNoir` | 3.84 | **4.41** | RAMP-CAPPED by secondary 4.52 — stays baseline-listed |
+> | `mutedForeground` · `stickerBombToybox` | 4.20 | **4.40** | RAMP-CAPPED by secondary 4.51 — stays baseline-listed |
+>
+> Two theme-level literals moved: `pulpNoir` `0x7D6F58 → 0x726651`,
+> `stickerBombToybox` `0x7A7268 → 0x766F65`. Generator-derived
+> (`printMutedForegroundSuggestions`, new in `AccentTextVariantGeneratorTests`
+> beside its call-1/2/3/4 siblings): minimal blend toward the background's
+> opposite extreme, 8-bit-snapped, so each muted stays its theme's hue.
+>
+> **`mutedForeground` is therefore STILL 9/88 after this lane** — every cell
+> improved or was ruled untouchable, none crossed. The 393-A table above keeps
+> its 2026-08-21 numbers as the snapshot it is; what moved is its worst cell,
+> `pulpNoir` **3.84 → 4.41**.
+>
+> ### 🔬 What the raise did to the ramp, in L\* rather than in ratios
+>
+> The ratio numbers understate this and the eyeball needs it stated properly.
+> Adjacent-step perceptual distances (CIE L\*; ~1.0 is the JND for large
+> patches, more for text):
+>
+> | | secondary→muted | muted→dim |
+> |---|---|---|
+> | `pulpNoir` before | **4.47** | 0.69 |
+> | `pulpNoir` after | 0.69 | **4.47** |
+> | `stickerBombToybox` before | **1.98** | 0.73 |
+> | `stickerBombToybox` after | 0.69 | **2.02** |
+>
+> **The visible break in the ramp's tail MOVED — it did not appear or
+> vanish.** Before, muted sat with `dim` and was 4.47 L\* from secondary; now
+> it sits with `secondary` and is 4.47 L\* from dim. The number of
+> distinguishable steps is unchanged and the muted text got darker. That is
+> the eyeball question in one line: **does muted belong visually with
+> secondary (as shipped) or with dim (as before)?**
+>
+> It also prices the outstanding decision honestly: the capped landing sits
+> **0.69 L\* from secondary, below the JND**, so electing full AA costs a
+> distinction no eye resolves and buys AA on six cells. Recorded, not decided.
+>
+> ### 393-M-A — the ramp ORDER pin, widened from one relation to five
+>
+> Call 2 pinned `muted > dim` because that was the step it moved. Muted has a
+> neighbour on each side, so the pin now carries the relation the palette
+> actually promises, **measured across all 88 reachable cells rather than
+> inferred from the token names**:
+>
+> ```
+> foregroundBright ≥ foreground > secondary ≥ muted > dim      cool ≥ muted
+> ```
+>
+> **The mixed strictness is a measurement.** 24 of the 30 themes set
+> secondary, cool and muted to ONE literal — call 4 said so in as many words
+> ("the ramp was already collapsed there, by design") — so a strict `>` on
+> those pairs would be RED on arrival and would forbid a shipped design
+> decision. `coolForeground` is pinned only against muted because it is not a
+> monotone step: on `deepField` it reads **14.90** against secondary's
+> **6.28**. Pinning it into the linear chain would have encoded an order the
+> palette has never had — this entry's own aperture error, pointed at a ramp.
+>
+> **Mutation-proven, isolating:** `solarForge`'s secondary/muted literals
+> swapped → RED naming that theme and its three cells, on the NEW arm and only
+> that arm (3 issues; the ratchet stayed green because both swapped values
+> stay above 4.5, which is why that theme was chosen):
+> ```
+> solarForge|cyan: the ramp order broke at secondary ≥ muted —
+>   secondaryForeground (5.01) must read at least as strong as
+>   mutedForeground (8.50)            … and |amber, |violet
+> ```
+> The strict `muted > dim` arm is call 2's pin, kept verbatim in its own test
+> and already mutation-proven on `witchsBrew`.
+>
+> ### 393-M-C — RED-first, in the only honest form this lane could have
+>
+> The bar asks for the baseline tightened before the palette moves, witnessing
+> RED at the moved-cell count. **No cell crosses its floor in this lane**, so a
+> RED-then-GREEN witness does not exist to be had, and manufacturing one would
+> have meant faking a cell past 4.5. The tightening was run anyway, as a
+> mutation, on BOTH sides of the palette move:
+>
+> | | tightened baseline | ratchet says |
+> |---|---|---|
+> | before the raise | the 6 movable muted cells removed | **RED at exactly 6** — pulpNoir 3.84, toybox 4.20 |
+> | after the raise | the same 6 removed | **RED at exactly 6** — pulpNoir **4.41**, toybox **4.40** |
+>
+> The second run is the load-bearing one: the cap MEASURED rather than
+> asserted, and the ratios moving between two otherwise identical runs is the
+> raise measured too. Baseline restored after, unchanged at **70 cells**, with
+> post-raise ratios in its comments and a note in its doc comment saying why it
+> did not tighten — a ratchet that stays put has to be distinguishable from one
+> nobody checked.
+>
+> ### 393-M-D — nothing else moved
+>
+> `DesignThemeTests` byte-identity green **without edits** (deepField is
+> untouched, which is why). Six palette suites green together: 96 tests / 6
+> suites. `terminal`'s amber/violet variant-ramp overrides left alone —
+> unreachable cells behind its locked slot (#215).
+>
+> ### ⚠️ The count note — the quoted baseline did not reproduce, so it was measured
+>
+> This lane was dispatched with "baseline 2568 per PR #378's gate". **The tree
+> at the branch point does not measure 2568.** `xcodebuild -enumerate-tests`
+> reports **2574** enabled tests at `784f508a` and **2576** on this branch —
+> both measured, delta exactly **+2**, the two `@Test` functions added. Nothing
+> is wrong with either gate; it is #401's warning happening again: **absolute
+> Swift Testing totals drift between lanes and only the DELTA is portable.**
+> Enumeration is the cheap way to settle it — a build, no 20-minute suite.
+>
+> ### 📱 THE EYEBALL CARD — the closing bar; merge waits on it
+>
+> **Themes to look at: Pulp Noir and Sticker Bomb Toybox** — the same two Owen
+> approved at call 2's eyeball, and the only two this lane moved. Both are
+> cream/light.
+>
+> - **Worst mover: Pulp Noir** (muted 3.84 → 4.41, the biggest step this lane
+>   took anywhere). **Second: Sticker Bomb Toybox** (4.20 → 4.40).
+> - **Where muted lives:** the second-softest ramp step — timestamps, counts,
+>   captions, the Insights and Models screens; one step stronger than the dim
+>   text call 2 raised.
+> - **What "good" looks like:** the muted line reads inkier than before and now
+>   groups with the secondary text beside it, while `dim` is the one that reads
+>   clearly softer. Before this change it was the other way round.
+> - **The question only Owen can answer:** does muted belong with secondary (as
+>   shipped) or with dim (as before)? And if he wants AA on those two themes it
+>   is available in one form only — muted set to secondary's exact literal
+>   (`0x716450`, `0x756D64`), collapsing the pair, which costs **0.69 L\*,
+>   below the JND**, and takes those six cells out of the ratchet baseline.
+> - **Control: Deep Field** (the default) is UNCHANGED at 4.12 by his own
+>   08-23 ruling. If anything looks different there, something leaked.
 
 ## 392. 🔴 A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT — *"your calendar didn't accept the request"* when the user declined the card — **MEASURED 2/30 ON DEVICE 2026-08-21 (#199A's re-run), CALENDAR-ONLY. Spawned rather than kept inside #199A, whose own claim is refuted. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built + merged 2026-08-23 (PR #353) with NO treatment elected, per Owen's route; the n≥30 device run is what remains.**
 
