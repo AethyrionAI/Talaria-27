@@ -462,8 +462,15 @@ final class TalariaUITests: XCTestCase {
         if !startChatting.waitForExistence(timeout: 10), carryOn.exists {
             carryOn.tap()
         }
-        XCTAssertTrue(startChatting.waitForExistence(timeout: 10),
-                      "step 3 should offer START CHATTING")
+        XCTAssertTrue(
+            startChatting.waitForExistence(timeout: 10),
+            """
+            step 3 should offer START CHATTING — buttons on screen: \
+            \(app.buttons.allElementsBoundByIndex.prefix(14)
+                .map { $0.identifier.isEmpty ? $0.label : $0.identifier }
+                .joined(separator: " | "))
+            """
+        )
         startChatting.tap()
 
         // #137: landing straight in chat — no permissions interstitial.

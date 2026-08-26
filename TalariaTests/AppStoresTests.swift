@@ -4153,6 +4153,29 @@ struct AppStoresTests {
         #expect(container.shouldShowLaunchSplash == false)
     }
 
+    /// **#309 Lane B — `initialize()`'s share drain is a LAUNCH step, because
+    /// it NAVIGATES.**
+    ///
+    /// `drainShareInbox()` ends with `router.popToRoot()`. That is right at
+    /// launch: a staged share belongs in the composer, and the composer is the
+    /// root. It is wrong from `handleHostConnected()`, which re-runs
+    /// `initialize()` while the user is standing inside the Connect Host
+    /// wizard — with anything queued in the app group, committing the
+    /// credentials threw them out of step 2 into chat.
+    ///
+    /// **The behavioural evidence is the UI journeys**, which is where this was
+    /// found and where it is measured: the share inbox lives in the shared APP
+    /// GROUP, which — unlike the per-test defaults suite and Keychain service
+    /// — is NOT isolated between UI tests, so the drain only ever had anything
+    /// to do in a full-bundle run. Alone, all three journeys passed.
+    ///
+    /// This pins the RULE by its name, so the reason survives the fix.
+    @Test @MainActor
+    func theLaunchShareDrainRunsOnceAndNotOnEveryReInitialize() {
+        #expect(AppContainer.launchStepsShouldDrainShareInbox(hasCompletedFirstInitialize: false))
+        #expect(AppContainer.launchStepsShouldDrainShareInbox(hasCompletedFirstInitialize: true) == false)
+    }
+
     /// Polls `condition` until it holds or the deadline passes; returns
     /// whether it held so the caller's `#expect` names the failing site.
     @MainActor

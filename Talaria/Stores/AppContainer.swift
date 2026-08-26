@@ -1399,7 +1399,28 @@ final class AppContainer {
         // dead — idempotent with the scene-activate drain (the inbox empties
         // on first pass, so a double invocation is a no-op). Free-tier
         // surface: stays on the critical path, before any host-gated work.
-        drainShareInbox()
+        // **LAUNCH ONLY — and this is the defect the connect journeys found.**
+        //
+        // `drainShareInbox()` ends with `router.popToRoot()`, which is right at
+        // launch: a staged share belongs in the composer and the composer is at
+        // the root. `initialize()` is not only a launch path any more, though —
+        // `handleHostConnected()` runs it when a host is acquired, and that
+        // happens while the user is standing INSIDE the Connect Host wizard.
+        // With anything queued in the app group, committing the credentials
+        // popped them straight out of step 2 into chat.
+        //
+        // **Why only the bundle run saw it:** the share inbox lives in the
+        // shared APP GROUP, which — unlike the per-test defaults suite and
+        // Keychain service — is not isolated between UI tests. Alone, the group
+        // was empty and `drain()` returned nil, so the pop never fired.
+        //
+        // Nothing is lost by gating it: `AppEntry` drains on every
+        // scenePhase → active, so a share arriving later still lands. Same
+        // latch as the splash above, for the same reason — this is a step that
+        // belongs to the first launch, not to every reset of it.
+        if Self.launchStepsShouldDrainShareInbox(hasCompletedFirstInitialize: hasCompletedFirstInitialize) {
+            drainShareInbox()
+        }
         isInitialized = true
         hasCompletedFirstInitialize = true
 
@@ -1525,6 +1546,15 @@ final class AppContainer {
             guard isCurrent() else { return }
         }
         updateWidgetData()
+    }
+
+    /// Whether `initialize()`'s own share drain should run. Extracted as a
+    /// named predicate rather than an inline `if` so the rule has somewhere to
+    /// be read and pinned: the drain NAVIGATES, and a navigating step must not
+    /// fire on a mid-session re-initialize.
+    // harness-visible
+    static func launchStepsShouldDrainShareInbox(hasCompletedFirstInitialize: Bool) -> Bool {
+        !hasCompletedFirstInitialize
     }
 
     /// #123: drain the share-extension inbox into the composer and deep-route

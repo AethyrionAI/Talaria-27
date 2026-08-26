@@ -447,9 +447,10 @@ struct ConnectHostScreen: View {
         GhostButton(title: ConnectHostCopy.addAnotherHost, systemImage: "plus") {
             model.isShowingHostList = false
             // "Add another host" always starts in the wizard — that is what
-            // adding one IS, whatever the active profile happens to hold.
+            // adding one IS, whatever the active profile happens to hold — and
+            // it MINTS a profile rather than filling the active one.
             router.navigate(to: .connectHost(
-                ConnectHostEntry(profileID: nil, startsInWizard: true)))
+                ConnectHostEntry(profileID: nil, startsInWizard: true, mintsNewHost: true)))
         }
 
         HUDPanel(cornerRadius: Design.CornerRadius.lg) {
