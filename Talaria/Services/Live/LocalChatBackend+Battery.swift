@@ -3125,6 +3125,14 @@ extension LocalChatBackend {
         /// The collateral: context present, but the turn genuinely needs
         /// nothing from the device. Right answer is TOOLLESS — this band is
         /// what a "route everything armed" degenerate would destroy.
+        ///
+        /// **#334 CARVE-OUT (Owen's ruling, 2026-08-25): over an OFFER TAIL
+        /// the right answer is ARMED.** After "shall I set a reminder?" a
+        /// words-only follow-up may be an accept in other words, and armed is
+        /// the safe read. So `expected` is NOT constant across this band in
+        /// the LONG grid — read each row's own label, never the band's. The
+        /// short grid has no offer-tail words-only row except an explicit
+        /// decline, so it stays all-toolless.
         case wordsOnly = "words-only"
         /// Regression: an explicit device request that happens to follow
         /// context. Right answer is ARMED, as it already is without context.
@@ -3136,6 +3144,14 @@ extension LocalChatBackend {
         let context: String
         let prompt: String
         let expected: Bool
+        /// #334: a stable row id, emitted on every long-context probe line
+        /// and recorded in the artifact's `notes`. Two rows can share a
+        /// prompt AND a context length — E1's short offer/no-offer pair is
+        /// exactly that by construction — so `probe=` + `ctxchars=` is not a
+        /// key, and a scorer reading the emitted lines would silently merge
+        /// two different cells. Empty on the short grid, whose prompts are
+        /// already unique within their band.
+        var id: String = ""
     }
 
     /// #202A's grid. Row 1 of `accept` and row 4 of `wordsOnly` share a
@@ -3185,6 +3201,17 @@ extension LocalChatBackend {
     /// These rows carry realistic long answers, and the probe times them —
     /// the router runs on EVERY production turn, so its latency is a
     /// shipping cost, not a detail.
+    ///
+    /// **2026-08-25 (#334): 8 rows → 14.** Three labels were corrected to
+    /// ARMED per Owen's offer-tail ruling, and two experiments were added:
+    /// **E1**, the {offer, no-offer} × {short, long} 2×2 that #206 declared
+    /// owed and never built, and **E2**, a non-anaphoric words-only turn over
+    /// an offer tail. Both are DEVICE row sets — the simulator cannot
+    /// generate on this model (#324), so a build can only prove they are
+    /// present and well formed; the numbers come from the next
+    /// `long-context-probe` run. **The probe's band count moved 22 → 34**
+    /// (14 rows × 2 arms + 6 short accept rows), which is a RE-BASELINE for
+    /// #339's subset and not a regression.
     nonisolated static let routerLongContextGrid: [RouterContextRow] = {
         let longHaiku = """
         Here are three haiku about rain. The first: Silver threads descend, drumming on the windowpane, the garden drinks deep. The second: Grey light through the glass, puddles holding broken sky, a bus hisses past. And the third: After the downpour, every leaf a small mirror, the street smells of earth. I leaned into the sensory details in each one — sound in the first, light in the second, smell in the third — because rain is one of those subjects where the obvious images have been used a great deal, and the specific physical detail is what keeps it from feeling secondhand.
@@ -3195,33 +3222,127 @@ extension LocalChatBackend {
         let longOffer = """
         That is a really common one — dentists tend to call during working hours, which is exactly when it is hardest to pick up, and then the callback slips because there is no natural prompt to do it. The trick that usually works is attaching it to something already fixed in your day rather than trusting yourself to remember it cold. Since their office almost certainly opens at nine, first thing in the morning is the moment you are most likely to actually get through to a person. Would you like me to set a reminder to call the dentist tomorrow at 9am?
         """
-        // #205: the no-truncation verdict was measured at ~590 chars, and
-        // real assistant turns run to THOUSANDS. This row is that gap: the
-        // same offer buried at the end of a genuinely long answer, which is
-        // the shape a user actually produces after asking a broad question.
+        // #205 built this to close a LENGTH gap: its no-truncation verdict
+        // had been measured on ~590-char turns while real assistant turns run
+        // to thousands, so here is the same offer buried at the end of a
+        // genuinely long answer. #206 then RETRACTED length as the mechanism.
+        // Read the row for what it is: `longOffer` with 3,522 characters of
+        // unrelated prose in FRONT of the same closing offer.
         let veryLongOffer = String(repeating: longSummary + " ", count: 6) + longOffer
-        // #206 DISAMBIGUATION: the first run's failing row differed from the
-        // passing rows in BOTH length and wording, so length was not
-        // isolated — a confound I introduced. These pairs hold the PROMPT
-        // fixed and vary only the context length, which is the only way to
-        // attribute the failure.
+        // #206's disambiguation pair — and the trap inside it, found by #334
+        // twenty-six days later. The intent was to hold the PROMPT fixed and
+        // vary only context LENGTH. But `longOffer` is 551 characters and
+        // `suffix(560)` therefore returns it WHOLE: **the row named "short"
+        // was never shortened.** It is the same offer tail at its natural
+        // length, which is why it misroutes exactly like the 4,073-char row.
+        // `routerContextTail` (800) is a no-op on it too, so its capped and
+        // uncapped cells are the identical configuration measured twice —
+        // their agreement was never evidence about the cap.
+        //
+        // The expression is left exactly as written so that lengthening
+        // `longOffer` past 560 trips the E4 pin
+        // (`longContextGridShortOfferRowWasNeverActuallyShortened`) instead
+        // of silently turning this row into a different one.
         let shortTail = String(longOffer.suffix(560))
+        // #334 E1's no-offer arm: `longOffer` with ONLY its final sentence
+        // replaced — 72 characters swapped for 72, so the lengths match to
+        // the byte and the 2×2 below varies the OFFER and nothing else. The
+        // replacement deliberately keeps the device noun ("a reminder to call
+        // the dentist tomorrow at 9am"), so the contrast is the offer as an
+        // ACT (a question proposing to do it) rather than the mere mention of
+        // a reminder.
+        let dentistNoOffer = longOffer.replacingOccurrences(
+            of: "Would you like me to set a reminder to call the dentist tomorrow at 9am?",
+            with: "Setting a reminder to call the dentist tomorrow at 9am is what fixes it.")
+        let veryLongNoOffer = String(repeating: longSummary + " ", count: 6) + dentistNoOffer
         return [
-            .init(band: .accept, context: veryLongOffer, prompt: "Yes please", expected: true),
+            .init(band: .accept, context: veryLongOffer, prompt: "Yes please", expected: true,
+                  id: "base-accept-offer-long"),
+            // ⚖️ RELABELLED 2026-08-25 (#334-A, Owen's ruling): the next
+            // three rows end in the dentist offer and expect ARMED. They were
+            // `expected: false`, which asserted that the router SHOULD ignore
+            // an explicit offer — #206 flagged that as a claim it had never
+            // argued for, then #334 replicated the same "failures" on the
+            // iPad thirteen days later. The rows were wrong, not the router.
             .init(band: .wordsOnly, context: veryLongOffer, prompt: "Say that again more briefly",
-                  expected: false),
-            // Same prompt, short context — if THIS passes, length is the cause.
+                  expected: true, id: "base-words-offer-long-say"),
+            // #206 built this row to test whether the miss was about LENGTH:
+            // same prompt, shorter context. It did not pass, and length was
+            // retracted the same day. See `shortTail` above — the context is
+            // not short either, so the pair never varied length at all.
             .init(band: .wordsOnly, context: shortTail, prompt: "Say that again more briefly",
-                  expected: false),
-            // Same prompt, long context — if this fails while the ~580 row
-            // above passes, the pair localises it to length rather than words.
+                  expected: true, id: "base-words-offer-natural-say"),
+            // #206 read this pair as localising the miss to length. It does
+            // not: the ~575-char row further down that PASSES ends in
+            // ordinary prose, while this one ends in the offer — so the pair
+            // varies the offer tail too. E1 below is the set that separates
+            // them.
             .init(band: .wordsOnly, context: veryLongOffer, prompt: "Write another one",
-                  expected: false),
-            .init(band: .accept, context: longOffer, prompt: "Yes please", expected: true),
-            .init(band: .accept, context: longOffer, prompt: "Sure", expected: true),
-            .init(band: .wordsOnly, context: longHaiku, prompt: "Write another one", expected: false),
+                  expected: true, id: "base-words-offer-long-write"),
+            .init(band: .accept, context: longOffer, prompt: "Yes please", expected: true,
+                  id: "base-accept-offer-natural-yes"),
+            .init(band: .accept, context: longOffer, prompt: "Sure", expected: true,
+                  id: "base-accept-offer-natural-sure"),
+            // The counterparts, unrelabelled: ordinary prose, no offer, so
+            // TOOLLESS stays the right answer. The ruling is scoped to offer
+            // tails; it is not a licence to arm the band.
+            .init(band: .wordsOnly, context: longHaiku, prompt: "Write another one", expected: false,
+                  id: "base-words-nooffer-haiku"),
             .init(band: .wordsOnly, context: longSummary,
-                  prompt: "Summarize that in one sentence", expected: false),
+                  prompt: "Summarize that in one sentence", expected: false,
+                  id: "base-words-nooffer-summary"),
+
+            // ── #334 E1 — the 2×2 #206 closed by declaring OWED ──────────
+            // Its words: "a properly built row set that varies
+            // ends-in-an-offer INDEPENDENTLY of length, with `expected`
+            // labels argued rather than assumed." This is that set. The
+            // prompt is held fixed at the row that misroutes at BOTH lengths;
+            // the no-offer contexts are the offer contexts with only the
+            // closing sentence swapped, matched to the byte (551 apiece
+            // short, 4,073 apiece long).
+            //
+            // LABELS, ARGUED. The two offer cells expect ARMED per the
+            // 2026-08-25 ruling. The two no-offer cells expect TOOLLESS:
+            // with no offer on the table there is nothing the turn could be
+            // accepting, so arming buys nothing and costs #215's belt-armed
+            // composition tax (6/10 grabs on the unrouted arm).
+            //
+            // The offer cells duplicate two base rows' contexts ON PURPOSE:
+            // all four cells then run adjacent under one thermal state
+            // (#201B), and the duplication doubles as a within-run
+            // replication of the rows that produced the headline.
+            .init(band: .wordsOnly, context: longOffer,
+                  prompt: "Say that again more briefly", expected: true,
+                  id: "E1-offer-short"),
+            .init(band: .wordsOnly, context: veryLongOffer,
+                  prompt: "Say that again more briefly", expected: true,
+                  id: "E1-offer-long"),
+            .init(band: .wordsOnly, context: dentistNoOffer,
+                  prompt: "Say that again more briefly", expected: false,
+                  id: "E1-nooffer-short"),
+            .init(band: .wordsOnly, context: veryLongNoOffer,
+                  prompt: "Say that again more briefly", expected: false,
+                  id: "E1-nooffer-long"),
+
+            // ── #334 E2 — offer-tail salience vs ANAPHORA ────────────────
+            // Both prompts that misroute point BACKWARD ("write another ONE",
+            // "say THAT again"), so the offer tail and an anaphor that could
+            // resolve to the offered action are still confounded. This prompt
+            // names its own subject and borrows nothing from the context, so
+            // it cannot be read as accepting anything.
+            //
+            // LABEL, ARGUED: TOOLLESS. The ruling covers a follow-up that
+            // might BE an accept; a self-contained composition request is not
+            // one, and arming it is precisely the #196/#215 harm with no
+            // upside. So ARMED here is the falsifying observation — and it is
+            // also the discriminator the lane wants: armed ⇒ the offer tail
+            // alone drives the route; toolless ⇒ anaphora is doing the work.
+            .init(band: .wordsOnly, context: longOffer,
+                  prompt: "Write a haiku about sledding", expected: false,
+                  id: "E2-offer-short"),
+            .init(band: .wordsOnly, context: veryLongOffer,
+                  prompt: "Write a haiku about sledding", expected: false,
+                  id: "E2-offer-long"),
         ]
     }()
 
@@ -3259,15 +3380,19 @@ extension LocalChatBackend {
                 let each = Date().timeIntervalSince(started) / Double(trials)
                 let effective = capped ? Self.routerContextTail(row.context).count
                                        : row.context.count
+                // #334: `row=` carries the row id. Without it the emitted
+                // lines are keyed by prompt + ctxchars, which E1's short
+                // offer/no-offer pair collides on by design.
                 Self.batteryEmit(String(format:
-                    "router: %d/%d expected=%@ variant=%@ band=%@ secs=%.2f ctxchars=%d probe=%@",
-                    correct, trials, String(row.expected), label, row.band.rawValue,
+                    "router: %d/%d expected=%@ variant=%@ band=%@ row=%@ secs=%.2f ctxchars=%d probe=%@",
+                    correct, trials, String(row.expected), label, row.band.rawValue, row.id,
                     each, effective, row.prompt))
                 Self.batteryRecorder.recordProbe(
                     probe: row.prompt, expected: row.expected, correct: correct, trials: trials,
                     variant: label, context: row.context, band: row.band.rawValue,
                     seconds: each
-                , errors: Self.routerFailureTally - failuresBefore)
+                , errors: Self.routerFailureTally - failuresBefore,
+                    notes: ["row": row.id])
             }
         }
         // The SHORT rows again, same session conditions, as the latency
