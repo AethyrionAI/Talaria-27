@@ -155,6 +155,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#407** 📝 text typed during live dictation is discarded on the next transcript tick — filed from #405's sweep; design call (merge vs block)
 - **#408** 🐛 a guardrail-declined image turn has no route — on-device `.guardrailViolation` dead-ends at Retry (n=4: the declined photo stable at 0/2 on-device, 1/1 on PCC; a different shot passed on-device); post-#390 nothing can opt an image down to OCR on that tier. **⚖️ RULED auto-degrade-once 2026-08-25 and ✅ BUILT + MERGED the same night (PR #378, `b03fabfb`): BOTH turn paths retry once through #390-B's own `composeTurnInput(… imageInputEnabled: false)`, the reply says so in production copy, text-only + PCC declines untouched; 408-A..E met, RED-first, five mutations each reding one named pin; gate 2568(+16)/14/Release. OPEN on the device re-send only (runbook card in the entry)**
 - **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); the refusal wording is the lever — **✅ THE STRING SHIPPED 2026-08-25 (PR #376): both branches carry an explicit do-not-claim clause, RED-first, mutation-proven both ways, 409-A/B/C MET. OPEN on 409-D only — the wording changed, the model's behaviour is UNVERIFIED until the next device `refusal-words` run**
+- **#413** 🐛 the assistant's FIRST utterance is captured as the USER speaking — realtime engine, first response only, 3/3 on BOTH Noisy and Normal (preset-independent, Owen's own A/B) — candidates filed (AEC convergence / route settle / channel mis-route); the AirPods probe discriminates acoustic vs software
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it**. **MEASURED 2026-08-11; clipping RULED OUT.** ~~Mechanism UNKNOWN~~ ~~⟵ INVESTIGATED 2026-08-25, candidates ranked~~ **⟵ ✅ MECHANISM MEASURED 2026-08-25 (measurement lane, unit repro): `openSession`'s wholesale replace + `mapStoredMessage`'s role refusal and empty usage fields zero BOTH totals inputs in ONE event, and the 9→7 row drop is the same event. Candidate ① CONFIRMED; candidate ③ (the `.voiceHermes` predicate split) is REAL but mutation-proven NOT the cause; the entry's "receipts render normally" claim is FALSIFIED — no reopened row carries `usage` or `turnDuration`, and the quoted numbers are the card's LAST TURN block via `SessionUsageIndex`. Shipped: 16 pins in `SessionTotalsAfterReopenTests`, a verbose-gated `/usage` instrument (NOT `#if DEBUG`), 3 seam breadcrumbs at `.notice`, and 330-G's six-step device script.** 330-A/B/E DISCHARGED. **⟵ ✅ FIXED 2026-08-25 (fix lane, `330-receipts-sidecar`): the `TurnReceiptSidecar` — session-id-keyed, replayed at open, `AgentAttachmentSidecar`'s pattern plus a priming tier — restores `usage`/`turnDuration`/`servingModel`/`isContextPriming` across the replace, and `mapStoredMessage` re-maps the STORED primer (a `user` row host-side) into the priming notice, collapsing its ack; that also closes a compounding defect where every reopen fed the primer back into the journal the next transplant is composed from. 330-C CONVERGED (four sites, one `isAgentAuthored` predicate — hygiene, M2 already proved it is not the cause). 330-D MET with its token source NAMED: `postPrimingTurn` returns nil whenever the priming run misses the 20 s `runsSyncBudget`, so the run id is kept and re-read off the interactive path onto the journal hop. 5 of 16 pins flipped RED-first (9 expectations), all rewritten; 16 → 34 tests; 3 isolating mutations.** **330-C/330-D DISCHARGED; only 330-G (Owen's device close) is left, and #312 (f) flips with it**
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
@@ -14457,6 +14458,59 @@ NOT a catcher here by design: these claims follow a refusal, not a tool run).
 > > — cutting in the dangerous direction, and it had been latent since the check
 > > was written. Emphasis is now stripped before matching, so the check reads
 > > what a human reads.
+
+## 413. 🐛 THE ASSISTANT'S FIRST UTTERANCE IS CAPTURED AS THE USER SPEAKING — voice session, realtime engine, FIRST response only; the second response is clean — **FILED 2026-08-26 per #268, from Owen's device pass ("the first utterance of a response is captured as a me speaking. The second response doesn't have this issue. I tried 3 times and all 3 happened the same way"). MEASURED 3/3 on BOTH the Noisy and Normal presets — preset-INDEPENDENT by his own A/B, so tuning is not the lever. Mechanism deliberately NOT guessed; candidates + the discriminating probe below.**
+
+**The observation:** in a live voice session, the opening of the assistant's
+FIRST spoken reply is transcribed and attributed as USER speech; every
+subsequent reply in the same session is clean. 3/3 reproduction, identical
+shape each time, on two different turn-detection presets (Noisy, Normal).
+Build unstated at filing — Owen quotes it at the first scored probe
+(#200D). **Engine attribution is structural, not guessed: the
+Noisy/Normal presets are #396's `server_vad` blocks, which exist only on
+the REALTIME engine** — so this is `LiveVoiceSessionService`'s path.
+
+**Code facts gathered at filing (read, not measured):**
+- The realtime path configures the audio session `.voiceChat` mode
+  (`LiveVoiceSessionService.swift:707-709`, `:754-756`) — the SYSTEM
+  echo canceller, not the native pipeline's explicit
+  `setVoiceProcessingEnabled` (`NativeVoicePipelineService.swift:1079`),
+  which is a different engine and not implicated here.
+- The user-attribution channel is the server's
+  `conversation.item.input_audio_transcription.delta/.completed`
+  (`:937`, `:943`) — the phantom arrives as the SERVER saying "the user
+  said this," which means either the server really heard it (acoustics)
+  or the app fed it assistant audio as input (plumbing).
+
+**Candidates — a starting list, not a menu (name it by measurement):**
+1. **AEC convergence delay:** iOS's voice-processing canceller adapts its
+   echo reference only once real far-end audio flows — the first few
+   hundred ms of the FIRST playback can leak to the mic before it
+   converges, and every later reply benefits from the adapted filter.
+   Fits first-only + deterministic + preset-independent exactly.
+2. **First-playback route settle:** the route/canceller restart at the
+   moment reply #1's audio starts (speaker engage), with capture running
+   through the gap.
+3. **App-side channel mis-route:** the first `response.audio` frames (or
+   their transcript) entering the input path — acoustics not involved.
+
+**🔬 THE DISCRIMINATING PROBE (2 min, device — runbook card):** the same
+test wearing AIRPODS. With headphones the mic cannot hear the TTS: if the
+phantom STILL appears ⇒ candidate 3 (software; acoustics exonerated); if
+it VANISHES ⇒ candidates 1/2 (acoustic leak through the canceller's
+warm-up). Second reading, free: does the phantom bubble's TEXT match the
+reply's opening words (echo transcribed) or is it garbage (VAD noise)?
+Third: does the phantom PERSIST in the transcript / post to Hermes via
+the voice-transcripts setting — if yes, the defect also pollutes history
+and the model may answer its own words (the #330 primer-impersonation's
+acoustic cousin).
+
+**Related:** #396 (the presets Owen used for the A/B — its tuning surface
+is measured NOT the lever here), #397/#198B (audio-session transition
+discipline on the memo path — same subsystem, different engine), #303
+(engine attribution discipline — satisfied structurally above), #1
+(voice transcripts posting to the session — the pollution path), #138
+(the voice umbrella).
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
