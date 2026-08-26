@@ -7893,10 +7893,26 @@ argument for making the relay more robust.
 > `AuthTokens`, `PairedRelayConfiguration`, `PairingRedeemResult`,
 > `DeviceRegistrationRequest`. Plus `BackendProfile.relayBaseURL` /
 > `hasRelay` / `resolvedRelayBaseURL` (Owen's cleanup ruling 3) and the #310
-> one-shot migration that existed to clear it. Structural check:
-> `git grep -nE 'PairingStore|LivePairingService|PhonePairingCode|AppSessionStore|AppSessionState|AuthTokens|PairedRelayConfiguration|relayBaseURL|hasRelay'`
-> over `Talaria/ TalariaTests/ TalariaUITests/ Shared/` returns COMMENT LINES
-> ONLY — the 309-DEL-A adjudicated tombstone standard.
+> one-shot migration that existed to clear it.
+>
+> **Structural check, reported as measured rather than flatteringly** (309-C6's
+> lesson, and the first draft of this line got it wrong). Over `Talaria/
+> TalariaTests/ TalariaUITests/ Shared/`:
+>   - **the TYPES return NOTHING outside comments** —
+>     `PairingStore|LivePairingService|PairingServiceProtocol|MockPairingService|PhonePairingCode|AppSessionStore|AppSessionState|AuthTokens|PairingRedeemResult|DeviceRegistrationRequest|RelayConfiguration`
+>     matches only tombstones and the one test whose NAME contains
+>     `RelayConfiguration` because it pins that the dead key still decodes.
+>     That is the 309-DEL-A adjudicated standard, met.
+>   - **`relayBaseURL` / `hasRelay` do NOT**, and saying "zero" would have been
+>     false: four non-comment hits survive, all of them JSON STRING LITERALS in
+>     decode fixtures (`BackendProfilesTests`, `ModelsPickerModelTests`) that
+>     exist precisely to prove a shipped blob carrying the dead key still
+>     loads. Deleting them would delete the compatibility pin.
+>   - `BackendProfileScopedKeys.pairedRelayConfiguration` and `.accessToken` /
+>     `.refreshToken` / `.sessionState` also survive, **on purpose and
+>     documented as PURGE-ONLY**: `RelayCredentialHygiene` enumerates the
+>     residue by its real key strings rather than reconstructing them from
+>     literals, which is the shape that goes stale silently.
 >
 > **309-B9 MET — the purge covers BOTH writers, and is proven not to widen.**
 > `RelayCredentialHygiene` sweeps `accessToken` / `refreshToken` (Keychain) and
