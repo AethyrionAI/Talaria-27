@@ -54,59 +54,6 @@ struct AppStoresTests {
     }
 
     @MainActor
-    private final class RecordingSessionBootstrapService: SessionBootstrapServiceProtocol {
-        var registerCallCount = 0
-        var lastLoadedAccessToken: String?
-
-        func registerDevice(_ request: DeviceRegistrationRequest) async throws -> SessionBootstrapResponse {
-            registerCallCount += 1
-            return SessionBootstrapResponse(
-                state: AppSessionState(
-                    deviceID: UUID(),
-                    installationID: request.installationID,
-                    deviceRegistered: true,
-                    connectionStatus: .connected,
-                    syncStatus: .synced,
-                    isMockMode: false,
-                    backendEndpoint: request.relayBaseURLString,
-                    lastSyncAt: nil
-                ),
-                tokens: AuthTokens(
-                    accessToken: "recording-access-token",
-                    refreshToken: "recording-refresh-token",
-                    expiresAt: .distantFuture
-                )
-            )
-        }
-
-        func loadSession(accessToken: String?) async throws -> AppSessionState {
-            lastLoadedAccessToken = accessToken
-            return AppSessionState(
-                userID: UUID(),
-                displayName: "Hermes User",
-                deviceID: UUID(),
-                installationID: UUID(),
-                deviceRegistered: true,
-                connectionStatus: .connected,
-                syncStatus: .synced,
-                isMockMode: false,
-                backendEndpoint: AppEnvironment.development.baseURLString,
-                lastSyncAt: .now
-            )
-        }
-
-        func refreshAuth(refreshToken: String) async throws -> AuthTokens {
-            AuthTokens(
-                accessToken: "refreshed-access-token",
-                refreshToken: "refreshed-refresh-token",
-                expiresAt: .distantFuture
-            )
-        }
-
-        func revokeCurrentSession(accessToken: String?) async throws {}
-    }
-
-    @MainActor
     private final class RecordingPairingService: PairingServiceProtocol {
         private(set) var lastMintedUserID: UUID?
 
@@ -327,333 +274,36 @@ struct AppStoresTests {
         }
     }
 
-    @Test @MainActor
-    func sessionBootstrapPersistsStateAndTokens() async throws {
-        let suiteName = "session-bootstrap-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-
-        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
-        let secureStore = MockSecureStore()
-        let sessionStore = AppSessionStore(
-            bootstrapService: MockSessionBootstrapService(),
-            syncCoordinator: MockSyncCoordinator(),
-            secureStore: secureStore,
-            persistence: persistence,
-            environmentProvider: { .development }
-        )
-
-        await sessionStore.bootstrap()
-
-        #expect(sessionStore.state.deviceRegistered)
-        #expect(sessionStore.state.connectionStatus == .connected)
-        #expect(await secureStore.retrieve(key: "session.accessToken") != nil)
-        #expect(persistence.loadSessionState()?.deviceRegistered == true)
-    }
-
-    @Test @MainActor
-    func sessionBootstrapReRegistersWhenPersistedStateExistsButAccessTokenIsMissing() async throws {
-        let suiteName = "session-bootstrap-missing-token-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-
-        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
-        persistence.saveSessionState(
-            AppSessionState(
-                userID: UUID(),
-                displayName: "Hermes User",
-                deviceID: UUID(),
-                installationID: UUID(),
-                deviceRegistered: true,
-                connectionStatus: .connected,
-                syncStatus: .synced,
-                isMockMode: false,
-                backendEndpoint: AppEnvironment.development.baseURLString,
-                lastSyncAt: .now
-            )
-        )
-
-        let bootstrapService = RecordingSessionBootstrapService()
-        let secureStore = MockSecureStore()
-        let sessionStore = AppSessionStore(
-            bootstrapService: bootstrapService,
-            syncCoordinator: MockSyncCoordinator(),
-            secureStore: secureStore,
-            persistence: persistence,
-            environmentProvider: { .development }
-        )
-
-        await sessionStore.bootstrap()
-
-        #expect(bootstrapService.registerCallCount == 1)
-        #expect(bootstrapService.lastLoadedAccessToken == "recording-access-token")
-        #expect(await secureStore.retrieve(key: "session.accessToken") == "recording-access-token")
-    }
-
-    /// Bootstrap service whose refresh/register behavior is scripted per test —
-    /// the #15 recovery-ladder tests need refresh rejections, register
-    /// failures, and slow refreshes on demand.
-    @MainActor
-    private final class ScriptedSessionBootstrapService: SessionBootstrapServiceProtocol {
-        var registerCallCount = 0
-        var refreshCallCount = 0
-        var refreshDelayMilliseconds = 0
-        var refreshError: Error?
-        var registerError: Error?
-        /// Access tokens loadSession must reject with a 401, simulating a
-        /// relay that no longer honors them.
-        var rejectedAccessTokens: Set<String> = []
-        let sessionUserID = UUID()
-
-        func registerDevice(_ request: DeviceRegistrationRequest) async throws -> SessionBootstrapResponse {
-            registerCallCount += 1
-            if let registerError { throw registerError }
-            return SessionBootstrapResponse(
-                state: AppSessionState(
-                    userID: sessionUserID,
-                    deviceID: UUID(),
-                    installationID: request.installationID,
-                    deviceRegistered: true,
-                    connectionStatus: .connected,
-                    syncStatus: .synced,
-                    isMockMode: false,
-                    backendEndpoint: request.relayBaseURLString,
-                    lastSyncAt: nil
-                ),
-                tokens: AuthTokens(
-                    accessToken: "scripted-recovered-access",
-                    refreshToken: "scripted-recovered-refresh",
-                    expiresAt: .distantFuture
-                )
-            )
-        }
-
-        func loadSession(accessToken: String?) async throws -> AppSessionState {
-            if let accessToken, rejectedAccessTokens.contains(accessToken) {
-                throw RelayAPIClient.ClientError.unauthorized("Expired or invalid access token.")
-            }
-            return AppSessionState(
-                userID: sessionUserID,
-                displayName: "Hermes User",
-                deviceID: UUID(),
-                installationID: UUID(),
-                deviceRegistered: true,
-                connectionStatus: .connected,
-                syncStatus: .synced,
-                isMockMode: false,
-                backendEndpoint: AppEnvironment.development.baseURLString,
-                lastSyncAt: .now
-            )
-        }
-
-        func refreshAuth(refreshToken: String) async throws -> AuthTokens {
-            refreshCallCount += 1
-            if refreshDelayMilliseconds > 0 {
-                try? await Task.sleep(for: .milliseconds(refreshDelayMilliseconds))
-            }
-            if let refreshError { throw refreshError }
-            return AuthTokens(
-                accessToken: "scripted-refreshed-access",
-                refreshToken: "scripted-refreshed-refresh",
-                expiresAt: .distantFuture
-            )
-        }
-
-        func revokeCurrentSession(accessToken: String?) async throws {}
-    }
-
-    @MainActor
-    private func makeScriptedSessionStore(
-        suiteName: String,
-        bootstrapService: ScriptedSessionBootstrapService,
-        secureStore: MockSecureStore,
-        registered: Bool
-    ) -> AppSessionStore {
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
-        if registered {
-            persistence.saveSessionState(
-                AppSessionState(
-                    userID: UUID(),
-                    displayName: "Hermes User",
-                    deviceID: UUID(),
-                    installationID: UUID(),
-                    deviceRegistered: true,
-                    connectionStatus: .connected,
-                    syncStatus: .synced,
-                    isMockMode: false,
-                    backendEndpoint: AppEnvironment.development.baseURLString,
-                    lastSyncAt: .now
-                )
-            )
-        }
-        return AppSessionStore(
-            bootstrapService: bootstrapService,
-            syncCoordinator: MockSyncCoordinator(),
-            secureStore: secureStore,
-            persistence: persistence,
-            environmentProvider: { .development }
-        )
-    }
-
-    @Test @MainActor
-    func tokenRefreshReportsMissingRefreshToken() async throws {
-        let bootstrapService = ScriptedSessionBootstrapService()
-        let sessionStore = makeScriptedSessionStore(
-            suiteName: "token-refresh-missing-\(UUID().uuidString)",
-            bootstrapService: bootstrapService,
-            secureStore: MockSecureStore(),
-            registered: true
-        )
-
-        let outcome = await sessionStore.refreshAccessTokenIfNeeded()
-
-        #expect(outcome == .missingRefreshToken)
-        #expect(bootstrapService.refreshCallCount == 0)
-    }
-
-    @Test @MainActor
-    func tokenRefreshDistinguishesRejectionFromTransientFailure() async throws {
-        let bootstrapService = ScriptedSessionBootstrapService()
-        let secureStore = MockSecureStore()
-        await secureStore.store(key: "session.accessToken", value: "stale-access")
-        await secureStore.store(key: "session.refreshToken", value: "stale-refresh")
-        let sessionStore = makeScriptedSessionStore(
-            suiteName: "token-refresh-classify-\(UUID().uuidString)",
-            bootstrapService: bootstrapService,
-            secureStore: secureStore,
-            registered: true
-        )
-
-        bootstrapService.refreshError = URLError(.notConnectedToInternet)
-        #expect(await sessionStore.refreshAccessTokenIfNeeded() == .transientFailure)
-
-        bootstrapService.refreshError = RelayAPIClient.ClientError.requestFailed("relay 500")
-        #expect(await sessionStore.refreshAccessTokenIfNeeded() == .transientFailure)
-
-        bootstrapService.refreshError = RelayAPIClient.ClientError.unauthorized("Invalid refresh token.")
-        #expect(await sessionStore.refreshAccessTokenIfNeeded() == .rejected)
-
-        // Failed refreshes never clobber the stored tokens.
-        #expect(await secureStore.retrieve(key: "session.accessToken") == "stale-access")
-        #expect(await secureStore.retrieve(key: "session.refreshToken") == "stale-refresh")
-
-        bootstrapService.refreshError = nil
-        #expect(await sessionStore.refreshAccessTokenIfNeeded() == .refreshed)
-        #expect(await secureStore.retrieve(key: "session.accessToken") == "scripted-refreshed-access")
-        #expect(await secureStore.retrieve(key: "session.refreshToken") == "scripted-refreshed-refresh")
-    }
-
-    @Test @MainActor
-    func concurrentTokenRefreshesCoalesceIntoOneRelayCall() async throws {
-        let bootstrapService = ScriptedSessionBootstrapService()
-        bootstrapService.refreshDelayMilliseconds = 50
-        let secureStore = MockSecureStore()
-        await secureStore.store(key: "session.refreshToken", value: "stale-refresh")
-        let sessionStore = makeScriptedSessionStore(
-            suiteName: "token-refresh-coalesce-\(UUID().uuidString)",
-            bootstrapService: bootstrapService,
-            secureStore: secureStore,
-            registered: true
-        )
-
-        // Talk + sensors 401ing at once must not race the rotation: with
-        // rotate-on-refresh, the second caller's stale refresh token would
-        // be rejected server-side.
-        let first = Task { await sessionStore.refreshAccessTokenIfNeeded() }
-        let second = Task { await sessionStore.refreshAccessTokenIfNeeded() }
-
-        #expect(await first.value == .refreshed)
-        #expect(await second.value == .refreshed)
-        #expect(bootstrapService.refreshCallCount == 1)
-    }
-
-    @Test @MainActor
-    func sessionRecoveryReRegistersKnownInstallationAndReloadsIdentity() async throws {
-        let bootstrapService = ScriptedSessionBootstrapService()
-        let secureStore = MockSecureStore()
-        await secureStore.store(key: "session.accessToken", value: "stale-access")
-        await secureStore.store(key: "session.refreshToken", value: "dead-refresh")
-        let sessionStore = makeScriptedSessionStore(
-            suiteName: "session-recovery-\(UUID().uuidString)",
-            bootstrapService: bootstrapService,
-            secureStore: secureStore,
-            registered: true
-        )
-
-        let recovered = await sessionStore.recoverSessionByReRegistering()
-
-        #expect(recovered)
-        #expect(bootstrapService.registerCallCount == 1)
-        #expect(await secureStore.retrieve(key: "session.accessToken") == "scripted-recovered-access")
-        #expect(await secureStore.retrieve(key: "session.refreshToken") == "scripted-recovered-refresh")
-        // The reloaded session user is what PairingStore.validateRestoredIdentity
-        // compares against the pairing's minted user.
-        #expect(sessionStore.state.userID == bootstrapService.sessionUserID)
-    }
-
-    @Test @MainActor
-    func sessionRecoveryRefusesNeverRegisteredInstallation() async throws {
-        let bootstrapService = ScriptedSessionBootstrapService()
-        let sessionStore = makeScriptedSessionStore(
-            suiteName: "session-recovery-unregistered-\(UUID().uuidString)",
-            bootstrapService: bootstrapService,
-            secureStore: MockSecureStore(),
-            registered: false
-        )
-
-        let recovered = await sessionStore.recoverSessionByReRegistering()
-
-        #expect(!recovered)
-        #expect(bootstrapService.registerCallCount == 0)
-    }
-
-    @Test @MainActor
-    func sessionRecoveryAttemptsAreRateLimited() async throws {
-        let bootstrapService = ScriptedSessionBootstrapService()
-        bootstrapService.registerError = URLError(.cannotConnectToHost)
-        let sessionStore = makeScriptedSessionStore(
-            suiteName: "session-recovery-ratelimit-\(UUID().uuidString)",
-            bootstrapService: bootstrapService,
-            secureStore: MockSecureStore(),
-            registered: true
-        )
-
-        #expect(await sessionStore.recoverSessionByReRegistering() == false)
-        #expect(await sessionStore.recoverSessionByReRegistering() == false)
-
-        // The second attempt inside the cooldown window never hits the relay.
-        #expect(bootstrapService.registerCallCount == 1)
-    }
-
-    @Test @MainActor
-    func bootstrapSelfHealsWhenRefreshTokenIsDead() async throws {
-        // The #15 launch shape: stored access token is expired (relay 401s
-        // it), the refresh token is rejected, and the old code parked the app
-        // in an error state until a manual re-pair. Bootstrap must now walk
-        // the ladder down to silent re-registration and come back connected.
-        let bootstrapService = ScriptedSessionBootstrapService()
-        bootstrapService.rejectedAccessTokens = ["expired-access"]
-        bootstrapService.refreshError = RelayAPIClient.ClientError.unauthorized("Invalid refresh token.")
-        let secureStore = MockSecureStore()
-        await secureStore.store(key: "session.accessToken", value: "expired-access")
-        await secureStore.store(key: "session.refreshToken", value: "dead-refresh")
-        let sessionStore = makeScriptedSessionStore(
-            suiteName: "bootstrap-self-heal-\(UUID().uuidString)",
-            bootstrapService: bootstrapService,
-            secureStore: secureStore,
-            registered: true
-        )
-
-        await sessionStore.bootstrap()
-
-        #expect(bootstrapService.registerCallCount == 1)
-        #expect(sessionStore.state.connectionStatus == .connected)
-        #expect(sessionStore.state.syncStatus == .synced)
-        #expect(await secureStore.retrieve(key: "session.accessToken") == "scripted-recovered-access")
-        #expect(await secureStore.retrieve(key: "session.refreshToken") == "scripted-recovered-refresh")
-    }
+    // ── #309 Lane A (2026-08-25): NINE RELAY-SESSION TESTS TOMBSTONED ──
+    //
+    // Deleted here, not repointed, because the production behaviour they
+    // pinned is deleted: `AppSessionStore.bootstrap()`,
+    // `refreshAccessTokenIfNeeded()` and `recoverSessionByReRegistering()`
+    // spoke `device/register` / `session` / `auth/refresh` to a relay retired
+    // on both hosts. A test that outlives its mechanism is a test nobody can
+    // make fail honestly (#310's `relaylessProfileMarksRealtimeVoice…` is the
+    // precedent this file already carries).
+    //
+    // What went, and where the surviving guard is:
+    //   · sessionBootstrapPersistsStateAndTokens
+    //   · sessionBootstrapReRegistersWhenPersistedStateExistsButAccessTokenIsMissing
+    //   · bootstrapSelfHealsWhenRefreshTokenIsDead            (#15's ladder)
+    //   · tokenRefreshReportsMissingRefreshToken
+    //   · tokenRefreshDistinguishesRejectionFromTransientFailure
+    //   · concurrentTokenRefreshesCoalesceIntoOneRelayCall     (single-flight)
+    //   · sessionRecoveryReRegistersKnownInstallationAndReloadsIdentity
+    //   · sessionRecoveryRefusesNeverRegisteredInstallation
+    //   · sessionRecoveryAttemptsAreRateLimited
+    // — together with their doubles (`RecordingSessionBootstrapService`,
+    // `ScriptedSessionBootstrapService`, `makeScriptedSessionStore`).
+    //
+    // NOT tombstoned, and deliberately so: the Keychain-slot behaviour these
+    // tests also touched keeps live pins — `pairingStorePersistsRelayConfiguration
+    // AndTokens` and `pairingStoreDisconnectClearsRelayConfigurationAndSession`
+    // still exercise `applyPairedSession` / `clearSession` end to end, and the
+    // 401-refresh LADDER keeps its production copy pinned by
+    // `liveHermesHostServiceRefreshesExpiredAccessTokenDuringFetch`.
+    // `InstallationIdentityTests` PORTED rather than tombstoning (309-A2).
 
     @Test @MainActor
     func settingsStorePersistsEnvironmentChanges() async throws {
@@ -3223,6 +2873,12 @@ struct AppStoresTests {
     // `LiveSessionBootstrapService` — the other live relay tenant — has no
     // in-client ladder to port to: it OWNS `auth/refresh`, and the retry
     // decision sits a layer up in the session store.
+    //
+    // **2026-08-25 (#309 Lane A): that service is now DELETED too**, along
+    // with the session store's whole retry ladder. The test below is
+    // therefore the LAST live pin on the 401 → refresh-once → retry shape,
+    // which is why it kept its `accessTokenRefresher` argument even though
+    // production now passes the parameter's `{ nil }` default.
 
     @Test @MainActor
     func liveHermesHostServiceRefreshesExpiredAccessTokenDuringFetch() async throws {
@@ -3460,11 +3116,8 @@ struct AppStoresTests {
         let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
         let secureStore = MockSecureStore()
         let sessionStore = AppSessionStore(
-            bootstrapService: MockSessionBootstrapService(),
-            syncCoordinator: MockSyncCoordinator(),
             secureStore: secureStore,
             persistence: persistence,
-            environmentProvider: { .production }
         )
         let pairingStore = PairingStore(
             pairingService: RecordingPairingService(),
@@ -3574,11 +3227,8 @@ struct AppStoresTests {
         let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
         let secureStore = MockSecureStore()
         let sessionStore = AppSessionStore(
-            bootstrapService: MockSessionBootstrapService(),
-            syncCoordinator: MockSyncCoordinator(),
             secureStore: secureStore,
             persistence: persistence,
-            environmentProvider: { .production }
         )
         let pairingStore = PairingStore(
             pairingService: RecordingPairingService(),
@@ -3630,11 +3280,8 @@ struct AppStoresTests {
         persistence.saveSessionState(AppSessionState(userID: staleUserID, deviceRegistered: true))
 
         let sessionStore = AppSessionStore(
-            bootstrapService: MockSessionBootstrapService(),
-            syncCoordinator: MockSyncCoordinator(),
             secureStore: secureStore,
             persistence: persistence,
-            environmentProvider: { .production }
         )
         let pairingService = RecordingPairingService()
         let pairingStore = PairingStore(
@@ -3667,11 +3314,8 @@ struct AppStoresTests {
 
         let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
         let sessionStore = AppSessionStore(
-            bootstrapService: MockSessionBootstrapService(),
-            syncCoordinator: MockSyncCoordinator(),
             secureStore: MockSecureStore(),
             persistence: persistence,
-            environmentProvider: { .production }
         )
 
         let pairedUserID = UUID()
@@ -3722,13 +3366,9 @@ struct AppStoresTests {
 
         let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
         let sessionStore = AppSessionStore(
-            bootstrapService: MockSessionBootstrapService(),
-            syncCoordinator: MockSyncCoordinator(),
             secureStore: MockSecureStore(),
             persistence: persistence,
-            environmentProvider: { .development }
         )
-        await sessionStore.bootstrap()
 
         let inboxStore = InboxStore(
             inboxService: MockInboxService(),
@@ -4295,67 +3935,6 @@ struct AppStoresTests {
     }
 
     @MainActor
-    private final class BlackHoleSessionBootstrapService: SessionBootstrapServiceProtocol {
-        let gate: BlackHoleGate
-        var registerCallCount = 0
-        var loadCallCount = 0
-        /// The user the relay reports for this session once it finally
-        /// answers. Mismatching the paired user proves
-        /// `validateRestoredIdentity` ran strictly AFTER bootstrap (#3/#46).
-        var sessionUserID = UUID()
-
-        init(gate: BlackHoleGate) {
-            self.gate = gate
-        }
-
-        func registerDevice(_ request: DeviceRegistrationRequest) async throws -> SessionBootstrapResponse {
-            registerCallCount += 1
-            try await gate.wait()
-            return SessionBootstrapResponse(
-                state: AppSessionState(
-                    userID: sessionUserID,
-                    deviceID: UUID(),
-                    installationID: request.installationID,
-                    deviceRegistered: true,
-                    connectionStatus: .connected,
-                    syncStatus: .synced,
-                    isMockMode: false,
-                    backendEndpoint: request.relayBaseURLString,
-                    lastSyncAt: nil
-                ),
-                tokens: AuthTokens(
-                    accessToken: "blackhole-access-token",
-                    refreshToken: "blackhole-refresh-token",
-                    expiresAt: .distantFuture
-                )
-            )
-        }
-
-        func loadSession(accessToken: String?) async throws -> AppSessionState {
-            loadCallCount += 1
-            try await gate.wait()
-            return AppSessionState(
-                userID: sessionUserID,
-                displayName: "Hermes User",
-                deviceID: UUID(),
-                installationID: UUID(),
-                deviceRegistered: true,
-                connectionStatus: .connected,
-                syncStatus: .synced,
-                isMockMode: false,
-                backendEndpoint: AppEnvironment.production.baseURLString,
-                lastSyncAt: .now
-            )
-        }
-
-        func refreshAuth(refreshToken: String) async throws -> AuthTokens {
-            throw RelayAPIClient.ClientError.requestFailed("no refresh in black-hole launch tests")
-        }
-
-        func revokeCurrentSession(accessToken: String?) async throws {}
-    }
-
-    @MainActor
     private final class BlackHoleHermesHostService: HermesHostServiceProtocol {
         let gate: BlackHoleGate
         var fetchCallCount = 0
@@ -4598,17 +4177,19 @@ struct AppStoresTests {
         }
     }
 
-    /// A fully wired bare container whose every relay surface rides a
-    /// black-hole gate, paired with a valid Keychain-local session so the
-    /// launch guards pass.
+    /// A fully wired bare container whose every host surface rides a
+    /// black-hole gate, paired with a valid Keychain-local session.
+    ///
+    /// **#309 Lane A dropped `bootstrapGate` / `bootstrapService`** with the
+    /// relay session bootstrap they modelled. What the harness still black-
+    /// holes — host presence and the inbox fetch — is the traffic that
+    /// actually survives into Lane C.
     @MainActor
     private struct LaunchHarness {
         let container: AppContainer
         let secureStore: MockSecureStore
-        let bootstrapGate: BlackHoleGate
         let hostGate: BlackHoleGate
         let inboxGate: BlackHoleGate
-        let bootstrapService: BlackHoleSessionBootstrapService
         let hostService: BlackHoleHermesHostService
         let inboxService: BlackHoleInboxService
         /// #310: held so a test can count `talk/readiness` calls — the store
@@ -4618,7 +4199,6 @@ struct AppStoresTests {
         let pairedUserID: UUID
 
         func openAllGates() {
-            bootstrapGate.open()
             hostGate.open()
             inboxGate.open()
         }
@@ -4627,9 +4207,16 @@ struct AppStoresTests {
     @MainActor
     private func makeLaunchHarness(
         suiteName: String,
-        sessionUserMatchesPairedUser: Bool,
         chatClient: (any HermesClientProtocol)? = nil,
         seedAccessToken: Bool = true,
+        /// **#411**: whether the ACTIVE profile holds gateway credentials —
+        /// the capability the lifecycle entry points now gate their
+        /// host-backed work on. A bare container holds no profiles store, so
+        /// this drives `AppContainer.gatewayCredentialsProbe` (the seam that
+        /// exists for exactly this). Defaults true, which is the pre-#411
+        /// behaviour for a paired install and keeps every inherited caller
+        /// measuring what it measured before.
+        gatewayCredentials: Bool = true,
         /// #310: injected so a test can count RELAY requests. Every caller
         /// that forms a request asks the base-URL provider exactly once, so
         /// counting provider invocations counts attempts — including the
@@ -4665,19 +4252,12 @@ struct AppStoresTests {
             )
         )
 
-        let bootstrapGate = BlackHoleGate()
         let hostGate = BlackHoleGate()
         let inboxGate = BlackHoleGate()
 
-        let bootstrapService = BlackHoleSessionBootstrapService(gate: bootstrapGate)
-        bootstrapService.sessionUserID = sessionUserMatchesPairedUser ? pairedUserID : UUID()
-
         let sessionStore = AppSessionStore(
-            bootstrapService: bootstrapService,
-            syncCoordinator: MockSyncCoordinator(),
             secureStore: secureStore,
             persistence: persistence,
-            environmentProvider: { .production }
         )
         let pairingStore = PairingStore(
             pairingService: RecordingPairingService(),
@@ -4727,13 +4307,12 @@ struct AppStoresTests {
             talkStore: TalkStore(voiceService: voiceService),
             apiClient: relayAPIClient
         )
+        container.gatewayCredentialsProbe = { gatewayCredentials }
         return LaunchHarness(
             container: container,
             secureStore: secureStore,
-            bootstrapGate: bootstrapGate,
             hostGate: hostGate,
             inboxGate: inboxGate,
-            bootstrapService: bootstrapService,
             hostService: hostService,
             inboxService: inboxService,
             voiceService: voiceService,
@@ -4769,8 +4348,7 @@ struct AppStoresTests {
     @Test @MainActor
     func profileSwitchResetsHostFedStores() async throws {
         let harness = await makeLaunchHarness(
-            suiteName: "profile-switch-resets-host-fed-stores",
-            sessionUserMatchesPairedUser: true
+            suiteName: "profile-switch-resets-host-fed-stores"
         )
         harness.openAllGates()
         let container = harness.container
@@ -4837,14 +4415,6 @@ struct AppStoresTests {
         var count = 0
     }
 
-    /// Reference box for the 310-D sampler — a captured local `var` cannot be
-    /// mutated from a concurrently-executing closure under Swift 6.
-    @MainActor
-    private final class SplashObservation {
-        var sawSplash = false
-        var samples = 0
-    }
-
     /// Builds a relay client that COUNTS request attempts and, if one escapes
     /// the gate, fails in milliseconds instead of hanging the suite.
     ///
@@ -4859,13 +4429,14 @@ struct AppStoresTests {
         })
     }
 
-    /// **310-C** — activating a relay-less profile issues ZERO relay requests.
+    /// **310-C, rewritten by #309 Lane A** — activating a relay-less profile
+    /// issues ZERO relay requests. Unchanged in claim; kept because the gate
+    /// it pinned is gone and only a live test can say the calls stayed gone.
     @Test @MainActor
     func relaylessProfileActivationIssuesNoRelayRequests() async throws {
         let counter = RelayRequestCounter()
         let harness = await makeLaunchHarness(
             suiteName: "310-relayless-activation",
-            sessionUserMatchesPairedUser: true,
             relayAPIClient: makeCountingRelayClient(counter)
         )
         harness.openAllGates()
@@ -4882,8 +4453,6 @@ struct AppStoresTests {
             gatewayBaseURL: "http://gateway-only:8642"
         ))
 
-        #expect(harness.bootstrapService.registerCallCount == 0)
-        #expect(harness.bootstrapService.loadCallCount == 0)
         #expect(harness.hostService.fetchCallCount == 0)
         #expect(harness.inboxService.fetchCallCount == 0)
         // **#383-G: this line changed sides, and 310-C did not.** Readiness
@@ -4899,16 +4468,37 @@ struct AppStoresTests {
         #expect(counter.count == 0)
     }
 
-    /// The POSITIVE CONTROL for 310-C. A relay-BEARING profile still does all
-    /// of it — without this, deleting the calls outright would pass 310-C.
+    /// **309-A4's NEW PIN — and it inverts the test that used to stand here.**
+    ///
+    /// The old `relayBearingProfileActivationStillUsesTheRelayPlane` was
+    /// 310-C's positive control: it asserted a relay-BEARING profile still ran
+    /// bootstrap, host fetch and inbox fetch, so that "delete the calls
+    /// outright" could not pass 310-C by vacuum. **That control encoded
+    /// #365's residual cause as a requirement.** #310 fixed the gateway-only
+    /// half of the stall; every profile paired before the relay retirement —
+    /// i.e. the daily-driver ones — kept running the whole doomed chain on
+    /// every switch, and this test is what would have gone red if anyone had
+    /// tried to stop it.
+    ///
+    /// So the bar moves rather than the number: a relay-bearing profile's
+    /// switch is now relay-SILENT too, and the vacuum risk is covered by the
+    /// three positive controls immediately below, which assert the switch
+    /// still does its non-relay work.
     @Test @MainActor
-    func relayBearingProfileActivationStillUsesTheRelayPlane() async throws {
+    func relayBearingProfileActivationAlsoMakesZeroRelayCalls() async throws {
+        let counter = RelayRequestCounter()
         let harness = await makeLaunchHarness(
-            suiteName: "310-relay-bearing-activation",
-            sessionUserMatchesPairedUser: true
+            suiteName: "309-relay-bearing-activation",
+            relayAPIClient: makeCountingRelayClient(counter)
         )
         harness.openAllGates()
         let container = harness.container
+
+        // Every condition the deleted chain required is TRUE here — paired,
+        // token present, and the incoming profile carries a relay URL. That
+        // is what makes this the residual case rather than a repeat of 310-C.
+        #expect(container.pairingStore.isPaired)
+        #expect(await container.sessionStore.currentAccessToken() != nil)
 
         await container.handleActiveProfileChanged(to: BackendProfile(
             name: "Has a relay",
@@ -4916,107 +4506,71 @@ struct AppStoresTests {
             relayBaseURL: "https://relay.example.test/v1"
         ))
 
-        #expect(harness.bootstrapService.loadCallCount >= 1)
-        #expect(harness.hostService.fetchCallCount >= 1)
-        #expect(harness.inboxService.fetchCallCount >= 1)
-        // #383-G: kept, but it no longer DISCRIMINATES — readiness is asked
-        // on both planes now, so this line passes for a relay-less profile
-        // too. Said in place so nobody reads it as evidence the relay branch
-        // ran; the three counters above are what carry this control.
-        #expect(harness.voiceService.refreshReadinessCallCount >= 1)
+        #expect(counter.count == 0, "a relay-bearing switch reached the relay client — #365's residual is back")
+        #expect(harness.hostService.fetchCallCount == 0)
+        #expect(harness.inboxService.fetchCallCount == 0)
+
+        // POSITIVE CONTROLS — the switch still switches. Without these,
+        // `handleActiveProfileChanged` returning immediately would pass the
+        // three zeros above.
+        #expect(harness.voiceService.refreshReadinessCallCount == 1)
+        #expect(container.chatStore.commandCatalog == SlashCommand.allBuiltIn,
+                "the switch must still reset the catalog to built-ins")
+        #expect(container.chatStore.activeModelName == nil)
     }
 
-    /// **310-D** — and therefore the switch never raises the launch splash.
+    /// **310-D, rewritten by #309 Lane A** — the switch cannot stall on a
+    /// dead host, because it no longer touches one.
     ///
-    /// Sampled ACROSS the handler's lifetime, not read once after it returns.
-    /// A post-hoc read passes trivially: the splash drops when the bootstrap
-    /// ends, so by the time `handleActiveProfileChanged` returns it is false
-    /// either way. The sampler is what makes this bar mean anything.
+    /// **The old instrument is gone with its mechanism.** 310-D sampled
+    /// `sessionStore.isBootstrapping` across the handler's lifetime, because
+    /// that flag was the switch's own clause of `shouldShowLaunchSplash` and
+    /// #365's stall was a bootstrap parked in a black hole holding it true.
+    /// There is no bootstrap and no `isBootstrapping` any more, so sampling it
+    /// would be sampling a constant — the "green result that proves nothing"
+    /// shape, arriving by deletion instead of by luck.
     ///
-    /// **⚠️ HONEST SCOPE — read before trusting this test's name.** The bar
-    /// as pre-registered says `container.shouldShowLaunchSplash` is never
-    /// true. That composite predicate is **not measurable in this harness**,
-    /// and the first attempt at this test failed on exactly that:
-    /// `shouldShowLaunchSplash` is
-    /// `(isPaired && !isInitialized) || (isBootstrapping && no background task)`
-    /// (`AppContainer.swift:219-226`), and the launch harness builds a PAIRED
-    /// container that never runs `initialize()` — so the FIRST clause is true
-    /// for the whole test regardless of anything a profile switch does.
+    /// What replaces it is stronger and needs no sampler: **run the switch
+    /// with every host gate SHUT and never opened, and require it to
+    /// complete.** Under the old code this is exactly #365 — the bootstrap
+    /// parks in `BlackHoleGate.wait()` and the handler never returns. Under
+    /// this code the relay is not on the path at all, so completion is
+    /// structural rather than merely fast.
     ///
-    /// What is measured instead is the switch's OWN clause:
-    /// `sessionStore.isBootstrapping`. `handleActiveProfileChanged` calls
-    /// `cancelBackgroundBootstrap()` on its first line, so within this handler
-    /// `isBootstrapping` ⇒ `shouldShowLaunchSplash` — the clause and the
-    /// predicate coincide, and it is #365's actual mechanism. **Calling that
-    /// "310-D met" would be a redefinition, so it is reported in the tracker
-    /// as met-on-mechanism with this limitation named**, not quietly folded
-    /// into a green.
+    /// The gates are opened AFTER the verdict is taken, never before: a bar
+    /// whose failure mode is a hang reports no verdict at all (the trap that
+    /// cost 47 minutes on 2026-08-19 and put the TCC grant inside
+    /// `lane-gate.sh`), so the failing arm gets a clean, terminating RED.
     @Test @MainActor
-    func relaylessProfileSwitchNeverBootstrapsAndSoNeverHoldsTheSplash() async throws {
+    func aProfileSwitchCompletesWithEveryHostSurfaceBlackHoled() async throws {
+        let counter = RelayRequestCounter()
         let harness = await makeLaunchHarness(
-            suiteName: "310-relayless-no-splash",
-            sessionUserMatchesPairedUser: true
+            suiteName: "309-switch-under-blackhole",
+            relayAPIClient: makeCountingRelayClient(counter)
         )
         let container = harness.container
+        // Gates deliberately NOT opened. Every host surface hangs forever.
 
-        // Gates start SHUT and are opened from a separate task ~100 ms later.
-        //
-        // **This shape is deliberate and it is the whole design of the bar.**
-        // Shut gates model #365's dead relay: an escaped bootstrap parks in
-        // `BlackHoleGate.wait()` with `isBootstrapping == true`, which is
-        // what raises the splash, so the sampler has a real window to catch.
-        // Leaving them shut FOREVER would make the buggy arm HANG instead of
-        // fail — and a bar whose failure mode is a hang reports no verdict at
-        // all, which is the trap that cost 47 minutes on 2026-08-19 and put
-        // the TCC grant inside `lane-gate.sh`. Opening them on a timer gives
-        // the failing arm a clean, terminating RED.
-        //
-        // Opening them immediately would not work either: `gate.wait()`
-        // returns without suspending when the gate is already open, so the
-        // sampler might never get a turn and the bug would go unobserved.
-        let opener = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(100))
-            harness.openAllGates()
-        }
-        defer { opener.cancel() }
-
-        let observation = SplashObservation()
-        let sampler = Task { @MainActor in
-            while !Task.isCancelled {
-                observation.samples += 1
-                if container.sessionStore.isBootstrapping { observation.sawSplash = true }
-                try? await Task.sleep(for: .milliseconds(2))
-            }
+        let completions = RelayRequestCounter()
+        let switchTask = Task { @MainActor in
+            await container.handleActiveProfileChanged(to: BackendProfile(
+                name: "Has a relay",
+                gatewayBaseURL: "http://has-relay:8642",
+                relayBaseURL: "https://relay.example.test/v1"
+            ))
+            completions.count += 1
         }
 
-        await container.handleActiveProfileChanged(to: BackendProfile(
-            name: "Gateway only",
-            gatewayBaseURL: "http://gateway-only:8642"
-        ))
-        // Keep sampling briefly AFTER the handler returns. Two jobs: it
-        // proves the sampler is alive (the relay-less path is so fast it can
-        // otherwise complete before the sampler's first turn — the first
-        // draft of this test failed its own liveness check for that reason),
-        // and it catches a bootstrap left running past the handler, which
-        // would hold the splash just as effectively.
-        for _ in 0..<5 {
-            await Task.yield()
-            try? await Task.sleep(for: .milliseconds(3))
-        }
-        sampler.cancel()
-        _ = await sampler.value
+        let completed = await pollUntil(timeout: .seconds(3)) { completions.count == 1 }
+        // Release the black holes so a FAILING arm terminates instead of
+        // wedging the suite, then take the verdict.
+        harness.openAllGates()
+        await switchTask.value
 
-        // The sampler must actually have RUN. A sampler that never got a turn
-        // reports `sawSplash == false` and would certify the bar while
-        // measuring nothing — the "green result that proves nothing" shape.
-        #expect(observation.samples >= 2)
-        #expect(!observation.sawSplash)
-        #expect(!container.sessionStore.isBootstrapping)
-        // Corroboration from a second, independent instrument: the bootstrap
-        // service was never asked. If the sampler and the call counter ever
-        // disagree, believe the counter — it cannot be raced.
-        #expect(harness.bootstrapService.loadCallCount == 0)
-        #expect(harness.bootstrapService.registerCallCount == 0)
+        #expect(completed, "the switch did not complete against a black-holed host — #365 is back")
+        #expect(counter.count == 0)
+        #expect(harness.hostService.fetchCallCount == 0)
+        #expect(harness.inboxService.fetchCallCount == 0)
     }
 
     /// **383-G** — a profile with no relay STILL ASKS the voice host.
@@ -5036,8 +4590,7 @@ struct AppStoresTests {
     @Test @MainActor
     func aProfileWithNoRelayStillAsksTheVoiceHostRatherThanDeclaringItDead() async throws {
         let harness = await makeLaunchHarness(
-            suiteName: "383-relayless-voice-still-asks",
-            sessionUserMatchesPairedUser: true
+            suiteName: "383-relayless-voice-still-asks"
         )
         harness.openAllGates()
         let container = harness.container
@@ -5068,8 +4621,7 @@ struct AppStoresTests {
     @Test @MainActor
     func aSwitchNeverLeavesThePreviousProfilesReadinessOnScreen() async throws {
         let harness = await makeLaunchHarness(
-            suiteName: "383-switch-clears-stale-readiness",
-            sessionUserMatchesPairedUser: true
+            suiteName: "383-switch-clears-stale-readiness"
         )
         harness.openAllGates()
         let container = harness.container
@@ -5138,11 +4690,8 @@ struct AppStoresTests {
             inboxService: inboxService,
             persistence: persistence,
             sessionStore: AppSessionStore(
-                bootstrapService: MockSessionBootstrapService(),
-                syncCoordinator: MockSyncCoordinator(),
                 secureStore: MockSecureStore(),
                 persistence: persistence,
-                environmentProvider: { .production }
             ),
             relayAvailabilityProvider: { false }
         )
@@ -5255,56 +4804,65 @@ struct AppStoresTests {
         // relay-gated work (#136 non-negotiable 6).
         #expect(AppContainer.LaunchInitStep.criticalPath.contains(.drainShareInbox))
 
-        // #3/#46: identity validation stays ordered strictly after bootstrap.
-        let background = AppContainer.LaunchInitStep.backgroundBootstrap
-        let bootstrapIndex = background.firstIndex(of: .sessionBootstrap)
-        let validateIndex = background.firstIndex(of: .validateRestoredIdentity)
-        #expect(bootstrapIndex != nil && validateIndex != nil)
-        if let bootstrapIndex, let validateIndex {
-            #expect(bootstrapIndex < validateIndex)
-        }
-
         // The partition is total: every step lives in exactly one list.
-        let partitioned = AppContainer.LaunchInitStep.criticalPath + background
+        let partitioned = AppContainer.LaunchInitStep.criticalPath
+            + AppContainer.LaunchInitStep.backgroundLaunchRefresh
         #expect(partitioned.count == AppContainer.LaunchInitStep.allCases.count)
         #expect(Set(partitioned) == Set(AppContainer.LaunchInitStep.allCases))
+
+        // #309 Lane A: the #3/#46 ordering assertion that stood here
+        // (`.sessionBootstrap` strictly before `.validateRestoredIdentity`)
+        // is gone with both of its operands. The constraint was real — an
+        // identity check that ran before the session loaded compared against
+        // nothing — but there is no session load left to order against, and a
+        // `firstIndex(of:)` pair on two absent cases would pass vacuously,
+        // which is worse than not asserting it.
     }
 
     @Test @MainActor
-    func backgroundBootstrapHasNoGhostSteps() {
-        // #287: the list must literal-match what `runBackgroundBootstrap`
+    func backgroundLaunchRefreshHasNoGhostSteps() {
+        // #287: the list must literal-match what `runBackgroundLaunchRefresh`
         // actually executes. `pushTokenRegistration` sat here for six days
         // after #238 deleted push registration wholesale, and NOTHING caught
         // it — the partition check above compares against `allCases`, which
         // shrinks by exactly one when a ghost is removed, so it is true both
         // with and without one. Only a literal pin can see this.
         //
-        // Order is significant (#3/#46: identity validation strictly after
-        // bootstrap); do not loosen this to `Set` equality to make a future
-        // step's friction go away — that friction is the point.
-        #expect(AppContainer.LaunchInitStep.backgroundBootstrap == [
-            .sessionBootstrap, .validateRestoredIdentity, .hostRefresh, .inboxLoad,
-            .commandCatalogRefresh, .gatewayModelSeed,
+        // This test is exactly why #309 Lane A had to edit the enum rather
+        // than leave two dead cases in it: `.sessionBootstrap` and
+        // `.validateRestoredIdentity` would have become ghosts the moment
+        // their steps left the function.
+        //
+        // Order is significant; do not loosen this to `Set` equality to make
+        // a future step's friction go away — that friction is the point.
+        #expect(AppContainer.LaunchInitStep.backgroundLaunchRefresh == [
+            .hostRefresh, .inboxLoad, .commandCatalogRefresh, .gatewayModelSeed,
         ])
     }
 
-    // MARK: - #369: an unreadable credential is a HOLD, never an unpairing
+    // MARK: - #369, re-keyed by #411: an unreadable credential is a HOLD
+    //
+    // The MECHANISM is unchanged — hold the network half, name the hold, retry
+    // when the credential lands. What #309 Lane A changed is WHICH credential:
+    // the relay access token is no longer read by anything at launch, so the
+    // hold now waits on the ACTIVE PROFILE'S GATEWAY CREDENTIALS, which arrive
+    // asynchronously from the Keychain and not at all before first unlock.
 
-    /// **369-A.** The launch path used to answer a nil access token by calling
+    /// **369-A.** The launch path used to answer a nil credential by calling
     /// `clearLocalPairing()` — a destructive answer to a reading that cannot
     /// distinguish "no item" from "Keychain locked" (`KeychainSecureStore`
     /// collapses every non-`errSecSuccess` OSStatus into nil). Its own three
     /// siblings — foreground activation, system launch, background refresh —
-    /// all log BLOCKED and return; only this one destroyed.
+    /// all logged BLOCKED and returned; only this one destroyed.
     ///
-    /// Mutation that must turn this RED: restore `await
-    /// pairingStore.clearLocalPairing()` in `initialize()`'s token guard.
+    /// Mutation that must turn this RED: put `await
+    /// pairingStore.clearLocalPairing()` on `initialize()`'s hold branch.
     @Test @MainActor
-    func anUnreadableAccessTokenAtLaunchNeverDestroysThePairing() async {
+    func anUnreadableCredentialAtLaunchNeverDestroysThePairing() async {
         let harness = await makeLaunchHarness(
             suiteName: "369-hold-\(UUID().uuidString)",
-            sessionUserMatchesPairedUser: true,
-            seedAccessToken: false
+            seedAccessToken: false,
+            gatewayCredentials: false
         )
         let container = harness.container
         #expect(container.pairingStore.isPaired, "fixture precondition: the install starts paired")
@@ -5322,13 +4880,13 @@ struct AppStoresTests {
     /// `initialize()` has exactly one caller, so a paired install would sit on
     /// the full-screen splash for the process's whole life. The local critical
     /// path is credential-free by design (#136), so it runs; only the
-    /// relay-backed half is deferred, and the hold is NAMED rather than silent.
+    /// host-backed half is deferred, and the hold is NAMED rather than silent.
     @Test @MainActor
-    func anUnreadableAccessTokenHoldsTheRelayHalfWithoutStrandingTheSplash() async {
+    func anUnreadableCredentialHoldsTheHostHalfWithoutStrandingTheSplash() async {
         let harness = await makeLaunchHarness(
             suiteName: "369-splash-\(UUID().uuidString)",
-            sessionUserMatchesPairedUser: true,
-            seedAccessToken: false
+            seedAccessToken: false,
+            gatewayCredentials: false
         )
         let container = harness.container
 
@@ -5339,48 +4897,74 @@ struct AppStoresTests {
         #expect(container.credentialsUnreadableHold,
                 "the hold must be named in state so it can be surfaced (#180) and retried")
 
-        // Bounded window rather than a bare read: `startBackgroundBootstrap`
+        // Bounded window rather than a bare read: `startBackgroundLaunchRefresh`
         // spawns a Task, so "it never started" is only honest if it survives
-        // the spawn. The counters increment BEFORE the black-hole gate, so a
-        // started bootstrap is visible here even with the gate closed.
-        let relayHalfRan = await pollUntil(timeout: .milliseconds(300)) {
-            harness.bootstrapService.registerCallCount > 0 || harness.bootstrapService.loadCallCount > 0
+        // the spawn. The host fetch counter increments BEFORE the black-hole
+        // gate, so a started refresh is visible here even with the gate closed.
+        let hostHalfRan = await pollUntil(timeout: .milliseconds(300)) {
+            harness.hostService.fetchCallCount > 0
         }
-        #expect(relayHalfRan == false,
-                "the relay-backed half must not run on a credential the app could not read")
+        #expect(hostHalfRan == false,
+                "the host-backed half must not run on a credential the app could not read")
     }
 
     /// **369-C.** A hold that is never retried is just a quieter stall. Once
     /// the credential reads — the post-first-unlock case the existing
     /// `protectedDataDidBecomeAvailable` / `didBecomeActive` hooks exist for —
-    /// the hold clears and the relay half runs, exactly once.
+    /// the hold clears and the host half runs, exactly once.
     @Test @MainActor
-    func theCredentialHoldIsRetriedOnceTheTokenBecomesReadable() async {
+    func theCredentialHoldIsRetriedOnceTheCredentialBecomesReadable() async {
+        let credentialsReadable = RelayRequestCounter()  // 0 = not yet readable
         let harness = await makeLaunchHarness(
             suiteName: "369-retry-\(UUID().uuidString)",
-            sessionUserMatchesPairedUser: true,
-            seedAccessToken: false
+            seedAccessToken: false,
+            gatewayCredentials: false
         )
         let container = harness.container
+        container.gatewayCredentialsProbe = { credentialsReadable.count > 0 }
+        harness.openAllGates()
         await container.initialize()
         #expect(container.credentialsUnreadableHold, "fixture precondition: the launch held")
 
-        // First unlock: the slot becomes readable.
-        await harness.secureStore.store(key: "session.accessToken", value: "post-unlock-access-token")
+        // First unlock: the gateway credentials become readable.
+        credentialsReadable.count = 1
         await container.retryCredentialHoldIfNeeded()
 
         #expect(container.credentialsUnreadableHold == false,
                 "a readable credential must clear the hold")
-        let relayHalfRan = await pollUntil {
-            harness.bootstrapService.registerCallCount > 0 || harness.bootstrapService.loadCallCount > 0
-        }
-        #expect(relayHalfRan, "the deferred relay-backed half must actually run on retry")
+        let hostHalfRan = await pollUntil { harness.hostService.fetchCallCount > 0 }
+        #expect(hostHalfRan, "the deferred host-backed half must actually run on retry")
 
         // Single-flight: a second retry (both hooks fire on one unlock) must
-        // not start a second bootstrap.
+        // not start a second refresh.
         await container.retryCredentialHoldIfNeeded()
-        let totalStarts = harness.bootstrapService.registerCallCount + harness.bootstrapService.loadCallCount
-        #expect(totalStarts == 1, "a second retry must not double-run the relay half")
+        #expect(harness.hostService.fetchCallCount == 1, "a second retry must not double-run the host half")
+    }
+
+    /// **369-D / #411's mirror of 369-B.** A held launch is not a dead one:
+    /// the LOCAL critical path completes and the app is fully usable. This is
+    /// the assertion that makes the hold honest rather than a quieter version
+    /// of the `isPaired` gate it replaced — and it is exactly what a hostless
+    /// install (the launch pivot's DEFAULT user) gets on every launch.
+    @Test @MainActor
+    func aHeldLaunchStillFinishesTheLocalCriticalPath() async {
+        let harness = await makeLaunchHarness(
+            suiteName: "411-held-launch-local-\(UUID().uuidString)",
+            seedAccessToken: false,
+            gatewayCredentials: false
+        )
+        let container = harness.container
+        let widgetBefore = SharedWidgetDataStore.read().updatedAt
+
+        await container.initialize()
+
+        #expect(container.credentialsUnreadableHold, "fixture precondition: the launch held")
+        // `isInitialized` is private; `shouldShowLaunchSplash` is its one
+        // observable consequence on a paired install and reads false only
+        // once the critical path set it.
+        #expect(container.shouldShowLaunchSplash == false)
+        #expect(container.chatStore.conversation != nil, "loadConversationIfNeeded must have run")
+        #expect(SharedWidgetDataStore.read().updatedAt != widgetBefore, "updateWidgetData must have run")
     }
 
     @Test @MainActor
@@ -5397,8 +4981,7 @@ struct AppStoresTests {
         // store state into SharedWidgetDataStore / LiveActivityService and touch
         // no network), so hoisting them costs nothing and gates nothing.
         let harness = await makeLaunchHarness(
-            suiteName: "foreground-uiwrite-\(UUID().uuidString)",
-            sessionUserMatchesPairedUser: true
+            suiteName: "foreground-uiwrite-\(UUID().uuidString)"
         )
         let container = harness.container
 
@@ -5468,7 +5051,6 @@ struct AppStoresTests {
         let healthGate = BlackHoleGate()
         let harness = await makeLaunchHarness(
             suiteName: "389-ordering-\(UUID().uuidString)",
-            sessionUserMatchesPairedUser: true,
             healthService: GatedHealthService(gate: healthGate)
         )
         let container = harness.container
@@ -5557,8 +5139,7 @@ struct AppStoresTests {
         // this is written with a settle box and a bounded poll, which FAILS
         // cleanly rather than hanging the suite.
         let harness = await makeLaunchHarness(
-            suiteName: "foreground-deadline-\(UUID().uuidString)",
-            sessionUserMatchesPairedUser: true
+            suiteName: "foreground-deadline-\(UUID().uuidString)"
         )
         let container = harness.container
         container.foregroundActivationBudget = .milliseconds(150)
@@ -5587,8 +5168,7 @@ struct AppStoresTests {
         // healthy runs would silently truncate real refreshes — worse than the
         // slow chain it replaced.
         let harness = await makeLaunchHarness(
-            suiteName: "foreground-deadline-healthy-\(UUID().uuidString)",
-            sessionUserMatchesPairedUser: true
+            suiteName: "foreground-deadline-healthy-\(UUID().uuidString)"
         )
         let container = harness.container
         harness.openAllGates()
@@ -5610,8 +5190,7 @@ struct AppStoresTests {
         // legitimately touch the host, so counting fetches cannot tell
         // "superseded" from "stacked". Peak can.
         let harness = await makeLaunchHarness(
-            suiteName: "foreground-supersede-\(UUID().uuidString)",
-            sessionUserMatchesPairedUser: true
+            suiteName: "foreground-supersede-\(UUID().uuidString)"
         )
         let container = harness.container
 
@@ -5637,56 +5216,133 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
-    func blackHoledRelayDoesNotHoldTheLaunchSplash() async throws {
+    func blackHoledHostDoesNotHoldTheLaunchSplash() async throws {
         let harness = await makeLaunchHarness(
-            suiteName: "launch-blackhole-\(UUID().uuidString)",
-            sessionUserMatchesPairedUser: false
+            suiteName: "launch-blackhole-\(UUID().uuidString)"
         )
         let container = harness.container
         #expect(container.shouldShowLaunchSplash)
 
         let initTask = Task { @MainActor in await container.initialize() }
 
-        // The splash must drop on local-state-ready — with every relay
+        // The splash must drop on local-state-ready — with every host
         // surface still black-holed (#136 non-negotiable 1/7).
         let splashDropped = await pollUntil { !container.shouldShowLaunchSplash }
-        #expect(splashDropped, "splash must drop without awaiting the black-holed relay")
+        #expect(splashDropped, "splash must drop without awaiting the black-holed host")
 
-        // Nothing relay-backed has landed yet, and the #3/#46 identity check
-        // (strictly after bootstrap) has not run.
-        #expect(container.pairingStore.identityMismatchDetected == false)
+        // Nothing host-backed has landed yet.
         #expect(container.hostStore.currentHost == nil)
         #expect(container.inboxStore.items.isEmpty)
 
-        // Relay comes back: background init lands state live.
+        // Host comes back: the background launch refresh lands state live.
         harness.openAllGates()
         let backgroundLanded = await pollUntil {
             container.hostStore.isHostOnline && !container.inboxStore.items.isEmpty
         }
-        #expect(backgroundLanded, "background init must land host + inbox state once the relay answers")
+        #expect(backgroundLanded, "the background half must land host + inbox state once the host answers")
 
-        // The relay session reported a DIFFERENT user than the pairing
-        // minted — only the post-bootstrap validation can see that, so the
-        // flag proves bootstrap → validateRestoredIdentity ordering held.
-        let identityValidated = await pollUntil { container.pairingStore.identityMismatchDetected }
-        #expect(identityValidated, "validateRestoredIdentity must run after bootstrap completes")
+        // #309 Lane A: this test used to end by proving
+        // `bootstrap → validateRestoredIdentity` ordering, via a black-hole
+        // service that reported a DIFFERENT relay user than the pairing
+        // minted. Both halves of that are deleted; the flag can no longer be
+        // raised on this path, so asserting it stays false would be asserting
+        // that nothing writes it — a tautology, not a pin. The identity
+        // check itself keeps its own direct pin in
+        // `validateRestoredIdentityFlagsResurrectedStaleUser`.
 
         await initTask.value
     }
 
+    /// **#411's launch-half pin.** A hostless install runs the WHOLE local
+    /// critical path on cold launch — the case that ran none of it before,
+    /// because `initialize()` opened with `guard pairingStore.isPaired`.
+    ///
+    /// Mutation that must turn this RED: put any gate — `isPaired`, or
+    /// `hasGatewayCredentials` — back in front of the local block in
+    /// `initialize()`.
     @Test @MainActor
-    func launchBootstrapIsSingleFlight() async throws {
+    func aHostlessInstallStillRunsTheWholeLocalCriticalPathAtLaunch() async throws {
         let harness = await makeLaunchHarness(
-            suiteName: "launch-singleflight-\(UUID().uuidString)",
-            sessionUserMatchesPairedUser: true
+            suiteName: "411-hostless-launch-\(UUID().uuidString)",
+            gatewayCredentials: false
+        )
+        let container = harness.container
+        // The unpaired, hostless shape: no relay pairing at all. This is the
+        // install the four gates locked out entirely.
+        await container.pairingStore.clearLocalPairing(notify: false)
+        #expect(container.pairingStore.isPaired == false, "fixture precondition: nothing is paired")
+
+        let widgetBefore = SharedWidgetDataStore.read().updatedAt
+        await container.initialize()
+
+        #expect(container.chatStore.conversation != nil,
+                "loadConversationIfNeeded must run for an unpaired install (#411)")
+        #expect(SharedWidgetDataStore.read().updatedAt != widgetBefore,
+                "updateWidgetData must run for an unpaired install (#411)")
+        // A second initialize() is a no-op — the re-entry guard is the only
+        // thing that may short-circuit the local path, and it only can once
+        // the path has actually completed.
+        await container.initialize()
+        #expect(harness.hostService.fetchCallCount == 0,
+                "a hostless install must still make no host calls")
+    }
+
+    /// **#411's foreground-half pin**, and the sibling of the launch one
+    /// above: a hostless install refreshes its LOCAL state on every
+    /// foreground, and asks no host anything.
+    @Test @MainActor
+    func aHostlessInstallStillRefreshesLocalStateOnForeground() async throws {
+        let counter = RelayRequestCounter()
+        let harness = await makeLaunchHarness(
+            suiteName: "411-hostless-foreground-\(UUID().uuidString)",
+            gatewayCredentials: false,
+            relayAPIClient: makeCountingRelayClient(counter)
+        )
+        let container = harness.container
+        await container.pairingStore.clearLocalPairing(notify: false)
+        let widgetBefore = SharedWidgetDataStore.read().updatedAt
+
+        await container.handleAppDidBecomeActive()
+
+        #expect(SharedWidgetDataStore.read().updatedAt != widgetBefore,
+                "the hoisted widget write must run with no host configured (#145 Part B × #411)")
+        // The host half stayed shut — and this is what makes the test a gate
+        // check rather than a "does anything happen" check.
+        #expect(harness.hostService.fetchCallCount == 0)
+        #expect(counter.count == 0)
+        #expect(harness.voiceService.refreshReadinessCallCount == 0,
+                "voice readiness is host-backed and must stay behind the capability gate")
+    }
+
+    /// The POSITIVE CONTROL for both #411 pins above: with gateway
+    /// credentials present, the host half still runs. Without this, deleting
+    /// the host-backed work outright would pass every zero asserted above.
+    @Test @MainActor
+    func aCredentialedInstallStillRunsTheHostHalfOnForeground() async throws {
+        let harness = await makeLaunchHarness(
+            suiteName: "411-credentialed-foreground-\(UUID().uuidString)"
+        )
+        harness.openAllGates()
+        let container = harness.container
+
+        await container.handleAppDidBecomeActive()
+
+        #expect(harness.hostService.fetchCallCount >= 1)
+        #expect(harness.voiceService.refreshReadinessCallCount >= 1)
+    }
+
+    @Test @MainActor
+    func launchRefreshIsSingleFlight() async throws {
+        let harness = await makeLaunchHarness(
+            suiteName: "launch-singleflight-\(UUID().uuidString)"
         )
         let container = harness.container
 
         let first = Task { @MainActor in await container.initialize() }
         let second = Task { @MainActor in await container.initialize() }
 
-        let bootstrapStarted = await pollUntil { harness.bootstrapService.registerCallCount >= 1 }
-        #expect(bootstrapStarted)
+        let refreshStarted = await pollUntil { harness.hostService.fetchCallCount >= 1 }
+        #expect(refreshStarted)
 
         harness.openAllGates()
         await first.value
@@ -5694,26 +5350,24 @@ struct AppStoresTests {
         let settled = await pollUntil { container.hostStore.isHostOnline }
         #expect(settled)
 
-        #expect(harness.bootstrapService.registerCallCount == 1, "concurrent initialize() must run bootstrap once")
+        #expect(harness.hostService.fetchCallCount == 1, "concurrent initialize() must run the host half once")
     }
 
     @Test @MainActor
     func resetDuringBackgroundInitLandsNoStaleState() async throws {
         let harness = await makeLaunchHarness(
-            suiteName: "launch-resetrace-\(UUID().uuidString)",
-            sessionUserMatchesPairedUser: true
+            suiteName: "launch-resetrace-\(UUID().uuidString)"
         )
         let container = harness.container
-        // Bootstrap answers immediately; the HOST probe is the in-flight
-        // black hole the reset must supersede.
-        harness.bootstrapGate.open()
+        // The HOST probe is the in-flight black hole the reset must supersede
+        // (it is the first step of the background half since #309 Lane A).
 
         let initTask = Task { @MainActor in await container.initialize() }
         let hostProbeInFlight = await pollUntil { harness.hostService.fetchCallCount >= 1 }
         #expect(hostProbeInFlight)
 
         // Unpair while the host probe hangs (#136 non-negotiable 5 — the
-        // ~1847 reset site must cancel/supersede in-flight background init).
+        // reset site must cancel/supersede in-flight background init).
         await container.handlePairingRemoved()
 
         harness.openAllGates()
@@ -5729,22 +5383,21 @@ struct AppStoresTests {
     @Test @MainActor
     func rePairSupersedesInFlightBackgroundInit() async throws {
         let harness = await makeLaunchHarness(
-            suiteName: "launch-repair-\(UUID().uuidString)",
-            sessionUserMatchesPairedUser: true
+            suiteName: "launch-repair-\(UUID().uuidString)"
         )
         let container = harness.container
 
         let initTask = Task { @MainActor in await container.initialize() }
-        let bootstrapStarted = await pollUntil { harness.bootstrapService.registerCallCount >= 1 }
-        #expect(bootstrapStarted)
+        let refreshStarted = await pollUntil { harness.hostService.fetchCallCount >= 1 }
+        #expect(refreshStarted)
 
-        // Re-pair while the first bootstrap hangs black-holed (#136
-        // non-negotiable 5 — the ~1271 reset site supersedes, and the fresh
-        // initialize() must actually re-run bootstrap, not silently skip it
-        // on AppSessionStore's isBootstrapping re-entry guard).
+        // Re-pair while the first host probe hangs black-holed (#136
+        // non-negotiable 5 — the reset site supersedes, and the fresh
+        // initialize() must actually re-run the host half rather than
+        // silently skipping it on the single-flight gate).
         let rePairTask = Task { @MainActor in await container.handlePairingActivated() }
-        let secondBootstrapStarted = await pollUntil { harness.bootstrapService.registerCallCount >= 2 }
-        #expect(secondBootstrapStarted, "re-pair must supersede the in-flight bootstrap and run a fresh one")
+        let secondRefreshStarted = await pollUntil { harness.hostService.fetchCallCount >= 2 }
+        #expect(secondRefreshStarted, "re-pair must supersede the in-flight refresh and run a fresh one")
 
         harness.openAllGates()
         await initTask.value
@@ -5765,7 +5418,6 @@ struct AppStoresTests {
         let chatClient = BlackHoleStreamingChatClient()
         let harness = await makeLaunchHarness(
             suiteName: "launch-stream-repair-\(UUID().uuidString)",
-            sessionUserMatchesPairedUser: true,
             chatClient: chatClient
         )
         let container = harness.container

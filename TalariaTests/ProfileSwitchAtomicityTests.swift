@@ -912,11 +912,8 @@ struct ProfileSwitchAtomicityTests {
         // reads must not land in the gate's trace, and an absent access token
         // keeps the handler's relay-bootstrap block skipped.
         let sessionStore = AppSessionStore(
-            bootstrapService: MockSessionBootstrapService(),
-            syncCoordinator: MockSyncCoordinator(),
             secureStore: MockSecureStore(),
             persistence: persistence,
-            environmentProvider: { .production },
             credentialScopeProvider: { profiles.activeProfile?.credentialScopeID }
         )
         let pairingStore = PairingStore(

@@ -109,9 +109,6 @@ final class AppContainer {
     /// test containers; `connectGateVerdict(for:)` treats nil as unknown,
     /// which only matters once the (dormant) gate is active.
     private(set) var entitlementService: (any EntitlementServiceProtocol)?
-    /// M-9 thrash guard: dormant-refresh attempts this process, so a failing
-    /// relay isn't re-tried on every foreground.
-    private var dormantRefreshAttempts: [UUID: Date] = [:]
     #if DEBUG
     /// #137: the live persistence store, exposed for the Developer screen's
     /// migration-stamp reset only. DEBUG-only so the release container's
@@ -157,21 +154,59 @@ final class AppContainer {
     private(set) var hermesAPIKey: String = ""
     private var _chatAPIKeyBox: MutableHermesAPIKeyBox?
     private var isInitialized = false
-    /// #369: a launch found the pairing intact but the credential slot
-    /// unreadable. Declared here (rather than inferred) so the state has a
-    /// name to surface (#180) and a condition to retry on.
+    /// #369, re-keyed by #411: a launch ran its local half but the active
+    /// profile's gateway credentials were not readable yet (the Keychain
+    /// restore is async, and a pre-first-unlock launch cannot read it at all).
+    /// Declared here (rather than inferred) so the state has a name to surface
+    /// (#180) and a condition to retry on.
+    ///
+    /// It used to mean "the pairing is intact but the RELAY access token is
+    /// unreadable", and its whole purpose was to defer `sessionStore
+    /// .bootstrap()`. The mechanism is unchanged — hold, then retry when the
+    /// credential lands — only the credential it waits on moved planes.
     private(set) var credentialsUnreadableHold = false
-    /// #136: the relay-backed half of launch, running behind the live UI.
-    /// Doubles as the single-flight gate and the splash suppressor; exposed
-    /// read-only so tests can await background completion deterministically.
-    private(set) var backgroundBootstrapTask: Task<Void, Never>?
-    /// #136: bumped by every reset/supersede site — a background bootstrap
-    /// only touches container state while its generation is current.
-    private var bootstrapGeneration = 0
+    /// #136: the host-backed half of launch, running behind the live UI.
+    /// Exposed read-only so tests can await background completion
+    /// deterministically. (It no longer suppresses the splash — #309 Lane A
+    /// deleted the clause that read it; see `shouldShowLaunchSplash`.)
+    private(set) var backgroundLaunchRefreshTask: Task<Void, Never>?
+    /// #136: bumped by every reset/supersede site — a background launch
+    /// refresh only touches container state while its generation is current.
+    private var launchRefreshGeneration = 0
     /// #136: a superseded run may still be unwinding its cancelled awaits;
-    /// the next run drains it first so a half-dead bootstrap can't
+    /// the next run drains it first so a half-dead refresh can't
     /// interleave with the fresh one.
-    private var supersededBootstrapDrain: Task<Void, Never>?
+    private var supersededLaunchRefreshDrain: Task<Void, Never>?
+    /// **#411 — the ONE capability predicate the lifecycle entry points gate
+    /// their host-backed work on**, replacing `pairingStore.isPaired`.
+    ///
+    /// `isPaired` is the RELAY pairing, and the four entry points (plus
+    /// `retryCredentialHoldIfNeeded`) hard-guarded their ENTIRE bodies on it —
+    /// so a gateway-only install, or the launch pivot's default hostless one,
+    /// ran no lifecycle refresh of any kind. The codebase already knew the
+    /// trap in one place (`TalariaPlatformLink`'s scene wiring below refuses
+    /// the same gate, and says why); the entry points never got the treatment.
+    ///
+    /// **Derived, not stored.** It reads the two things the chat plane already
+    /// consults — the active profile's gateway URL (the same field
+    /// `SessionsHermesClient`'s base-URL provider reads) and this container's
+    /// mirror of the gateway key cache (`hermesAPIKey`, which
+    /// `ChatBackendRouter.isHermesConfigured` reads through its own box). No
+    /// new store, and no second source of truth that can drift from the one
+    /// the turns use.
+    var hasGatewayCredentials: Bool {
+        // harness-visible seam — nil in production, so the derivation below
+        // cannot be silently mis-wired by a forgotten assignment.
+        if let gatewayCredentialsProbe { return gatewayCredentialsProbe() }
+        guard let profile = profilesStore?.activeProfile else { return false }
+        guard !profile.gatewayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return false
+        }
+        return !hermesAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    // harness-visible: bare test containers hold no profiles store, so this is
+    // the only way to exercise the credentialed arm of the #411 gates.
+    var gatewayCredentialsProbe: (@MainActor () -> Bool)?
     private var lastCommandCatalogRefreshAt: Date?
     private var lastKnownHostOnline = false
     /// Edge tracker for the talk-session read-aloud cutoff (#84): the
@@ -226,23 +261,36 @@ final class AppContainer {
     }
 
     var shouldShowLaunchSplash: Bool {
-        if pairingStore.isPaired && !isInitialized { return true }
-        // #136: a bootstrap riding the launch background task must NOT hold
-        // the splash — the critical path is local-only by design. Bootstraps
-        // outside that task (profile-switch re-home, unpaired forced
-        // re-registration) keep today's splash.
-        return sessionStore.isBootstrapping && backgroundBootstrapTask == nil
+        // #309 Lane A: the second clause — `sessionStore.isBootstrapping &&
+        // backgroundBootstrapTask == nil` — is DELETED with the relay session
+        // bootstrap it watched. It existed so a bootstrap fired OUTSIDE the
+        // launch background task (the profile-switch re-home, the unpaired
+        // forced re-registration) still raised the splash; both of those
+        // callers are gone, so the clause could only ever read false now.
+        // That is #365's stall dying at the source rather than being gated.
+        //
+        // Re-keying the surviving clause off RELAY pairing is Lane B's
+        // (`AppRootView` splash logic, design doc §5b) — Lane A leaves it.
+        return pairingStore.isPaired && !isInitialized
     }
 
     // MARK: - Launch partition (#136)
 
     /// The launch-path partition: which init steps may run before the splash
     /// drops. Pure data so tests can assert no network-touching step ever
-    /// creeps in front of `isInitialized = true`, and that the relay-backed
-    /// steps keep their load-bearing order (#3/#46: identity validation
-    /// strictly after bootstrap). `initialize()` and
-    /// `runBackgroundBootstrap(generation:)` mirror these lists step for
+    /// creeps in front of `isInitialized = true`, and that the networked steps
+    /// keep their order. `initialize()` and
+    /// `runBackgroundLaunchRefresh(generation:)` mirror these lists step for
     /// step — a new init step belongs in exactly one list.
+    ///
+    /// **#309 Lane A dropped two cases: `.sessionBootstrap` and
+    /// `.validateRestoredIdentity`.** The first was the relay session
+    /// bootstrap; the second was #3/#46's identity check, which existed only
+    /// to compare the bootstrapped session's user against the pairing's — with
+    /// nothing loading a session there is no user to compare, and the
+    /// ordering constraint it enforced ("validation strictly AFTER bootstrap")
+    /// has no operands left. `PairingStore.validateRestoredIdentity()` itself
+    /// survives untouched for Lane B.
     enum LaunchInitStep: CaseIterable, Sendable {
         // Critical path — local-only, in order.
         case reloadCapabilities
@@ -250,28 +298,23 @@ final class AppContainer {
         case reconcileLiveActivities
         case updateWidgetData
         case drainShareInbox
-        // Background bootstrap — relay/shim-backed, in order.
-        case sessionBootstrap
-        case validateRestoredIdentity
+        // Background launch refresh — host-backed, in order.
         case hostRefresh
         case inboxLoad
         case commandCatalogRefresh
         case gatewayModelSeed
 
-        /// Whether the step can touch the network. `validateRestoredIdentity`
-        /// is itself local but rides the background list for ordering
-        /// (#3/#46); `loadConversationCache` is the persisted-cache restore
-        /// (its no-cache fallback fetch rides the chat path, whose timeouts
-        /// #136 deliberately leaves alone). (#352 deleted the two sensor
-        /// steps — `startSensorService` / `sensorForegroundRefresh` — with
-        /// the upload pipeline.)
+        /// Whether the step can touch the network. `loadConversationCache` is
+        /// the persisted-cache restore (its no-cache fallback fetch rides the
+        /// chat path, whose timeouts #136 deliberately leaves alone). (#352
+        /// deleted the two sensor steps — `startSensorService` /
+        /// `sensorForegroundRefresh` — with the upload pipeline.)
         var touchesNetwork: Bool {
             switch self {
             case .reloadCapabilities, .loadConversationCache,
-                 .reconcileLiveActivities, .updateWidgetData, .drainShareInbox,
-                 .validateRestoredIdentity:
+                 .reconcileLiveActivities, .updateWidgetData, .drainShareInbox:
                 false
-            case .sessionBootstrap, .hostRefresh, .inboxLoad, .commandCatalogRefresh,
+            case .hostRefresh, .inboxLoad, .commandCatalogRefresh,
                  .gatewayModelSeed:
                 true
             }
@@ -279,17 +322,21 @@ final class AppContainer {
 
         /// The steps allowed to run before `isInitialized = true` drops the
         /// splash (#136 non-negotiable 1). Local-only, by construction.
+        ///
+        /// **#411: these now run for EVERY install, not only relay-paired
+        /// ones.** They are credential-free by design, which is precisely why
+        /// gating them on `pairingStore.isPaired` was the defect.
         static let criticalPath: [LaunchInitStep] = [
             .reloadCapabilities, .loadConversationCache,
             .reconcileLiveActivities, .updateWidgetData, .drainShareInbox,
         ]
 
-        /// The relay-backed steps the background task runs, in order
+        /// The host-backed steps the background task runs, in order
         /// (#136 non-negotiable 2). Degraded is the DEFAULT launch posture —
-        /// these upgrade it as each lands.
-        static let backgroundBootstrap: [LaunchInitStep] = [
-            .sessionBootstrap, .validateRestoredIdentity, .hostRefresh, .inboxLoad,
-            .commandCatalogRefresh, .gatewayModelSeed,
+        /// these upgrade it as each lands, and #411 gates them on the active
+        /// profile actually holding gateway credentials.
+        static let backgroundLaunchRefresh: [LaunchInitStep] = [
+            .hostRefresh, .inboxLoad, .commandCatalogRefresh, .gatewayModelSeed,
         ]
     }
 
@@ -390,7 +437,6 @@ final class AppContainer {
         // otherwise the Developer toggle is the only writer and the bridge can
         // drift from UserSettings across restores (#29).
         TalariaLog.setVerbose(settingsStore.settings.verboseLogging)
-        let syncCoordinator = MockSyncCoordinator()
         let allowMockFallbacks = AppEnvironmentPolicy.currentBuild.allowsEnvironmentOverrides
         // #144: a test run must never enrol as a LIVE device. This used to read
         // `UITEST_PAIRING_MODE == "mock"` alone, which relied on every test
@@ -438,30 +484,15 @@ final class AppContainer {
             session: RelayAPIClient.makeBootstrapProbeSession()
         )
 
-        // #144: the PRIMARY must be the mock under test, not just the fallback.
-        //
-        // `ResilientSessionBootstrapService` tries `primary` FIRST and falls back
-        // only on a thrown error. The relay is up during a test run, so the live
-        // call SUCCEEDS — which means `allowsFallback` never fires and the device
-        // row is created regardless. Routing the guard through `allowsFallback`
-        // alone looks like a fix and does nothing; the live registration has to
-        // not be attempted at all.
-        let sessionBootstrapPrimary: any SessionBootstrapServiceProtocol =
-            usesMockPairingService
-                ? MockSessionBootstrapService()
-                : LiveSessionBootstrapService(apiClient: bootstrapProbeClient)
-        let sessionBootstrapService = ResilientSessionBootstrapService(
-            primary: sessionBootstrapPrimary,
-            fallback: MockSessionBootstrapService(),
-            allowsFallback: { allowMockFallbacks && (activePairingStore?.isPaired != true || usesMockPairingService) }
-        )
-
+        // #309 Lane A: the three-deep bootstrap service stack that stood here
+        // (`ResilientSessionBootstrapService` over a live-or-mock primary with
+        // a mock fallback — #144's "the PRIMARY must be the mock under test")
+        // is DELETED with the chain it fed. Nothing registers a device or
+        // loads a relay session any more, so there is no live call for a
+        // fallback to guard.
         let sessionStore = AppSessionStore(
-            bootstrapService: sessionBootstrapService,
-            syncCoordinator: syncCoordinator,
             secureStore: secureStore,
             persistence: persistence,
-            environmentProvider: { settingsStore.settings.environment },
             credentialScopeProvider: { profilesStore.activeProfile?.credentialScopeID }
         )
 
@@ -475,39 +506,20 @@ final class AppContainer {
         )
         activePairingStore = runtimePairingStore
 
-        // #15: one 401-recovery ladder for every relay-token consumer (host,
-        // sensors, talk). Refresh first; if the refresh token itself is dead,
-        // silently re-register this installation (the relay preserves the
-        // device→user binding) and re-validate identity before handing the
-        // fresh token back. Returns nil when nothing was recovered — the
-        // stored token just 401'd, so retrying with it would only burn a
-        // doomed request.
-        let relayAccessTokenRefresher: @MainActor () async -> String? = {
-            switch await sessionStore.refreshAccessTokenIfNeeded() {
-            case .refreshed:
-                return await sessionStore.currentAccessToken()
-            case .transientFailure:
-                return nil
-            case .missingRefreshToken, .rejected:
-                guard await sessionStore.recoverSessionByReRegistering() else { return nil }
-                runtimePairingStore.validateRestoredIdentity()
-                // A recovered session that authenticates as the wrong relay
-                // user is the #46 half-broken state — flag it (Diagnostics
-                // shows RE-PAIR) and fail the request instead of quietly
-                // acting as someone else.
-                guard !runtimePairingStore.identityMismatchDetected else { return nil }
-                return await sessionStore.currentAccessToken()
-            }
-        }
-
+        // #309 Lane A: #15's 401-recovery ladder is DELETED. Every rung of it
+        // — `refreshAccessTokenIfNeeded`, `recoverSessionByReRegistering`, the
+        // post-recovery `validateRestoredIdentity` check — went with the
+        // bootstrap chain, and each rung was a request to a retired relay. The
+        // host service keeps its `accessTokenRefresher` parameter (defaulted
+        // to `{ nil }`), so a 401 now falls straight through to the caller's
+        // error path instead of burning two more doomed round trips first.
+        // The host service itself is Lane C's to re-home onto gateway
+        // `/health`, which needs no relay token at all.
         let hostService: any HermesHostServiceProtocol
         if usesMockPairingService {
             hostService = MockHermesHostService()
         } else {
-            hostService = LiveHermesHostService(
-                apiClient: bootstrapProbeClient,
-                accessTokenRefresher: relayAccessTokenRefresher
-            )
+            hostService = LiveHermesHostService(apiClient: bootstrapProbeClient)
         }
 
         // #45: the Inbox is a live surface — no demo fallback; MockInboxService
@@ -637,14 +649,14 @@ final class AppContainer {
             }
         )
 
-        // Lane M PR 2: per-profile relay access for the non-active backends.
+        // Lane M PR 2: per-profile relay READS for the non-active backends.
+        // #309 Lane A removed its refresh half (and the `onTokensRefreshed`
+        // stamp that hung off it) with the bootstrap chain.
         let profileRelaySessions = ProfileRelaySessionFactory(
             persistence: persistence,
             secureStore: secureStore,
-            profileResolver: { profilesStore.profile(id: $0) },
-            activeProfileIDProvider: { profilesStore.activeProfileID }
+            profileResolver: { profilesStore.profile(id: $0) }
         )
-        profileRelaySessions.onTokensRefreshed = { profilesStore.stampTokenRefresh(profileID: $0) }
 
         let liveLocationService = LiveLocationService()
         let liveHealthService = LiveHealthService()
@@ -1014,6 +1026,17 @@ final class AppContainer {
         // leave the whole feature dark on a gateway-only host, which is
         // precisely the configuration the lane exists for. `start()`/`stop()`
         // are both idempotent, so overlapping triggers are free.
+        //
+        // **This wiring was RIGHT and ALONE — until #309 Lane A / #411.** For
+        // months it was the only place in the file that refused the relay gate
+        // and said why, while `initialize()`, `runForegroundActivation()`,
+        // `handleSystemLaunch()`, `handleBackgroundRefresh()` and
+        // `retryCredentialHoldIfNeeded()` all hard-guarded their whole bodies
+        // on `isPaired`. Those five are re-keyed now: local work runs
+        // unconditionally, host work asks `hasGatewayCredentials`. **The link
+        // stays UNGATED even by that** — it resolves its own credentials per
+        // start and degrades honestly with none, so a capability gate here
+        // would only add a second, staler opinion.
         NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification,
             object: nil, queue: .main
@@ -1193,17 +1216,16 @@ final class AppContainer {
 
         let refreshUnpairedRelayContext: @MainActor () async -> Void = { [weak sessionStore, weak container] in
             // Never act on a pre-unlock reading of "unpaired": clearing the
-            // session + force-registering off unreadable credentials would
-            // destroy a healthy identity.
+            // session off unreadable credentials would destroy a healthy
+            // identity.
             guard UIApplication.shared.isProtectedDataAvailable else { return }
             guard container?.pairingStore.isPaired == false else { return }
+            // #309 Lane A: the forced re-registration that followed this
+            // clear — `bootstrap(forceRegistration: true)` plus an inbox
+            // reload — is deleted with the bootstrap chain. Changing the
+            // environment or the relay URL of an UNPAIRED install now just
+            // drops the stale session; there is no relay left to enrol with.
             await sessionStore?.clearSession()
-            // #310: one spelling of the gate. This site already tested
-            // "non-nil and non-empty" by hand — `hasRelay` IS that test, now
-            // that the type can say it.
-            guard container?.profilesStore?.activeProfile?.hasRelay == true else { return }
-            await sessionStore?.bootstrap(forceRegistration: true)
-            await container?.inboxStore.loadInbox(force: true)
         }
 
         settingsStore.onEnvironmentChanged = { _ in
@@ -1341,46 +1363,25 @@ final class AppContainer {
     }
 
     func initialize() async {
-        guard pairingStore.isPaired else {
-            containerLog.warning("initialize: ABORT — not paired")
-            return
-        }
         guard !isInitialized else {
             containerLog.verbose("initialize: SKIP — already initialized")
             return
         }
-        // #369: an unreadable credential slot is a HOLD, never an unpairing.
-        // This guard used to answer nil with `clearLocalPairing()` — the only
-        // destructive launch-path reset in the app, and the one its own three
-        // siblings (foreground activation, system launch, background refresh)
-        // never had: they log BLOCKED and return.
-        //
-        // The reading cannot license destruction, by construction:
-        // `KeychainSecureStore.retrieveSync` collapses EVERY non-success
-        // OSStatus into nil, so errSecItemNotFound, errSecInteractionNotAllowed
-        // (a pre-first-unlock background launch — location relaunch, BGTask,
-        // APNs) and errSecMissingEntitlement arrive here identical. #46/#15 are
-        // the same lesson already paid for once: a self-heal firing on an
-        // unreadable credential set orphans a healthy pairing.
-        //
-        // The local critical path below still runs — it is credential-free by
-        // design (#136: degraded is the DEFAULT launch posture), and holding it
-        // back is what would strand `shouldShowLaunchSplash`
-        // (`isPaired && !isInitialized`) for the whole process lifetime, since
-        // `initialize()` has exactly one caller. Only the relay-backed half is
-        // deferred, to `retryCredentialHoldIfNeeded()`.
-        let credentialReadable = await sessionStore.currentAccessToken() != nil
-        credentialsUnreadableHold = !credentialReadable
-        if !credentialReadable {
-            containerLog.warning("initialize: HOLD — access token unreadable; pairing PRESERVED, relay half deferred (#369)")
-        }
 
         // #136: the critical path is LOCAL-ONLY (see LaunchInitStep) — the
-        // splash drops on local-state-ready, never on relay convergence. A
+        // splash drops on local-state-ready, never on host convergence. A
         // black-holed host (firewall DROP, no TCP refusal — every request
         // hangs the full URLSession timeout, error -1001) must not strand
         // the launch splash; a cold launch with ZERO hosts reachable lands
         // on a fully functional app in splash-minimum time.
+        //
+        // **#411: THIS BLOCK IS NOW UNCONDITIONAL.** It used to sit behind
+        // `guard pairingStore.isPaired` — the RELAY pairing — so a
+        // gateway-only install, and the launch pivot's DEFAULT hostless one,
+        // ran none of it on any launch. Every step here is credential-free by
+        // construction, which is what made the gate wrong rather than merely
+        // conservative: it withheld local work to protect a network plane the
+        // work never touched.
         await permissionsStore.reloadCapabilities()
         await chatStore.loadConversationIfNeeded()
         reconcileLiveActivities()
@@ -1389,15 +1390,31 @@ final class AppContainer {
         // #123: cold-launch safety net for a share queued while the app was
         // dead — idempotent with the scene-activate drain (the inbox empties
         // on first pass, so a double invocation is a no-op). Free-tier
-        // surface: stays on the critical path, before any relay-gated work.
+        // surface: stays on the critical path, before any host-gated work.
         drainShareInbox()
         isInitialized = true
-        // Degraded is the DEFAULT launch posture — the relay-backed half
-        // runs behind the live UI and upgrades state as each step lands.
-        // #369: unless the credential could not be read at all, in which case
-        // it waits for a reading rather than running against a nil token.
-        if credentialReadable {
-            startBackgroundBootstrap()
+
+        // Degraded is the DEFAULT launch posture — the host-backed half runs
+        // behind the live UI and upgrades state as each step lands.
+        //
+        // #369, re-keyed by #411: the credentials this half needs are the
+        // GATEWAY's, and they may not be readable yet — the Keychain restore
+        // in `makeDefault` is async, and a pre-first-unlock launch (location
+        // relaunch, BGTask, APNs) cannot read the Keychain at all. Hold
+        // rather than run against nothing; `retryCredentialHoldIfNeeded()`
+        // resumes when they land. A hostless install simply holds forever,
+        // which costs one boolean and no requests.
+        //
+        // The reading still cannot license destruction (#369's founding
+        // point): `KeychainSecureStore.retrieveSync` collapses EVERY
+        // non-success OSStatus into nil, so "absent" and "locked" arrive
+        // here identical, and nothing below acts on the difference.
+        let credentialsReadable = hasGatewayCredentials
+        credentialsUnreadableHold = !credentialsReadable
+        if credentialsReadable {
+            startBackgroundLaunchRefresh()
+        } else {
+            containerLog.notice("initialize: HOLD — no readable gateway credentials on the active profile; local launch COMPLETE, host half deferred (#369/#411)")
         }
     }
 
@@ -1406,94 +1423,78 @@ final class AppContainer {
     /// (`protectedDataDidBecomeAvailable` / `didBecomeActive`, wired in
     /// `makeDefault`) call this. Idempotent and cheap: a no-op unless a launch
     /// actually held, so both hooks firing on one unlock cannot double-run the
-    /// relay half.
+    /// host half.
+    ///
+    /// **#411: the `guard pairingStore.isPaired` that stood here is gone.** It
+    /// cleared the hold for an unpaired install, which on a gateway-only
+    /// profile meant discarding a hold that was about to become satisfiable.
     func retryCredentialHoldIfNeeded() async {
         guard credentialsUnreadableHold else { return }
-        // An install that was unpaired while held has nothing to resume; the
-        // pairing lifecycle owns its own reset.
-        guard pairingStore.isPaired else {
-            credentialsUnreadableHold = false
-            return
-        }
-        guard await sessionStore.currentAccessToken() != nil else { return }
+        guard hasGatewayCredentials else { return }
         credentialsUnreadableHold = false
-        containerLog.notice("credential hold: token readable — running the deferred relay half (#369)")
-        startBackgroundBootstrap()
+        containerLog.notice("credential hold: gateway credentials readable — running the deferred host half (#369/#411)")
+        startBackgroundLaunchRefresh()
     }
 
-    // MARK: - Background bootstrap (#136)
+    // MARK: - Background launch refresh (#136)
 
-    /// Launches the relay-backed half of launch behind the live UI.
+    /// Launches the host-backed half of launch behind the live UI.
     /// Single-flight: a second `initialize()` (or any re-entry) while one is
-    /// in flight must not double-run bootstrap.
-    private func startBackgroundBootstrap() {
-        guard backgroundBootstrapTask == nil else { return }
-        bootstrapGeneration += 1
-        let generation = bootstrapGeneration
-        let predecessor = supersededBootstrapDrain
-        supersededBootstrapDrain = nil
-        backgroundBootstrapTask = Task { [weak self] in
+    /// in flight must not double-run it.
+    private func startBackgroundLaunchRefresh() {
+        guard backgroundLaunchRefreshTask == nil else { return }
+        launchRefreshGeneration += 1
+        let generation = launchRefreshGeneration
+        let predecessor = supersededLaunchRefreshDrain
+        supersededLaunchRefreshDrain = nil
+        backgroundLaunchRefreshTask = Task { [weak self] in
             // A superseded run may still be unwinding its cancelled awaits —
-            // drain it first so its in-flight bootstrap can't interleave
-            // with (or silently short-circuit, via AppSessionStore's
-            // isBootstrapping re-entry guard) this run's fresh one.
+            // drain it first so its in-flight fetches can't interleave with
+            // this run's fresh ones.
             await predecessor?.value
-            await self?.runBackgroundBootstrap(generation: generation)
-            guard let self, self.bootstrapGeneration == generation else { return }
-            self.backgroundBootstrapTask = nil
+            await self?.runBackgroundLaunchRefresh(generation: generation)
+            guard let self, self.launchRefreshGeneration == generation else { return }
+            self.backgroundLaunchRefreshTask = nil
         }
     }
 
-    /// Cancels + supersedes any in-flight background bootstrap. Every
+    /// Cancels + supersedes any in-flight background launch refresh. Every
     /// `isInitialized = false` reset site calls this (#136 non-negotiable
     /// 5), as does a profile switch — a half-dead run must neither land
     /// stale state past the reset nor block the next run's single-flight
     /// gate.
-    private func cancelBackgroundBootstrap() {
-        bootstrapGeneration += 1
-        guard let task = backgroundBootstrapTask else { return }
+    private func cancelBackgroundLaunchRefresh() {
+        launchRefreshGeneration += 1
+        guard let task = backgroundLaunchRefreshTask else { return }
         task.cancel()
-        backgroundBootstrapTask = nil
+        backgroundLaunchRefreshTask = nil
         // Keep a handle so the NEXT run can wait out the unwinding corpse —
         // chained, in case resets stack up before another run starts.
-        if let existingDrain = supersededBootstrapDrain {
-            supersededBootstrapDrain = Task {
+        if let existingDrain = supersededLaunchRefreshDrain {
+            supersededLaunchRefreshDrain = Task {
                 await existingDrain.value
                 await task.value
             }
         } else {
-            supersededBootstrapDrain = task
+            supersededLaunchRefreshDrain = task
         }
     }
 
-    /// The relay-backed launch steps, in `LaunchInitStep.backgroundBootstrap`
-    /// order. Every state write is generation-guarded: a reset that
-    /// superseded this run wins, and nothing stale lands after it.
-    private func runBackgroundBootstrap(generation: Int) async {
+    /// The host-backed launch steps, in
+    /// `LaunchInitStep.backgroundLaunchRefresh` order. Every state write is
+    /// generation-guarded: a reset that superseded this run wins, and nothing
+    /// stale lands after it.
+    ///
+    /// **#309 Lane A removed the first two steps.** `sessionStore.bootstrap()`
+    /// (`device/register` → `session` → the #15 refresh/re-register ladder)
+    /// and the `pairingStore.validateRestoredIdentity()` that had to follow it
+    /// were the cold-launch half of the doomed relay chain — three network
+    /// round trips at a retired service before the first useful one.
+    private func runBackgroundLaunchRefresh(generation: Int) async {
         func isCurrent() -> Bool {
-            bootstrapGeneration == generation && !Task.isCancelled
+            launchRefreshGeneration == generation && !Task.isCancelled
         }
 
-        await sessionStore.bootstrap()
-        guard isCurrent() else { return }
-        // #3/#46: a reinstall can resurrect a previous relay identity from the
-        // Keychain — verify the bootstrapped session's user matches the one
-        // this pairing minted before relay-backed features run on it. MUST
-        // stay ordered strictly after bootstrap.
-        pairingStore.validateRestoredIdentity()
-        if sessionStore.state.connectionStatus != .connected {
-            // Relay bootstrap failed (e.g. the relay restarted and invalidated this
-            // device's tokens → 401 on register/session/refresh). Do NOT strand the
-            // launch splash: the direct chat path (:8642, API-key auth) is independent
-            // of the relay session, so we continue into the app in a degraded state and
-            // let the user reach Settings to re-pair / retry rather than being hard
-            // locked at launch. Relay-backed features (sensor upload, inbox) stay
-            // degraded until a valid session is restored; re-pairing re-runs initialize().
-            // (#136: the splash no longer waits for this path at all — this
-            // hardening covers relays that ANSWER with a failure; the
-            // background task + short-timeout probes cover the black hole.)
-            containerLog.warning("initialize: relay bootstrap not connected (is \(String(describing: self.sessionStore.state.connectionStatus), privacy: .public)) — entering degraded mode; direct chat still available")
-        }
         await hostStore.refresh()
         guard isCurrent() else { return }
         lastKnownHostOnline = hostStore.isHostOnline
@@ -1538,11 +1539,13 @@ final class AppContainer {
 
     /// #145 Part E(a) — ONE shared deadline around the whole foreground chain.
     ///
-    /// **Part A bounded each CALL; it did not bound the SUM.** Ten guarded
-    /// network awaits plus `refreshDormantProfileTokensIfNeeded`'s serial
-    /// per-profile loop means a degraded-but-answering host can still hold an
-    /// activation for minutes while every individual call behaves correctly.
-    /// This caps the total.
+    /// **Part A bounded each CALL; it did not bound the SUM.** A chain of
+    /// guarded network awaits means a degraded-but-answering host can still
+    /// hold an activation for minutes while every individual call behaves
+    /// correctly. This caps the total. (#309 Lane A removed the worst
+    /// contributor — `refreshDormantProfileTokensIfNeeded`'s serial
+    /// per-profile `auth/refresh` loop — but the cap stays: the budget exists
+    /// for the chain's shape, not for one step.)
     ///
     /// **45s is chosen to be generous, not tight, and that is deliberate.** A
     /// deadline that fires on healthy-but-slow refreshes would silently
@@ -1582,7 +1585,7 @@ final class AppContainer {
     /// state; and the steps are independent refreshes, so the replacing chain
     /// simply redoes them.
     ///
-    /// **The cancel is awaited, following `cancelBackgroundBootstrap`'s
+    /// **The cancel is awaited, following `cancelBackgroundLaunchRefresh`'s
     /// precedent of waiting out the unwinding task rather than racing it.**
     /// Without that wait the old chain's teardown overlaps the new chain's
     /// start and both are briefly live — which is the very thing this fixes, and
@@ -1642,16 +1645,14 @@ final class AppContainer {
         peakConcurrentForegroundActivations = max(peakConcurrentForegroundActivations, liveForegroundActivations)
         defer { liveForegroundActivations -= 1 }
 
-        guard pairingStore.isPaired else {
-            containerLog.warning("handleAppDidBecomeActive: BLOCKED — not paired")
-            return
-        }
-        guard await sessionStore.currentAccessToken() != nil else {
-            containerLog.warning("handleAppDidBecomeActive: BLOCKED — no access token")
-            return
-        }
-        containerLog.verbose("handleAppDidBecomeActive: paired + token OK, proceeding")
-
+        // **#411: the two guards that stood here are gone.**
+        // `guard pairingStore.isPaired` + `guard currentAccessToken() != nil`
+        // were the RELAY plane's, and they blocked the ENTIRE body — including
+        // the live-activity reconcile and the widget write that #145 Part B
+        // deliberately hoisted to the front for exactly the case where the
+        // network is unusable. The capability gate now sits mid-chain, where
+        // the network work actually starts.
+        //
         // #145 Part B — REFRESH THE VISIBLE STATE BEFORE TOUCHING THE NETWORK.
         //
         // These two used to sit at the END of this function, behind ~8 network
@@ -1690,26 +1691,45 @@ final class AppContainer {
         if Task.isCancelled { return }
         await permissionsStore.reloadCapabilities()
         if Task.isCancelled { return }
+        // #4.15: a turn that finished while backgrounded skipped reasoning
+        // condensation (foreground-only work) — catch it up now. On-device
+        // work, so it moved UP here with #411's re-key: it has no more
+        // business behind a host gate than the widget write does.
+        await chatStore.condensePendingReasoning()
+        if Task.isCancelled { return }
+        // Local Talk bookkeeping (session/audio state) — not a host call.
+        talkStore.handleAppDidBecomeActive()
+
+        // ── #411: everything BELOW needs a host to ask. ──────────────────
+        // Gated on the active profile holding gateway credentials, not on the
+        // relay pairing. A hostless install falls through to the trailing UI
+        // writes, which is the whole point: local state stays fresh on every
+        // foreground for the DEFAULT user (#31's no-pairing-wall stance).
+        guard hasGatewayCredentials else {
+            containerLog.verbose("handleAppDidBecomeActive: local half only — no gateway credentials on the active profile (#411)")
+            reconcileLiveActivities()
+            updateWidgetData()
+            return
+        }
         await hostStore.refresh()
         if Task.isCancelled { return }
         lastKnownHostOnline = hostStore.isHostOnline
         await refreshCommandCatalog(force: true)
         if Task.isCancelled { return }
-        // Seed the model chip from the shim if the catalog didn't provide one
-        // (e.g. relay offline). This path runs even when initialize() aborts.
+        // Seed the model chip if the catalog didn't provide one. This path
+        // runs even when initialize() held.
         if chatStore.activeModelName == nil {
             await seedActiveModelFromGateway()
             if Task.isCancelled { return }
         }
-        talkStore.handleAppDidBecomeActive()
         await talkStore.refreshReadiness()
         if Task.isCancelled { return }
-        // #4.15: a turn that finished while backgrounded skipped reasoning
-        // condensation (foreground-only work) — catch it up now.
-        await chatStore.condensePendingReasoning()
-        if Task.isCancelled { return }
-        // M-9: keep dormant profiles' relay tokens alive.
-        await refreshDormantProfileTokensIfNeeded()
+        // #309 Lane A: `refreshDormantProfileTokensIfNeeded()` stood here —
+        // M-9's serial per-profile `auth/refresh` sweep, deleted with the
+        // bootstrap chain along with `DormantTokenRefreshPolicy`. It was the
+        // single worst offender for #145 Part E's budget: one round trip per
+        // dormant relay-bearing profile, all of them retired.
+        //
         // The trailing UI writes are NOT guarded: they are local, synchronous
         // and idempotent, and a superseded chain that has already reached here
         // may as well publish what it learned. Guarding them would throw away
@@ -1729,16 +1749,16 @@ final class AppContainer {
             containerLog.warning("handleSystemLaunch: BLOCKED — protected data unavailable (pre-first-unlock launch); deferring")
             return
         }
-        guard pairingStore.isPaired else {
-            containerLog.warning("handleSystemLaunch: BLOCKED — not paired")
-            return
-        }
-        guard await sessionStore.currentAccessToken() != nil else {
-            containerLog.warning("handleSystemLaunch: BLOCKED — no access token")
+        // #411: the live-activity reconcile is LOCAL and now runs for every
+        // install — a system launch (location relaunch, a Live Activity the
+        // user tapped) that leaves stale activities on screen is a defect
+        // whether or not a relay was ever paired.
+        reconcileLiveActivities()
+        guard hasGatewayCredentials else {
+            containerLog.verbose("handleSystemLaunch: local half only — no gateway credentials on the active profile (#411)")
             return
         }
         await talkStore.refreshReadiness()
-        reconcileLiveActivities()
         await reportAppStateIfNeeded("foreground")
     }
 
@@ -1757,14 +1777,13 @@ final class AppContainer {
     /// completions) and rewrites widget data.
     func handleBackgroundRefresh() async {
         containerLog.notice("handleBackgroundRefresh: entered")
-        guard pairingStore.isPaired else {
-            containerLog.warning("handleBackgroundRefresh: BLOCKED — not paired")
-            return
-        }
-        guard await sessionStore.currentAccessToken() != nil else {
-            containerLog.warning("handleBackgroundRefresh: BLOCKED — no access token")
-            return
-        }
+        // **#411: ungated.** Both steps below are local — the reconcile asks
+        // the chat client this device is already configured for (an instant
+        // no-op with nothing pending), and the widget write is a dictionary
+        // write into the App Group. Gating them on the RELAY pairing meant a
+        // gateway-only or hostless install had NO widget refresh on any
+        // background wake at all, which is the starved path #411 named that
+        // has no per-screen fallback: no screen is on screen.
         // In-memory pendingRun survives warm relaunches only — on a cold
         // background launch there is nothing pending by design (the sessions
         // drawer stays the authoritative recovery surface).
@@ -1782,7 +1801,7 @@ final class AppContainer {
         credentialsUnreadableHold = false
         // #136: supersede any in-flight background bootstrap — the fresh
         // initialize() below must run its own, on the new pairing's state.
-        cancelBackgroundBootstrap()
+        cancelBackgroundLaunchRefresh()
         chatStore.reset()
         inboxStore.reset()
         await initialize()
@@ -2088,7 +2107,7 @@ final class AppContainer {
         // push-wake path already orders loadInbox(force:) before this call."
         // That path — `handleRemoteNotificationWake` — was deleted whole by
         // #238 T4. It was never the only orderer and never a funnel-wide
-        // contract: of nine call sites only `runBackgroundBootstrap` and
+        // contract: of nine call sites only `runBackgroundLaunchRefresh` and
         // `handleActiveProfileChanged` order a load first, and both survive.)
         data.stampBriefing(from: inboxStore.items)
         SharedWidgetDataStore.write(data)
@@ -2104,7 +2123,7 @@ final class AppContainer {
         credentialsUnreadableHold = false
         // #136: a half-flight background bootstrap must not land relay
         // state into the freshly reset stores below.
-        cancelBackgroundBootstrap()
+        cancelBackgroundLaunchRefresh()
         await talkStore.endSessionIfNeeded()
         talkStore.reset()
         router.selectedTab = .chat
@@ -2240,7 +2259,7 @@ final class AppContainer {
         // #136: the launch background bootstrap may still be in flight
         // against the OLD profile's stores — supersede it before rebinding
         // scope, or its late completions would land cross-profile.
-        cancelBackgroundBootstrap()
+        cancelBackgroundLaunchRefresh()
         // #251-2A/#285: supersede the platform link's in-flight turn. The
         // scope has ALREADY moved (`setActiveProfile` assigns state
         // synchronously, before this handler ever gets a turn — pinned by
@@ -2324,34 +2343,30 @@ final class AppContainer {
         lastCommandCatalogRefreshAt = nil
         chatStore.resetCommandCatalog()
 
-        // #310: THE RELAY-PLANE GATE. A gateway-only profile has no relay to
-        // answer any of this, so the whole block is skipped rather than run
-        // and allowed to fail — which is the difference between a switch that
-        // lands immediately and #365's ~10 s full-screen stall. The block
-        // HOLDS THE SPLASH while it runs (`shouldShowLaunchSplash` is
-        // `sessionStore.isBootstrapping && backgroundBootstrapTask == nil`,
-        // and a profile-switch bootstrap has no background task), so "it
-        // would just fail fast anyway" was never true: bootstrap's own #15
-        // recovery ladder adds two more doomed round trips behind it.
-        if profile.hasRelay, pairingStore.isPaired, await sessionStore.currentAccessToken() != nil {
-            await sessionStore.bootstrap()
-            // #285 checkpoint: the bootstrap can be seconds against a dead
-            // host — a superseded activation stops writing here.
-            guard !Task.isCancelled else { return }
-            pairingStore.validateRestoredIdentity()
-            await hostStore.refresh()
-            guard !Task.isCancelled else { return }
-            lastKnownHostOnline = hostStore.isHostOnline
-            await inboxStore.loadInbox(force: true)
-        }
-        // #310: `refreshCommandCatalog` is relay-plane too and sits OUTSIDE
-        // the block above — which is why the gate is repeated rather than the
-        // block simply widened. It is #309 path 16 (`GET commands`).
-        if profile.hasRelay {
-            await refreshCommandCatalog(force: true)
-        } else {
-            chatStore.resetCommandCatalog()
-        }
+        // ── #309 Lane A: THE RELAY-PLANE BLOCK IS DELETED, NOT GATED. ─────
+        //
+        // What stood here: `if profile.hasRelay, pairingStore.isPaired,
+        // accessToken != nil { bootstrap(); validateRestoredIdentity();
+        // hostStore.refresh(); inboxStore.loadInbox(force:) }`, followed by a
+        // second `if profile.hasRelay { refreshCommandCatalog(force:) }`.
+        //
+        // #310 gated it so a GATEWAY-ONLY profile switched instantly, and that
+        // half of #365 has been fixed since. **The residual — the half #310
+        // could not reach — was that every RELAY-BEARING profile, which is
+        // every profile paired before the retirement, still ran the whole
+        // doomed chain on every switch.** Nothing answers at the other end on
+        // either host, so each step is a full URLSession timeout and the
+        // bootstrap's own #15 ladder stacks two more behind it, all while the
+        // switch holds the UI. Deleting it makes the switch relay-silent for
+        // EVERY profile, which is what 309-A4 pins.
+        //
+        // Host presence (`hostStore.refresh`, #309 row 7) and the command
+        // catalog (`refreshCommandCatalog`, row 16) are Lane C's to re-home
+        // onto gateway `/health` and `/v1/skills`; until they land, the
+        // switch leaves both honestly empty rather than fetching from a
+        // retired service. The inbox reload is not lost — `InboxScreen` runs
+        // its own `.task { loadInbox() }`, and the drain feeds it locally.
+        chatStore.resetCommandCatalog()
         if chatStore.activeModelName == nil {
             await seedActiveModelFromGateway()
         }
@@ -2391,23 +2406,13 @@ final class AppContainer {
         updateWidgetData()
     }
 
-    /// M-9: opportunistically refresh DORMANT profiles' relay tokens on
-    /// foreground so the 30-day refresh TTL never strands one. The policy
-    /// (paired, non-active, >7d since last known refresh, ≥6h between
-    /// attempts) keeps this from thrashing.
-    func refreshDormantProfileTokensIfNeeded() async {
-        guard let profilesStore, let profileRelaySessions else { return }
-        let due = DormantTokenRefreshPolicy.profilesDue(
-            profiles: profilesStore.profiles,
-            activeProfileID: profilesStore.activeProfileID,
-            isPaired: { profileRelaySessions.isPaired(profileID: $0.id) },
-            lastAttempts: dormantRefreshAttempts
-        )
-        for profile in due {
-            dormantRefreshAttempts[profile.id] = .now
-            _ = await profileRelaySessions.refreshAccessToken(forProfileID: profile.id)
-        }
-    }
+    // #309 Lane A: `refreshDormantProfileTokensIfNeeded()` lived here — M-9's
+    // opportunistic `auth/refresh` sweep over dormant relay-bearing profiles,
+    // one serial round trip each on every foreground. It is DELETED with the
+    // bootstrap chain it called through (`ProfileRelaySessionFactory
+    // .refreshAccessToken` was that chain's fourth construction site), along
+    // with `DormantTokenRefreshPolicy` and the `dormantRefreshAttempts`
+    // no-thrash ledger. There is no 30-day refresh TTL left to strand.
 
     fileprivate var chatAPIKeyBox: MutableHermesAPIKeyBox? {
         get { _chatAPIKeyBox }

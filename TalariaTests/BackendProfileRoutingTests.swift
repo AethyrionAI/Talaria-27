@@ -250,49 +250,20 @@ struct BackendProfileRoutingTests {
         #expect(index.routingProfileID(forSessionID: "api_legacy", activeProfileID: ojamd) == ojamd)
     }
 
-    // MARK: - M-9: dormant token freshness
-
-    @Test @MainActor
-    func dormantRefreshPolicyFiresOncePerWindowAndSkipsFreshActiveUnpaired() {
-        let now = Date()
-        let day: TimeInterval = 24 * 60 * 60
-        // #310: these fixtures used to pass `relayBaseURL: ""`, which now
-        // means "no relay" and would filter every one of them out. They carry
-        // real URLs because dormant TOKEN refresh is a relay-plane concern by
-        // definition — a profile with no relay has no tokens to keep fresh.
-        let relay = "http://relay.test:8000/v1"
-        let active = BackendProfile(name: "Active", gatewayBaseURL: "", relayBaseURL: relay, lastTokenRefreshAt: now.addingTimeInterval(-30 * day))
-        let stale = BackendProfile(name: "Stale", gatewayBaseURL: "", relayBaseURL: relay, lastTokenRefreshAt: now.addingTimeInterval(-8 * day))
-        let fresh = BackendProfile(name: "Fresh", gatewayBaseURL: "", relayBaseURL: relay, lastTokenRefreshAt: now.addingTimeInterval(-day))
-        let never = BackendProfile(name: "Never", gatewayBaseURL: "", relayBaseURL: relay)
-        let unpaired = BackendProfile(name: "Unpaired", gatewayBaseURL: "", relayBaseURL: relay, lastTokenRefreshAt: now.addingTimeInterval(-30 * day))
-        // #310: relay-less, PAIRED, and long overdue — every reason to be due
-        // except the one that now decides it. Its pairing record outlives the
-        // cleared URL, which is exactly why `isPaired` cannot be the gate.
-        let relayless = BackendProfile(name: "Relayless", gatewayBaseURL: "http://gateway-only:8642", lastTokenRefreshAt: now.addingTimeInterval(-30 * day))
-        let profiles = [active, stale, fresh, never, unpaired, relayless]
-
-        func due(_ attempts: [UUID: Date]) -> [String] {
-            DormantTokenRefreshPolicy.profilesDue(
-                profiles: profiles,
-                activeProfileID: active.id,
-                isPaired: { $0.id != unpaired.id },
-                lastAttempts: attempts,
-                now: now
-            ).map(\.name)
-        }
-
-        // Active is never touched (its store owns refresh); fresh waits;
-        // unpaired has nothing to refresh; the relay-less profile has no
-        // relay plane at all (#310); stale + never-refreshed are due.
-        #expect(due([:]) == ["Stale", "Never"])
-
-        // A just-made attempt suppresses re-fires (no thrash on foreground)…
-        #expect(due([stale.id: now.addingTimeInterval(-60), never.id: now.addingTimeInterval(-60)]) == [])
-
-        // …until the attempt floor lapses.
-        let sevenHoursAgo = now.addingTimeInterval(-7 * 60 * 60)
-        #expect(due([stale.id: sevenHoursAgo, never.id: sevenHoursAgo]) == ["Stale", "Never"])
-    }
+    // ── M-9: dormant token freshness — TOMBSTONED 2026-08-25 (#309 Lane A)
+    //
+    // `dormantRefreshPolicyFiresOncePerWindowAndSkipsFreshActiveUnpaired`
+    // pinned `DormantTokenRefreshPolicy.profilesDue`: which dormant profiles
+    // were due an `auth/refresh`, and the no-thrash floor that kept a failing
+    // relay from being re-tried on every foreground.
+    //
+    // The policy and its caller (`AppContainer
+    // .refreshDormantProfileTokensIfNeeded`, and
+    // `ProfileRelaySessionFactory.refreshAccessToken` beneath it) are deleted
+    // with the relay bootstrap chain: there is no 30-day relay refresh TTL
+    // left to strand, on any host. Deleted rather than repointed — its whole
+    // subject matter is gone, and the #310 fixture case it carried (a
+    // relay-LESS paired profile must not be due) is now true by construction
+    // because nothing is ever due.
 
 }
