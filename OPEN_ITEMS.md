@@ -14529,6 +14529,75 @@ had not landed).
 > dispatched to apply the rule wholesale rather than string-by-string;
 > borderline judgments enumerated in its close-out. Also recorded in
 > CLAUDE.md's Conventions.
+
+### 415-SWEEP — the STANDING RULING applied WHOLESALE. **Bars written first, 2026-08-27, before any edit.**
+
+The two prior naming lanes were string-by-string (415-N: two control
+titles; 415-S: two Shortcuts strings). This one inventories **every**
+user-visible "Hermes" across the app + widget + intents targets and rules
+on each. The judgment axis is Owen's: **APP-MEANING** (the assistant/app
+surface the user talks to — the local brain answers hostless, so these are
+Talaria) vs **HOST-MEANING** (names the host, the gateway, the connection,
+or where a message goes when a host is attached — these stay Hermes).
+
+**415-SWEEP-1 — the elected string is pinned.**
+`AskHermesIntent.parameterSummary` must compile to `Ask Talaria` and must
+NOT contain `Ask Hermes`. This is the straggler 415-S flagged for Owen and
+the reason the ruling was issued. A test asserts the rendered
+`formatString`, not the source text.
+
+**415-SWEEP-2 — the inventory is ENUMERATED, with zero silent decisions.**
+The close-out carries three lists — RENAMED (with before → after), KEPT AS
+HOST-MEANING, and FENCED — and every borderline call states its reasoning.
+A string that changed without appearing in a list, or a judgment asserted
+without a reason, fails this bar. Scope of the sweep: string LITERALS the
+user can see (UI text, intent titles/descriptions/dialogs, VoiceOver
+labels, notification/Live-Activity copy, widget gallery names, **and the
+`Info.plist` permission usage descriptions**, which iOS renders in system
+prompts and which no prior lane inventoried).
+
+**415-SWEEP-3 — the host-meaning pins stay green.**
+`HermesControlsTests.hostMeaningHermesStringsSurviveTheRename` is
+UNCHANGED and must keep passing: `"Message Hermes…"`, `"A Hermes
+gateway"`, `"Something's there, but it isn't Hermes"`, `"Hermes host
+online"`. Talaria is a client for a **Hermes** host; that word is
+load-bearing everywhere it means the host. New pins are added for the
+host-meaning families this sweep deliberately walked past (the service
+error strings, the Connect Host copy, the brain label).
+
+**415-SWEEP-4 — the fences are shown STRUCTURALLY, not asserted.**
+Untouched, each proven by a test that reads the file or the compiled
+value: the `hermes://` easter-egg scheme (#77's ruling), every
+`CarPlayVoiceManager` `titleVariants` entry (415-S-3's guard, still a
+guard and not a goal), the control `kind` ids (415-N-3), the widget
+`kind` ids (`HermesStatus`/`HermesHealth`/`HermesBriefing` — same
+orphaning hazard as a control kind), the Swift type names (415-S-5), and
+the `Logger` subsystem/category strings. **A rename that also moved an
+identifier would pass 415-SWEEP-1 and still be a regression.**
+
+**415-SWEEP-5 — no user-visible regression from the placeholder rename.**
+`Conversation.defaultTitle` is user-visible (the drawer's title before
+on-device titling fires) AND load-bearing in logic — `#4.8` title
+generation only runs while `title == defaultTitle`. Renaming the constant
+alone would strand every conversation created before this build: it would
+display the OLD name forever and never auto-title, i.e. the sweep would
+manufacture the exact symptom it exists to remove. A tolerant
+placeholder check must accept both the new and the legacy value, and a
+test must fail if it does not.
+
+**415-SWEEP-6 — the gate.** `scripts/mac/lane-gate.sh` green on
+`CC-lane-2` under Xcode-beta6. Baseline to beat, verified at lane open:
+**2732** Swift Testing tests (415-S's own measured count); the delta must
+equal the tests this lane adds and nothing else.
+
+**Explicitly OUT of scope**, enumerated before the edit so the close-out
+cannot quietly grow: the `hermes://` scheme and its comment, all of
+CarPlay, every identifier (type names, control/widget `kind`s, intent
+identifiers, bundle ids, subsystem strings), log lines, and code comments
+except where a rename in this lane FALSIFIES one (those are corrected in
+the same commit, per the close-out rule). `README`/`docs/` are verified
+for app-meaning misses but are expected to need nothing after #77.
+
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
 **2026-08-11 — what was run and what it found (Fable orchestrator + 4 subagents; sims
