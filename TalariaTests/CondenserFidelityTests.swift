@@ -234,7 +234,7 @@ struct CondenserFidelityTests {
     @Test
     func renderedLinesNameTheSpeakers() {
         #expect(ContextTransplanter.renderedLine(role: .user, text: "hi") == "User: hi")
-        #expect(ContextTransplanter.renderedLine(role: .assistant, text: "hello") == "Hermes: hello")
+        #expect(ContextTransplanter.renderedLine(role: .assistant, text: "hello") == "Talaria: hello")
         #expect(ContextTransplanter.renderedBody(lines: ["a", "b"], omittedCount: 0) == "a\nb")
         #expect(ContextTransplanter.renderedBody(lines: ["b"], omittedCount: 3)
             .hasPrefix("(3 earlier turns omitted"))

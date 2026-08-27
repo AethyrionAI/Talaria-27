@@ -2746,7 +2746,7 @@ final class ChatStore {
             guard !item.isPartial, item.speaker != .system else { return nil }
             let text = item.text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else { return nil }
-            return "\(item.speaker == .user ? "User" : "Hermes"): \(text)"
+            return "\(item.speaker == .user ? "User" : "Talaria"): \(text)"
         }
         guard !lines.isEmpty else { return "" }
         return """
@@ -4265,7 +4265,7 @@ final class ChatStore {
     private func generateConversationCardIfNeeded() {
         guard let intelligence = localIntelligence,
               let conversation,
-              conversation.title == Conversation.defaultTitle,
+              Conversation.isPlaceholderTitle(conversation.title),
               !isGeneratingConversationCard,
               let inputs = Self.conversationCardInputs(for: conversation)
         else { return }
@@ -4283,7 +4283,7 @@ final class ChatStore {
             // retitled by hand while the model ran.
             guard var conv = self.conversation,
                   conv.id == conversationID,
-                  conv.title == Conversation.defaultTitle
+                  Conversation.isPlaceholderTitle(conv.title)
             else { return }
             if !card.preview.isEmpty { conv.generatedPreview = card.preview }
             self.conversation = conv
@@ -4369,8 +4369,8 @@ final class ChatStore {
         // fixes the long-standing quirk of a manual /title reverting on the
         // next exchange — and without this, the title-generation gate would
         // re-trip and re-run the on-device model every single turn.)
-        if refreshedConversation.title == Conversation.defaultTitle,
-           localConversation.title != Conversation.defaultTitle {
+        if Conversation.isPlaceholderTitle(refreshedConversation.title),
+           !Conversation.isPlaceholderTitle(localConversation.title) {
             refreshedConversation.title = localConversation.title
         }
         if refreshedConversation.generatedPreview == nil {

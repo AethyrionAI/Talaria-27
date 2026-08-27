@@ -18,7 +18,7 @@ struct HermesHealthWidget: Widget {
                     WidgetEntryThemeBackground(entry: entry)
                 }
         }
-        .configurationDisplayName("Hermes Health")
+        .configurationDisplayName("Talaria Health")
         .description("Daily health metrics at a glance.")
         .supportedFamilies([.systemMedium])
     }
@@ -35,7 +35,7 @@ private struct HermesHealthView: View {
         return VStack(spacing: 8) {
             HStack {
                 WidgetOrbGlyph(palette: palette, size: 16)
-                Text("Hermes Health")
+                Text("Talaria Health")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(palette.foreground)
                 Spacer()

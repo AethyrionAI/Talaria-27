@@ -25,7 +25,7 @@ private let spotlightOpenLog = Logger(
 /// A Hermes chat session, identified by the Sessions API string id
 /// (NOT the client-local Conversation UUID).
 struct ChatSessionEntity: AppEntity, IndexedEntity {
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Hermes Session"
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Talaria Session"
     static let defaultQuery = ChatSessionEntityQuery()
 
     let id: String
@@ -44,14 +44,14 @@ struct ChatSessionEntity: AppEntity, IndexedEntity {
         let trimmedTitle = info.title?.trimmingCharacters(in: .whitespacesAndNewlines)
         self.init(
             id: info.id,
-            title: trimmedTitle?.isEmpty == false ? trimmedTitle! : "Hermes Session",
+            title: trimmedTitle?.isEmpty == false ? trimmedTitle! : "Talaria Session",
             preview: info.preview,
             lastActive: info.lastActive
         )
     }
 
     var displayRepresentation: DisplayRepresentation {
-        let subtitle = preview ?? "Hermes session"
+        let subtitle = preview ?? "Talaria session"
         return DisplayRepresentation(title: "\(title)", subtitle: "\(subtitle)")
     }
 }
@@ -77,7 +77,7 @@ struct ChatSessionEntityQuery: EntityQuery {
 /// A #21 Tier-1 agent file: reconstructed from the SSE stream and staged
 /// locally, carried as a file attachment on a Hermes-sent message.
 struct AgentFileEntity: AppEntity, IndexedEntity {
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Hermes File"
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Talaria File"
     static let defaultQuery = AgentFileEntityQuery()
 
     /// The staged MessageAttachment's UUID string.
@@ -86,7 +86,7 @@ struct AgentFileEntity: AppEntity, IndexedEntity {
     var localStoragePath: String?
 
     var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(title: "\(fileName)", subtitle: "File from Hermes")
+        DisplayRepresentation(title: "\(fileName)", subtitle: "File from Talaria")
     }
 }
 
@@ -107,8 +107,8 @@ struct AgentFileEntityQuery: EntityQuery {
 /// `talaria://session/{id}` deep link so external openers and this intent
 /// share one navigation code path (AppEntry.handleDeeplink).
 struct OpenSessionIntent: OpenIntent {
-    static let title: LocalizedStringResource = "Open Hermes Session"
-    static let description = IntentDescription("Opens a Hermes chat session in Talaria.")
+    static let title: LocalizedStringResource = "Open Talaria Session"
+    static let description = IntentDescription("Opens a Talaria chat session.")
     // #66: must stay `false`. The `OpenURLIntent` returned from `perform()`
     // IS the app launch — pairing it with `openAppWhenRun = true` is the
     // exact combination that made Control Center silently swallow taps (#58,
@@ -142,7 +142,7 @@ struct OpenSessionIntent: OpenIntent {
 /// Spotlight tap-through for a donated agent file: lands on the chat
 /// transcript, where the file bubble (ShareLink) lives.
 struct OpenAgentFileIntent: OpenIntent {
-    static let title: LocalizedStringResource = "Open Hermes File"
+    static let title: LocalizedStringResource = "Open Talaria File"
     static let description = IntentDescription("Opens Talaria's chat, where the file was shared.")
     // #66: must stay `false` — same conflict as `OpenSessionIntent` (never
     // device-verified, but the shape was identical). Explicit for the same

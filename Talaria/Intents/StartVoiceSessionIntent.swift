@@ -13,7 +13,7 @@ import AppIntents
 struct StartVoiceSessionIntent: AppIntent {
     static let title: LocalizedStringResource = "Start Voice Session"
     static let description = IntentDescription(
-        "Opens Talaria and starts a hands-free voice session with Hermes.",
+        "Opens Talaria and starts a hands-free voice session.",
         categoryName: "Voice"
     )
     /// The voice pipeline needs the app foregrounded (mic + WebRTC + UI).

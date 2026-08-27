@@ -430,7 +430,8 @@ struct LocalChatBackendTests {
         )
         #expect(text.contains("Device: iPhone running iOS 27.0."))
         #expect(text.contains("2025")) // 2025-06-15 UTC — formatted with the year
-        #expect(text.contains("Hermes"))
+        // #415-SWEEP: the local brain introduces itself as Talaria now.
+        #expect(text.contains("Talaria"))
     }
 
     @Test func modelSwitchResponseParsesWithChatStoreContextRegex() {

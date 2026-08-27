@@ -19,7 +19,7 @@ struct CaptureScreen: View {
                         .foregroundStyle(Design.Colors.foregroundBright)
                     MonoLabel("CAMERA · CANVAS · STANDBY", size: 10, tracking: Design.Tracking.monoWide)
                 }
-                Text("Camera and canvas features are coming soon — a placeholder for future Hermes visual capabilities.")
+                Text("Camera and canvas features are coming soon — a placeholder for future Talaria visual capabilities.")
                     .font(Design.Typography.callout)
                     .foregroundStyle(Design.Colors.secondaryForeground)
                     .multilineTextAlignment(.center)

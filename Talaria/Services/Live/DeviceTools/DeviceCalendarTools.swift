@@ -48,7 +48,7 @@ struct CalendarReadTool: Tool {
             // needs the wider grant, so name the grant the user actually
             // holds and how to widen it (#186). "Enable it in Settings" to
             // someone who granted what they were shown reads as a lie.
-            return "Calendar access is add-only, so events can't be read. To let Hermes read the calendar, choose Full Access for it in Settings → Privacy & Security → Calendars."
+            return "Calendar access is add-only, so events can't be read. To let Talaria read the calendar, choose Full Access for it in Settings → Privacy & Security → Calendars."
         default:
             return "Calendar permission is not granted, so events can't be read. The user can enable it in Settings → Privacy & Security → Calendars."
         }

@@ -487,7 +487,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             latencyMetrics.firstUserFinalizedAt = .now
         }
         voiceState = .thinking
-        statusMessage = "Hermes is thinking."
+        statusMessage = "Talaria is thinking."
         let ttsTurnID = UUID()
         activeTurnID = ttsTurnID
         turnTask = Task { @MainActor [weak self] in
@@ -514,7 +514,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 speechOutput.enqueueStreamChunk(delta, messageID: ttsTurnID)
                 if voiceState != .speaking {
                     voiceState = .speaking
-                    statusMessage = "Hermes is speaking."
+                    statusMessage = "Talaria is speaking."
                 }
             case .reasoningDelta:
                 // Reasoning is a separate channel — never spoken, never folded
@@ -531,7 +531,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             case .toolActivity(let event):
                 if event.phase == .started {
                     voiceState = .thinking
-                    statusMessage = "Hermes is working on that\u{2026}"
+                    statusMessage = "Talaria is working on that\u{2026}"
                 }
             case .modelResolved:
                 // #223 Lane 5: header attribution is a chat-surface concern;
@@ -559,7 +559,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 // before the chat was reachable — the promise stayed false.
                 // A voice-surface answer path is explicitly #305's scope.
                 voiceState = .thinking
-                statusMessage = "Hermes is waiting on a host approval this voice surface can't show or answer. If it isn't answered, the host denies it when its approval window expires."
+                statusMessage = "Talaria is waiting on a host approval this voice surface can't show or answer. If it isn't answered, the host denies it when its approval window expires."
             case .approvalResolved:
                 // The host resolved it (or it expired) — the run continues or
                 // terminates on its own; nothing voice-side to tear down.

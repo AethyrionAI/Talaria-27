@@ -77,7 +77,7 @@ enum AskHermesProgressDriver {
                     if let tool = message.toolActivity {
                         progress.localizedAdditionalDescription = "Running \(tool)"
                     } else if message.content.isEmpty {
-                        progress.localizedAdditionalDescription = "Hermes is thinking"
+                        progress.localizedAdditionalDescription = "Talaria is thinking"
                     } else {
                         progress.localizedAdditionalDescription = "Streaming reply"
                     }

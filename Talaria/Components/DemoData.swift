@@ -8,7 +8,7 @@ nonisolated enum DemoData {
         let cal = Calendar.current
         let now = Date.now
         return Conversation(
-            title: "Hermes Agent",
+            title: "Talaria Agent",
             messages: [
                 Message(
                     sender: .hermes,

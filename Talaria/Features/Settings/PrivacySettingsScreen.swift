@@ -623,7 +623,7 @@ struct PrivacySettingsScreen: View {
                         .labelsHidden()
                         .tint(Design.Brand.accentText)
                 }
-                Text("Makes Hermes sessions and agent files findable in system search. Chat titles and previews enter the Spotlight index — off by default; turning it off removes everything already donated.")
+                Text("Makes Talaria sessions and agent files findable in system search. Chat titles and previews enter the Spotlight index — off by default; turning it off removes everything already donated.")
                     .font(Design.Typography.caption)
                     .foregroundStyle(Design.Colors.secondaryForeground)
             }

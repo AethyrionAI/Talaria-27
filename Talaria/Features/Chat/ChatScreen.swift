@@ -1946,7 +1946,7 @@ struct ChatScreen: View {
         for msg in messages {
             guard msg.sender == .user || msg.sender == .hermes else { continue }
             visibleIndex += 1
-            let role = msg.sender == .user ? "You" : "Hermes"
+            let role = msg.sender == .user ? "You" : "Talaria"
             let preview = msg.content.prefix(previewLimit)
             let suffix = msg.content.count > previewLimit ? "..." : ""
             lines.append("[\(role) #\(visibleIndex)] \(preview)\(suffix)")

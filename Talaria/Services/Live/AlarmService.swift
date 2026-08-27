@@ -174,7 +174,7 @@ final class AlarmService {
     func schedule(_ request: AlarmRequest) async throws {
         try await ensureAuthorized()
 
-        let title = request.label?.isEmpty == false ? request.label! : "Hermes \(request.kindNoun)"
+        let title = request.label?.isEmpty == false ? request.label! : "Talaria \(request.kindNoun)"
         let titleResource = LocalizedStringResource(String.LocalizationValue(title))
         // Deep Field hero cyan (ThemePaletteCore) — a static value because the
         // attributes are encoded into the system alarm, not theme-resolved live.

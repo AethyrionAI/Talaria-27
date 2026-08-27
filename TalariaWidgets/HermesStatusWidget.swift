@@ -19,7 +19,7 @@ struct HermesStatusWidget: Widget {
                     WidgetEntryThemeBackground(entry: entry)
                 }
         }
-        .configurationDisplayName("Hermes Status")
+        .configurationDisplayName("Talaria Status")
         .description("Connection status and recent messages.")
         // `.systemExtraLargePortrait` is an iOS 27 API (#7 polish): the
         // full-height portrait family, previously visionOS-only. It renders
@@ -66,7 +66,7 @@ private struct HermesStatusView: View {
         return VStack(alignment: .leading, spacing: 6) {
             HStack {
                 WidgetOrbGlyph(palette: palette, size: 22)
-                Text("Hermes")
+                Text("Talaria")
                     .font(.headline)
                     .foregroundStyle(palette.foreground)
                 Spacer()
@@ -112,12 +112,12 @@ private struct HermesStatusView: View {
         .widgetURL(URL(string: "talaria://chat"))
     }
 
-    /// Attribution for the last-message block ("Hermes · 2m ago").
+    /// Attribution for the last-message block ("Talaria · 2m ago").
     private var senderLabel: String {
         switch entry.data.lastMessageSender {
         case "user": "You"
         case "system": "System"
-        default: "Hermes"
+        default: "Talaria"
         }
     }
 
@@ -145,7 +145,7 @@ private struct HermesStatusView: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
                 HermesBrandIcon(size: 14)
-                Text("Hermes")
+                Text("Talaria")
                     .font(.headline)
                 Spacer()
                 if entry.data.voiceSessionActive {

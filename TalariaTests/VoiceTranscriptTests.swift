@@ -80,10 +80,10 @@ struct VoiceTranscriptTests {
 
         #expect(turn.hasPrefix("[Voice session transcript"))
         #expect(turn.contains("User: Remind me to call Sam."))
-        #expect(turn.contains("Hermes: Done — reminder set."))
+        #expect(turn.contains("Talaria: Done — reminder set."))
         #expect(!turn.contains("Session connected"))
-        // The partial duplicate is filtered — exactly one Hermes line.
-        #expect(turn.components(separatedBy: "Hermes:").count == 2)
+        // The partial duplicate is filtered — exactly one assistant line.
+        #expect(turn.components(separatedBy: "Talaria:").count == 2)
     }
 
     // MARK: Banner duration persistence

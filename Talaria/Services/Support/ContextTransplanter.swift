@@ -181,7 +181,7 @@ final class ContextTransplanter {
     // MARK: - Pure formatting (unit-tested)
 
     nonisolated static func renderedLine(role: ConversationJournal.Entry.Role, text: String) -> String {
-        "\(role == .user ? "User" : "Hermes"): \(text)"
+        "\(role == .user ? "User" : "Talaria"): \(text)"
     }
 
     /// Chronological body with the honest omission marker when older turns

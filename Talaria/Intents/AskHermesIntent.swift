@@ -33,7 +33,7 @@ struct AskHermesIntent: AppIntent {
     /// them, exactly as moving a control `kind` would (415-N-3).
     static let title: LocalizedStringResource = "Ask Talaria"
     static let description = IntentDescription(
-        "Asks Hermes a question and speaks the answer without opening the app.",
+        "Asks Talaria a question and speaks the answer without opening the app.",
         categoryName: "Chat"
     )
     /// Background query — Siri shows the answer in place. The full transcript
@@ -45,13 +45,13 @@ struct AskHermesIntent: AppIntent {
     /// question via this dialog instead of capturing it inline.
     @Parameter(
         title: "Question",
-        description: "What to ask Hermes.",
-        requestValueDialog: IntentDialog("What should I ask Hermes?")
+        description: "What to ask Talaria.",
+        requestValueDialog: IntentDialog("What should I ask Talaria?")
     )
     var question: String
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Ask Hermes \(\.$question)")
+        Summary("Ask Talaria \(\.$question)")
     }
 
     /// Tier A time budget. The system terminates background intent performs
@@ -70,12 +70,21 @@ struct AskHermesIntent: AppIntent {
     /// deadline. Named so 56-U-F's arithmetic is checkable.
     static let keyRestoreBudget: Duration = .seconds(2)
 
-    /// #56: the exact hand-off wording the 2026-07-20 device sweep
-    /// photographed, promoted to a constant. It is the string the unreachable
-    /// path must NOT collide with, so a future edit to it fails a test instead
-    /// of silently recreating "unreachable is indistinguishable from slow".
+    /// #56: the hand-off wording, promoted to a constant. It is the string
+    /// the unreachable path must NOT collide with, so a future edit to it
+    /// fails a test instead of silently recreating "unreachable is
+    /// indistinguishable from slow".
+    ///
+    /// The 2026-07-20 device sweep photographed this as *"Hermes is still
+    /// working on it. Open Talaria to watch it finish."* #415-SWEEP renamed
+    /// the subject under Owen's standing ruling — this intent reaches the
+    /// ON-DEVICE brain whenever the Sessions-API key is unset (see
+    /// `needsReachabilityPreflight` below), so naming the host as the thing
+    /// that is "still working" was wrong on exactly that path. The second
+    /// sentence lost its "Open Talaria" in the same edit: with the subject
+    /// renamed it repeated the app's name twice in one breath.
     nonisolated static let stillWorkingDialog =
-        "Hermes is still working on it. Open Talaria to watch it finish."
+        "Talaria is still working on it. Open the app to watch it finish."
 
     /// #56 / bar 56-U-G: whether this turn is even going to Hermes.
     ///
@@ -381,7 +390,7 @@ enum AskHermesIntentError: Error, CustomLocalizedStringResourceConvertible {
         case .hermesFailed(let message):
             return "\(message)"
         case .busy:
-            return "Hermes is already working on another request. Open Talaria to see it."
+            return "Talaria is already working on another request. Open the app to see it."
         }
     }
 }

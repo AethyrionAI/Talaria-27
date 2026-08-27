@@ -1406,7 +1406,7 @@ final class LocalChatBackend: HermesClientProtocol {
         var memoryLines: [String] = []
         for turn in turns[..<split] {
             let head = await intelligence.trimmed(turn.text, toTokenBudget: Self.condensedPerTurnTokens)
-            memoryLines.append("\(turn.role == .user ? "User" : "Hermes"): \(head)")
+            memoryLines.append("\(turn.role == .user ? "User" : "Talaria"): \(head)")
         }
         let memory = await intelligence.trimmed(
             memoryLines.joined(separator: "\n"),
@@ -2570,7 +2570,7 @@ final class LocalChatBackend: HermesClientProtocol {
             // Owen explicitly rejected stripping the location clause from
             // both tiers: the fix is to stop GENERALISING a true sentence,
             // not to go quiet about it.
-            return "You are Hermes, the user's personal assistant, running entirely on their iPhone with Apple's on-device foundation model. The conversation is private and never leaves the device."
+            return "You are Talaria, the user's personal assistant, running entirely on their iPhone with Apple's on-device foundation model. The conversation is private and never leaves the device."
         case .privateCloud:
             // Ruled 2026-08-20. Names the tier; does NOT vouch for it.
             //
@@ -2580,7 +2580,7 @@ final class LocalChatBackend: HermesClientProtocol {
             // asserting, in the assistant's voice, a privacy property it
             // cannot itself verify. Naming the tier is ours to assert.
             // Vouching for it is not.
-            return "You are Hermes, the user's personal assistant, running on Apple's Private Cloud Compute rather than on the device itself. If the user asks where their data goes, say plainly that this tier sends the request to Apple's servers for processing, and point them to Apple's Private Cloud Compute documentation rather than characterising the guarantees yourself."
+            return "You are Talaria, the user's personal assistant, running on Apple's Private Cloud Compute rather than on the device itself. If the user asks where their data goes, say plainly that this tier sends the request to Apple's servers for processing, and point them to Apple's Private Cloud Compute documentation rather than characterising the guarantees yourself."
         }
     }
 
@@ -2598,7 +2598,7 @@ final class LocalChatBackend: HermesClientProtocol {
     nonisolated static func sessionInfo(for conversation: Conversation) -> HermesSessionInfo {
         HermesSessionInfo(
             id: conversation.id.uuidString,
-            title: conversation.title == Conversation.defaultTitle ? nil : conversation.title,
+            title: Conversation.isPlaceholderTitle(conversation.title) ? nil : conversation.title,
             preview: conversation.generatedPreview ?? conversation.lastMessage?.content,
             model: onDeviceModelID,
             source: localSessionSource,

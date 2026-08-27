@@ -194,31 +194,31 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        NSLocationWhenInUseUsageDescription: "Hermes uses your location to provide contextual recommendations and nearby suggestions."
-        NSHealthShareUsageDescription: "Hermes reads your health data to offer personalized wellness insights."
-        NSHealthUpdateUsageDescription: "Hermes does not write health data, but this permission is required by the system."
-        NSCameraUsageDescription: "Hermes uses the camera to capture photos and documents for analysis."
-        NSPhotoLibraryUsageDescription: "Hermes accesses your photo library to help organize and search your photos."
-        NSMicrophoneUsageDescription: "Hermes uses the microphone for voice conversations in Talk Mode."
-        NSMotionUsageDescription: "Hermes uses motion data to understand your current activity for contextual awareness."
-        NSSpeechRecognitionUsageDescription: "Hermes uses speech recognition for voice commands and local transcription."
+        NSLocationWhenInUseUsageDescription: "Talaria uses your location to provide contextual recommendations and nearby suggestions."
+        NSHealthShareUsageDescription: "Talaria reads your health data to offer personalized wellness insights."
+        NSHealthUpdateUsageDescription: "Talaria does not write health data, but this permission is required by the system."
+        NSCameraUsageDescription: "Talaria uses the camera to capture photos and documents for analysis."
+        NSPhotoLibraryUsageDescription: "Talaria accesses your photo library to help organize and search your photos."
+        NSMicrophoneUsageDescription: "Talaria uses the microphone for voice conversations in Talk Mode."
+        NSMotionUsageDescription: "Talaria uses motion data to understand your current activity for contextual awareness."
+        NSSpeechRecognitionUsageDescription: "Talaria uses speech recognition for voice commands and local transcription."
         # #124: biometric app lock. Lives HERE, not as an INFOPLIST_KEY_
         # build setting — those are silently ignored with a generated
         # Info.plist (the #58 lesson).
         NSFaceIDUsageDescription: "Talaria uses Face ID to unlock the app."
         # #28 device tool belt: contextual permission prompts fire on first
         # tool use (calendar/reminder/contact questions in chat).
-        NSCalendarsFullAccessUsageDescription: "Hermes reads your calendar to answer questions about your schedule, and only creates events you approve."
+        NSCalendarsFullAccessUsageDescription: "Talaria reads your calendar to answer questions about your schedule, and only creates events you approve."
         # #186 insurance: nothing calls requestWriteOnlyAccessToEvents() —
         # and nothing should, it would poison the reader's re-prompt path —
         # but if anyone ever does, this key's absence is a hard TCC crash at
         # request time rather than a soft denial. Declared to close that.
-        NSCalendarsWriteOnlyAccessUsageDescription: "Hermes only creates calendar events you approve."
-        NSRemindersFullAccessUsageDescription: "Hermes reads your reminders to answer questions about your to-dos, and only creates reminders you approve."
-        NSContactsUsageDescription: "Hermes looks up contacts you ask about — for example, to find a phone number or email address."
+        NSCalendarsWriteOnlyAccessUsageDescription: "Talaria only creates calendar events you approve."
+        NSRemindersFullAccessUsageDescription: "Talaria reads your reminders to answer questions about your to-dos, and only creates reminders you approve."
+        NSContactsUsageDescription: "Talaria looks up contacts you ask about — for example, to find a phone number or email address."
         # #16: AlarmKit executor (/alarm). User authorization only — no App
         # Store entitlement involved.
-        NSAlarmKitUsageDescription: "Hermes schedules alarms and timers you ask for — each one is confirmed in-app before it's set."
+        NSAlarmKitUsageDescription: "Talaria schedules alarms and timers you ask for — each one is confirmed in-app before it's set."
         NSSupportsLiveActivities: true
         NSSupportsLiveActivitiesFrequentUpdates: true
         UIAppFonts:

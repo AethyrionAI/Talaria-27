@@ -26,7 +26,7 @@ Talaria is a working alpha, developed and used daily on real hardware. Honestly,
 | Phone queries (location / HealthKit / motion / calendar / weather) | Working — your agent asks the phone at query time; deliberate opt-in (off by default) with per-sensor grants. The old always-on upload pipeline was retired 2026-08-16 (#352) — nothing streams, nothing queues |
 | Model picking | Working — the full provider roster comes from the gateway's own API; a pick applies as a **per-turn model lock**, and takes effect immediately. The old models shim is retired — no third service |
 | Widgets & Live Activities | Working — status, health, and briefing widgets; alarm Live Activity; lock-screen controls |
-| Share extension | Working — share URLs, images, files, and text into Hermes from any app |
+| Share extension | Working — share URLs, images, files, and text into Talaria from any app |
 | Notifications (local + push) | Removed by design — the app posts no notifications and registers for no push; chat, the inbox, and Live Activities carry state in-app |
 | Voice mode | Working — realtime speech-to-speech plus an on-device fallback engine; echo/self-interruption tuning and connect hardening actively in progress |
 | CarPlay | Parked — scene and voice manager are built but disabled pending Apple's discretionary capability grant |
@@ -47,8 +47,8 @@ One thing worth knowing up front: **pairing is optional.** On-device chat works 
 - **Model picking, gateway-native** — pick from your full provider roster in Settings → Models; the pick rides every turn as a model lock and pins the live session through the gateway itself (no shim, no restart)
 - **Agent files** — files your agent generates surface as tappable share bubbles in chat
 - **Widgets & Live Activities** — agent status, health tiles, and briefing widgets; alarm Live Activities; lock-screen toggle controls
-- **Share extension** — send a web URL, up to four images, a file, or plain text straight into Hermes from the iOS share sheet
-- **Siri & App Intents** — ask Hermes or start a voice session hands-free; conversations index into Spotlight; `talaria://` links open the app from Safari, Shortcuts, or any other app
+- **Share extension** — send a web URL, up to four images, a file, or plain text straight into Talaria from the iOS share sheet
+- **Siri & App Intents** — ask Talaria or start a voice session hands-free; conversations index into Spotlight; `talaria://` links open the app from Safari, Shortcuts, or any other app
 - **Device tool belt** — the agent can read your calendar, reminders, contacts, weather (WeatherKit), health, and media, and set real alarms/timers (AlarmKit) — every action confirmed in-app before it fires
 - **Multi-host profiles** — pair more than one Hermes machine (e.g. a desktop and a dev box); each profile keeps its own API key in the Keychain
 - **Full settings suite** — System, Uplink, Server, Models, Voice, Appearance, Sessions, Privacy, Diagnostics, Developer — everything configurable in-app, including a full-bleed theme channel browser (the live app is the preview), 30+ alternate app icons, and an optional Face ID app lock
@@ -209,7 +209,7 @@ One default worth knowing about up front: the app ships with a scoped App Transp
 ```
 Talaria/              iOS app (SwiftUI, Swift 6.2)
 TalariaWidgets/       Home screen widgets + Live Activities + lock-screen controls
-TalariaShare/         Share extension (URLs, images, files, text → Hermes)
+TalariaShare/         Share extension (URLs, images, files, text → Talaria)
 Shared/               Theme palette tables shared between app and widget targets
 TalariaTests/         Unit tests (Swift Testing)
 TalariaUITests/       UI tests (XCTest/XCUITest)

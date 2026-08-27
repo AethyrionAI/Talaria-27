@@ -857,7 +857,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             Self.logger.notice("#138 audio.started — assistant playback begins")
             startAssistantAudioPlaybackTracking()
             voiceState = .speaking
-            statusMessage = "Hermes is speaking."
+            statusMessage = "Talaria is speaking."
         case "output_audio_buffer.stopped":
             Self.logger.notice("#138 audio.stopped after \(self.currentAssistantAudioPlaybackMilliseconds(), privacy: .public)ms")
             stopAssistantAudioPlaybackTracking()
@@ -879,7 +879,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             currentRealtimeResponseID = ((payload["response"] as? [String: Any])?["id"] as? String)
             ignoreCurrentAssistantFinalization = false
             voiceState = .thinking
-            statusMessage = "Hermes is thinking."
+            statusMessage = "Talaria is thinking."
         case "response.function_call_arguments.delta",
              "response.function_call_arguments.done",
              "response.mcp_call_arguments.delta",
@@ -889,7 +889,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             if voiceState != .thinking {
                 voiceState = .thinking
             }
-            statusMessage = "Hermes is working on that\u{2026}"
+            statusMessage = "Talaria is working on that\u{2026}"
         case "response.mcp_call.completed":
             // MCP tool call finished — trigger a new response so the model speaks the result.
             // The response lifecycle completes BEFORE the MCP call executes, so no automatic
@@ -900,10 +900,10 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
                     "event_id": UUID().uuidString,
                 ])
                 voiceState = .thinking
-                statusMessage = "Hermes has the answer\u{2026}"
+                statusMessage = "Talaria has the answer\u{2026}"
             }
         case "response.mcp_call.failed":
-            statusMessage = "A tool call failed — Hermes will try another way."
+            statusMessage = "A tool call failed — Talaria will try another way."
         case "response.done":
             let doneResponse = payload["response"] as? [String: Any]
             let status = doneResponse?["status"] as? String
@@ -1199,7 +1199,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             latencyMetrics.firstUserFinalizedAt = .now
         }
         voiceState = .thinking
-        statusMessage = "Hermes is thinking."
+        statusMessage = "Talaria is thinking."
     }
 
     private func startAssistantAudioPlaybackTracking() {

@@ -364,7 +364,7 @@ struct VoiceThreadTitleTests {
     /// **280-A — the bar that catches the no-op.** RED evidence: with the
     /// `finalizeOnDeviceIntelligence()` call deleted from
     /// `appendVoiceTranscript`, this fails on the poll TIMING OUT with the
-    /// title still `"Hermes"`. That is B1, and no predicate change can
+    /// title still `"Talaria"` (`Conversation.defaultTitle`). That is B1, and no predicate change can
     /// satisfy this bar.
     @Test @MainActor func voiceOnlyThreadGetsAGeneratedTitle() async {
         let store = makeStore()
