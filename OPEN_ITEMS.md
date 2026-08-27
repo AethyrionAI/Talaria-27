@@ -137,7 +137,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and … **✅ BALLOT APPROVED 2026-08-10, all eight cards as recommended — Phase 0 dispatch owed (bars pre-register in the entry); Phases 1–3 hold** … ~~**→ BARS 224-0A..0G PRE-REGISTERED 2026-08-11; Phase 0 READY TO DISPATCH.**~~ **⟵ corrected 2026-08-24: Phase 0 RAN the same day it was ready — ALL SEVEN BARS MET 2026-08-11, MERGED as `5313499b`; the entry's own ✅ result block records it while this line still said dispatch-ready. What remains is Phases 1–3, HOLDING on ruling 1 (Owen's call, not a lane).** ~~*"ours is always-on Manual"*~~ **⟵ FALSIFIED 2026-08-26: PHASES 1+2 ARE BUILT. Owen elected them ("Smart is a part of hermes… Orchestrate that as a lane"), the hold is discharged, and the app now ships the full Manual · Smart · Off mirror — Privacy → `// Agent Actions`, global on `UserSettings`, `.manual` still the default, Off with the floor that REFUSES. Bars 224-1A..1E / 224-2A..2B/2D MET; what remains on this item is the two DEVICE bars (224-1F, 224-2C — runbook cards, pre-registered and UNRUN) and Phase 3's transcript receipts, still DEFERRED per ruling 7.**
 - **#303** 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins NATIVE even when the brain permits realtime (`init` reads the brain 35 ms before the sticky-default restores it; `startSession`'s re-check guards only the downgrade direction). **MASKED on the host it was found on — cost UNMEASURED**; needs a realtime-configured host. Observed in passing by #254's device run, **not investigated**
-- **#302** 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center "Talk to Hermes" launch begins on a LOCKED app. Whether the mic is ever LIVE behind the cover is **UNDETERMINED** and is the whole question; it **composes with #272** ~~which leaves the locked interval unbounded~~ (#272 FIXED 2026-08-09, PR #289 — the interval is now held by the Cancel-then-UNLOCK state instead). ~~Observed in passing, **not investigated**~~ **→ 🚨 ANSWERED ON DEVICE 2026-08-10 (§V1, build 2484): THE MIC IS LIVE BEHIND THE LOCK — 302-B RED, mic hot 34.9 s while `cover=locked`, going hot 3.87 s BEFORE the user cancelled; a second unplanned reproduction in the same corpus went hot 820 ms before App Lock even evaluated. 302-A "passed" by a 470 ms Face ID footrace, NOT a gate — there is no gate. Violates the 302-C contract Owen ruled the same morning. ~~FIX OWED, not built~~ → ✅ FIX BUILT 2026-08-20 (Thursday PM lane): `AppLockGate` is one consultable state, both voice doors defer until unlock, bars 302-D…G MET and each proven RED by mutation. ~~DEVICE VERIFICATION STILL OWED~~ → ✅ DEVICE-CONFIRMED 2026-08-20 ON BOTH ARMS: mic COLD behind the cover, and the parked start RESUMES on unlock (a real deferral, not a refusal). Only #124's seven App-Lock regression checks remain. Twin filing #323 carries the non-voice half**
+- **#302** 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center "Talk to Hermes" launch begins on a LOCKED app. Whether the mic is ever LIVE behind the cover is **UNDETERMINED** and is the whole question; it **composes with #272** ~~which leaves the locked interval unbounded~~ (#272 FIXED 2026-08-09, PR #289 — the interval is now held by the Cancel-then-UNLOCK state instead). ~~Observed in passing, **not investigated**~~ **→ 🚨 ANSWERED ON DEVICE 2026-08-10 (§V1, build 2484): THE MIC IS LIVE BEHIND THE LOCK — 302-B RED, mic hot 34.9 s while `cover=locked`, going hot 3.87 s BEFORE the user cancelled; a second unplanned reproduction in the same corpus went hot 820 ms before App Lock even evaluated. 302-A "passed" by a 470 ms Face ID footrace, NOT a gate — there is no gate. Violates the 302-C contract Owen ruled the same morning. ~~FIX OWED, not built~~ → ✅ FIX BUILT 2026-08-20 (Thursday PM lane): `AppLockGate` is one consultable state, both voice doors defer until unlock, bars 302-D…G MET and each proven RED by mutation. ~~DEVICE VERIFICATION STILL OWED~~ → ✅ DEVICE-CONFIRMED 2026-08-20 ON BOTH ARMS: mic COLD behind the cover, and the parked start RESUMES on unlock (a real deferral, not a refusal). Only #124's seven App-Lock regression checks remain. Twin filing #323 carries the non-voice half** — **🔴 RE-OPENED IN EFFECT 2026-08-26 by #415's log forensics: the mic was LIVE BEHIND THE COVER AGAIN on build 3108, 27.4 s and 13.4 s, 2/2. The gate is not broken; it is sampled ONCE at start, and a Control Center tap on a WARM process clears it 1.2 s BEFORE App Lock arms. Every bar 302-D…G places the lock BEFORE the start, so none of them can see this ordering — which is the ordering this item's own title names. The 2026-08-20 device pass also ran the NATIVE engine, the only one carrying the `#302-A` instrument; all three #415 launches were REALTIME, which has no capture hot/cold line at all. See #415's 📏 FORENSICS block**
 - **#308** 📝 PUBLISH the talaria plugin repo — the unblock for #269-B, and the update path it needs
 - **#312** 🔬 Continuity fabric DEVICE PASS — ~~Group 7 has genuinely never run once~~ **→ IT RAN 2026-08-11 (Owen, `whoGoesThere`, build `6b9e7e2`): (c′) PASS — model switched mid-conversation, SAME hop reused, no priming notice, reply correctly attributed (`kimi-k3` → `deepseek-v4-flash`); (d) PASS — `[CONTEXT TRANSPLANTED INTO A FRESH SESSION — 36,939 TOKENS]` and the host read the prior exchange back; (e) PASS — airplane mode parks QUEUED with no Retry and fires exactly once on reconnect, *"almost instantly, like it was waiting on me"*; **(a) RED → filed as #329** (cold launch calls a live turn failed, offers Retry, tapping duplicates); (b) NOT RUN (needs a host-side gateway stop/restart); **(f) RED → filed as #330** (the whole SESSION block is absent on the transplanted thread — clipping ruled out by discriminator)**
 - **#314** 📝 Compose outbox: attachment turns have no durable wire-ready form — v1 limit, deliberately deferred, never re-examined
@@ -146,7 +146,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); the refusal wording is the lever — **✅ THE STRING SHIPPED 2026-08-25 (PR #376): both branches carry an explicit do-not-claim clause, RED-first, mutation-proven both ways, 409-A/B/C MET. OPEN on 409-D only — the wording changed, the model's behaviour is UNVERIFIED until the next device `refusal-words` run**
 - **#413** 🐛 the assistant's FIRST utterance is captured as the USER speaking — realtime engine, first response only, 3/3 on BOTH Noisy and Normal (preset-independent, Owen's own A/B) — candidates filed (AEC convergence / route settle / channel mis-route); the AirPods probe discriminates acoustic vs software
 - **#414** 🐛 the phone 401s `GET /v1/models` against OJAMD — 410 historical log lines, pre-existing, quiet (chat + picker use other routes) — from the deploy report; first step is reading which credential slot the call sites resolve; may already be fixed by Lane B's Keychain hygiene, unmeasured
-- **#415** 🔴 the MIC STAYED ON after a Control Center voice launch (2/2, cleared by force-quit; privacy-surface real) — Owen's 3108 pass; same-day log collect is the decaying evidence; #303's CC engine pin is the lead candidate class. **The naming half is ✅ DONE (415-N, 2026-08-26): both CC controls read "Ask Talaria" / "Talk to Talaria"; host-meaning "Hermes" strings deliberately untouched. The mic is what keeps this red.**
+- **#415** 🔴 the MIC STAYED ON after a Control Center voice launch (2/2, cleared by force-quit; privacy-surface real) — Owen's 3108 pass. **Log collect HAPPENED and the mechanism is NAMED: #302's ordering surviving #302's fix (App Lock arms ~1.2 s AFTER a warm CC tap clears the gate); the #303 engine-pin and #198 teardown-miss candidates are FALSIFIED. Fix bars 415-A…D proposed, NOT BUILT — that is what keeps this red.** The naming half is ✅ DONE (415-N, 2026-08-26): both CC controls read "Ask Talaria" / "Talk to Talaria"; host-meaning "Hermes" strings deliberately untouched.
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it**. **MEASURED 2026-08-11; clipping RULED OUT.** ~~Mechanism UNKNOWN~~ ~~⟵ INVESTIGATED 2026-08-25, candidates ranked~~ **⟵ ✅ MECHANISM MEASURED 2026-08-25 (measurement lane, unit repro): `openSession`'s wholesale replace + `mapStoredMessage`'s role refusal and empty usage fields zero BOTH totals inputs in ONE event, and the 9→7 row drop is the same event. Candidate ① CONFIRMED; candidate ③ (the `.voiceHermes` predicate split) is REAL but mutation-proven NOT the cause; the entry's "receipts render normally" claim is FALSIFIED — no reopened row carries `usage` or `turnDuration`, and the quoted numbers are the card's LAST TURN block via `SessionUsageIndex`. Shipped: 16 pins in `SessionTotalsAfterReopenTests`, a verbose-gated `/usage` instrument (NOT `#if DEBUG`), 3 seam breadcrumbs at `.notice`, and 330-G's six-step device script.** 330-A/B/E DISCHARGED. **⟵ ✅ FIXED 2026-08-25 (fix lane, `330-receipts-sidecar`): the `TurnReceiptSidecar` — session-id-keyed, replayed at open, `AgentAttachmentSidecar`'s pattern plus a priming tier — restores `usage`/`turnDuration`/`servingModel`/`isContextPriming` across the replace, and `mapStoredMessage` re-maps the STORED primer (a `user` row host-side) into the priming notice, collapsing its ack; that also closes a compounding defect where every reopen fed the primer back into the journal the next transplant is composed from. 330-C CONVERGED (four sites, one `isAgentAuthored` predicate — hygiene, M2 already proved it is not the cause). 330-D MET with its token source NAMED: `postPrimingTurn` returns nil whenever the priming run misses the 20 s `runsSyncBudget`, so the run id is kept and re-read off the interactive path onto the journal hop. 5 of 16 pins flipped RED-first (9 expectations), all rewritten; 16 → 34 tests; 3 isolating mutations.** **330-C/330-D DISCHARGED; only 330-G (Owen's device close) is left, and #312 (f) flips with it**
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
@@ -5651,6 +5651,44 @@ local substitution — cited here to note this is *not* an instance of it).
 > instrument for reading the engine off-screen. Queued with #254-D.
 
 ## 302. 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center voice launch begins on a LOCKED app — **🚨 DETERMINED 2026-08-10 ON DEVICE: THE MICROPHONE IS LIVE BEHIND THE LOCK. 302-A/B FAILED (bar 302-B RED, two independent reproductions; 302-A "passed" by a 470 ms race, not by a gate). The ruled 302-C contract (defer-until-unlock) is VIOLATED. ~~FIX OWED — not built; the fix is a design change and rides Owen's go.~~ → ✅ FIX BUILT 2026-08-20, on the 2026-08-18 ruling. Bars 302-D…G MET, each proven RED by mutation — see the RESULT block below. ~~**PR #329 OPEN**~~ **✅ PR #329 MERGED 2026-08-21 as `2767ca70` (marker corrected 2026-08-23 by the Opus-week audit — it sat stale through the header sweep because the checker's regex could not see this spelling; the regex is widened in the same commit)** (GATE: PASS, 2383/14/Release). DEVICE VERIFICATION OWED.** ~~FILED 2026-08-09 from #254's device logs, OBSERVED IN PASSING. Whether the microphone is ever LIVE behind the lock is UNDETERMINED and is still the whole question.~~ **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the GATE IS BUILT — 302-D…G all met 2026-08-20, each mutation-proven. Device closing bars owed.**
+
+> **🔴 SUPERSESSION 2026-08-26 — THIS DEFECT IS BACK ON DEVICE, AND THE
+> BARS CANNOT SEE IT. Filed here, in its own home, by #415's log forensics
+> (`whoGoesThere-415.logarchive`, build 3108); the full per-launch timeline
+> and the cited rows live in #415's 📏 FORENSICS block.**
+>
+> **What recurred:** the microphone was hot **27.4 s** and **13.4 s** on two
+> consecutive Control Center voice launches, **24.3 s and 10.3 s of that behind
+> `cover=locked`**, with a full realtime conversation running under an opaque
+> App Lock cover. The user cancelled Face ID on both, exactly the 302-B arm.
+>
+> **Why the fix did not prevent it, and why no bar caught it.**
+> `TalkStore.deferUntilUnlocked` samples `AppLockGate.isLocked` **once**, at the
+> instant of start. `AppLockStateMachine` computes `cover == .locked` only on the
+> transition INTO `.active`; any other phase is `.obscured`, which 302-D
+> deliberately does not lock on. A Control Center tap runs its intent **in the app
+> process** during the `background → inactive` window that precedes that
+> transition — so on a WARM process the gate is measurably **open for 1.2 s after
+> the tap**, the start clears it in 23–25 ms, and the cover arms on top of an
+> in-flight start. Mic went hot **272 ms** and **2.4 s AFTER `locked=true`**.
+> **Bars 302-D…G all place the lock BEFORE the start** (302-E's evidence shape is
+> "gate locked ⇒ start count stays 0"); **none scores "gate open at start, lock
+> arms mid-flight."** The fix closed the arm the bars measured and left open the
+> ordering **this item's own title names** — *"STARTS ~650 ms before App Lock
+> evaluates its cover."*
+>
+> **And the 2026-08-20 device pass was run on the wrong engine to see it.** The
+> `#302-A` capture-chain instrument exists only in `NativeVoicePipelineService`
+> (`:1006`/`:1040`/`:1173`). `LiveVoiceSessionService` — realtime, the engine all
+> three #415 launches routed — emits **no capture hot/cold line at all**, so on
+> realtime the app's own log cannot answer "was the mic hot?". #415's forensics
+> had to read CoreAudio `AURemoteIO` rows instead.
+>
+> **Owed:** a mid-flight re-arm bar (#415's 415-A, which must be proven RED on
+> today's `main` before any fix), its App-Lock-OFF negative control (415-B), the
+> realtime instrument (415-C), and a device re-run that HOLDS the cover open
+> (415-D). Until 415-A exists, "302-D…G MET" describes a gate that is real and a
+> race that is not covered.
 
 > **⚖️ 302-C RULED 2026-08-10 (Owen, on the wave-1 close-out): the contract
 > is DEFER-UNTIL-UNLOCK, and it is today's felt flow.** His words: *"Today, if
@@ -13933,7 +13971,7 @@ hygiene that just shipped — this may already be fixed by Lane B's
 Keychain work and merely UNMEASURED post-3087; the zero-401s-after-bounce
 observation is consistent with that but proves nothing).
 
-## 415. 🔴 THE MIC STAYED ON after a Control Center voice launch — 2/2 reproducible, cleared by force-quit — and the control said "Talk to HERMES" (**naming half ✅ DONE 2026-08-26 — see 415-N below; the MIC, fact 1, is still OPEN and untouched**) — **FILED 2026-08-26 night per #268, from Owen's third runbook pass (BUILD 3108, verbatim: "Control center > Talk to Hermes (should be Talaria, right?) and the mic stayed on. Tried again, same result. Force quit, tried again, did NOT happen."). Mechanism NOT guessed; the SAME-DAY LOG COLLECT is the discriminating evidence and it decays in hours.**
+## 415. 🔴 THE MIC STAYED ON after a Control Center voice launch — 2/2 reproducible, cleared by force-quit — and the control said "Talk to HERMES" (**renamed — see 415-N**) — **FILED 2026-08-26 night per #268, from Owen's third runbook pass (BUILD 3108, verbatim: "Control center > Talk to Hermes (should be Talaria, right?) and the mic stayed on. Tried again, same result. Force quit, tried again, did NOT happen."). Mechanism NOT guessed; the SAME-DAY LOG COLLECT is the discriminating evidence and it decays in hours.** **→ ✅ COLLECT HAPPENED AND THE MECHANISM IS NAMED (2026-08-26, `whoGoesThere-415.logarchive`): this is #302 recurring through an ordering its bars cannot see — `AppLockGate` is sampled ONCE at start, and a Control Center tap on a WARM process clears it ~1.2 s BEFORE App Lock arms, so the cover comes down on top of an in-flight start. Mic hot 27.4 s / 13.4 s, most of it behind `cover=locked`. Engine was REALTIME both times and teardown RAN IN FULL — the #303 and #198 candidates are FALSIFIED. The force-quit run is a DEGENERATE control (cold ⇒ gate already armed ⇒ start parked ⇒ revoked unused). Fix bars 415-A…D proposed below; #302 carries a dated supersession. FIX NOT BUILT.** **⟵ ✅ 415-N DONE 2026-08-26: the NAMING half (fact 2) SHIPPED — both Control Center controls read "Ask Talaria" / "Talk to Talaria", host-meaning "Hermes" strings deliberately untouched and now pinned. That is the only half that is built; the MIC FIX (415-A…D) remains unbuilt, and it is what keeps this item red.**
 
 **The two facts, separately:**
 1. **The mic indicator persisted** after Control Center → Talk to Hermes,
@@ -13960,7 +13998,12 @@ on the intent-launched path (the memo path got its async discipline in
 #198B — the CC voice path may not have). **Name it by measurement:**
 the locked-interval log corpus (#302/#323's own card — the FAIL was
 scored against it) would show which engine held the session and whether
-teardown ran. **⏰ The events were ~22:1x local on 08-26; logd evicts
+teardown ran. **⟵ RUN 2026-08-26, and it answered both: the engine was
+REALTIME on both stuck launches (so the #303 pin is not this), and
+teardown RAN IN FULL (so the #198-family miss is not this either). Both
+of those candidates are FALSIFIED; the third — an App-Lock-family miss —
+is what landed, in a form this list did not contain. See the 📏 FORENSICS
+block below.** **⏰ The events were ~22:1x local on 08-26; logd evicts
 app-subsystem rows in HOURS — a `sudo log collect` tonight captures the
 2/2 reproductions AND the clean control run; tomorrow it likely cannot.**
 
@@ -13969,6 +14012,184 @@ user-visible cost, which would change its measured-only status), #198A/B
 (audio-session teardown discipline), #220 (engine attribution), #138
 (voice umbrella), #413 (the night's other voice finding — different
 shape, same subsystem), #77 (the naming direction).
+
+---
+
+### 📏 FORENSICS 2026-08-26 — MECHANISM **NAMED** from `whoGoesThere-415.logarchive`. It is **#302's headline ordering surviving #302's fix**; the engine-pin and teardown-miss candidates are both **FALSIFIED**.
+
+**Corpus + method.** `~/Desktop/whoGoesThere-415.logarchive` (3.1 GB, collected
+22:26). Read with `/usr/bin/log show … --info --debug`, chunked predicates.
+Positive control run FIRST: `subsystem BEGINSWITH "org.aethyrion"` over
+20:30–23:00 returns **503 rows** across both app subsystems
+(`org.aethyrion.talaria` for the hand-rolled `Logger(...)` call sites,
+`org.aethyrion.talaria27` for `TalariaLog.subsystem` = the bundle id), so every
+absence below is scored against a live channel. **All three CC launches are in
+the corpus** — exactly three `OpenHermesVoiceIntent.perform` rows exist in the
+whole window, matching Owen's "twice, force quit, third."
+
+**⛔ WHAT THE ARCHIVE DOES NOT CONTAIN, said before it is leaned on.** There is
+**no `mediaserverd`, no `audiomxd`, no `coreaudiod`, no `runningboardd`, no
+`SpringBoard`, and no `com.apple.SystemStatus`** anywhere in the window — probed
+by name, zero rows each, against a positive control of **2,302
+`com.apple.coreaudio` rows in a 2-minute slice from 16 other processes**. So the
+mic INDICATOR's own attribution daemon was never captured and the orange dot is
+**not directly observed**. What IS observed is the client-side ground truth:
+`AURemoteIO` start/stop and `AVAudioSession` activate/deactivate **inside the app
+process**. Those bracket the reported symptom exactly, and a system-wide sweep for
+`Starting/Stopping AURemoteIO` over 22:10–22:25 finds **only two app-attributed
+capture intervals in the entire window** (both below; the only other rows are
+`appleh16camerad`, unrelated).
+
+**PER-LAUNCH TIMELINE.** *(`Df` = Default = `.notice`; verbose was ON.)*
+
+**LAUNCH 1 — 22:17:24, PID 10131 (WARM process, up since 22:17:06). MIC HOT 27.4 s, 24.3 s of it behind a LOCKED cover.**
+```
+22:17:23.058  AppLock       scenePhase inactive -> background | pre: cover=obscured locked=false
+22:17:24.208  AppLock       scenePhase background -> inactive | pre: cover=obscured locked=false
+22:17:24.221  controls      OpenHermesVoiceIntent.perform fired in the APP process — routing talaria://voice
+22:17:24.246  VoiceEngine…  voice session starting on engine realtime (voiceHostPaired=true)   ← GATE CLEARED
+22:17:24.301  coreaudio     AVAudioSession_iOS.mm:1017  Activated session 0x63c5e1
+22:17:25.418  AppLock       scenePhase inactive -> active | pre: cover=obscured locked=false   ← autoAuth FIRED
+22:17:25.469  AppLock       scenePhase active -> inactive | pre: cover=locked  locked=true     ← LOCK ARMS (1.2 s LATE)
+22:17:27.850  coreaudio     AURemoteIO.cpp:1673  Starting AURemoteIO(0x13be15e40)              ← MIC HOT, 2.4 s AFTER locked=true
+22:17:29.005  AppLock       requestUnlock EXIT attempt=1 result=FAILED_OR_CANCELLED didFail=true
+22:17:29.412  LiveVoice…    #138 speech_started … 22:17:31.178 audio.started … BARGE-IN …     ← a full realtime conversation, behind the cover
+22:17:52.159  AppLock       requestUnlock EXIT attempt=2 result=SUCCESS
+22:17:55.299  coreaudio     AURemoteIO.cpp:1748  Stopping AURemoteIO(0x13be15e40)   (+2 more)
+22:17:55.751  coreaudio     Deactivated session 0x63c5e1   (+2 more, through 22:17:56.853)
+22:17:56.350  VoiceOverlay  #254 254-F: VoiceOverlayScreen.onDisappear fired (appState=active)
+```
+
+**LAUNCH 2 — 22:18:30, PID 10131 (SAME warm process). MIC HOT 13.4 s, 10.3 s behind a LOCKED cover. Identical shape, tighter race.**
+```
+22:18:30.648  AppLock       scenePhase background -> inactive | pre: cover=obscured locked=false
+22:18:30.662  controls      OpenHermesVoiceIntent.perform fired in the APP process — routing talaria://voice
+22:18:30.685  VoiceEngine…  voice session starting on engine realtime (voiceHostPaired=true)   ← GATE CLEARED
+22:18:30.708  coreaudio     Activated session 0x63c5e1
+22:18:31.883  AppLock       scenePhase inactive -> active | pre: cover=obscured locked=false
+22:18:31.941  AppLock       scenePhase active -> inactive | pre: cover=locked  locked=true     ← LOCK ARMS
+22:18:32.213  coreaudio     Starting AURemoteIO(0x139f90a40)                                   ← MIC HOT **272 ms AFTER** locked=true
+22:18:36.034  AppLock       requestUnlock EXIT attempt=1 result=FAILED_OR_CANCELLED didFail=true
+22:18:39.259  LiveVoice…    #138 speech_started … 22:18:41.004 audio.started                   ← again, conversing behind the cover
+22:18:42.474  AppLock       requestUnlock EXIT attempt=2 result=SUCCESS
+22:18:45.628  coreaudio     Stopping AURemoteIO(0x139f90a40)   (+2 more)
+22:18:46.063  coreaudio     Deactivated session 0x63c5e1       (+2 more, through 22:18:47.166)
+22:18:46.637  VoiceOverlay  #254 254-F: onDisappear fired (appState=active)
+```
+
+**LAUNCH 3 — 22:18:57, PID 10161 (COLD, post-force-quit). MIC NEVER OPENS — and the control is DEGENERATE.**
+```
+22:18:56.923  VoiceEngine…  active voice engine → native (initial; voiceHostPaired=false)      ← process start
+22:18:57.165  ChatStore     compose outbox drain deferred — App Lock is covering the app (#323-A)  ← GATE ALREADY LOCKED
+22:18:57.190  controls      OpenHermesVoiceIntent.perform fired in the APP process — routing talaria://voice
+22:18:57.815  AppLock       scenePhase background -> active | pre: cover=locked locked=true
+22:18:57.937  VoiceEngine…  active voice engine → realtime
+              ── NO `voice session starting` line. NO `Activated session`. NO AURemoteIO. ──
+22:18:59.083  AppLock       requestUnlock EXIT attempt=1 result=FAILED_OR_CANCELLED didFail=true  ← and he never retried
+22:19:47.560  AppContainer  #118/#254: app backgrounded with a voice session (STARTING) — revoking it
+22:19:47.567  VoiceOverlay  #254 254-F: onDisappear fired (appState=**background**)
+```
+**The third run is not a clean run of the same experiment.** On a cold process
+App Lock is locked *before* the intent lands, so `deferUntilUnlocked` **parked**
+the start (that is what the `STARTING` arm of the revoke proves — `isStartingSession`
+was true while `voiceService.startSession()` had never been reached). Owen then
+failed Face ID once, never retried, and backgrounded 50 s later, so the parked
+start was revoked unused. **It shows the gate WORKING, not a fresh process being
+safe.** A cold launch where the user *does* unlock is still untested.
+
+**ANSWERS TO THE FOUR QUESTIONS.**
+
+1. **Engine — `realtime` on both stuck launches; launch 3 never started.** Every
+   process start logs `active voice engine → native (initial; voiceHostPaired=false)`
+   and flips to `realtime` 0.3–0.6 s later once pairing resolves; that flip is
+   startup ordering, not a session decision. **#303's asymmetry is NOT what
+   happened here** — the two sessions that ran, ran realtime, and the one cold CC
+   launch never reached `startSession()`, so #303's pin was not exercised. #415's
+   first candidate is **falsified for this corpus**.
+2. **Teardown — IT RAN, fully, on both stuck launches. Candidate FALSIFIED.**
+   `Stopping AURemoteIO` ×3, `Deactivated session` ×3, and the
+   `NativeVoicePipeline`/`LiveVoiceSessionService` `audio deactivated by app —
+   not an interruption (#198)` pairs, all present at 22:17:55–56 and
+   22:18:45–47. There is **no audio activity at all** between 22:17:56.853 and
+   22:18:32.213, or after 22:18:47.166 through 22:23. Nothing leaked past the
+   session; the #198-family teardown-miss candidate is dead.
+3. **Who held the mic — the app itself, legitimately, for the whole locked
+   interval.** The only two app-attributed capture intervals in the window are
+   the two above, both in PID 10131, both starting *after* `locked=true`. The
+   symptom is not a leak after the session; it is **a session that ran to
+   completion underneath the App Lock cover**, invisible, with the indicator lit
+   and no voice UI on screen.
+4. **What differed on the clean run — the ORDER in which App Lock armed,** not
+   the process age as such. Cold ⇒ locked-then-intent ⇒ parked. Warm ⇒
+   backgrounded-then-intent ⇒ the intent lands in the `.inactive` window where
+   `cover == .obscured` and `isLocked == false`.
+
+**🔴 MECHANISM, NAMED.** `TalkStore.deferUntilUnlocked` (`Talaria/Stores/TalkStore.swift:199`)
+**samples `AppLockGate.isLocked` exactly once, at the instant of start, and never
+re-checks.** `AppLockStateMachine` only computes `cover == .locked` on the
+transition INTO `.active` (`Talaria/Services/Support/AppLockCore.swift:78`,
+`:108–111` — any non-`.active` phase yields `.obscured`, and `.obscured` is
+**deliberately** not locked, per `AppLockGate`'s own doc and bar 302-D). A
+Control Center tap runs `OpenHermesVoiceIntent.perform()` **in the app process**
+(`Shared/HermesControlIntents.swift:82`, `supportedModes = .foreground`,
+`allowedExecutionTargets = .main`) during the `background → inactive` window that
+**precedes** that transition. Measured gap: the gate was open for **1.2 s** after
+the intent fired on both stuck launches, and the start cleared it in **23–25 ms**.
+The cover then arms on top of an in-flight start, and nothing re-parks or tears
+down a session that becomes covered *after* it started. Result: mic hot **0.27 s
+and 2.4 s AFTER `locked=true`**, and hot until the user finally authenticates.
+
+**This is #302's own headline sentence** — *"a voice session STARTS ~650 ms before
+App Lock evaluates its cover"* — **surviving #302's fix.** Bars 302-D…G every one
+place the lock BEFORE the start (302-E's evidence shape is literally "gate locked
+⇒ start count stays 0"); **not one scores "gate open at start, lock arms
+mid-flight."** The fix closed the arm the bars measured and left the ordering the
+title named. → **#302 needs a dated re-open pointer; #415 is its recurrence, not a
+new defect.**
+
+**🔍 SECOND FINDING — the instrument is on the wrong engine, and that is probably
+why #302's device pass held.** The `#302-A` capture-chain instrument
+(`audio session activated for capture` / `capture chain HOT` / `capture chain
+COLD`) exists **only** in `NativeVoicePipelineService.swift` (`:1006`, `:1040`,
+`:1173`). `LiveVoiceSessionService` — the realtime engine, the one all three #415
+launches routed — has **no capture hot/cold line at all**. So on realtime the
+app's own log **cannot answer "was the mic hot?"**, which is why this forensics
+had to fall back to CoreAudio `Df`-level rows that a later `log collect` may not
+retain. #302's 2026-08-20 device verification scored the engine that carries the
+instrument.
+
+**🎯 THE FIX LANE'S DISCRIMINATING TEST (bars, to be pre-registered before code).**
+
+- **415-A — the lock arming MID-FLIGHT parks or kills the start.** Unit, and the
+  only bar that discriminates this defect from #302's fixed one: with
+  `gate.isLocked == false`, drive `startSessionDirectly()`; while the fake voice
+  service is suspended inside `startSession()`, flip `gate.setLocked(true)`.
+  **Assert the capture chain never comes up** (fake records no start, or records
+  a start followed immediately by an abandon) **and** that a later
+  `setLocked(false)` resumes it exactly once. Score `startSession()` and
+  `startSessionDirectly()` **separately**, per 302-E's rule. Mutation: delete the
+  re-check ⇒ RED. **Run it against today's `main` FIRST and confirm it is RED —
+  a bar that is green before the fix is measuring the wrong thing.**
+- **415-B — the negative control that keeps 415-A honest** (mirror of 302-G):
+  App Lock disabled ⇒ arming has no effect, one start, no stop, no wait. Without
+  it, 415-A is satisfied by a build that never starts voice.
+- **415-C — the realtime engine grows the `#302-A` instrument.** `LiveVoiceSessionService`
+  emits capture HOT/COLD `.notice` lines at the same two seams the native pipeline
+  does. **415-B and the device bar are not scorable without it**, because the only
+  current evidence for realtime capture is a `Df` CoreAudio row from a framework.
+- **415-D — device, and it must hold the cover open.** Warm process: background
+  the app, tap Control Center → Talk, **cancel Face ID and hold the locked cover
+  ≥30 s.** Score from the archive: no `capture chain HOT` / `Starting AURemoteIO`
+  may appear while any `cover=locked` is in effect; after unlock it may. Then the
+  **untested** cell: cold launch, tap the control, and **unlock** — confirming the
+  parked start resumes rather than being the accident that made run 3 look clean.
+
+**Deviations from the brief:** the mic's system-side owner could not be consulted
+(daemon absent from the archive, documented above with its positive control), so
+question 3 is answered from in-process CoreAudio rather than `mediaserverd`; and
+the brief's leading candidate class (long-running-process state accumulation) is
+**refined rather than confirmed** — warm-vs-cold IS the discriminator, but the
+causal variable is App Lock's arming order, not accumulated state.
 
 ---
 
