@@ -51,10 +51,26 @@ final class AppLockGate {
     /// privacy one. Bar 302-D pins it.
     private(set) var isLocked: Bool = false
 
-    /// Parked callers, keyed so a cancelled wait can remove its own entry
-    /// without disturbing the others.
+    /// Parked callers waiting for the cover to COME UP, keyed so a cancelled
+    /// wait can remove its own entry without disturbing the others.
     @ObservationIgnored
-    private var waiters: [UUID: CheckedContinuation<Void, Never>] = [:]
+    private var unlockWaiters: [UUID: CheckedContinuation<Void, Never>] = [:]
+
+    /// #415 — the mirror set: callers waiting for the cover to COME DOWN.
+    ///
+    /// **Why the gate grows a second direction rather than the consumers
+    /// growing an observer.** `deferUntilUnlocked` samples `isLocked` once,
+    /// at the instant of start, and a Control Center tap on a warm process
+    /// clears that sample **1.2 s before App Lock arms** — so the cover comes
+    /// down on top of an in-flight start and nothing re-parks it (#415, from
+    /// `whoGoesThere-415.logarchive`: mic hot 272 ms and 2.4 s AFTER
+    /// `locked=true`). A consumer that must react to the cover ARMING needs a
+    /// suspension point, and this is the seam that already exists:
+    /// `AppLockController.refreshCover()` remains the only writer, and the
+    /// answer still comes from one state rather than a second observer, a
+    /// notification, or a poll.
+    @ObservationIgnored
+    private var lockWaiters: [UUID: CheckedContinuation<Void, Never>] = [:]
 
     init(isLocked: Bool = false) {
         self.isLocked = isLocked
@@ -64,14 +80,24 @@ final class AppLockGate {
     func setLocked(_ locked: Bool) {
         guard locked != isLocked else { return }
         isLocked = locked
-        guard !locked else { return }
         // Release under a drained copy: a resumed continuation can re-enter
-        // `waitUntilUnlocked()` synchronously, and mutating the dictionary
-        // while iterating it would be exactly that bug.
-        let released = waiters
-        waiters.removeAll()
-        for continuation in released.values {
-            continuation.resume()
+        // `waitUntilUnlocked()` / `waitUntilLocked()` synchronously, and
+        // mutating the dictionary while iterating it would be exactly that
+        // bug. Written out twice rather than through an `inout` helper for
+        // the same reason — a re-entrant caller must never find an
+        // exclusivity violation waiting for it.
+        if locked {
+            let released = lockWaiters
+            lockWaiters.removeAll()
+            for continuation in released.values {
+                continuation.resume()
+            }
+        } else {
+            let released = unlockWaiters
+            unlockWaiters.removeAll()
+            for continuation in released.values {
+                continuation.resume()
+            }
         }
     }
 
@@ -100,7 +126,7 @@ final class AppLockGate {
                     continuation.resume()
                     return
                 }
-                waiters[id] = continuation
+                unlockWaiters[id] = continuation
             }
         } onCancel: {
             // `onCancel` is nonisolated, so the removal hops back. By then
@@ -109,7 +135,33 @@ final class AppLockGate {
             // and removed and resumed here — or the caller already resumed
             // itself through the guard.
             Task { @MainActor [weak self] in
-                self?.waiters.removeValue(forKey: id)?.resume()
+                self?.unlockWaiters.removeValue(forKey: id)?.resume()
+            }
+        }
+    }
+
+    /// #415 — suspends until the cover BECOMES `.locked`. The exact mirror of
+    /// `waitUntilUnlocked()`, cancellation included, and for the same reason:
+    /// a cover watch that could not be cancelled would outlive the voice
+    /// session it was armed for and park — then resume — a session the user
+    /// ended minutes ago.
+    ///
+    /// Returns immediately when the cover is already down, so a caller that
+    /// arms a watch on an already-locked app is not silently never-armed.
+    func waitUntilLocked() async {
+        guard !isLocked else { return }
+        let id = UUID()
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                guard !isLocked, !Task.isCancelled else {
+                    continuation.resume()
+                    return
+                }
+                lockWaiters[id] = continuation
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                self?.lockWaiters.removeValue(forKey: id)?.resume()
             }
         }
     }
@@ -119,7 +171,16 @@ final class AppLockGate {
     /// "parked" from "returned without running", which is unobservable from
     /// the outside — a caller that never started and a caller still waiting
     /// look identical at the call site.
-    var parkedWaiterCount: Int { waiters.count }
+    ///
+    /// **Counts UNLOCK waiters only, and that is deliberate** (#415): the
+    /// bars written against it — 302-E's park, 302-G's `== 0` negative
+    /// control — mean "parked behind the cover", and a cover watch armed on
+    /// an unlocked app would silently change every one of their answers.
+    var parkedWaiterCount: Int { unlockWaiters.count }
+
+    /// #415 — armed cover watches. Separate from `parkedWaiterCount` so a
+    /// leaked watch is measurable without redefining what "parked" means.
+    var armedCoverWatchCount: Int { lockWaiters.count }
     #endif
 }
 

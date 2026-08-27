@@ -374,14 +374,25 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         lastImageItemID = nil
         disarmFlatlineTripwire()
         audioRouteSummary = nil
+        // #302-A / #415: read the capture state BEFORE tearing it down, so
+        // the COLD line can say whether this stop ended a HOT chain
+        // (was=true) or was a defensive no-op (was=false — negative evidence
+        // that the chain never went hot, e.g. a start that died in the #82
+        // mic preflight). The native pipeline's COLD line reads
+        // `AVAudioEngine.isRunning` for exactly this reason.
         #if canImport(WebRTC)
+        let wasCapturing = peerConnection != nil && audioTrack != nil
         dataChannel?.close()
         dataChannel = nil
         peerConnection?.close()
         peerConnection = nil
         audioTrack = nil
+        #else
+        let wasCapturing = false
         #endif
         try? await AudioSessionOffMain.setActive(false, options: .notifyOthersOnDeactivation)
+        Self.logger.notice(
+            "capture chain COLD — was=\(wasCapturing, privacy: .public) audioTrack=released session=deactivated (#302-A)")
         await endRemoteSession()
         voiceSessionID = nil
         voiceState = .idle
@@ -767,6 +778,21 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
                 try audioSession.overrideOutputAudioPort(.speaker)
             }
         }
+        // #302-A / #415: the capture-chain instrument, in the SAME words the
+        // native pipeline uses, so one Console predicate reads both engines.
+        //
+        // It was missing here until #415, and that omission cost a
+        // measurement: the realtime engine carried all three stuck launches
+        // in the device log and the app could not say whether its own
+        // microphone was hot — the forensics had to fall back to framework
+        // CoreAudio `AURemoteIO` rows, which a later `log collect` may no
+        // longer retain. #302's 2026-08-20 device pass scored the one engine
+        // that carried the instrument, which is a large part of why it held.
+        //
+        // `.notice` (Console hides `.info`), `privacy: .public` (or it
+        // redacts), and NEVER behind Verbose Logging. This line marks the
+        // session going active; the chain is not hot until the HOT line.
+        Self.logger.notice("audio session activated for capture (#302-A)")
     }
 
     /// **#138-B — should the output route be forced to the speaker?**
@@ -971,6 +997,21 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     }
 
     #if canImport(WebRTC)
+    /// #302-A / #415: a readable peer state for the HOT line. `String(describing:)`
+    /// on an imported ObjC enum prints `RTCPeerConnectionState(rawValue: 2)`,
+    /// which is not what an operator reading a device archive at 2 a.m. needs.
+    private static func label(_ state: RTCPeerConnectionState) -> String {
+        switch state {
+        case .new: "new"
+        case .connecting: "connecting"
+        case .connected: "connected"
+        case .disconnected: "disconnected"
+        case .failed: "failed"
+        case .closed: "closed"
+        @unknown default: "unknown"
+        }
+    }
+
     private struct PreparedWebRTC {
         let connection: RTCPeerConnection
         let channel: RTCDataChannel?
@@ -1016,6 +1057,17 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         try await prepared.connection.setRemoteDescriptionAsync(answer)
 
         latencyMetrics.realtimeConnectedAt = .now
+        // #302-A / #415: the honest instrument reads the TRANSPORT's own
+        // state, not a wrapper flag — the wrapper is the thing under
+        // suspicion. This is the realtime engine's equivalent of the native
+        // pipeline's `AVAudioEngine.isRunning`: from here until the matching
+        // COLD line, the local audio track is attached to a live peer
+        // connection and microphone buffers are leaving the device. In the
+        // #415 archive this is the moment `Starting AURemoteIO` appears.
+        let trackEnabled = audioTrack?.isEnabled ?? false
+        let peerState = Self.label(prepared.connection.connectionState)
+        Self.logger.notice(
+            "capture chain HOT — RTCAudioTrack.isEnabled=\(trackEnabled, privacy: .public) peerConnection=\(peerState, privacy: .public) (#302-A)")
         connectionState = .connected
         voiceState = .listening
         blockedReason = nil

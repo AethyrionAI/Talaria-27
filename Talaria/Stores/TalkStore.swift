@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Metadata captured when a voice session completes, used to trigger transcript injection.
 /// Carries the finalized transcript itself (#1): the relay inject endpoint is out of the
@@ -73,6 +74,30 @@ final class TalkStore {
     private let voiceService: any VoiceSessionServiceProtocol
     private let liveActivity = LiveActivityService()
     private var eventTask: Task<Void, Never>?
+
+    /// #415 — the cover watch: one task per session, cancelled with it.
+    ///
+    /// It exists because the pre-start gate check is a SAMPLE. See
+    /// `beginCoverWatch(generation:door:)`.
+    private var coverWatchTask: Task<Void, Never>?
+
+    /// #415 — always on, `.notice`, `privacy: .public`, and NOT behind
+    /// Verbose Logging, for the same reason the `#302-A` capture instrument
+    /// is not: the event is rare, cheap, and only useful if it is already
+    /// recording when it happens. Bar 415-D is scored by intersecting these
+    /// lines with AppLock's own `cover=locked` rows — the app answering for
+    /// itself instead of a framework CoreAudio row a later `log collect` may
+    /// not retain.
+    private static let log = Logger(subsystem: TalariaLog.subsystem, category: "Voice")
+
+    /// #415 — which door a session came through, so a park resumes into the
+    /// same one. `startSessionDirectly()` publishes its own connecting state
+    /// and `startSession()` does not; resuming through the wrong one would
+    /// quietly change what the overlay says.
+    private enum VoiceStartDoor {
+        case overlay
+        case controlCenter
+    }
     /// #139: monotonic session intent. Dismissal bumps it, so a connect that
     /// returns afterwards is recognised as belonging to a session the user
     /// already left, and is discarded instead of being flipped live.
@@ -135,7 +160,11 @@ final class TalkStore {
         // `isStartingSession` so #254's background revoke still sees it.
         let generation = beginSessionGeneration()
         isStartingSession = true
-        defer { isStartingSession = false }
+        // #415: a door that returns while the store is PARKED must not clear
+        // the flag the park owns. The parked interval is exactly when #254's
+        // background revoke needs to see a start outstanding, and on the
+        // mid-flight path this door returns in the middle of it.
+        defer { if !isWaitingForUnlock { isStartingSession = false } }
         guard await deferUntilUnlocked(generation: generation) else { return }
         // Deliberately AFTER the wait: a parked start must not claim to be
         // "Connecting..." for the whole locked interval. Saying so would be
@@ -145,6 +174,29 @@ final class TalkStore {
         connectionState = .connecting
         voiceState = .thinking
         statusMessage = "Connecting..."
+        await runStart(generation: generation, door: .controlCenter)
+    }
+
+    func startSession() async {
+        let generation = beginSessionGeneration()
+        // #254: same publication as `startSessionDirectly` — both start doors
+        // must be visible to the background observer, not just the overlay's.
+        isStartingSession = true
+        defer { if !isWaitingForUnlock { isStartingSession = false } }
+        // #302: and both doors defer identically. Bar 302-E scores them
+        // SEPARATELY because a fix that guards one door and not the other is
+        // the #323 class arriving inside its own fix.
+        guard await deferUntilUnlocked(generation: generation) else { return }
+        await runStart(generation: generation, door: .overlay)
+    }
+
+    /// The body both doors share once the pre-start gate has cleared.
+    ///
+    /// #415: the cover watch is armed BEFORE the engine call, because that is
+    /// the window the device evidence lives in — the microphone went hot
+    /// **272 ms** and **2.4 s after `locked=true`**, inside this await.
+    private func runStart(generation: Int, door: VoiceStartDoor) async {
+        beginCoverWatch(generation: generation, door: door)
         await voiceService.startSession()
         guard generation == sessionGeneration else {
             await discardAbandonedStart()
@@ -156,24 +208,94 @@ final class TalkStore {
         }
     }
 
-    func startSession() async {
-        let generation = beginSessionGeneration()
-        // #254: same publication as `startSessionDirectly` — both start doors
-        // must be visible to the background observer, not just the overlay's.
+    /// #415 — RE-EVALUATE THE COVER FOR THE LIFETIME OF THE SESSION, not just
+    /// at the instant of start.
+    ///
+    /// **The defect this closes is #302's own headline ordering surviving
+    /// #302's fix.** `deferUntilUnlocked` samples `AppLockGate.isLocked`
+    /// once; `AppLockStateMachine` computes `cover == .locked` only on the
+    /// transition INTO `.active`; and a Control Center tap runs its intent in
+    /// the app process during the `background → inactive` window that
+    /// PRECEDES that transition. Measured on device
+    /// (`whoGoesThere-415.logarchive`, 2026-08-26): the gate stayed open for
+    /// **1.2 s** after the tap, the start cleared it in 23–25 ms, and the
+    /// cover then armed on top of an in-flight start — mic hot 27.4 s and
+    /// 13.4 s, most of it behind `cover=locked`, with a full realtime
+    /// conversation under an opaque cover and no voice UI on screen. Bars
+    /// 302-D…G every one place the lock BEFORE the start, so not one of them
+    /// could see it.
+    ///
+    /// **The seam is the gate, not a new mechanism.**
+    /// `AppLockController.refreshCover()` is still its only writer; this
+    /// waits on `waitUntilLocked()`, the mirror of the suspension point the
+    /// pre-start park already uses. No second observer, no notification, no
+    /// poll — which is the #323-class discipline applied to the fix for
+    /// #302's recurrence.
+    private func beginCoverWatch(generation: Int, door: VoiceStartDoor) {
+        coverWatchTask?.cancel()
+        coverWatchTask = nil
+        guard let appLockGate else { return }
+        coverWatchTask = Task { @MainActor [weak self] in
+            await appLockGate.waitUntilLocked()
+            guard !Task.isCancelled, let self else { return }
+            await self.coverArmedMidFlight(generation: generation, door: door)
+        }
+    }
+
+    /// The cover came down on a session that had already started (or was
+    /// still starting). Stop capture, park, and resume on unlock — the
+    /// semantics `deferUntilUnlocked` already implements for a start that
+    /// arrives while locked, extended to the start that was already running.
+    private func coverArmedMidFlight(generation: Int, door: VoiceStartDoor) async {
+        // Not ours: a dismissal, #254's background revoke, or a newer start
+        // has already superseded the session this watch was armed for.
+        guard generation == sessionGeneration, let appLockGate else { return }
+        Self.log.notice("voice session parked — App Lock cover armed mid-flight (#415)")
+        // #139's revoke, reused rather than re-invented: a start still inside
+        // `voiceService.startSession()` must not land live when it returns.
+        // The door's own generation re-check then routes it into
+        // `discardAbandonedStart()`, so both orderings end the same way.
+        sessionGeneration &+= 1
+        let parkedGeneration = sessionGeneration
+        // STOP FIRST, PARK SECOND — the order is the bar. A park that leaves
+        // the capture chain up is this defect wearing the fix's clothes.
+        //
+        // `discardAbandonedStart()` and not `endSession()`, deliberately: the
+        // full path publishes `lastCompletedSession`, which `MainTabView`
+        // injects into the chat transcript — a transcript write behind the
+        // cover, which is precisely what #323 forbids ("the transcript kept
+        // it" IS the reported defect there). A covered session's turns are
+        // dropped instead. In the ordering actually measured this costs
+        // nothing: the cover arms 0.27–2.4 s into a start that has no turns
+        // yet.
+        await discardAbandonedStart()
+        // #254: the park owns this flag for its duration, so a backgrounding
+        // during the locked interval still revokes (`abandonSession()` bumps
+        // the generation, which the resume below re-reads).
         isStartingSession = true
-        defer { isStartingSession = false }
-        // #302: and both doors defer identically. Bar 302-E scores them
-        // SEPARATELY because a fix that guards one door and not the other is
-        // the #323 class arriving inside its own fix.
-        guard await deferUntilUnlocked(generation: generation) else { return }
-        await voiceService.startSession()
-        guard generation == sessionGeneration else {
-            await discardAbandonedStart()
+        isWaitingForUnlock = true
+        statusMessage = Self.lockedWaitingMessage
+        await appLockGate.waitUntilUnlocked()
+        isWaitingForUnlock = false
+        isStartingSession = false
+        guard !Task.isCancelled, parkedGeneration == sessionGeneration else {
+            // #139 / bar 302-F through the new door: the session was
+            // abandoned while parked. Nothing to resume and nothing to tear
+            // down — the stop above already ran. A naive park-and-resume
+            // opens a microphone for a session nobody is in.
+            Self.log.notice("parked voice session NOT resumed — abandoned under the cover (#415)")
             return
         }
-        applySnapshot(voiceService.snapshot)
-        if isSessionActive {
-            liveActivity.startVoiceSession()
+        Self.log.notice("parked voice session resuming after unlock (#415)")
+        // A FRESH task: the resumed start calls `beginCoverWatch`, which
+        // cancels THIS one, and a start that ran inside a cancelled task
+        // would fail its first network call.
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            switch door {
+            case .overlay: await self.startSession()
+            case .controlCenter: await self.startSessionDirectly()
+            }
         }
     }
 
@@ -252,6 +374,15 @@ final class TalkStore {
         // start's own `defer` means a second background event during the same
         // (possibly 12-second, #247 B1) connect does not re-fire the revoke.
         isStartingSession = false
+        // #415: the cover watch dies with the session it was armed for. A
+        // watch that outlives its session is a stranded waiter — it would
+        // park, and then RESUME, a session the user ended minutes ago. The
+        // generation guard at the top of `coverArmedMidFlight` is the second
+        // belt; this one is what keeps the gate's waiter set from growing one
+        // entry per session for the life of the process.
+        coverWatchTask?.cancel()
+        coverWatchTask = nil
+        isWaitingForUnlock = false
         // Capture session metadata before the service resets
         let sessionId = voiceSessionID
         let duration = sessionDuration
@@ -310,6 +441,11 @@ final class TalkStore {
     }
 
     func reset() {
+        // #415: a reset store keeps no watch. Same reasoning as `endSession`
+        // — the watch belongs to a session, and this one no longer has one.
+        coverWatchTask?.cancel()
+        coverWatchTask = nil
+        isWaitingForUnlock = false
         voiceState = .idle
         connectionState = .idle
         transcriptItems = []

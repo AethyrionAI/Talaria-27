@@ -283,6 +283,38 @@ struct AppLockMidFlightCoverTests {
         #expect(!store.isWaitingForUnlock)
     }
 
+    /// **The arm that isolates the post-unlock generation re-check**, and it
+    /// took a second look to find one that does.
+    ///
+    /// `abandonSession()` above revokes through `endSession()`, which also
+    /// CANCELS the cover watch — so two belts defend that path and the
+    /// generation mutation would not show. `endSessionIfNeeded()` is the
+    /// honest isolator: while parked the session is not active, so it bumps
+    /// the generation and returns without ending anything and without
+    /// touching the watch. Only the post-unlock re-read stands between that
+    /// and a microphone opened for nobody.
+    @Test func aParkedSessionSupersededWithoutCancellationNeverResumes() async {
+        let gate = AppLockGate(isLocked: false)
+        let voice = GatedVoiceService()
+        let store = TalkStore(voiceService: voice, appLockGate: gate)
+
+        await store.startSessionDirectly()
+        gate.setLocked(true)
+        #expect(await settle(until: { store.isWaitingForUnlock }))
+        #expect(!voice.isCapturing)
+
+        // Dismissal through the door that does NOT tear down (the session is
+        // not active while parked) — the generation bump is all it leaves.
+        await store.endSessionIfNeeded()
+
+        gate.setLocked(false)
+        await quiesce()
+        #expect(
+            voice.startCallCount == 1,
+            "the parked start was superseded — only the post-unlock generation re-read stops it resuming (#139)"
+        )
+    }
+
     // MARK: - 415-A hygiene — the watch must not outlive its session
 
     /// A cover watch that survives the session it was armed for is a stranded
@@ -306,6 +338,26 @@ struct AppLockMidFlightCoverTests {
         gate.setLocked(false)
         await quiesce()
         #expect(voice.startCallCount == 1, "and it must never resume one either")
+    }
+
+    /// The same hygiene, measured on the gate rather than inferred from
+    /// behaviour — and it pins the other half of the decision: a cover watch
+    /// is NOT an unlock waiter, so #302's `parkedWaiterCount` bars still mean
+    /// exactly what they meant before this lane.
+    @Test func theCoverWatchIsReleasedWithItsSession() async {
+        let gate = AppLockGate(isLocked: false)
+        let voice = GatedVoiceService()
+        let store = TalkStore(voiceService: voice, appLockGate: gate)
+
+        await store.startSession()
+        #expect(await settle(until: { gate.armedCoverWatchCount == 1 }), "a running session arms exactly one watch")
+        #expect(gate.parkedWaiterCount == 0, "a cover watch is not a parked caller — 302-E and 302-G score that number")
+
+        await store.endSession()
+        #expect(
+            await settle(until: { gate.armedCoverWatchCount == 0 }),
+            "a watch that outlives its session is a stranded waiter"
+        )
     }
 
     // MARK: - 415-B — App Lock OFF is a NO-OP on the mid-flight path
