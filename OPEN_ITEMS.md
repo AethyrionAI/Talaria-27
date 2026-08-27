@@ -1654,6 +1654,12 @@ a Developer-screen toggle later? Shipped stance is seed-only.
 > **STATE: CLOSED** — the device pass passed earlier the same night, the naming
 > election it was held open for is executed, and nothing is owed. **The archive
 > move rides the next sweep.**
+
+> **📱 2026-08-26 night, build 3108 (Owen, live): the NEW scheme's first
+> device open — "ask?q= brings up talaria and the question in the
+> composer. nice."** Seed-never-send confirmed under `talaria://` on real
+> glass, same night the lane merged. Nothing remains anywhere on this
+> entry.
 ## 123. ✨ Share extension — send anything into a Hermes session (free tier)
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
