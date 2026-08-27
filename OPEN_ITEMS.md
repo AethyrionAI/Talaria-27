@@ -5625,6 +5625,17 @@ scored here.
 > `HANDOFF-OJAMD-2026-08-26-PLUGIN-DEPLOY-B4E8DFA.md` (targets 0.8.0,
 > four commits; its step 7 now scores this exact picker flip).
 
+> **📱 SAME EVENING — THE OJAMD ARM FLIPPED TOO (Owen, live: "Switching
+> to ojamd, I now have the three options!!").** Both hosts now show
+> Manual · Smart · Off on build 3087 — the picker is proven end-to-end
+> against BOTH gateways, and the honest-lock state was witnessed on both
+> before their deploys. The runbook row is fully green. **What this
+> unblocks: this entry's post-deploy phases** — the picker was the app
+> half; whatever the entry's remaining phases elect next now has two
+> live hosts to build against. (The Voice-footnote and lighter-picker
+> glances went unreported in the same message — presumed fine, not
+> scored; they can ride any future OJAMD-profile minute.)
+
 ## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code. ⟵ PREMISE RE-VERIFIED LIVE AT HEAD 2026-08-25 (Sonnet agent): the asymmetric gate survives exactly as filed (#221 built it this way; #383 only renamed the pairing predicate; a passing regression test PINS the cold-launch pin as current behavior, `RealtimeVoiceIndicatorTests.swift:193`). The runbook's #303-A/B card remains the right instrument and has never run — measurement first, fix election after.**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 2).** 303-A/B ride the OJAMD sitting (realtime-configured host — see the OJAMD handoff §11); no fix before 303-A runs.
