@@ -439,14 +439,21 @@ struct AppLockMidFlightCoverTests {
                 try? String(contentsOf: url, encoding: .utf8),
                 "cannot read \(engine).swift — this check did not run"
             )
+            // Each phrase is matched WITH ITS OPENING QUOTE, so only a string
+            // literal satisfies it. 415-N learned this the hard way in the
+            // same week: a bare `contains` is satisfied by the comment that
+            // explains the line, which means a deleted line can leave a green
+            // pin behind. Measured here too — the first run of this bar's own
+            // mutation left "capture chain HOT" alive in a comment and only
+            // the marker count below went red.
             for phrase in [
-                "audio session activated for capture (#302-A)",
-                "capture chain HOT",
-                "capture chain COLD"
+                "\"audio session activated for capture (#302-A)\"",
+                "\"capture chain HOT",
+                "\"capture chain COLD"
             ] {
                 #expect(
                     source.contains(phrase),
-                    "\(engine) lost the #302-A instrument line \"\(phrase)\" — one predicate must read both engines"
+                    "\(engine) lost the #302-A instrument literal \(phrase) — one predicate must read both engines"
                 )
             }
             #expect(
@@ -468,8 +475,10 @@ struct AppLockMidFlightCoverTests {
             try? String(contentsOf: url, encoding: .utf8),
             "cannot read TalkStore.swift — this check did not run"
         )
-        #expect(source.contains("voice session parked — App Lock cover armed mid-flight (#415)"))
-        #expect(source.contains("(#415)"))
+        // Quoted, for the same reason as the engine pins above: a comment
+        // must not be able to satisfy a bar about a log line.
+        #expect(source.contains("\"voice session parked — App Lock cover armed mid-flight (#415)\""))
+        #expect(source.contains("Self.log.notice("), "the park line is emitted, not merely described")
     }
 }
 
