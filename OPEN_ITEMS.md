@@ -146,7 +146,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); the refusal wording is the lever — **✅ THE STRING SHIPPED 2026-08-25 (PR #376): both branches carry an explicit do-not-claim clause, RED-first, mutation-proven both ways, 409-A/B/C MET. OPEN on 409-D only — the wording changed, the model's behaviour is UNVERIFIED until the next device `refusal-words` run**
 - **#413** 🐛 the assistant's FIRST utterance is captured as the USER speaking — realtime engine, first response only, 3/3 on BOTH Noisy and Normal (preset-independent, Owen's own A/B) — candidates filed (AEC convergence / route settle / channel mis-route); the AirPods probe discriminates acoustic vs software
 - **#414** 🐛 the phone 401s `GET /v1/models` against OJAMD — 410 historical log lines, pre-existing, quiet (chat + picker use other routes) — from the deploy report; first step is reading which credential slot the call sites resolve; may already be fixed by Lane B's Keychain hygiene, unmeasured
-- **#415** 🔴 the MIC STAYED ON after a Control Center voice launch (2/2, cleared by force-quit; privacy-surface real) — Owen's 3108 pass. **Log collect HAPPENED and the mechanism is NAMED: #302's ordering surviving #302's fix (App Lock arms ~1.2 s AFTER a warm CC tap clears the gate); the #303 engine-pin and #198 teardown-miss candidates are FALSIFIED. Fix bars 415-A…D proposed, NOT BUILT — that is what keeps this red.** The naming half is ✅ DONE (415-N, 2026-08-26): both CC controls read "Ask Talaria" / "Talk to Talaria"; host-meaning "Hermes" strings deliberately untouched. **The SHORTCUTS half is ✅ DONE too (415-S, 2026-08-26, Owen's "shortcuts only"): `AskHermesIntent.title` + the `TalariaAppShortcuts` `shortTitle` both read "Ask Talaria", the type name and the registration identity deliberately unmoved (measured: App Shortcuts key off `mangledTypeName`, never the title, so nothing re-registers and nothing orphans). CarPlay stays declined-with-a-trigger and is now GUARDED by a test. 🚩 One un-enumerated third site flagged for Owen: `parameterSummary`'s `formatString` still reads "Ask Hermes ${question}" in the Shortcuts editor.**
+- **#415** 🔴 the MIC STAYED ON after a Control Center voice launch (2/2, cleared by force-quit; privacy-surface real) — Owen's 3108 pass. **Log collect HAPPENED and the mechanism is NAMED: #302's ordering surviving #302's fix (App Lock arms ~1.2 s AFTER a warm CC tap clears the gate); the #303 engine-pin and #198 teardown-miss candidates are FALSIFIED. Fix bars 415-A…D proposed, NOT BUILT — that is what keeps this red.** The naming half is ✅ DONE (415-N, 2026-08-26): both CC controls read "Ask Talaria" / "Talk to Talaria"; host-meaning "Hermes" strings deliberately untouched. **The SHORTCUTS half is ✅ DONE too (415-S, 2026-08-26, Owen's "shortcuts only"): `AskHermesIntent.title` + the `TalariaAppShortcuts` `shortTitle` both read "Ask Talaria", the type name and the registration identity deliberately unmoved (measured: App Shortcuts key off `mangledTypeName`, never the title, so nothing re-registers and nothing orphans). CarPlay stays declined-with-a-trigger and is now GUARDED by a test. ~~🚩 One un-enumerated third site flagged for Owen: `parameterSummary`'s `formatString` still reads "Ask Hermes ${question}".~~** **⟵ ✅ 415-SWEEP DONE 2026-08-27 (Owen's STANDING RULING — "if it says Hermes outward on the phone, replace it with Talaria; exception being the in app connection"): the flagged `parameterSummary` is renamed AND the rule was applied WHOLESALE in one pass — 74 replacements across 37 files, every user-visible "Hermes" in the app/widget/intents targets classified app-meaning vs host-meaning and the whole inventory enumerated in the close-out (three lists + 7 borderline calls with reasoning). Newly swept surfaces no prior lane had inventoried: the **13 `Info.plist` permission usage descriptions** iOS renders in its own system alerts, the two **local-brain system prompts** ("You are Hermes" → Talaria — what the assistant answers when asked its own name), and **README/docs**, where the dispatch's premise was WRONG (#77 was a URL-scheme lane, not a naming lane) and six real app-meaning misses were found. ~100 host-meaning strings deliberately KEPT and newly pinned; fences (hermes:// scheme, CarPlay, control + widget `kind`s, type names) shown structurally. **The MIC FIX (415-A…D) is still what keeps this item red — naming is now fully done.**
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it**. **MEASURED 2026-08-11; clipping RULED OUT.** ~~Mechanism UNKNOWN~~ ~~⟵ INVESTIGATED 2026-08-25, candidates ranked~~ **⟵ ✅ MECHANISM MEASURED 2026-08-25 (measurement lane, unit repro): `openSession`'s wholesale replace + `mapStoredMessage`'s role refusal and empty usage fields zero BOTH totals inputs in ONE event, and the 9→7 row drop is the same event. Candidate ① CONFIRMED; candidate ③ (the `.voiceHermes` predicate split) is REAL but mutation-proven NOT the cause; the entry's "receipts render normally" claim is FALSIFIED — no reopened row carries `usage` or `turnDuration`, and the quoted numbers are the card's LAST TURN block via `SessionUsageIndex`. Shipped: 16 pins in `SessionTotalsAfterReopenTests`, a verbose-gated `/usage` instrument (NOT `#if DEBUG`), 3 seam breadcrumbs at `.notice`, and 330-G's six-step device script.** 330-A/B/E DISCHARGED. **⟵ ✅ FIXED 2026-08-25 (fix lane, `330-receipts-sidecar`): the `TurnReceiptSidecar` — session-id-keyed, replayed at open, `AgentAttachmentSidecar`'s pattern plus a priming tier — restores `usage`/`turnDuration`/`servingModel`/`isContextPriming` across the replace, and `mapStoredMessage` re-maps the STORED primer (a `user` row host-side) into the priming notice, collapsing its ack; that also closes a compounding defect where every reopen fed the primer back into the journal the next transplant is composed from. 330-C CONVERGED (four sites, one `isAgentAuthored` predicate — hygiene, M2 already proved it is not the cause). 330-D MET with its token source NAMED: `postPrimingTurn` returns nil whenever the priming run misses the 20 s `runsSyncBudget`, so the run id is kept and re-read off the interactive path onto the journal hop. 5 of 16 pins flipped RED-first (9 expectations), all rewritten; 16 → 34 tests; 3 isolating mutations.** **330-C/330-D DISCHARGED; only 330-G (Owen's device close) is left, and #312 (f) flips with it**
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
@@ -14597,6 +14597,218 @@ identifiers, bundle ids, subsystem strings), log lines, and code comments
 except where a rename in this lane FALSIFIES one (those are corrected in
 the same commit, per the close-out rule). `README`/`docs/` are verified
 for app-meaning misses but are expected to need nothing after #77.
+
+**✅ 2026-08-27 — 415-SWEEP DONE.** The standing ruling applied wholesale in one
+pass. **74 string replacements across 37 files**, every one classified before it
+was touched. The inventory method, stated so the enumeration below can be
+checked rather than trusted: every `"…"` literal containing `Hermes` across
+`Talaria/`, `Shared/`, `TalariaWidgets/`, `TalariaShare/` — **212 at lane
+open** — plus the `Info.plist` permission descriptions, which no prior naming
+lane had inventoried at all.
+
+**★ The elected string, before → after:**
+
+| surface | file | before | after |
+| --- | --- | --- | --- |
+| `AskHermesIntent.parameterSummary` | `Talaria/Intents/AskHermesIntent.swift:54` | `Summary("Ask Hermes \(\.$question)")` | `Summary("Ask Talaria \(\.$question)")` |
+
+That is the row the Shortcuts EDITOR renders. It is pinned against the
+**compiled** summary, not the source line — see the instrument note below.
+
+#### LIST 1 — RENAMED (APP-MEANING). 74 sites.
+
+**Shortcuts / Siri surface** — `AskHermesIntent`'s own doc already recorded the
+governing fact ("The Shortcuts/Siri surface names the APP", 415-S), and this
+intent reaches the **on-device brain whenever the Sessions-API key is unset**
+(`needsReachabilityPreflight`), so the host was never the right subject:
+`IntentDescription` "Asks **Hermes** a question…" → Talaria · parameter
+`description:` "What to ask **Hermes**." → Talaria · `requestValueDialog`
+"What should I ask **Hermes**?" → Talaria · `stillWorkingDialog` "**Hermes** is
+still working on it. Open Talaria to watch it finish." → "**Talaria** is still
+working on it. Open **the app** to watch it finish." · `.busy` error, same
+shape · `AskHermesLongRunSupport` progress "Hermes is thinking" → Talaria ·
+`StartVoiceSessionIntent` "…hands-free voice session with **Hermes**." → clause
+dropped (see B1).
+
+**Spotlight / App Entities** (`SpotlightEntities`, `SpotlightIndexingService`,
+`PrivacySettingsScreen`): `"Hermes Session"` ×3 → `"Talaria Session"` ·
+`"Hermes session"` · `"Hermes File"` · `"File from Hermes"` →
+`"File from Talaria"` · `"Open Hermes Session"` · `"Open Hermes File"` ·
+`"Opens a Hermes chat session in Talaria."` → `"Opens a Talaria chat session."` ·
+the Spotlight toggle caption "Makes **Hermes** sessions and agent files
+findable…".
+
+**Assistant persona / transcript role labels**: `HermesAvatar` VoiceOver label ·
+`MessageBubble` `"Hermes: \(content)"` · `ConversationSearchScreen` match label ·
+`ThinkingIndicatorView` "Hermes Is Reasoning" ·
+`TranscriptSpeaker.hermes.displayLabel` · `ChatScreen`'s conversation-history
+dump role · and the four transcript role labels fed back to the model
+(`LocalChatBackend`, `ContextTransplanter`, `ChatStore.voiceTranscriptTurnText`,
+`DeviceMediaTools`).
+
+**The two local-brain SYSTEM PROMPTS** (`LocalChatBackend:2573`, `:2583`) —
+*"You are **Hermes**, the user's personal assistant, running entirely on their
+iPhone…"* / *"…running on Apple's Private Cloud Compute…"* → **Talaria**. Not a
+UI string, and arguably the most outward one in the app: it decides what the
+assistant answers when the user asks it its own name, on the two tiers that
+never touch a host at all.
+
+**Voice HUD status** (`LiveVoiceSessionService`, `NativeVoicePipelineService`,
+`MockVoiceSessionService` in lockstep): "Hermes is thinking." ×4 · "Hermes is
+speaking." ×3 · "Hermes is working on that…" ×2 · "Hermes has the answer…" ·
+"A tool call failed — Hermes will try another way." · "Hermes is waiting on a
+host approval…" (see B2). Plus `SpeechOutputService`'s spoken voice preview,
+"This is how **Hermes** replies will sound."
+
+**Live Activity / widgets / alarms**: `HermesActivityAttributes.agentName`
+default in **both** copies (app + widget target, per the `HermesWidgetData`
+lockstep convention) · both `LiveActivityService` call sites ·
+`LiveActivityPreviews` ×2 (see B7) · `AlarmService`'s default alarm title
+`"Hermes \(kindNoun)"` · `"Hermes Timer"` · and the widget GALLERY names
+`.configurationDisplayName("Hermes Health"/"Hermes Status")`, plus
+`HermesStatusWidget`'s in-widget wordmark ×2 and its sender attribution.
+
+**Permission copy — the surface no prior lane inventoried.** 13 `Info.plist`
+usage descriptions (edited in `project.yml`; `Talaria/Resources/Info.plist` is
+xcodegen-generated from it and regenerated in the same commit), their four
+in-app twins in `PermissionType`/`PermissionsScreen`, and `DeviceCalendarTools`'
+grant-widening instruction. **iOS renders these verbatim in its own system
+alerts, above an app the user installed as Talaria** — and the calendar one
+actively misdirected, sending the user to Settings → Privacy to find a row
+labelled Talaria.
+
+**Misc**: `CaptureScreen`'s coming-soon caption · `DemoData`'s sample
+conversation title · **README/docs**, 6 lines (see the premise correction
+below) · and `Conversation.defaultTitle` (see 415-SWEEP-5, the half that
+mattered).
+
+#### LIST 2 — KEPT, HOST-MEANING. Deliberate, not missed.
+
+~100 literals, in families: every service error string
+(`SessionsHermesClient`, `CronJobService`, `InsightsService`, `SkillsService`,
+`GatewayHermesHostService`, `HostReachability`, the three `…Store` error
+mappers) — "The Hermes host rejected this device's API key.", "Hermes API base
+URL is not set.", "The Hermes run failed." · the whole `ConnectHostCopy`
+wizard · the chat header's five host-status lines · the composer pair
+`"Message Hermes…"` / `"Reply to Hermes"` (B6) ·
+`ChatBackendRouter.Brain.hermes.displayLabel` = `"Hermes"` and `monoLabel`
+`"HERMES"` · `"Hermes Host"` / `"My Hermes"` / `"Hermes host"` ·
+`"Sessions stored on the Hermes host"` · `"Hermes host pairing"` ·
+`"Share Sensors with Hermes"` + `"Lets your Hermes agent ask this phone…"`
+(B5) · `"Send Transcripts to Hermes"` · `"Connect Hermes Desktop"` ·
+`"Update Hermes Agent"` · `"Sending to Hermes"` ·
+`"Hermes when reachable, on-device otherwise"` ·
+`"The latest briefing from Hermes."` and the platform-inbox row title
+`"Hermes"` (both are pushed BY the host plugin) · the pair-QR instructions ·
+`"Mock Hermes Host"` · and the three `AskHermesIntent` dialogs that fire only
+on host paths — `"I couldn't reach Hermes."` (the #56 reachability preflight),
+`"Hermes is unreachable right now. Your question is queued…"`, and
+`"Hermes accepted the question and is still working."` (a run committed
+server-side).
+
+#### LIST 3 — FENCED. Untouched, each shown structurally by a test.
+
+`hermes` URL scheme + its easter-egg registration (#77's own ruling) · every
+`CarPlayVoiceManager` `titleVariants` entry, incl. its host-meaning siblings
+(415-S-3's guard — still a guard, not a goal) · control `kind` ids (415-N-3) ·
+**widget `kind` ids** `HermesStatus`/`HermesHealth`/`HermesBriefing` (same
+orphaning hazard as a control kind — newly pinned this lane) · all Swift type
+names incl. `AskHermesIntent` and its `mangledTypeName` (415-S-5) · `Logger`
+subsystem/category strings · log lines (`probe: … not a Hermes catalog`, the
+`#293b` reconcile line, the `#192` fallback notice) · the `O:\Hermes\…`
+demo/host paths · tracker and doc history.
+
+#### Borderline judgments — stated with reasoning, not decided silently
+
+- **B1 — dropped clauses, not mechanical swaps.** A literal rename of
+  `StartVoiceSessionIntent` gives "Opens **Talaria** and starts a hands-free
+  voice session with **Talaria**." The clause was dropped instead; likewise
+  `stillWorkingDialog`/`.busy`, where "Open Talaria" became "Open the app".
+  Three places where a pure find-and-replace would have introduced a copy
+  defect.
+- **B2 — `"Hermes is waiting on a host approval…"` → Talaria.** For keeping:
+  the run genuinely is paused on the HOST. What won: this is the voice HUD's
+  `statusMessage`, alternating with "Talaria is thinking."/"Talaria is
+  speaking." in the same label — a HUD that switches persona mid-sentence is
+  incoherent — and the host is still named explicitly in the same sentence
+  ("a **host** approval"). Its chat-plane sibling in
+  `SessionsHermesClient+RunsTransport` ("The **Hermes host** paused this run…")
+  names the host as SUBJECT and correctly stays.
+- **B3 — `"Hermes talk is ready."` KEPT.** Same file as the renamed HUD lines,
+  opposite verdict: it is the host's `talk_readiness` probe result, and its
+  neighbours ("Could not reach the Hermes host.", "This Hermes host doesn't
+  support voice yet…") are unambiguously connection status. The split inside
+  one file is the point — assistant persona renames, connection status does
+  not.
+- **B4 — the Spotlight entity family → Talaria**, although the ids behind it
+  are Sessions-API (host) ids. These are system-surface labels for the app's
+  own content, and `OpenSessionIntent.title` renders in the **Shortcuts
+  editor** — the exact surface 415-S ruled names the app. The host provenance
+  is an implementation detail the user never sees.
+- **B5 — `"Share Sensors with Hermes"` KEPT** despite sitting in Talaria's own
+  Privacy screen: the thing being granted is *your host agent's* ability to
+  query this phone, and the toggle's own caption says so. Same reasoning kept
+  `"Send Transcripts to Hermes"`.
+- **B6 — the composer pair KEPT.** `"Message Hermes…"` is named in Owen's
+  ruling text itself; `"Reply to Hermes"` is that same field's VoiceOver
+  label, so it follows the field rather than being judged separately.
+- **B7 — `LiveActivityPreviews` renamed although `#Preview`-only** and
+  therefore not user-visible: it mirrors the Live Activity whose `agentName`
+  this lane renamed, so leaving it would have falsified it (close-out rule).
+
+#### 🟡 A PREMISE OF THE DISPATCH WAS WRONG, and checking it is what caught six misses
+
+The dispatch said README/docs "already says Talaria where it should post-#77 …
+likely none". **#77 was a URL-SCHEME lane, not a naming lane** — `git show
+92363b56` edits README line 51 and leaves `ask Hermes` sitting in it. No
+README/docs naming pass had ever run. Six app-meaning misses found and fixed:
+the Siri phrase (the shipping intent has read "Ask Talaria" since #393, so the
+README was advertising a phrase that no longer exists) and five share-extension
+lines — the clearest case in the sweep, because `TalariaShare` **never touches
+the network**: it queues an app-group envelope the app drains, and works with
+no host paired at all. `docs/index.html`'s phone mockup keeps `Message Hermes…`
+and its `HERMES` header, both correct: the first is enumerated in Owen's ruling,
+the second depicts hosted mode, which `ChatScreen.headerWordmark` renders
+exactly that way (#191).
+
+#### 415-SWEEP-5 — the regression this lane had to design around rather than discover
+
+`Conversation.defaultTitle` is user-visible **and** load-bearing: `#4.8` title
+generation fires only while `title == defaultTitle`. Renaming the constant alone
+would have stranded every conversation created before this build — displaying
+"Hermes" forever *and* never becoming eligible for auto-titling again, because
+the equality test stopped matching them. **A naming sweep that manufactures a
+permanent "Hermes" in the sessions drawer has defeated itself.** Fixed with
+`legacyDefaultTitle` + `isPlaceholderTitle(_:)`, and the four equality sites
+(three in `ChatStore`, one in `LocalChatBackend.sessionInfo`) migrated to it.
+
+#### 🟡 Two honest instrument corrections, made mid-lane
+
+**(1) There is no `formatString` API.** 415-SWEEP-1 was written promising an
+assertion on the "rendered `formatString`". `ParameterSummary` publishes nothing
+but an `associatedtype`, and `ParameterSummaryString` exposes no accessor for
+the format it was built from — checked in `AppIntents.swiftinterface` BEFORE
+writing the test rather than after it failed. The bar was met by a
+**depth-capped recursive `Mirror` walk over the compiled summary value**: still
+the compiled artifact rather than the source text, which is what the bar was
+protecting, but by reflection instead of a public accessor. The failure message
+carries the whole reflected string list, so if AppIntents reshapes the type this
+goes red with its evidence attached instead of asserting over an empty
+collection.
+
+**(2) The test was right where the author was wrong.**
+`theHermesSchemeEasterEggIsUntouched` was first written against the literal
+`"hermes://"` and went **RED** — that string is nowhere in the tree. The scheme
+is registered as a bare `hermes` in `project.yml`'s `CFBundleURLTypes` and
+matched by `DeeplinkRouter.registeredSchemes`. Both are now asserted, because
+either alone is satisfiable while the feature is broken: a router accepting a
+scheme iOS does not route is dead code, and a registration nothing handles is a
+launch that lands nowhere.
+
+**RED-first evidence.** Mutating the single elected string back to `Ask Hermes`
+produced **3 failures across 2 tests** — both arms of the compiled-value pin
+(presence AND absence) plus `oldAppMeaningLiteralsAreGone`. The instrument
+discriminates; it is not asserting over an empty set.
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
