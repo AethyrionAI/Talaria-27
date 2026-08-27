@@ -14338,6 +14338,16 @@ itself (398-C): green on sim runtime 24A5423a, which is not measured to be
 the phone's build** — irrelevant to a string rename, recorded because the
 gate says so on every run.
 
+
+> **⚖️ FIX LANE ELECTED 2026-08-26 night (Owen: "go, dismissed the chip,
+> orchestrate the lane" — the forensics agent's suggested-task chip was
+> redundant with this dispatch and he dismissed it).** Scope per the
+> forensics: the mid-flight gate re-evaluation (a session that becomes
+> COVERED after starting is parked/stopped — closing #302's blind
+> ordering) + the realtime engine gains the #302-A capture instrument.
+> Bars 415-A..D formalize at lane-open; 415-A proven RED on today's
+> main first, per its own proposal.
+
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
 **2026-08-11 — what was run and what it found (Fable orchestrator + 4 subagents; sims
