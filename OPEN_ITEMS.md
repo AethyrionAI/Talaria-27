@@ -1471,6 +1471,47 @@ a Developer-screen toggle later? Shipped stance is seed-only.
 > working, deliberately undocumented — an easter egg by ruling, not an
 > accident, so no future sweep "cleans it up." Lane dispatched the same
 > hour; bars at lane-open.
+
+> **📌 BARS — 77-A…E, WRITTEN BEFORE ANY CODE** (lane opened 2026-08-26 night,
+> isolated worktree off `4e17a5fc`; invariants green at lane-open —
+> `oi-invariants.py` **PASS exit 0**, `oi-invariants-test.py` **PASS (33 checks)
+> exit 0**). The election above is the contract; these are how it is judged. A
+> missed bar is a falsification, not a redefinition.
+>
+> - **77-A — BOTH SCHEMES REGISTERED, `talaria` FIRST.** `project.yml`'s
+>   `CFBundleURLTypes` declares `talaria` (primary, listed first) **and**
+>   `hermes`; `xcodegen generate` carries both into the committed
+>   `Talaria/Resources/Info.plist`, and two consecutive regens are
+>   byte-identical (#319's idempotence re-proven in this diff, not assumed).
+>   Pinned against the **BUILT** app plist, not the source YAML (#108's
+>   built-plist pattern — the source can be right while the build is stale).
+>   MISS if either scheme is absent from the built plist, or the regen is not
+>   committed.
+> - **77-B — THE HANDLER IS SCHEME-AGNOSTIC, PROVEN BOTH WAYS.**
+>   `DeeplinkRouter.route` accepts both schemes from ONE declared set, and every
+>   route behaves identically under each: `session/{id}`, `ask?q=`, `chat`,
+>   `voice`, `health`, `briefing`. Pinned **both ways** by test, **RED-first** —
+>   the `talaria://` arm must be observed failing on the unmodified tree and the
+>   failure recorded, not asserted. A foreign scheme (`https://`) must still
+>   route nowhere, and an unregistered-but-plausible one (`talaria27://`) must
+>   too — otherwise "scheme-agnostic" would mean "any scheme."
+> - **77-C — ONE DOCUMENTED SCHEME, ONE NAMED EASTER EGG.** Every surface that
+>   SPEAKS the scheme — README, `docs/` (the live Pages web root), in-app copy,
+>   code comments, the emitters (`widgetURL`, control/Spotlight intent
+>   destinations) — says `talaria://`. The ruling is quoted **verbatim in
+>   exactly ONE place**, a comment at the registration site in `project.yml`;
+>   every other place the surviving `hermes` literal appears POINTS at that
+>   comment instead of re-explaining it. MISS if a future sweep could read any
+>   surviving `hermes` literal as cruft, or if the quote appears twice.
+> - **77-D — SEED-NEVER-SEND UNCHANGED.** The #48 security posture is untouched:
+>   `ask` seeds and focuses, never sends, on **both** schemes. The existing pins
+>   (`ChatStorePersistenceTests`' composer-seed tests) stay green **unedited** —
+>   an edit to those tests in this diff is itself a MISS.
+> - **77-E — GATE PASS, COUNT MOVED.** `scripts/mac/lane-gate.sh` green
+>   (Swift Testing + XCUITest + Release build, positive markers from each) on
+>   `CC-lane-2`, and the Swift Testing count **moves up** from the ~2721
+>   baseline by exactly the number of tests added — a count that did not move is
+>   a stale `.xctest`, not a pass.
 ## 123. ✨ Share extension — send anything into a Hermes session (free tier)
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
