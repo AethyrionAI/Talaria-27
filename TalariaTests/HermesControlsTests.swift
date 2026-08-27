@@ -201,8 +201,111 @@ struct HermesControlsTests {
     /// constants (enforced by the widget compile), so pinning the values
     /// pins the kinds — unless someone swaps a struct back to a literal,
     /// which is what the "keep this a reference" comments there guard.
+    ///
+    /// **415-N-3.** This test predates the #415 rename and is deliberately
+    /// UNCHANGED by it: the visible titles moved to Talaria, the identities
+    /// did not. A rename that also moved a kind would satisfy every other
+    /// bar in that lane and still orphan Owen's placed controls.
     @Test func controlKindsAreStable() {
         #expect(HermesControlKind.askHermes == "org.aethyrion.talaria27.control.askHermes")
         #expect(HermesControlKind.talkToHermes == "org.aethyrion.talaria27.control.talkToHermes")
+    }
+
+    // MARK: - #415 naming (fact 2) — the controls say Talaria
+
+    /// **415-N-1.** Owen, on the 3108 runbook pass: *"The talk and chat ones
+    /// should be changed from hermes to talaria."* These are the COMPILED
+    /// values the system reads for the two Control Center controls'
+    /// intents, so this fails on a real regression rather than on a stale
+    /// comment — `LocalizedStringResource` is `Equatable`, and a literal
+    /// that got commented out instead of changed would not satisfy it.
+    ///
+    /// Note the name HEAD actually carried: the chat control was titled
+    /// **"Ask Hermes"**, not "Chat with Hermes" — so the swap is
+    /// Ask/Talk, not Chat/Talk.
+    @Test func launchIntentTitlesNameTalaria() {
+        #expect(OpenHermesChatIntent.title == "Ask Talaria")
+        #expect(OpenHermesVoiceIntent.title == "Talk to Talaria")
+    }
+
+    /// **415-N-2, the widget half.** `AskHermesControl` /
+    /// `TalkToHermesControl` are widget-target-only — this host cannot
+    /// compile them, so their `Label` / `.displayName` / `.description`
+    /// literals are pinned by reading the source (the #399 pattern, same
+    /// shape as `RunsTransportSwitchTests`). Both directions are asserted:
+    /// the new spellings present AND the old ones gone, because "contains
+    /// the new string" alone passes on a half-done rename that left one of
+    /// the three sites behind. Fails loudly if the file cannot be read — a
+    /// check that cannot run must say so rather than pass.
+    ///
+    /// The absence half matches the QUOTED spelling, so it covers comments
+    /// too: that file may discuss the old names in prose (and does), but not
+    /// with the double quotes that make a string literal.
+    @Test func theWidgetControlsSpellTalaria() throws {
+        let file = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // TalariaTests/
+            .deletingLastPathComponent()   // repo root
+            .appendingPathComponent("TalariaWidgets/Controls/HermesControls.swift")
+        let source = try #require(
+            try? String(contentsOf: file, encoding: .utf8),
+            "cannot read TalariaWidgets/Controls/HermesControls.swift — this check did not run"
+        )
+
+        // All six user-facing sites — Label / displayName / description for
+        // each control — matched WITH their surrounding call, so a rename
+        // that fixed the Label and forgot the displayName goes red, and no
+        // amount of comment prose can satisfy them.
+        for site in [
+            "Label(\"Ask Talaria\", systemImage: \"text.bubble\")",
+            ".displayName(\"Ask Talaria\")",
+            ".description(\"Open the Talaria chat and ask a question.\")",
+            "Label(\"Talk to Talaria\", systemImage: \"waveform\")",
+            ".displayName(\"Talk to Talaria\")",
+            ".description(\"Open Talaria and start a hands-free voice session.\")",
+        ] {
+            #expect(source.contains(site), "control site missing or renamed: \(site)")
+        }
+
+        // Old spellings gone as STRING LITERALS. Prose in the file's
+        // comments may legitimately still discuss the history.
+        #expect(!source.contains("\"Ask Hermes\""),
+                "the chat control still spells a literal \"Ask Hermes\"")
+        #expect(!source.contains("\"Talk to Hermes\""),
+                "the voice control still spells a literal \"Talk to Hermes\"")
+    }
+
+    /// **415-N-4.** The failure mode a rename lane actually has is a global
+    /// search-and-replace, and no amount of asserting the two NEW titles can
+    /// see it. Talaria is a client for a **Hermes** host, so every string
+    /// that means the host stays correct and must survive. Four sampled
+    /// from three different screens; if a sweep took the word out of the
+    /// app, at least one of these goes red.
+    @Test func hostMeaningHermesStringsSurviveTheRename() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // TalariaTests/
+            .deletingLastPathComponent()   // repo root
+            .appendingPathComponent("Talaria")
+        let files = try #require(
+            FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil)?
+                .compactMap { $0 as? URL }
+                .filter { $0.pathExtension == "swift" },
+            "cannot enumerate Talaria/ — this check did not run"
+        )
+        #expect(!files.isEmpty, "cannot enumerate Talaria/ — this check did not run")
+
+        let sources = files.compactMap { try? String(contentsOf: $0, encoding: .utf8) }
+        #expect(!sources.isEmpty, "cannot read any Talaria/ source — this check did not run")
+
+        // The host, named as the host: composer placeholder, two lines of
+        // Connect Host copy, one chat-status line.
+        for expected in [
+            "\"Message Hermes\u{2026}\"",
+            "\"A Hermes gateway\"",
+            "\"Something's there, but it isn't Hermes\"",
+            "\"Hermes host online\"",
+        ] {
+            #expect(sources.contains { $0.contains(expected) },
+                    "a host-meaning string vanished from Talaria/: \(expected)")
+        }
     }
 }
