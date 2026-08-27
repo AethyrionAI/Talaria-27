@@ -14513,6 +14513,22 @@ measured gate count from earlier the same day, and `origin/main` was still
 at that lane's commit when this one branched (the parallel 415 fix lane
 had not landed).
 
+
+> **⚖️ STANDING NAMING RULING 2026-08-27 (Owen, verbatim: "Rename it,
+> and standing authority to rename any other finds. If it says Hermes
+> outward on the phone, replace it with Talaria. With the exception
+> being the in app connection to Hermes."):** the parameterSummary
+> rename is elected, AND the rule is standing — the app's outward
+> identity is TALARIA on every phone-facing surface; "Hermes" survives
+> only where it means THE HOST/CONNECTION (Connect Host, gateway
+> errors, host status, the composer's host-channel identity). Fences
+> that OUTRANK the standing rule because they are their own rulings:
+> the `hermes://` easter-egg scheme (#77), CarPlay's deferred-with-
+> trigger rename (this entry), type names / control `kind` ids /
+> intent identifiers (orphaning hazards, test-pinned). One SWEEP lane
+> dispatched to apply the rule wholesale rather than string-by-string;
+> borderline judgments enumerated in its close-out. Also recorded in
+> CLAUDE.md's Conventions.
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
 **2026-08-11 — what was run and what it found (Fable orchestrator + 4 subagents; sims

@@ -852,6 +852,14 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
   `PascalCase` types/files, `lowerCamelCase` members; no force-unwraps on network code
   (Hermes nests — `.session.id`).
 - **Real data only** in UI — show `"—"` where a value isn't knowable; no mocked toggles.
+- **Naming (Owen's standing ruling, 2026-08-27): the app's outward identity is
+  TALARIA on every phone-facing surface** — "Hermes" appears only where it
+  means THE HOST/CONNECTION ("Message Hermes…", Connect Host, gateway errors,
+  host status). Standing authority to rename app-meaning "Hermes" finds
+  without re-asking. Fences that are their own rulings and OUTRANK this:
+  the `hermes://` easter-egg scheme (#77), CarPlay's deferred-with-trigger
+  rename (#415 — unverifiable until #74's sim works), and type names /
+  control `kind` ids / intent identifiers (orphaning hazards, test-pinned).
 - **Verification-first:** honest corrections over confident guesses; mid-session corrections
   are normal and valued. The **"Questions for Owen"** header surfaces decisions.
 - Issues tracked in `OPEN_ITEMS.md` (dated update notes; closed items move verbatim to
