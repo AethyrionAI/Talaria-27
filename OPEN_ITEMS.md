@@ -5681,6 +5681,9 @@ scored here.
 > anchors re-resolved at HEAD (the 08-07 sketches predate Phase 0's
 > scaffold and the caution system). Device bars (224-1F, 224-2C) become
 > runbook cards. Merge-on-green applies.
+> *(📱 First device sighting, 2026-08-26 night, build 3101: "oh neat. I
+> see the settings in privacy" — the Agent Actions control renders on
+> the phone. The behavioral halves await the 224-1F / 224-2C cards.)*
 
 **🎯 BARS 224-1A..1F / 224-2A..2D — FORMALIZED 2026-08-26 at lane-open,
 BEFORE any code, from the design of record's §6 sketch. Anchors re-resolved
