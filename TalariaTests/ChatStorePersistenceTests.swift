@@ -148,7 +148,7 @@ struct ChatStorePersistenceTests {
         #expect(repersisted.messages.first(where: { $0.content == "Killed mid-run" })?.status == .failed)
     }
 
-    // MARK: - Composer seed (#48 hermes://ask?q=)
+    // MARK: - Composer seed (#48 talaria://ask?q=)
 
     // Lives here (not a new file) to spare an xcodegen regen: same store,
     // same harness. Seed-only semantics are the security property — an

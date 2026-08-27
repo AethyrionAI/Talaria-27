@@ -1,6 +1,6 @@
 import Foundation
 
-/// The one `hermes://` switch (#48/#58) — every launch surface converges
+/// The one deep-link switch (#48/#58) — every launch surface converges
 /// here: Safari/`onOpenURL`, Spotlight's `OpenSessionIntent` destinations,
 /// widget `widgetURL` taps, the Control Center intents performing in the app
 /// process (#58, `.main` execution target), and the app-group fallback
@@ -17,15 +17,27 @@ import Foundation
 @MainActor
 enum DeeplinkRouter {
 
+    /// The schemes this app answers, and the ONLY ones — a URL outside this
+    /// set changes nothing. Must stay in lockstep with `CFBundleURLTypes` in
+    /// `project.yml`: a scheme registered there but missing here opens the app
+    /// to a dead route, and one here but not there is never delivered at all.
+    ///
+    /// `talaria` is the primary, documented scheme (#77). `hermes` is the
+    /// original one, kept working and undocumented on purpose — the ruling
+    /// that says so, and the ⛔ that goes with it, is quoted at the
+    /// registration site in `project.yml`; read it there before touching this
+    /// line.
+    static let registeredSchemes: Set<String> = ["talaria", "hermes"]
+
     static func route(_ url: URL, router: TabRouter, chatStore: ChatStore) {
-        guard url.scheme == "hermes" else { return }
+        guard let scheme = url.scheme, registeredSchemes.contains(scheme) else { return }
         switch url.host {
         case "chat":
             router.activeSheet = nil
             router.popToRoot()
             router.selectedTab = .chat
         case "session":
-            // #17: hermes://session/{id} — Spotlight results route here via
+            // #17: talaria://session/{id} — Spotlight results route here via
             // OpenSessionIntent. Lands on Chat, then adopts the session.
             guard url.pathComponents.count > 1 else { break }
             let sessionID = url.pathComponents[1]
@@ -51,7 +63,7 @@ enum DeeplinkRouter {
             router.activeSheet = nil
             router.isVoiceOverlayPresented = true
         case "ask":
-            // #48: hermes://ask?q=… — the payload-carrying route. Lands on
+            // #48: talaria://ask?q=… — the payload-carrying route. Lands on
             // Chat and seeds the composer; the user still taps send. Never
             // auto-sends: custom-scheme URLs are open to any app or web page,
             // and an auto-send would let external content inject agent turns.

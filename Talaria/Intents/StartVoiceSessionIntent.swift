@@ -6,7 +6,7 @@ import AppIntents
 /// CarPlay driving use).
 ///
 /// `perform()` routes through the same flag the in-app entry points use
-/// (`router.isVoiceOverlayPresented` — the `hermes://voice` deep link and the
+/// (`router.isVoiceOverlayPresented` — the `talaria://voice` deep link and the
 /// Voice settings screen both set it); `VoiceOverlayScreen` auto-starts the
 /// session on appear. iOS 16-era API throughout: no entitlement, no Apple
 /// Intelligence requirement, identical on every hardware tier.

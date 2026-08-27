@@ -30,16 +30,16 @@ struct SpotlightOpenIntentTests {
     @Test func sessionDestinationRoutesThroughSessionDeepLink() {
         #expect(
             OpenSessionIntent.destination(forSessionID: "sess-42")
-                == URL(string: "hermes://session/sess-42")
+                == URL(string: "talaria://session/sess-42")
         )
         #expect(
             OpenSessionIntent.destination(forSessionID: "sess 42")
-                == URL(string: "hermes://session/sess%2042"),
+                == URL(string: "talaria://session/sess%2042"),
             "ids that aren't URL-safe must percent-encode, not drop"
         )
     }
 
     @Test func fileDestinationLandsOnChat() {
-        #expect(OpenAgentFileIntent.destination == URL(string: "hermes://chat"))
+        #expect(OpenAgentFileIntent.destination == URL(string: "talaria://chat"))
     }
 }

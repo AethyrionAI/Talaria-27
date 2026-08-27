@@ -41,9 +41,9 @@ struct ControlHandoffTests {
 
     @Test func writtenDestinationReadsBack() throws {
         try withStore { store, _ in
-            store.writeDestination(URL(string: "hermes://voice")!, now: Self.t0)
+            store.writeDestination(URL(string: "talaria://voice")!, now: Self.t0)
             #expect(store.consumeDestination(now: Self.t0.addingTimeInterval(1))
-                == URL(string: "hermes://voice"))
+                == URL(string: "talaria://voice"))
         }
     }
 
@@ -52,7 +52,7 @@ struct ControlHandoffTests {
     /// home screen, and the app yanks you into voice for no reason.
     @Test func destinationIsConsumedExactlyOnce() throws {
         try withStore { store, _ in
-            store.writeDestination(URL(string: "hermes://chat")!, now: Self.t0)
+            store.writeDestination(URL(string: "talaria://chat")!, now: Self.t0)
             #expect(store.consumeDestination(now: Self.t0) != nil)
             #expect(store.consumeDestination(now: Self.t0) == nil)
         }
@@ -74,7 +74,7 @@ struct ControlHandoffTests {
     /// hijack an unrelated launch later.
     @Test func destinationOlderThanTheWindowIsIgnored() throws {
         try withStore(stalenessWindow: 30) { store, _ in
-            store.writeDestination(URL(string: "hermes://chat")!, now: Self.t0)
+            store.writeDestination(URL(string: "talaria://chat")!, now: Self.t0)
             #expect(store.consumeDestination(now: Self.t0.addingTimeInterval(31)) == nil)
         }
     }
@@ -83,9 +83,9 @@ struct ControlHandoffTests {
     /// is the launch this destination was written for.
     @Test func destinationAtTheWindowEdgeStillRoutes() throws {
         try withStore(stalenessWindow: 30) { store, _ in
-            store.writeDestination(URL(string: "hermes://chat")!, now: Self.t0)
+            store.writeDestination(URL(string: "talaria://chat")!, now: Self.t0)
             #expect(store.consumeDestination(now: Self.t0.addingTimeInterval(30))
-                == URL(string: "hermes://chat"))
+                == URL(string: "talaria://chat"))
         }
     }
 
@@ -94,7 +94,7 @@ struct ControlHandoffTests {
     /// fall inside the window and routes then.
     @Test func staleDestinationIsClearedNotStranded() throws {
         try withStore(stalenessWindow: 30) { store, _ in
-            store.writeDestination(URL(string: "hermes://voice")!, now: Self.t0)
+            store.writeDestination(URL(string: "talaria://voice")!, now: Self.t0)
             #expect(store.consumeDestination(now: Self.t0.addingTimeInterval(31)) == nil)
             // A subsequent read well inside the window finds nothing, because
             // the stale read consumed it.
@@ -109,7 +109,7 @@ struct ControlHandoffTests {
     /// can't date is exactly the stranded-destination failure above.
     @Test func destinationWithoutATimestampIsIgnored() throws {
         try withStore { store, defaults in
-            defaults.set("hermes://voice", forKey: ControlHandoffStore.destinationKey)
+            defaults.set("talaria://voice", forKey: ControlHandoffStore.destinationKey)
             #expect(store.consumeDestination(now: Self.t0) == nil)
             // …and it is cleared, so it can't resurface.
             #expect(defaults.string(forKey: ControlHandoffStore.destinationKey) == nil)

@@ -21,7 +21,7 @@ final class ChatStore {
     var lastStreamActivityAt: Date?
     var lastTokenUsage: TokenUsage?
 
-    /// #48: payload from a `hermes://ask?q=…` deep link, held until ChatScreen
+    /// #48: payload from a `talaria://ask?q=…` deep link, held until ChatScreen
     /// pulls it into the composer. Seed-only by design — a custom-scheme URL
     /// can be fired by any app or web page, so it must never auto-send.
     private(set) var pendingComposerSeed: String?

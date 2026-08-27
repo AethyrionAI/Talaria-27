@@ -29,7 +29,7 @@ struct AskHermesIntent: AppIntent {
         categoryName: "Chat"
     )
     /// Background query — Siri shows the answer in place. The full transcript
-    /// is one `hermes://chat` deep link away (handled in AppEntry).
+    /// is one `talaria://chat` deep link away (handled in AppEntry).
     static let openAppWhenRun = false
 
     /// Free-form text. Note: String parameters cannot ride App Shortcut

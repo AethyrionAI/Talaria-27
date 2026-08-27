@@ -104,7 +104,7 @@ struct AgentFileEntityQuery: EntityQuery {
 // MARK: - Open intents
 
 /// Spotlight tap-through for a donated session. Routes through the
-/// `hermes://session/{id}` deep link so external openers and this intent
+/// `talaria://session/{id}` deep link so external openers and this intent
 /// share one navigation code path (AppEntry.handleDeeplink).
 struct OpenSessionIntent: OpenIntent {
     static let title: LocalizedStringResource = "Open Hermes Session"
@@ -124,10 +124,10 @@ struct OpenSessionIntent: OpenIntent {
     var target: ChatSessionEntity
 
     /// Split out of `perform()` so the #66 configuration test can pin the
-    /// route shape (percent-encoded id on `hermes://session/`).
+    /// route shape (percent-encoded id on `talaria://session/`).
     static func destination(forSessionID id: String) -> URL {
         let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
-        return URL(string: "hermes://session/\(encoded)") ?? URL(string: "hermes://chat")!
+        return URL(string: "talaria://session/\(encoded)") ?? URL(string: "talaria://chat")!
     }
 
     func perform() async throws -> some IntentResult & OpensIntent {
@@ -154,7 +154,7 @@ struct OpenAgentFileIntent: OpenIntent {
 
     /// Compile-time literal — parsing cannot fail. Static so the #66
     /// configuration test can pin the route.
-    static let destination = URL(string: "hermes://chat")!
+    static let destination = URL(string: "talaria://chat")!
 
     func perform() async throws -> some IntentResult & OpensIntent {
         spotlightOpenLog.notice(
