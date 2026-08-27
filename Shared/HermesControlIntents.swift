@@ -109,13 +109,18 @@ private func handOffToApp(_ destination: URL, from intentName: String) {
 
 // MARK: - Launch intents
 
-/// "Ask Hermes" control tap → the chat transcript (the surface where an Ask
+/// "Ask Talaria" control tap → the chat transcript (the surface where an Ask
 /// Hermes #6 exchange lands): `DeeplinkRouter`'s `chat` case clears any
 /// sheet, pops to root, and selects the Chat tab.
+///
+/// The visible title moved from "Ask Hermes" to "Ask Talaria" in #415
+/// (2026-08-26); `title` is what Control Center renders, and it is pinned by
+/// `HermesControlsTests.launchIntentTitlesNameTalaria`. The type name and
+/// the control `kind` did NOT move — see `HermesControlKind` above.
 struct OpenHermesChatIntent: AppIntent {
-    static let title: LocalizedStringResource = "Ask Hermes"
+    static let title: LocalizedStringResource = "Ask Talaria"
     static let description = IntentDescription(
-        "Opens Talaria to the Hermes chat.",
+        "Opens Talaria to the chat.",
         categoryName: "Chat"
     )
     /// The tap foregrounds the app (iOS 26+ replacement for the
@@ -144,13 +149,17 @@ struct OpenHermesChatIntent: AppIntent {
     }
 }
 
-/// "Talk to Hermes" control tap → the voice overlay: `DeeplinkRouter`'s
+/// "Talk to Talaria" control tap → the voice overlay: `DeeplinkRouter`'s
 /// `voice` case sets `router.isVoiceOverlayPresented`, the same flag
 /// `StartVoiceSessionIntent.perform()` sets; `VoiceOverlayScreen` auto-starts
 /// the session on appear. The session itself needs the foreground app
 /// (mic + WebRTC + UI), which `supportedModes = .foreground` provides.
+///
+/// Retitled from "Talk to Hermes" in #415 (2026-08-26) — the tile Owen was
+/// looking at when he filed it. Same rule as the chat twin: title moves,
+/// `kind` does not.
 struct OpenHermesVoiceIntent: AppIntent {
-    static let title: LocalizedStringResource = "Talk to Hermes"
+    static let title: LocalizedStringResource = "Talk to Talaria"
     static let description = IntentDescription(
         "Opens Talaria and starts a hands-free voice session.",
         categoryName: "Voice"

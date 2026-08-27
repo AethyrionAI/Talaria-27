@@ -57,8 +57,9 @@ enum DeeplinkRouter {
             router.selectedTab = .chat
             router.navigate(to: .briefing(nil))
         case "voice":
-            // Same flag StartVoiceSessionIntent sets; the Talk to Hermes
-            // control (#7) routes through this link. Clear any sheet first —
+            // Same flag StartVoiceSessionIntent sets; the Talk to Talaria
+            // control (#7, retitled from Talk to Hermes by #415) routes
+            // through this link. Clear any sheet first —
             // MainTabView presentations can't overlap (parity with the intent).
             router.activeSheet = nil
             router.isVoiceOverlayPresented = true

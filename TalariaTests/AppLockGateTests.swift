@@ -248,7 +248,9 @@ struct AppLockGateTests {
     /// Scored SEPARATELY from `startSession()` because a fix that guards one
     /// door and not the other is the #323 class ("a subsystem nobody wired")
     /// arriving inside its own fix. This is also the door the device
-    /// reproduction came through: Control Center → "Talk to Hermes".
+    /// reproduction came through: Control Center → the voice tile, which was
+    /// titled "Talk to Hermes" at the time and reads "Talk to Talaria" from
+    /// #415 (2026-08-26) forward. Same control, same `kind`, same door.
     @Test func voiceDirectStartDefersUntilUnlock() async {
         let gate = AppLockGate(isLocked: true)
         let voice = CountingVoiceService()
