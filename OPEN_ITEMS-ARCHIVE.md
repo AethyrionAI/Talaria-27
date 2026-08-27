@@ -43696,3 +43696,1213 @@ sibling class), #405 (the pairing-screen family's last defect), #406
 
 > **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
 
+## 58. 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — ~~`.main` execution BUILT 2026-07-27 (cloud, NOT compiled); controls DEAD on device 2026-07-25~~ **✅ CONTROL CENTER ARM WORKS ON DEVICE — Owen's report 2026-08-10: "command center controls now work, so yay." See the dated note below for what that discharges and the two residuals.**
+
+> **⚖️ 2026-08-10 — OWEN'S DEVICE REPORT, recorded the day it was made.** The
+> owed check was exactly this ("tap Ask Hermes from Control Center → Talaria
+> opens on the Chat tab; then Talk to Hermes → voice surface") and Owen
+> reports the controls now work in real use. Presumed build: **2418** (the
+> 2026-08-09 evening OTA, the newest installed) — correct here if that's
+> wrong. After three straight device FAILs (07-20, 07-23, 07-25), this is the
+> first working report, on a build that post-dates the `.main` execution
+> change compiled into every build since ~07-27 plus two iOS beta cycles —
+> **which of those fixed it is NOT established, and this note does not
+> claim to know.**
+>
+> **Discharged:** the core device verify (both controls, Control Center arm).
+> **Residuals, and then this item can close:**
+> 1. **#179's discriminator** — with the extension COLD (force-quit, or
+>    freshly rebooted), was the FIRST tap swallowed? If Owen's working taps
+>    included a cold first tap, #179 closes with this; 30 seconds next
+>    sitting.
+> 2. **The Lock Screen / Action-button arm** of the checklist (needs the
+>    controls assigned there; Action-button test needs an Action-button
+>    iPhone). Opportunistic, not a dedicated run.
+> The extra-large-portrait layout question stays a cosmetic decision, not a
+> bar.
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F6**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
+> **2026-07-27 — `.main` EXECUTION BUILT on `claude/opus-t27-58-controls-eopguj`. Cloud
+> session, Linux container: NOT compiled on 27A5228h (no Xcode of any build), suite NOT
+> run, baseline green count NOT confirmable. First Mac step is `xcodegen generate`
+> (two files added: `Shared/HermesControlIntents.swift`, `Talaria/Core/DeeplinkRouter.swift`;
+> verify `aps-environment: development` survives), then build + suite, then Owen's device
+> pass.** Both control intents dropped `openAppWhenRun` (the Code 2001 rejection) for
+> `supportedModes = .foreground` + `allowedExecutionTargets = .main`, and moved to
+> `Shared/` — the app process can only perform an intent compiled into it, so dual
+> membership (app + widget) is load-bearing. API shapes doc-verified 2026-07-27:
+> `IntentModes` (iOS 26+) and `IntentExecutionTargets` (iOS 27+, an Equatable OptionSet
+> with `.main`) — NOTE the doc type is `IntentExecutionTargets`; the WWDC26 spelling
+> `ExecutionTargets` this item carried was session-code drift. Doc-verified ≠
+> SDK-verified; the 27A5228h compile is the arbiter.
+>
+> App-compiled branch (`#if TALARIA_MAIN_APP`, new flag on the app target) routes the
+> tap through `DeeplinkRouter` — `AppEntry.handleDeeplink`'s switch, extracted so the
+> intents and `onOpenURL` share one table and the routing is unit-testable at last.
+> Widget-compiled branch keeps the app-group write as FALLBACK, logging `.error` "…the
+> EXTENSION process — .main did not hold" — so the device log names the branch either
+> way (subsystem `org.aethyrion.talaria` = held; `…talaria27.widgets` = not).
+> **`ControlHandoffStore` is deliberately NOT removed**: its removal is gated on the
+> device pass proving `.main` holds, and the dispatch's confirm-then-fix order cannot
+> be discharged from a container with no SDK. Readers checked 2026-07-27: the
+> extension fallback write, `AppEntry.consumePendingControlDestination()`, and
+> `ControlHandoffTests` — nothing else. If the pass shows app-process dispatch, delete
+> all three together (plus the intents' `#else` branch) as the follow-up.
+>
+> `HermesControlsTests` rewritten: the `openAppWhenRun == true` pins are GONE. The
+> suite now drives the real `perform()` of the chat intent (an ordinary app-module
+> method under `.main`) and asserts the router lands on a clean Chat tab, drives both
+> destinations through `DeeplinkRouter` hermetically, and keeps declaration pins
+> explicitly labeled as regression guards. Stated plainly there and here: **system
+> dispatch is untestable off-device** — no unit test can fail if the OS rejects the
+> declaration at dispatch; the device log is the only such evidence.
+
+> **DEVICE PASS 2026-07-25 — controls are 100% dead.** Every tap fails ~6–11 ms in
+> with the OS naming the reason: `openAppWhenRun is not supported in extensions`
+> (Code 2001). `perform()` has never executed, so the app-group handoff built here
+> has never been exercised end to end.
+>
+> `HermesControlsTests.swift:28` asserts `openAppWhenRun == true` — a static
+> constant the OS rejects at dispatch — so the suite is green on a control with
+> zero live executions. The test pins the declaration, not the behavior.
+> *(Both paragraphs addressed by the 2026-07-27 build above — kept as the device
+> evidence it answers.)*
+
+<!-- Header was "Ask-control wiring FIXED (PR #100, 2026-07-16)" until 2026-07-24. The spike below
+     established that #100 fixed something that was never the cause, so that heading read as done
+     when the control was still dead. -->
+
+
+**2026-07-24 — OPTION (a) BUILT on `claude/t27-58-appgroup-handoff`. Suite 1130/104 + 8 UI green;
+device verify owed and it is Owen's.** Both control intents now set `openAppWhenRun = true` and
+return a plain `some IntentResult` — the `OpenURLIntent` is GONE, so the two launch mechanisms the
+old in-source warning described can no longer both be present. The destination rides a new
+`Shared/ControlHandoff.swift` (`ControlHandoffStore`), compiled into the app AND the widget
+extension so the group id and keys cannot drift; `perform()` writes it and logs, and
+`AppEntry.consumePendingControlDestination()` collects it on cold launch (after `initialize()`) and
+on every foreground, then feeds it to `handleDeeplink` — **no second router**, so control /
+Spotlight / Siri / Safari still converge. Consume-once (cleared AS it is read, before routing),
+absent = no-op, plus a 30s staleness window so a destination stranded by a launch that never
+arrived expires instead of hijacking the next one. `HermesControlsTests`' `openAppWhenRun == false`
+pins were INVERTED and watched fail first; the do-not-re-add comment is rewritten to say what it
+actually establishes. **Device checklist:** add both controls to Control Center, tap Ask Hermes
+twice (first may still be swallowed, #179) → Talaria opens on the Chat tab; then Talk to Hermes →
+the voice overlay.
+
+**#179 CHANGES SHAPE under this lane — do not misfile it as a regression of it.** With
+`openAppWhenRun = true` the system launches the app even when `perform()` never ran, so a swallowed
+first tap now opens Talaria on its DEFAULT screen instead of doing nothing. Less broken, still
+wrong, and it looks exactly like a routing bug. That is why "missing destination = no-op" is a
+requirement here rather than a nicety.
+
+**Known race, bounded not eliminated.** `perform()` runs in the extension while the system is
+already launching the app, so a write could in principle land just after the app's first read. The
+second read on scene-activate is the hedge and the 30s window bounds the blast radius if both miss.
+Symptom to watch for on the device pass: first tap lands on the default screen AND a later,
+unrelated launch routes — that is this race, not #179.
+
+**What the suite does NOT prove.** The tests drive an injected `UserDefaults` suite, so they pin the
+store's contract (round trip, consume-once, absence, staleness both sides) but not the app-group
+plumbing itself — entitlements are stripped under `CODE_SIGNING_ALLOWED=NO` (the sim log says
+`container…app_group…: client is not entitled`). Cross-process visibility is device-only. Also
+untestable from a unit-test host: `perform()` itself, which needs the system AppIntents machinery —
+what IS pinned is the `destination` constant each intent hands it.
+
+**Build lane spec'd 2026-07-24: `dispatch/OPUS-T27-58A-appgroup-handoff.md`** — option (a), app-group handoff. Reuses `SharedWidgetDataStore.appGroupID` and routes through the existing `AppEntry.handleDeeplink`, so control / Spotlight / Siri / Safari keep one router path. Carries the correction that `HermesControlsTests`' `openAppWhenRun == false` pins encode the OLD conclusion and must be inverted, and that the in-source do-not-re-add comment must be rewritten or the next reader goes in a circle. Do not re-spec.
+
+**2026-07-24 — SPIKE RUN. QUESTION 2 ANSWERED, AND IT IS NOT A BUG IN OUR CODE.**
+
+**`URL(nil)` is EXPECTED. `OpenURLIntent` does not support custom URL schemes.** Apple DTS
+engineers state this directly and repeatedly in the developer forums: universal links are the
+supported mechanism for opening an app from an App Intent, and custom schemes are not supported
+(forum threads 763783, 762586). A third-party report of the identical shape shows LaunchServices
+rejecting the scheme outright with `NSOSStatusErrorDomain Code=-10814` — our nil in its raw form.
+True since iOS 18. **Not an iOS 27 regression and not a beta artifact.**
+
+**App-side conformance is CLEAN — stop looking there.** `OpenHermesChatIntent` /
+`OpenHermesVoiceIntent` are textbook: `perform() async throws -> some IntentResult & OpensIntent`
+returning `.result(opensIntent: OpenURLIntent(destination))`, `openAppWhenRun` absent,
+`isDiscoverable = false`. No conformance mismatch, no wrong property name. The intents do
+everything right and hand the system a URL it will not accept.
+
+**(b) IS DEAD.** There is no extension-side way to open a custom scheme that avoids LaunchServices
+— Apple does not support the shape at all. Not a routing problem to work around.
+
+**What this means for PR #100, precisely.** #100 set `openAppWhenRun: NO` on the premise that the
+returned `OpenURLIntent` IS the launch. **That premise is correct — for an ELIGIBLE url.** #100 was
+not wrong about the mechanism; it was wrong about `hermes://chat` being eligible for it. The fix
+was sound and the input was not — which is exactly why three device passes kept confirming the
+wiring while the control stayed dead.
+
+**CRITICAL correction to the in-source warning.** `HermesControls.swift` says pairing
+`openAppWhenRun = true` with the returned `OpenURLIntent` made Control Center swallow the tap —
+"do not re-add it." **That is accurate about PAIRING them, and it is NOT an argument against (a).**
+Correct (a) REMOVES the `OpenURLIntent` entirely: `openAppWhenRun = true`, `perform()` returning
+plain `some IntentResult` (**not** `OpensIntent`), destination written to the app group before
+returning, app reads it on launch. Setting both is contradictory — with an `OpensIntent` result the
+returned intent IS the launch, so the two mechanisms compete. **That combination was tried.
+Proper (a) never was.**
+
+**New option (c) — universal links, the shape Apple actually supports.** Feasible, but it is
+infrastructure rather than a code change: an AASA file at
+`https://<domain>/.well-known/apple-app-site-association` served from the DOMAIN ROOT (the current
+Pages site is `aethyrionai.github.io/Talaria-27`, a subpath — this needs an org-root Pages repo),
+the `com.apple.developer.associated-domains` entitlement, and app-side universal-link handling.
+**That entitlement would join `aps-environment` on the must-survive-every-`xcodegen generate` list**
+(#44/#48 trap). Payoff is narrower than it looks: `hermes://` still works from Safari, Shortcuts
+and Siri today — only the AppIntents path rejects it — so (c) buys the controls and nothing else.
+
+**RECOMMENDATION: (a) now; (c) later only if a universal-link surface is wanted for its own sake.**
+(a) is app-side only — no hosting, no new entitlement, no regen trap. The app group already exists
+(sensor outbox, share extension). Estimate ~30 lines plus tests.
+
+**#179 implication — honest answer: both directions inherit it, with an asymmetry.** The cold
+first-tap swallow is extension cold-start behaviour, orthogonal to URL eligibility. Under (a) there
+is a consequence worth writing down BEFORE it is mistaken for a routing bug: with
+`openAppWhenRun = true` the system launches the app even when `perform()` never ran, so a swallowed
+first tap opens Talaria to the DEFAULT screen rather than doing nothing. Less broken than today,
+still wrong. Under (c) a swallowed first tap does nothing at all, exactly as now. **Neither
+direction fixes #179 — the app-group handoff must tolerate a MISSING destination rather than
+assume one.**
+
+**Owed next:** a build lane for (a). Not written yet — this spike's remit was the recommendation.
+
+**Method note for the tracker.** Three device passes were spent on this; the answer came from one
+web search and one source read, and cost nothing. **Check the platform contract before the second
+device pass, not the fourth.** When a symptom says "the system rejected our input," the first
+question is whether the input is supported at all — before any question about our wiring.
+
+**2026-07-24 — THE TRIAGE CAVEAT IS RESOLVED AND RETIRED.** Owen confirmed: after the delete +
+reinstall he went into Control Center and re-set both controls in order to test them. So triage
+step (1) WAS performed before the 2026-07-23 observation. **Stale control registration is
+excluded on clean evidence** and the `IMPORTANT CAVEAT` recorded below is superseded — the
+2026-07-23 FAIL stands on its own and does advance past 2026-07-20. Do not re-run this triage
+step; do not treat registration as a live suspect.
+
+**Spec written: `dispatch/OPUS-T27-58-control-url-spike.md`.** It is a RESEARCH SPIKE, not a build
+lane — deliverable is a written recommendation appended here, not a PR. Three device passes have
+already gone to confident fixes against wrong assumptions; the spike exists to stop the fourth.
+Note that direction (a) contradicts PR #100's premise and must be argued explicitly if chosen.
+
+**2026-07-23 late — ROOT-CAUSED via device log capture (`idevicesyslog`, whoGoesThere,
+`cbcc824`). Registration is NOT the problem. The returned URL is.**
+
+Triage step (1) was finally satisfied properly: the app was DELETED and reinstalled — which
+pulls the controls out of Control Center entirely — and both were re-added fresh from the
+gallery. Both still inert. **Stale control registration is now EXCLUDED.**
+
+Step (2) capture, tapping Ask Hermes:
+
+    17:25:39.803  chronod: Started executing LNAction OpenHermesChatIntent ... from control
+                  openAppWhenRun: NO          <- PR #100's fix IS present and correct
+    17:25:39.818  AppIntents: Invoking OpenHermesChatIntent.perform()
+    17:25:39.818  TalariaWidgets: OpenHermesChatIntent.perform fired - opening hermes://chat
+    17:25:39.819  AppIntents: OpenHermesChatIntent.perform() finished
+    17:25:39.819  AppIntents: Prepared url to URL(nil))      <- THE DEFECT
+    17:25:39.819  chronod: Successfully ran action
+
+The control IS registered, Control Center DOES invoke it, the extension process spawns,
+`perform()` runs and logs a valid `hermes://chat` — and AppIntents then extracts a **nil URL**
+from the returned `OpenURLIntent` and reports the action successful. The tap is silent rather
+than erroring because, from the system's point of view, nothing failed.
+
+**Mechanism (leading, evidence-backed).** Four seconds earlier, same extension process:
+
+    17:25:35.316  kernel(Sandbox): TalariaWidgets(15909) deny(1) forbidden-map-ls-database
+    17:25:35.316  LaunchServices: store or url was nil: Error ... Code=-54 "process may not map database"
+    17:25:35.316  Attempt to map database failed: permission was denied. This attempt will not be retried.
+
+The extension's LaunchServices client context fails permanently and is explicitly never retried.
+If AppIntents needs LS to resolve the handler for a custom scheme while preparing the
+`OpenURLIntent`, it gets nothing back and hands over nil.
+
+**Discriminating control — this is what makes it more than a guess:**
+
+| intents | file | target | result |
+| --- | --- | --- | --- |
+| #66 | `Talaria/Intents/SpotlightEntities.swift` | APP | passes 3/3 |
+| #58 | `TalariaWidgets/Controls/HermesControls.swift` | WIDGET EXTENSION | fails 100% |
+
+Byte-for-byte the same shape — `openAppWhenRun` false, `return .result(opensIntent:
+OpenURLIntent(...))`. The only variable is which PROCESS runs it, and only the extension is
+LS-denied.
+
+**PR #100 fixed something that was not the cause.** Dropping `openAppWhenRun` matches Apple's
+documented control-opens-app-to-URL shape and the `HermesControlsTests` pins should STAY — but
+it was never why the control was dead, which is why two further device passes failed after it.
+Equally, this item's earlier reasoning — that #66 passing moved suspicion onto registration —
+was sound and still wrong: the relevant difference was process, not code.
+
+**Fix direction — needs scoping, not guessing. Three device passes have already gone to one
+wrong assumption.**
+(a) Let the control launch the app via `openAppWhenRun` and have the APP read the destination
+    from an app-group handoff, decoupling launch from URL resolution entirely; or
+(b) find an extension-side way to open a custom scheme that does not route through LaunchServices.
+Note (a) directly contradicts #100's premise, so whoever takes this should re-read Apple's
+current ControlWidget guidance for iOS 27 rather than trusting the #100 note.
+
+**Talk control: the #82 wedge excuse is RETIRED** — positive evidence it fails for its own
+reason, see #179.
+
+**Device re-verify 2026-07-23: FAIL AGAIN — both controls still inert** (build `cbcc824`, OJAMD
+profile active). **IMPORTANT CAVEAT:** it is UNCONFIRMED whether triage step (1) — remove BOTH
+Talaria controls from Control Center and re-add them — was performed before this observation.
+Until that is answered this result does NOT advance past the 2026-07-20 FAIL, because stale
+control registration remains unexcluded. Ask before escalating to step (2).
+
+**Device re-verify 2026-07-20 (Session S launch sweep): FAIL — BOTH controls inert post-PR
+#100** (OJAMD profile confirmed active). Diagnostic contrast that narrows it: #66 (same
+openAppWhenRun fix shape, same OpenURLIntent launch pattern) PASSED 3/3 the same session, and
+the `hermes://` deep link is long proven (#77) — so suspicion moves OFF the intent code and
+onto control registration / the widget-extension process. Triage ladder, in order: (1) remove
+BOTH Talaria controls from Control Center and re-add them (stale control registration across
+app updates/beta seeds is the classic cause — costs 30 seconds); (2) if still dead, Console
+filter subsystem `org.aethyrion.talaria27.widgets` during a tap — PR #100’s instrumentation
+exists for exactly this: perform-line present = launch handling; absent = registration/
+system side; (3) escalate with that answer in hand.
+
+> **MERGED 2026-07-16 (PR #100, `007417b`).** Root cause exactly as localized: both extension-local
+> launch intents paired `static let openAppWhenRun = true` with the `OpenURLIntent` returned from
+> `perform()` — Apple's control-opens-app-to-URL shape is the `OpenURLIntent` ALONE, and setting
+> both makes Control Center silently swallow the tap. Fix drops the member (protocol default
+> false) from `OpenHermesChatIntent` + `OpenHermesVoiceIntent`; `.notice` instrumentation in both
+> `perform()`s (subsystem `org.aethyrion.talaria27.widgets`, public privacy) so Console can answer
+> "did perform fire?". `HermesControlsTests` pins openAppWhenRun/isDiscoverable false + stable
+> `kind` strings (HermesControls.swift compiles into the test bundle via project.yml — the
+> extension isn't an importable module). Loop: regen pbxproj-only, entitlements survived, suite
+> **647 tests / 55 suites green**. → **Device re-verify owed:** tap Ask Hermes from Control Center
+> on whoGoesThere — expect app launch to chat + the perform log line in Console. Talk control
+> stays #82 wedge-excused until the next beta seed.
+
+> **Audit 2026-07-13:** PR #11 (GitHub #7) merged this to main 2026-07-06; header's 'BUILT IN CLOUD, not compiled' is stale. The item's own 2026-07-11 device pass (commits f35edb9, b05fef9) already ran on a compiled build and localized a real bug: the Ask control's action wiring in HermesControls.swift (Talk control is separately wedge-blocked on item #82, not a code defect). 🔧 stays correct as a live, localized bug — 'Small, well-bounded fix' per the item's own text — not because the build is missing.
+
+**Device pass 2026-07-11: PARTIAL FAIL** — Talk control inert (EXPECTED under the #82 audio wedge, don't chase). Ask Hermes control also inert — NOT expected; suspect the deep-link path (#77, registered-unverified) rather than the control itself. Triage: fire the `hermes://` URL directly (Safari/Shortcuts) to split control-vs-deeplink before touching code.
+
+**Localized 2026-07-11:** `hermes://` AND `hermes://chat` both open the app from Safari — scheme and route proven good (#77 base verified in passing). The dead Ask control is therefore the Control Center widget's own action wiring in `HermesControls`. Small, well-bounded fix; Fable-sized. Talk control stays wedge-excused (#82) until the next beta seed.
+
+**Shipped (`db9a03a`, 2026-07-06).** `TalariaWidgets/Controls/HermesControls.swift`: "Ask
+Hermes" + "Talk to Hermes" `ControlWidget` buttons (iOS 18 GA) in `HermesWidgetBundle` —
+Control Center gallery, Lock Screen, Action-button picker. Deliberate architecture: the app's
+real intents are NOT shared into the extension (they'd drag `AppContainer` in, and control
+intents perform in the EXTENSION process where router state is meaningless); extension-local
+`isDiscoverable = false` intents launch the app via `OpenURLIntent` on `hermes://chat` /
+`hermes://voice`, running exactly the code paths the real intents use. `hermes://voice` deep
+link gained sheet-clearing parity with `StartVoiceSessionIntent` (real fix). iOS 27
+`ExecutionTargets.main` upgrade path noted in comments. Polish: `systemExtraLargePortrait`
+added to `HermesStatusWidget` — public docs still list the symbol as visionOS; if the beta SDK
+rejects it, it's a flagged one-line deletion.
+
+**Mac-session checklist:** build (watch the `systemExtraLargePortrait` line) → device: controls
+in gallery after reinstall (+ unlock; don't judge failure from an immediate look), Lock Screen +
+Action button assignment, taps open the right surfaces. Action-button test needs an
+Action-button iPhone.
+
+**Questions for Owen:** dedicated extra-large-portrait status-widget layout later, or is the
+stretched small layout fine?
+
+Logged 2026-07-06.
+
+---
+
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — PASS, and Owen's close: "Can't tap twice, because it
+> works now and a single tap brings me in. This can be closed."** The
+> cold first tap WORKS — #179's discriminator answered in the good
+> direction (nothing swallowed). CLOSED on his word; the opportunistic
+> Lock-Screen/Action-button arm dies with it (never a bar). Archive move
+> rides the next sweep. Twin note at #179.
+
+> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 112. ✨ Midnight Marquee collection — 7 themes / 8 palettes, first adaptive theme, +13 app icons (Lane L)
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
+Claude-Design drop landed 2026-07-12: the **Midnight Marquee** collection becomes the gallery's fifth section. Handoffs committed to `design/themes/` (`midnight-marquee-final-lineup.html` is authoritative; both `*-options.html` files are provenance/rejected alternatives). Lane spec: `dispatch/FABLE-LANE-L-midnight-marquee.md`.
+
+**Scope:**
+- **6 standard themes** (SE batch-4 pattern: palette entry + catalog definition + art direction + bespoke orb each): Lucha Libre (Rudo Nocturno), Kaiju Attack (Code Red Tokyo), Pulp Noir (Dime Novel — **light**), Casino Lucky 7s (House Felt), Cosmic Bowling (Carpet Classic), Sticker-Bomb Toybox (Kidcore Shelf — **light**).
+- **Comic Book — the app's FIRST ADAPTIVE THEME** (product decision, Owen 2026-07-12): ONE gallery entry that follows the system light/dark appearance. Villain Variant (dark, ink + kapow yellow/panic red) ↔ Sunday Funnies (light, Ben-Day CMY on newsprint). Architectural first: scheme-aware palette resolution (two ThemeIDs, one AppearanceTheme), `preferredColorScheme` = nil for adaptive only, widget-side fork, live re-skin on system toggle. Also the collection's most animated theme — Event Horizon-tier art direction budget.
+- **13 icons → 31 total**: the 5 Special Edition icons `AppIconCatalog` reserved a section for (updated `app-icons.html` rev now carries their SVGs) + 8 Midnight Marquee icons (`midnight-marquee-app-icons.html`), incl. both Comic Book variants as separate selectable icons.
+
+**Not in scope:** Haunted VHS stays cut (device verdict 2026-07-11; `.phosphor` orb remains orphaned reusable data). SE themes Aquarium/Forge already shipped (batch 4) — the zip's SE files were byte-identical to repo.
+
+Logged 2026-07-12 (dispatch-prep session).
+
+**MERGED 2026-07-13** — PR #84 (`7f295f8`), 16 commits (12 Fable phase-scoped + Mac review loop's pbxproj regen and 3 build fixes: missing SwiftUI import in the widget timeline provider, and two `displayLabel` overload ambiguities in app + tests — the "compile-clean tracer" verdict missed all three, the loop earning its keep). Suite: **582/582 green across 49 suites** (+12 over baseline). All 39 icon PNGs pure additions; 14 existing icons re-rendered byte-identical.
+
+**Owed on device (whoGoesThere):** Comic Book live-switch (Settings → toggle system appearance foregrounded → villain↔funnies re-skin without relaunch), the two documented seams for Owen's verdict — (a) picker card previews the presented-surface variant while a fixed theme forces the scheme, (b) cold light-mode launch flashes the villain half for one frame before the mirror lands — plus new-icon spot check and light-chrome pass on Pulp Noir / Sticker-Bomb.
+
+**2026-07-13 follow-up (`48770cd`):** icon picker was a silent no-op on iPad — iPadOS reads `CFBundleIcons~ipad` exclusively for alternate-icon support and we only declared the base key (iPhone unaffected). Fixed via YAML anchor/alias in `project.yml` so both keys stay byte-identical with a single edit point. **Shelley's iPad icon-picker check rides her next install.**
+
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — DEVICE PASS: "Looks good. Changes based on system
+> settings."** The live re-skin follows the system appearance without
+> relaunch; no seam complaint volunteered on either recorded seam. The
+> iPad icon-picker glance still rides Shelley's next install
+> (opportunistic, not a bar). CLOSED; archive move rides the next sweep.
+
+> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 121. ✨ Reasoning on resume — restore thinking panes from stored messages — MERGED (PR #120) 2026-07-19
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
+The #25 wire probe (2026-07-16) found `GET /api/sessions/{id}/messages` carries `reasoning` +
+`reasoning_content` per row — fetched on every resume, currently discarded. Live turns restore
+reasoning via `run.completed` (#60 / PRs #94+#95); resumed sessions render permanently empty
+panes. Decode the fields (tolerant), map into the same message property the live path writes,
+and apply the SAME #60 answer-mirror guard (reasoning identical to content → dropped). No new
+UI — the existing pane renders when the field is populated.
+
+> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-121-reasoning-on-resume.md` — **READY TO
+> SEND.** Cross-ref #60 (the answer-mirror trap is restated in the spec as non-negotiable).
+
+> **MERGED 2026-07-19 as PR #120** (branch `claude/fable-t27-121-resume-tlccml`, 1 commit,
+> mod-only — no regen). Stored `reasoning`/`reasoning_content` rows now decode tolerantly and
+> populate the same message property the live path writes; #60 answer-mirror guard verified
+> applied on BOTH resume decode paths (`SessionsHermesClient.swift` ~356/359 and ~417).
+> Combined-main gate 893/77 green. → ✅ on device verify: resume a session with prior
+> reasoning turns, confirm panes render collapsed and no answer-mirror duplicates appear.
+
+Logged 2026-07-17.
+
+---
+
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — RE-CONFIRMED:** reasoning panes render in full on
+> resume, including on a CONTEXT-TRANSPLANTED thread ("viewed the
+> reasoning there in full"), plus several other threads clean. CLOSED;
+> archive move rides the next sweep.
+
+> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 122. ✨ Session cost & usage surface — MERGED (PR #121) 2026-07-19
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
+The #25 probe proved session-level `input_tokens` / `output_tokens` / `cache_*` /
+`reasoning_tokens` / `estimated_cost_usd` / `actual_cost_usd` / `api_call_count` are served on
+the sessions list + detail endpoints — cumulative billing figures, banned as a context meter,
+perfect as a cost readout. Compact per-session usage row on the existing session metadata
+surface: cost (actual preferred, `~` for estimated), tokens in/out, api calls; absent data hides
+the row (never $0.00 for unknown). No aggregation, no new screens; a spend-over-time chart is a
+future #100 rider only.
+
+> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-122-session-cost.md` — **READY TO SEND.**
+
+> **MERGED 2026-07-19 as PR #121** (GitHub PR number — distinct from this item number;
+> branch `claude/fable-t27-122-session-cost-8x527x`, 5 commits, mod-only — no regen).
+> `SessionUsage` decode + cumulative usage threaded through the sessions list; spend row on
+> Sessions settings (actual cost preferred, `~` estimated, absent data hides the row — never
+> $0.00 for unknown). Combined-main gate 893/77 green. → ✅ on device verify: spend row
+> shows real figures against live gateway sessions and hides on sessions without usage data.
+
+Logged 2026-07-17.
+
+---
+
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — RE-CONFIRMED:** "I didn't see any 0.00" — no zeroed
+> cost rows anywhere he looked. (The SESSION-block-after-reopen half is
+> #330's, separately fixed last night and closing via its own 330-G
+> card.) CLOSED; archive move rides the next sweep.
+
+> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 179. 🐛 First Control Center tap is swallowed — action reports success before the widget extension exists — likely SUBSUMED by #58 (2026-07-25)
+
+> **2026-08-10:** Owen reports the Control Center controls now WORK (#58's note). This item's cold-first-tap discriminator is the ONLY thing left open here — one 30-second check next sitting (force-quit, tap the same control twice; if only the first is swallowed, the shape is established; if neither, close with #58).
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F6**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
+> **2026-07-27 — decision point moves to the #58 device pass.** Under the `.main`
+> execution target built for #58, the tap's action no longer dispatches to the widget
+> process at all — `perform()` runs in the app process — so this item's mechanism
+> (chronod reporting success against a cold extension it only then launches) leaves
+> the tap path entirely, IF `.main` holds. Owen's #58 checklist includes the
+> discriminating shot: the VERY FIRST control tap with everything cold (fresh boot or
+> app+extension long-killed). If that first tap routes, close this against the #58
+> lane; if first-tap behavior still differs from second-tap, this survives as its own
+> item with fresh evidence. Do not spec separately before that pass.
+
+> **2026-07-25.** Very likely subsumed by the #58 finding: no control tap has ever
+> reached `perform()` (`openAppWhenRun` rejected in extensions, Code 2001), so
+> "first tap swallowed" and "every tap swallowed" are indistinguishable from
+> outside. Do not spec this separately until controls dispatch at all.
+
+**Found 2026-07-23 (device log capture, whoGoesThere, `cbcc824`), while running #58 step 2.**
+The FIRST control tapped after opening Control Center (Talk to Hermes, 17:25:35) produced:
+
+    17:25:35.286  chronod: Starting to run action: OpenHermesVoiceIntent ... openAppWhenRun: NO
+    17:25:35.307  chronod: Successfully ran action: OpenHermesVoiceIntent
+    17:25:35.312  chronod(ExtensionFoundation): Launching process with config: ... TalariaWidgets
+    17:25:35.314  TalariaWidgets: Received connection request on service listener
+
+21 milliseconds from start to "success", with **no `PerformAction` and no `Invoking
+...perform()` sequence at all** — and the extension process was launched only AFTERWARD. The
+action was reported successful without ever having performed.
+
+Contrast the second tap four seconds later (#58's capture), by which time the extension was
+warm: that one ran the full `InitializeAction -> ResolveParameters -> LocateActionPerformer ->
+PerformAction -> perform()` sequence.
+
+**Independent of #58's nil-URL defect, and it will still bite after that is fixed.** The first
+tap against a cold extension does nothing at all, silently.
+
+**Rhymes with the dropped-tap race noted in #137** ("first tap on PAIR DEVICE right after
+pairing ... previously masked by the interstitial root rebuild"). Worth checking whether these
+share a cause or merely a shape.
+
+**Retires the #82 excuse for the Talk control**, which had been wedge-excused since 2026-07-11.
+#82's root cause was fixed in PR #106 anyway.
+
+**Not yet investigated:** whether this is simply Apple's behaviour for a cold `ControlWidget`
+extension — and therefore something to design around rather than fix — or something the app
+influences. Confirming shot: tap the SAME control twice with the extension cold; if only the
+first is swallowed, the shape is established.
+
+Logged 2026-07-23.
+
+
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — the discriminator ANSWERED: the cold first tap is NOT
+> swallowed** ("a single tap brings me in"). Owen: "This can be closed."
+> CLOSED with #58 on his word; archive move rides the next sweep.
+
+> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 329. 🐛 A COLD LAUNCH classifies a still-running turn as FAILED and offers RETRY — tapping it duplicates the turn, because the host never stopped — **FILED 2026-08-11 from Owen's Group 7 device pass (#312 item (a)). MEASURED TWICE, with a control. ~~NOT STARTED; bars pre-register here before any code.~~** **⟵ HEADER CORRECTED 2026-08-24: premise code-read inverted the mechanism (the plane is gone, only the run id was lost), Owen ruled 329-C RECONCILE-FIRST the same evening, and the fix is ✅ BUILT + GATED that night — 329-A..E MET (result block at the foot); only 329-F (device, rides the NEXT staged OTA) remains.**
+
+**What was run, and it was run twice with the second trial as a control.** Owen
+asked a question on a Hermes thread, then **force-quit the app** while the turn
+was in flight.
+
+- **Trial 1 — the defect.** Relaunched; the thread offered **Retry**. He tapped
+  it. The reply rendered and looked correct. He switched threads, came back, and
+  **the turn was DUPLICATED** — because the original run had never stopped and
+  its answer landed alongside the retry's.
+- **Trial 2 — the control, and it is what makes this a diagnosis rather than a
+  guess.** Same setup, and he **did not tap Retry**. Waited ~60 s, switched
+  threads, came back — **the answer was simply there, correct and single.**
+
+*"It's really still going in the background."* His words, and they are the whole
+finding.
+
+**What that pair proves, separately:** the reconcile machinery (#235 / #278 /
+#295) **works** — an interrupted turn's answer is recovered on its own, which
+trial 2 shows end to end. The defect is entirely upstream of it: **on cold
+launch the app classifies an in-flight turn as FAILED and presents a failure
+affordance for work that is still succeeding.** Retry is then not a retry; it is
+a second submission of a live question.
+
+**Root cause is #328's, one level up.** On the sessions plane the app cannot see
+that the host is still working — the same blindness that makes `hardStopActiveRun()`
+a no-op there. A cold launch loses the in-memory `pendingRun`, restores the row
+from disk, finds no live stream, and concludes failure. Nothing consults the
+host, because on that plane there is nothing to consult.
+
+**Related but NOT the same, and the distinctions are load-bearing:**
+- **Airplane mode is CORRECT** — tested the same evening (#312 item (e)): the
+  message parks as **queued**, shows **no Retry**, and auto-sends exactly once on
+  reconnect, *"almost instantly, like it was waiting on me."* So the app's
+  classification is right when the failure is local and knowable, and wrong when
+  the turn is alive somewhere it cannot see. **That contrast is the sharpest
+  statement of this defect** and any fix should preserve the airplane-mode arm
+  exactly as it is.
+- **#279** (retry duplicates the USER row) is FIXED and is a different mechanism —
+  that was `retryMessage` removing the failed row without adopting. Here the user
+  row is fine; it is the ANSWER that arrives twice.
+  no-dupes half was device-MET on 2026-08-04. **A lane here must re-run 237-E
+  rather than assume it still holds** — this is the same collision from a new
+  entry point.
+
+> **🔍 PREMISE CODE-READ 2026-08-24 (the queued §11 item — run from the Mac,
+> not the desk: the code and a live gateway were all it needed). THE DEFECT
+> IS STILL LIVE, BUT ITS PREMISE HAS INVERTED — and three of this entry's
+> claims are now stale.**
+>
+> **What changed under it:** this entry reasons from the sessions plane
+> ("nothing to consult"). #368 made runs the default and **#382 deleted the
+> sessions turn transport entirely** — every turn now has a run id, and
+> `GET /v1/runs/{id}` answers "is it still alive?" directly. **"There is
+> nothing to consult" is FALSE at HEAD.** What survives of the defect is one
+> gap: **the app loses the run id at process death.** `ChatStore.pendingRun`
+> is a plain in-memory `private var` (`ChatStore.swift:464`; 382-A's
+> persistence pin covers the within-process expiration arm, not relaunch),
+> and `finalizeStaleSendsFromCache()` (`:678-728`) still flips every cached
+> `.sending` user row to `.failed` + Retry unconditionally — its own doc
+> comment carries the honest caveat ("the run may in fact have completed
+> server-side") that is this entry's whole defect.
+>
+> **Probed live on the Mac gateway (read-only, 2026-08-24):** `GET /v1/runs`
+> without an id → **405** (POST-only route; no list endpoint), and
+> `/v1/capabilities` advertises `run_status` but nothing list-shaped. **So
+> recovery-by-enumeration is impossible — persisting the run id is the ONLY
+> route to a cold-launch status read.** The session id already survives:
+> `ConversationJournalStore` loads at launch and persists every mutation,
+> which is why trial 2's answer-recovery works today.
+>
+> **Stale claims corrected (close-out rule, in place):**
+> 1. "On that plane there is nothing to consult" — true when written, false
+>    since #368/#382; the blindness is now a lost credential, not a missing
+>    endpoint.
+> 2. 329-C's "interacts with #328's route-2 surface, which is in flight" —
+>    #328's route 1 became PERMANENT when #382 deleted the alternative;
+>    there is no route-2 surface in flight. The interaction constraint is
+>    DISCHARGED.
+> 3. The root-cause paragraph's #328 framing survives only as history — the
+>    shared root was the plane, and the plane is gone.
+>
+> **Fix shape this opens (recorded, NOT elected — 329-C's design question is
+> Owen's, posed before any code per its own text):** persist the pending
+> run's `(runId, sessionId)` beside the journal hop; on cold load, a
+> `.sending` row with a persisted run id consults `GET /v1/runs/{id}`
+> BEFORE classification — alive ⇒ hold + arm the existing reconcile (trial
+> 2's proven path), completed ⇒ reconcile adopts, failed/expired ⇒ `.failed`
+> honestly. Host unreachable ⇒ today's behavior stands (locally-knowable,
+> the airplane arm's logic). **Recommended: this reconcile-first-then-decide
+> arm — it needs no new UI state and 329-B/329-D hold by construction.** The
+> alternatives 329-C names (a distinct "still running" state; a suppressed
+> Retry) remain open for his pick.
+
+> **⚖️ 329-C RULED 2026-08-24 (Owen, same evening as the code-read):
+> RECONCILE-FIRST-THEN-DECIDE.** The contract, fixed before code: the
+> pending run's `(runId, sessionId)` persists; on cold load a `.sending`
+> row with a persisted record is NOT flipped to `.failed` — the app
+> consults `GET /v1/runs/{id}` first. Alive or completed ⇒ hold the row and
+> arm the existing reconcile (trial 2's proven path adopts the answer);
+> failed/expired ⇒ `.failed` honestly; **host unreachable ⇒ today's
+> behavior stands** (`.failed` + Retry — locally-knowable, the airplane
+> arm's own logic). A row with NO persisted record (pre-fix caches, cleared
+> state) also keeps today's behavior — the fix must not strand old caches
+> pending forever. Bars 329-A..F stand as pre-registered; the lane opens on
+> this ruling.
+
+> **✅ RESULT 2026-08-24 (night) — BUILT on the ruling, RED-first, all
+> sim-side bars MET; GATE: PASS 2498 Swift Testing / 202 suites + 14
+> XCUITest / Release clean** (baseline 2485 + 13 exactly: 8
+> `ColdLaunchRunRecoveryTests` + 5 `RelayDraftIntegrityTests` — the second
+> five belong to **#405**, a pre-existing input-scrambling defect this
+> lane's gate EXPOSED, control-proven at the branch point and fixed on the
+> same branch; its story is its own entry).
+> - **329-A — met as its structural negation, said plainly per the bar's own
+>   instruction:** the RED run reproduced the classification half (6 tests
+>   red at HEAD: row flipped `.failed`, no status read, no record). The
+>   affirmative DUPLICATE (tap Retry, original also lands) is not
+>   sim-reproduced — under the fix the row is never `.failed` while the run
+>   may be alive, so no Retry affordance exists to tap; the duplicate's
+>   precondition is removed rather than its sequence replayed. The
+>   affirmative arm remains 329-F's device check.
+> - **329-B — met.** The airplane/queued arm is untouched:
+>   `queuedRowScrubIsUntouchedByThePresenceOfARecord` pins #90's scrub
+>   running beside a held record, and the existing outbox/terminal suites
+>   (`MessageQueueTerminalsTests`, `AppStoresTests`) ran green mid-lane (237
+>   tests / 5 suites) and in the gate.
+> - **329-C — built EXACTLY as ruled.** `PendingRunRecord` persists
+>   `(runId, sessionId, userMessageID, conversationID, sentAt,
+>   partialReasoning)`; the choke point is a `didSet` on
+>   `ChatStore.pendingRun` (every arm and settle flows through one
+>   assignment — the record cannot drift from the in-memory truth). Cold
+>   load consults the run's own status; four verdict arms tested: alive ⇒
+>   held `.working` then adoption (`.sent`, exactly one reply); host-said-
+>   failed ⇒ honest `.failed` + the host's words as a system row; gone ⇒
+>   deferred `.failed` when recovery concludes; unreachable ⇒ held for the
+>   budget, then today's terminal. No-record caches and foreign-conversation
+>   records keep today's behavior bit-for-bit (both were GREEN controls in
+>   the RED run).
+> - **329-D — met.** The #237 dedup suites (`ChatStorePersistenceTests`,
+>   `RunStatusRecoveryTests`, adoption idempotence) re-ran green with the
+>   fix in; adoption stays keyed on `stableRecoveredRunMessageID`, so a
+>   racing second pass merges rather than duplicating.
+> - **329-E — met.** Gate above; the count moved by exactly the additions.
+> - **329-F — OWED ON DEVICE, NOT CLAIMED:** force-quit mid-turn, relaunch,
+>   one answer. **Rides the NEXT staged OTA — build 2998 does not carry
+>   this fix**; the runbook card lands when that build stages (its §06
+>   OBSERVE card's #329 half describes 2998's pre-fix behavior, correctly).
+> - **Wiring mutations, three, each isolating:** unwiring the restore hook
+>   reds the whole restore family and nothing else; removing the scrubber's
+>   spare reds the alive arm at load; removing the didSet persist reds only
+>   the record-lifecycle test.
+> **What remains on this entry: 329-F alone.**
+
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — 329-F PASS (the closing device bar), with one honest
+> nuance recorded:** force-quit mid-turn → relaunch "showed Retry at
+> first," then as the host progressed, leaving and re-entering the
+> thread delivered the fuller answer with reasoning — ONE answer, no
+> duplicate, the host session visibly advancing. The nuance: a brief
+> Retry window can appear before reconcile catches up with a
+> still-running run, and post-relaunch content arrives on thread
+> RE-ENTRY rather than live-streaming — both consistent with the
+> reconcile-first design (status is read at entry; the stream is not
+> re-attached). Recorded as observed behavior, not a defect claim; a
+> recurrence that DUPLICATES an answer would be the thing to re-file.
+> CLOSED; archive move rides the next sweep.
+
+> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 360. 🔧 Dictation range-finalization robustness — `DictationController` assumes single-range, single-final transcriber results; the SDK contract is range-scoped with progressive finalization — **FILED 2026-08-17 evening, out of #359's investigation (whose artifact it did NOT cause — Owen typed those prompts; the falsification is recorded in #359). SHIPPED the same evening: ALL BARS 360-A..D MET (PR #311, merge `2210e56b`), gate PASS. Residual, stated honestly: the auto-stop grace timing is review-verified, not unit-tested — a device dictation pass is the honest closer. (Header updated 2026-08-18, stale-header sweep.)**
+
+**The SDK contract (read from the beta5 swiftinterface, not recall, per the
+standing memory):** `SpeechModuleResult` requires `range: CMTimeRange` +
+`resultsFinalizationTime`, and `isFinal` is derived (range vs finalization
+time) — results are RANGE-scoped, finalization is progressive, and multiple
+finals per session are permitted by construction. `DictationTranscriber.
+Result.text` is the text OF ITS RANGE.
+
+**What our code assumes instead**
+(`LiveSpeechService.swift`, `DictationController.resultsTask`): every
+result's text is the WHOLE utterance (each `.partial` overwrites the entire
+transcript), and the FIRST `isFinal` ends the utterance (`emit(.finished)`
++ `stop()` + `break`). Under the range-scoped reading, a mid-dictation
+finalization beheads the live preview (later volatile text covers only the
+unfinalized range) and truncates the utterance at the first finalized
+boundary.
+
+**HONESTY, up front: no device evidence that `.progressiveShortDictation`
+actually emits mid-stream finals or range-scoped volatiles today.** This
+lane makes the controller correct under BOTH readings of the documented
+contract (the #4.15 `incrementalReasoningDelta` hedge pattern, applied one
+layer down), and makes the logic unit-testable at all — it is robustness
+under a documented contract, not a claimed live defect. If a live repro of
+either shape ever surfaces, it lands here as evidence, not as a surprise.
+
+**Fix design:** extract a pure `DictationTranscriptAssembler` (finalized
+accumulator + volatile tail; a volatile/final whose text `hasPrefix` the
+accumulated finalized text is treated as a cumulative snapshot — the hedge
+— otherwise as a range suffix, whitespace-aware join); the controller
+emits `.partial(assembled)` per result and `.finished(assembled)` when the
+results STREAM ends, never breaking at `isFinal`; plain cancellation must
+not emit `.failed`.
+
+**THE BARS (pre-registered before fix code):**
+- **360-A (RED-first):** the current result-handling logic is extracted
+  VERBATIM into the assembler (behavior-preserving refactor), and the
+  desired-semantics tests are observed RED against it: (1) volatile text
+  after a mid-stream final keeps the finalized prefix; (2) a second final
+  accumulates instead of replacing; (3) a cumulative-snapshot volatile is
+  not doubled; (4) the finished transcript carries everything.
+- **360-B:** post-fix, all assembler tests green, and the controller wires
+  through it: no `break` at `isFinal`, `.finished` at stream end,
+  cancellation emits nothing.
+- **360-C (equivalence guard):** under the one-final-then-stream-end shape
+  (today's assumed short-dictation reality), emissions are equivalent to
+  current behavior (same partials, same finished text, auto-stop still
+  fires) — asserted by a scripted-sequence test.
+- **360-D:** `lane-gate.sh` green before any PR.
+
+**Cross-refs:** #359 (the investigation that surfaced this), #4.15 (the
+hedge pattern), #131/#82/#198 (this controller's prior hardening), #9
+(voice memos — separate path, untouched).
+
+> **✅ 2026-08-17 late evening — BARS A, B, C, D ALL MET, same session.**
+> - **360-A MET:** the verbatim extraction went in first; the
+>   desired-semantics tests were observed RED against it — 5 of 8 failed
+>   (beheading, second-final accumulation, finished-carries-everything,
+>   range join, empty-volatile), the 3 cumulative-mode guards passing on
+>   both semantics as predicted.
+> - **360-B MET:** hedged assembler in (`hasPrefix` = cumulative snapshot;
+>   otherwise range text, PLAIN concatenation — the recognizer owns token
+>   spacing, decided when the mid-word-boundary test contradicted invented
+>   separators; one test's INPUT was corrected to carry its own leading
+>   space, modeling that contract). Controller: no `break` at `isFinal`,
+>   `.finished` at stream end, `CancellationError` emits nothing. 8/8
+>   green.
+> - **360-C MET, with one addition beyond the pre-registered design:**
+>   review flagged that moving `.finished` to stream-end GAMBLES the
+>   device-proven auto-stop UX on an unverified assumption (does the
+>   results stream end by itself after the last final?). A **1 s
+>   finish-grace** was added: a final arms it, any later result disarms
+>   it, its firing (or stream end, whichever first) finishes the
+>   utterance. Single-final world: auto-stop preserved (+1 s). Multi-final
+>   world: no truncation. Double-finish impossible (`stop()` nils the
+>   continuation and cancels the results task, whose cancellation path
+>   emits nothing). The grace is review-verified, not unit-tested (actor +
+>   real clock); a device dictation pass remains the honest closer for the
+>   auto-stop timing.
+> - **360-D MET:** GATE: PASS — 2245 Swift Testing tests (exactly +8 for
+>   this lane's suite), 14 XCUITest, Release clean.
+
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — PASS, the honest closer met:** "Got the short, and got
+> a very long one from me without missing a word. I rambled for a bit."
+> Both arms (short utterance + long ramble) survived the auto-stop grace.
+> CLOSED; archive move rides the next sweep.
+
+> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 371. 🐛 History-restored ✓ chips assert completions the app never witnessed, on runs nobody stopped — **FILED 2026-08-18 night per #268, from #327's explicitly-unfiled residual ("NOT filed here — it needs Owen, and it is entangled with #328 route 1"). ~~NOT STARTED.~~** **⟵ RULED provenance-label 2026-08-24 (decision pass) and ✅ BUILT + GATED the same night (trio lane) — 371-A..F met; only the device look remains (runbook).**
+
+> **2026-08-19 — the surface this rides is now the DEFAULT** (#368 merged as
+> `33108d05`). #368 did **not** build this — deliberately: a restored chip's
+> provenance is its own question, and folding it into a transport cutover
+> would have smuggled an unmeasured change in (bar 3E-J forbade exactly
+> that). What changed is that the design question is **answerable** rather
+> than blocked on which plane wins. Still NOT STARTED; bars pre-register
+> here before any code.
+
+- A restored chip on a run that completed while the app was away renders ✓ with
+  no evidence behind it. Same honesty family as #327/#328; the fix surface is
+  the runs plane — design rides **#368**.
+
+
+> **⚖️ RULED 2026-08-24 night (Owen, interactive decision pass): the
+> PROVENANCE LABEL.** History-restored ✓ chips render distinguishably —
+> "completed while away" tone/copy — so the chip stops asserting a witness
+> the app does not have. No network on restore; the verify-on-restore
+> alternative (#329's status-read infrastructure) was presented and NOT
+> elected. Small UI lane; bars pre-register here before code.
+
+
+> **🎯 BARS 371-A..F — pre-registered 2026-08-24 late, BEFORE code, on the
+> provenance-label ruling. Recon verdict: ONE construction site makes the
+> unwitnessed ✓ (`SessionsHermesClient.swift:729`, `isActive: false` with no
+> outcome — #327's own comment already names it "a ✓ there asserts a
+> completion nobody witnessed"); one render site consumes it
+> (`ToolActivityRail`).**
+> - **371-A:** `ToolActivity` gains an OPTIONAL provenance field
+>   (`nil` = witnessed, the historical value) — optional is load-bearing:
+>   `legacyToolActivityJSONStillDecodes` must stay green, or every pre-change
+>   cache wipes the transcript (#42's shape).
+> - **371-B:** the reconstruction site stamps `.reconstructed`; a PARALLEL
+>   pure function beside `state(of:)`/`summaryState(of:)` renders the
+>   distinguishable state — the enum is NOT widened, so all sixteen existing
+>   `summaryState` call sites stay green untouched.
+> - **371-C:** ordering — a restored activity that #327 marked interrupted
+>   (`failure` set) renders INTERRUPTED, never "completed while away";
+>   failure wins outright, as the rail already documents.
+> - **371-D:** the dedupe key excludes provenance — a new arm beside
+>   `failureIsNotPartOfTheAdoptedEchoKey`, same reasoning (#237's duplicate
+>   must not resurrect).
+> - **371-E:** copy — the ruled phrase "completed while away" is pinned, and
+>   the ACCESSIBILITY label carries the same distinction (#296's VoiceOver
+>   lesson: the non-visual reader must not get the ✓ version of the lie).
+> - **371-F:** NO network on restore (the ruling's explicit exclusion);
+>   witnessed ✓ rendering byte-unchanged (296-B green); GATE: PASS, count
+>   moved exactly.
+
+> **✅ RESULT 2026-08-24 night — 371-A..F ALL MET (trio lane, one gate).**
+> `ToolActivity.provenance` optional (legacy JSON pin green); the
+> transcript rebuild stamps `.reconstructed` (producer pin RED-first,
+> unstamp mutation isolating 1/9); PARALLEL rail decisions (enum not
+> widened — all sixteen `summaryState` call sites untouched) drive a
+> dimmed glyph, a hollow step dot, and the VoiceOver phrase through the
+> pinned `completedWhileAwayPhrase`; interrupted wins outright (#327's
+> stops keep their rendering); provenance excluded from the #237 dedupe
+> key by its own test arm. Gate as #407's. **Remaining: the device look —
+> runbook.**
+
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — DEVICE PASS:** "dimmed check" — the provenance dim
+> confirmed on device. CLOSED; archive move rides the next sweep.
+
+> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 381. 🎨 Steer/interrupt is UNREACHABLE while the composer is `busyNoCommit` with the hold slot taken — **FILED 2026-08-18 night per #268, from #357-E's verdict (2026-08-17): with the #306 hold slot occupied the composer offers Stop only — no commit control — so mid-run steering cannot be exercised in exactly that state. A follow-up affordance is Owen's call. NOT STARTED.** **⟵ HEADER CORRECTED 2026-08-23: the call was MADE — Owen RULED *accept the limitation for now, WATCH* on 2026-08-18 ~22:40, with #368's cutover as the re-examination trigger. So this is not an open decision and not buildable work; it is a watch item waiting on #368.**
+
+> **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): ACCEPT the
+> limitation for now — WATCH.** Trigger: #368's cutover landing, which
+> reshapes the composer surface this rides on; re-examine then.
+
+
+> **⚖️ RULED 2026-08-24 night (Owen, interactive decision pass): BUILD THE
+> AFFORDANCE.** A steer entry stays reachable in the busy-no-commit-with-
+> held-slot state, wired to the existing #357 steer machinery. Small UI
+> lane; bars pre-register here before code.
+
+
+
+> **🎯 BARS 381-A..E — pre-registered 2026-08-24 late, BEFORE code, on the
+> build ruling. Recon verdict first: the RESOLVER already knows the answer —
+> `ComposerDoor.explicitDoors(...)` returns `[.steered, .interrupted]` with
+> the hold slot taken, and `occupiedHoldRemovesTheQueueDoorOnly` pins it
+> GREEN today. The defect is that the `.busyNoCommit` view arm never asks
+> (`ChatInputBar.swift:646-651` renders Stop and nothing else). Shape 1:
+> a `Menu` beside Stop, body shared with `queueCommitButton`'s context menu
+> so the two sites cannot drift.**
+> - **381-A:** a pure helper (`ComposerDoor.busyAuxiliaryDoors(doors:canSend:isSlashMode:)`
+>   or equivalent) returns the menu's doors — non-empty exactly when
+>   explicit doors exist AND the draft is sendable AND not slash-mode.
+>   RED-first unit tests on all arms.
+> - **381-B:** the three collapsed causes of `.busyNoCommit` stay
+>   distinguished — an EMPTY draft and a SLASH draft get NO steer menu
+>   (nothing to steer with; `ChatScreen` hard-guards slash anyway).
+> - **381-C:** row 3 stays closed — when `explicitDoors` is empty
+>   (streamLostRunLive + slot taken, the #307 guard), nothing renders; the
+>   helper keys on the resolver's answer, never on the door enum alone.
+> - **381-D:** the menu entry reuses "Steer the running turn" VERBATIM and
+>   routes through `handleExplicitDoor` (dictation settles, status strip
+>   appears, #357-G honesty preserved); `chipVocabularyNeverSaysSent`
+>   stays green untouched.
+> - **381-E:** every existing `SteeringComposerDoorsTests` test unchanged —
+>   editing the resolver or its pins means the fix went to the wrong layer.
+>   GATE: PASS, count moved by exactly the additions; the 10-second device
+>   look rides a future runbook card.
+
+> **✅ RESULT 2026-08-24 night — 381-A..E ALL MET (trio lane, one gate).**
+> `ComposerDoor.busyAuxiliaryDoors` (pure, 6 unit arms incl. the defensive
+> queue-filter) + ONE shared menu body consumed by both the queue control's
+> long-press and a new `Menu` beside Stop in the `.busyNoCommit` arm —
+> structural pin RED-first; guard mutation reds exactly the empty-draft and
+> slash arms; the resolver suite untouched-green (editing it would have
+> been the wrong layer, per the bars). Labels verbatim; routes through
+> `handleExplicitDoor`. Gate as #407's. **Remaining: the device look
+> (steer menu appears while busy with the hold taken) — runbook.**
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — DEVICE PASS:** "Got the fork, then the two button
+> choices for steer or stop and steer." CLOSED; archive move rides the
+> next sweep.
+
+> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 390. 🔬 `.vision` IS TRUE ON BOTH TIERS — so #173's caption decision was made about a model that HAS vision, and the OCR path is now a CHOICE with a privacy dimension — **SPAWNED BY #388-A 2026-08-21 per its scope rule. RULED 08-24 (true vision both tiers, OCR fallback); ✅ BUILT + GATED 2026-08-25 — bars 390-A..F met, 390-G's behavioral half is the device runbook card; the PCC arm's flip PR (policy publish + gate flip, Owen's go received the same day) is the remaining step (result blocks below).**
+
+**What #388-A measured on device:** `LanguageModelCapabilities.contains(.vision)`
+is **true for `SystemLanguageModel.default` AND for
+`PrivateCloudComputeLanguageModel`**. The only capability that differs between
+the tiers is `.reasoning`.
+
+**Why that matters.** Talaria reads images through `readImageText`
+(`DeviceMediaTools.swift`), our own tool wrapping **Vision-framework OCR on the
+device**: the model receives extracted text and never the image. Owen's
+2026-08-21 07:12 PCC turn is the worked example — the reply quoted OCR misreads
+(*"3ETA"*, *"MARIAN"*), which is the tell.
+
+**So the current design has a property nobody chose deliberately: the picture
+never leaves the phone**, even on the PCC tier. That is a good property. It is
+also, now, a CHOICE rather than a limitation — and the alternative (handing the
+model an `ImageAttachment` directly) would produce better answers on exactly
+the prompts OCR mangles, at the cost of sending the image itself to Apple's
+servers on the PCC tier.
+
+**The open questions, deliberately not answered here:** whether direct vision
+is worth the privacy trade at all; whether it should be tier-conditional (#385's
+pattern — on-device yes, PCC no); what the user is told either way; and whether
+#173's dropped caption should be revisited now that its premise (the model
+cannot see) is falsified for both tiers.
+
+**⚠️ This is a filing, and a lane needs Owen's ruling before any code** — it
+changes what leaves the device, which is the one axis #386's published policy
+now describes to the public. **Bars pre-register here when he routes it.**
+
+**Cross-references:** **#388-A** (the capability read), **#173** (the caption
+decision whose premise this falsifies), **#385** (the tier-aware pattern any
+gate should follow), **#386** (the published policy that describes the tiers),
+**#387** (the watch obligation on Apple's own pages).
+
+> **⚖️ 2026-08-23 (Owen, decision pass): DELIBERATELY DEFERRED.** Presented
+> with keep-OCR-only / tier-conditional / direct-everywhere, Owen chose to
+> decide later. So the accidental property (the picture never leaves the
+> phone) remains the shipping behaviour — and remains UNCHOSEN: this entry
+> stays a filing with no lane, and nothing may cite "the picture never leaves
+> the phone" as a designed guarantee until it is one.
+
+
+> **⚖️ RULED 2026-08-24 night (Owen, interactive decision pass, his words):
+> *"I'd love it if we could get actual vision supported for the local brain
+> and Pcc, with ocr as a fallback."* TRUE IMAGE INPUT on BOTH tiers, OCR as
+> the fallback.** Consequences, recorded before any code:
+> - This ELECTS #222's attach-path build (the device step that never
+>   existed): `ImageAttachment` in FoundationModels proper (#324's SDK
+>   sweep), wired for both the on-device model and PCC. OCR
+>   (`readImageText`) survives as the fallback for models/paths where image
+>   input fails or is unavailable — not deleted.
+> - **Privacy split to implement and to SAY honestly:** on-device tier — the
+>   picture never leaves the phone; PCC tier — the picture goes to Apple's
+>   PCC. Before the PCC arm ships, re-read #386's published policy for
+>   image-specific language (the policy discloses PCC processing; whether
+>   its wording covers IMAGES is a pre-ship check, #386's watch family).
+> - Bars pre-register in this entry (or #222's) before the lane opens; the
+>   build queues behind the current elected set. Sim cannot generate (#324),
+>   so the verifying half is device work when it lands.
+
+
+> **🔍 THE PRE-BUILD POLICY CHECK RAN — 2026-08-24 late night. VERDICT: a
+> DISCLOSURE GAP, not a falsehood — and the policy's own Changes clause
+> makes an edit mandatory before the PCC arm ships** ("this policy will be
+> updated before the change ships").
+> - **No existing sentence becomes false**, but attachments are enumerated
+>   in the on-device and own-server tier paragraphs and ABSENT from PCC's —
+>   a conspicuous parallel-structure omission — and the Voice section
+>   already demonstrates the disclosure pattern images now need.
+> - **Draft edits recorded for Owen's read (NOT applied — outward-facing):**
+>   `docs/privacy.html:56` "Your request leaves the device" → "… — including
+>   any images you attached to that message." Optionally the Photos/Camera
+>   permission row gains the per-tier sentence. An affirmative "on-device
+>   images never leave the phone" line is RECOMMENDED AGAINST until the
+>   build proves the escalation seam clean (below).
+> - **Two in-app strings BECOME FALSE and are this lane's 390-C scope:**
+>   `AttachmentCapabilityCopy.onDeviceCannotSeeImages` and `composePrompt`'s
+>   image placeholder (which instructs the model to claim blindness — a
+>   false refusal on a sighted turn). Aggravator: the PCC tier is FOLDED
+>   into the on-device caption today (`ChatInputBar.swift:575-577`). Pins to
+>   re-cut: `AttachmentCapabilityCopyTests` ×3, `ChatStorePersistenceTests:1571`.
+>   The #385 identity pins are UNTOUCHED (neither tier sentence mentions
+>   images; the `hasImageTools:` axis is pre-wired).
+> - **The two build hazards, both privacy-load-bearing:** (1) TRANSCRIPT
+>   REPLAY — session rebuilds replay history; if images ride the replayed
+>   transcript, every retained image re-uploads on each PCC rebuild. Images
+>   must attach to the CURRENT TURN ONLY. (2) THE ESCALATION SEAM —
+>   the mid-conversation on-device→PCC offer must not carry prior images
+>   (clean by construction if (1) holds); its banner copy gets re-posed to
+>   Owen only if images ever enter escalation scope.
+>
+> **🎯 BARS 390-A..G — pre-registered 2026-08-24 late, BEFORE code:**
+> - **390-A:** images attach as real model input at the `composePrompt`
+>   image branch, CURRENT TURN ONLY — a rebuilt/replayed session carries NO
+>   image attachments from history (the hazard bar, tested directly).
+> - **390-B:** OCR fallback survives — when image input is unavailable or
+>   fails, the placeholder + `readImageText` path serves unchanged.
+> - **390-C:** the two false strings re-cut tier-honest (on-device: image
+>   read on your iPhone; PCC: image sent to Apple with your request); the
+>   PCC caption un-folds from on-device; the named pins re-cut in the same
+>   commit.
+> - **390-D:** every #385 identity pin green untouched.
+> - **390-E:** the escalation seam proven image-clean (390-A's corollary,
+>   pinned at the seam).
+> - **390-F — THE SHIP GATE:** the ON-DEVICE arm may land first (no policy
+>   dependency — the picture stays on the phone); **the PCC arm does not
+>   ship in a staged build until the policy edit is PUBLISHED on Owen's
+>   read** (the Changes clause + the no-external-submissions rule).
+> - **390-G:** GATE: PASS; sim cannot generate (#324), so behavioral
+>   verification is a device runbook card on the next staged build.
+
+> **⚖️ RULED 2026-08-25 (Owen, AskUserQuestion — the policy-edit read):
+> the draft edit is APPROVED AS DRAFTED.** The one-sentence PCC-paragraph
+> edit only — *"Your request leaves the device — including any images you
+> attached to that message."* The optional Photos/Camera permission-row
+> sentence was offered and **NOT elected**. The "on-device images never
+> leave the phone" affirmative line stays recommended-against until 390-E
+> proves the escalation seam clean. **The publish moment remains reserved:**
+> applying + pushing the edit to `docs/privacy.html` (the live Pages root)
+> rides Owen's explicit go per the no-external-submissions rule, and 390-F's
+> ship gate stands unchanged — the PCC arm does not ship in a staged build
+> until the edit is published. Wording is settled; the build lane opens now.
+
+> **🔬 LANE-OPEN READS — 2026-08-25, pre-code (SDK grepped, seams verified
+> at HEAD `54d7f55d`):**
+> - **SDK (beta6 interface, grepped not recalled):**
+>   `Attachment<ImageAttachmentContent>` inits from
+>   CGImage/CIImage/CVPixelBuffer/imageURL (+ optional orientation),
+>   `.label(_:)`, conforms to `PromptRepresentable`; `Prompt` composes
+>   mixed text + attachments via `PromptBuilder` or an array wrap
+>   (`Array: PromptRepresentable`, `Prompt: PromptRepresentable`). All
+>   plain `@available(iOS 27.0)` — fleet aligned on b7 (#401), no dyld
+>   freeze applies.
+> - **390-A/E's seam VERIFIED at HEAD:** `rebuildSession(attachments:)`
+>   uses its attachments ONLY for the `hasImage` gate (belt +
+>   instructions), never the transcript; `transcriptEntries` builds
+>   `Transcript.TextSegment` exclusively; `appendUserMessage` persists
+>   `displayContent`, never `composePrompt` output. Replay is text-only by
+>   construction TODAY — the lane's job is pinning that so images cannot
+>   leak into it. Escalation (`setPreferredTier` → `session = nil` →
+>   rebuild) rides the same replay, so 390-E falls out of the same pins.
+> - **Production vision check:** `model.capabilities.contains(.vision)`
+>   (synchronous; #388's probe surface), per-tier.
+> - **STAGED-ARM consequence of today's reserve-the-publish ruling
+>   (390-F refinement, pre-registered):** the PCC image arm ships
+>   DISABLED behind a test-pinned build gate. While disabled, a PCC image
+>   turn keeps the OCR path and an OCR-honest caption — the "image sent
+>   to Apple with your request" string is written and test-pinned NOW but
+>   renders only when the arm enables. The flip is ONE later PR: policy
+>   publish (Owen's explicit go) + gate flip + caption switch, atomically.
+>   The ON-DEVICE arm ships in this lane.
+> - **390-B sharpened:** `readImageText` is not merely fallback — under
+>   390-A's current-turn-only rule it is the ONLY access to HISTORY
+>   images, so it survives on two grounds (decode/capability failure on
+>   the current turn; every image from earlier turns).
+> - **Instrument (the #324 constraint):** the sim cannot generate, so sim
+>   tests pin COMPOSITION, not generation — prompt assembly goes through a
+>   testable piece representation (text/image) with a thin `Prompt`
+>   assembler, and image decode is isolated and tested against real and
+>   garbage bytes. Generation is the device runbook card (390-G).
+
+> **✅ BUILT + GATED 2026-08-25 — bars 390-A..F MET; 390-G's gate half met,
+> its behavioral half rides the next OTA's runbook card.** GATE: PASS
+> **2543** Swift Testing (+14 exact over #406's 2529: 10
+> `ImageInputCompositionTests` + 4 new caption tests) + 14 XCUITest +
+> Release; only the known-permanent CondenserFidelityTests skips.
+> - **390-A/E — and a finding STRONGER than the bar:**
+>   `Transcript.ImageAttachment` has **no public initializer** on this SDK
+>   (beta6 interface, grepped) — replayed history PHYSICALLY CANNOT carry
+>   an image into a rebuilt session; a `Prompt` is the only entrance, and
+>   `makeTurnPrompt` is the single pinned door fed only by the current
+>   turn's `composeTurnInput`. Pinned three ways: by signature (compose
+>   reads only the incoming attachments), behaviorally (segment scan over
+>   image-bearing history — all `.text`), structurally (the replay builder
+>   greps clean). Escalation rides the same rebuild, so 390-E falls out of
+>   the same pins.
+> - **390-B:** OCR fallback proven — undecodable bytes and the disabled
+>   arm both degrade to the re-cut honest placeholder; `readImageText`
+>   untouched (it is also the ONLY access to history images, by 390-A).
+> - **390-C:** captions tier-honest, four distinct pinned strings; the
+>   composePrompt placeholder re-worded tier-neutral (it now serves only
+>   truly-blind turns). Re-cut pins, all deliberate and named:
+>   `AttachmentCapabilityCopyTests` (blind-arm pin re-signatured + 5 new),
+>   `ChatStorePersistenceTests` 173-C precondition,
+>   `LocalChatBackendTests.composePromptReplacesImagesWithHonestNote`.
+> - **🔴 STALE CLAIM IN THIS ENTRY CORRECTED (close-out): the 08-24 note
+>   "the PCC tier is FOLDED into the on-device caption today" described
+>   the CODE COMMENT, not the code.** The inline ternary sent
+>   `.privateCloud` to the nil-caption Hermes arm — a PCC image turn
+>   showed NO caption at all, #173's sin on the highest-stakes tier. The
+>   mapping is now a testable static (`ChatInputBar.visionCaption`),
+>   mutation-proven against re-folding.
+> - **390-D:** #385 identity pins green, untouched.
+> - **Evidence chain:** RED-first 21 ran / 9 red, each for its
+>   pre-registered reason → GREEN 63/63 → **five mutations, each
+>   isolating:** fallback silently drops undecodable images → only the
+>   fallback pin red; `pccImageInputEnabled` flipped → only its pin red;
+>   `AttachmentSegment` referenced in the replay builder → only the
+>   structural seam pin red (the BEHAVIORAL pin's mutation is
+>   SDK-impossible — no public init — recorded as by-construction
+>   guarantee, the pin stays as a future-SDK tripwire); a second
+>   `Attachment(cgImage)` door → only the door pin red; PCC re-folded in
+>   the input bar → only the un-fold pin red.
+> - **Scope notes:** belt offering (`ImageTextTool` on image turns) and
+>   the instructions' `hasImageTools` axis deliberately unchanged; image
+>   token cost is invisible to the text-based context-fit counter (a
+>   device observation item if overflow behavior shifts); decode passes no
+>   orientation (staging already normalizes at downscale).
+
+> **⚖️ SAME-DAY RULINGS (Owen, 2026-08-25, in-chat):** (1) *"if something
+> is pinned due to the runbook, just edit the runbook. Don't hold anything
+> for my testing, it should stack"* — work stacks, the runbook adapts to
+> the newest build (filed as standing memory; un-parks #198B). (2) *"For
+> the PCC privacy, go ahead and update what needs to be updated"* — **the
+> policy-publish go.** The 390-F flip PR is therefore AUTHORIZED: apply
+> the approved sentence to `docs/privacy.html` + revise the effective date
+> (its own Changes clause requires it) + flip `pccImageInputEnabled` +
+> re-cut its pin and the interim PCC string — one atomic PR, policy live
+> at merge, the flipped arm reaching devices only via the OTA staged
+> after.
+
+> **📸 FIRST SIGHTED TURN ON DEVICE — 2026-08-25 12:43, build 3022, PCC β
+> (Owen's screenshot, same hour as install).** Laundromat photo + "What do
+> you see in this picture?" → *"a row of Speed Queen dryers in a
+> laundromat, with clothes visible inside some of them."* **That is scene
+> understanding, not OCR** — no text in the frame says clothes are in the
+> drums — so the image provably rode to PCC as real model input: the
+> 390-G PCC arm's defining criterion, met on its first live turn. The
+> `READIMAGETEXT` chip fired alongside (expected — the belt still offers
+> OCR on image turns by design; tool and vision compose). **First
+> image-cost datum:** IN 6.1K on the vision turn vs ~381 on a same-day
+> text turn — the picture costs real tokens on the PCC wire (the known
+> text-only context-fit scope note now has a number). Still owed from the
+> runbook card: the ON-DEVICE arm and the staged-composer caption texts.
+
+> **📸 THE ON-DEVICE ARM'S FIRST TURN — 2026-08-25 14:42, build 3022,
+> same photo (Owen's second screenshot): `guardrailViolation`.** The turn
+> failed with our typed-case string "Apple's on-device safety guardrails
+> declined this request" — verified specific in the mapping
+> (`LocalChatBackend.swift:2652`, the `.guardrailViolation` arm, not a
+> catch-all). **Read precisely: the attach path WORKED — the safety layer
+> can only decline an image it received** — so both tiers' vision plumbing
+> is device-proven; what differs is SAFETY POSTURE: on-device's guardrail
+> (the small safety model) declined an innocuous laundromat photo that
+> PCC's passed the same day. Exactly the class the sim could never see
+> (#324 — no generation), which is why 390-G was a device card. The
+> HERMES HOST OFFLINE banner in the same shot is unrelated (off-tailnet
+> on cellular; on-device turns don't touch the host). **Consequence
+> spawned as #408:** 390-B's fallback is compose-time only — a
+> generation-time guardrail decline leaves an image turn with NO route
+> (Retry re-runs into the same wall, and post-#390 there is no way to opt
+> an on-device image DOWN to the OCR path). Design election filed there.
+
+> **✅ 390-F DISCHARGED — the flip PR (2026-08-25, same day as the go):**
+> `docs/privacy.html` carries the approved sentence ("Your request leaves
+> the device — including any images you attached to that message"),
+> effective date revised 2026-08-20 → 2026-08-25 per the policy's own
+> Changes clause; `pccImageInputEnabled` flipped TRUE with its pin re-cut
+> RED-first (`thePCCImageArmIsOnBehindThePublishedPolicy` — turning the
+> arm back OFF is now a ruled decision, not a drive-by); the interim PCC
+> string re-cut for its surviving role (capability-false only):
+> `privateCloudCannotSeeImages`, "can't see images on this device" — the
+> "in this build" wording died with the build that made it true. Sighted
+> PCC turns now render "Images are sent to Apple's Private Cloud Compute
+> with your request" and the picture rides as real input. Policy is LIVE
+> at this PR's merge; the arm reaches devices only via the OTA staged
+> after — order safe by construction. **Remaining on #390: the runbook's
+> 390-G device card (both arms) on the next staged build.**
+
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — 390-G FORMALLY PASSED: "On device and pcc vision
+> confirmed."** Both arms now carry a FORMAL runbook verdict on top of
+> the 08-25 informal sightings. The staged-composer caption texts went
+> unreported (they are unit-pinned; nothing rests on the glance).
+> Nothing remains on this entry; archive move rides the next sweep.
+
+> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 407. 📝 Text TYPED while dictation is live is DISCARDED on the next transcript tick — `mergedDictationText` recomputes from a base snapshot that predates the typing — **FILED 2026-08-24 night per #268, from #405's class sweep (read-only, verdict MINOR-adjacent). NOT a per-keystroke scrambler — the trigger is the dictation tick, not typing — but it is real input loss. ~~NOT STARTED; bars pre-register here before any code.~~** **⟵ RULED block-typing 2026-08-24 (decision pass) and ✅ BUILT + GATED the same night (trio lane) — 407-A..D met; only the 10-second device look remains (runbook).**
+
+`ChatInputBar.swift:946-953` recomputes the composer text from an immutable
+`dictationBaseText` snapshot captured when dictation starts (`:917`); the
+merge writes the binding at `:394/:397/:896/:917/:940`. Idempotent per tick
+(not accumulative), but any characters the user TYPES mid-dictation predate
+nothing — the next tick's recompute simply omits them. Low severity: typing
+while dictating is an edge posture, and the loss is bounded by one dictation
+session. Filed rather than fixed because the right design (merge typed text
+into the base snapshot vs block typing while dictating) is a product call.
+
+
+> **⚖️ RULED 2026-08-24 night (Owen, interactive decision pass): BLOCK
+> TYPING WHILE DICTATING.** The composer goes read-only during an active
+> dictation session — honest about what the merge can hold, zero data
+> loss, typing resumes the instant dictation ends. The merge-typed-text
+> alternative was presented and not elected. Small lane; bars pre-register
+> here before code.
+
+
+> **🎯 BARS 407-A..D — pre-registered 2026-08-24 late, BEFORE code, on the
+> block-typing ruling:**
+> - **407-A:** the composer's `TextEditor` carries
+>   `.disabled(speechService.isListening)` — user keyboard input is
+>   rejected for exactly the dictation window. #399-shape structural pin,
+>   RED-witnessed first; mutation = removing the modifier.
+> - **407-B:** dictation's own text keeps flowing — SwiftUI's `disabled`
+>   gates INTERACTION only, and the merge writes the `text` binding
+>   programmatically; the existing suite stays green and no merge behavior
+>   changes.
+> - **407-C:** typing returns the instant listening ends — state-driven by
+>   the same flag, no second mechanism to test.
+> - **407-D:** `GATE: PASS`, count moved by exactly the additions; the
+>   10-second device look (type during dictation → nothing lands, merge
+>   intact) rides a future runbook card on the next staged build.
+> Note: the placeholder already reads "Listening…" while dictating, so the
+> blocked state is visually explained by existing copy; the send button's
+> merge-and-send path (`handlePrimaryAction`) is deliberately untouched.
+
+
+> **✅ RESULT 2026-08-24 night — 407-A..D ALL MET (trio lane, one gate).**
+> One modifier: `.disabled(speechService.isListening)` on the composer
+> editor; the structural pin witnessed RED first (its RED run IS the
+> removal-mutation evidence). Programmatic merge writes untouched; the
+> "Listening…" placeholder already explains the state. GATE: PASS
+> 2515/205 + 14 XCUITest + Release (trio total +17/+3 exact). The
+> 10-second device look rides the runbook. **Remaining: that look only.**
+
+
+> **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — DEVICE PASS:** "composer is locked down with listening
+> and I can't use it while dictating." The ruled block-typing behavior
+> confirmed on device. CLOSED; archive move rides the next sweep.
+
+> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
