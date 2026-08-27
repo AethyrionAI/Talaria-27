@@ -756,6 +756,17 @@ native pipeline), **#1** (voice transcripts).
 > half — which stays deliberately unbuilt behind the fault-2 author
 > measurement (§3 device row 12), per the ruling.
 
+
+> **📤 2026-08-26 evening — THE OJAMD BRIEF IS TRANSMITTED (Owen: "ojamd
+> brief has been sent").** The brief on the share is the fresh
+> `HANDOFF-OJAMD-2026-08-26-PLUGIN-DEPLOY-B4E8DFA.md` (targets 0.8.0,
+> four commits — the superseded 08-24/b87cd6c version was NOT sent). The
+> deploy is now in the OJAMD session's hands; a share watch is armed for
+> its report file, and the Mac's same-day 0.8.0 deploy (pull + Restart
+> Gateway; sidebar-confirmed; #224's picker unlocked live) is the
+> precedent it follows. Post-deploy phone flips to score: the Voice
+> tuning footnote (this entry's OJAMD arm) and the approvals picker
+> (#224's OJAMD arm).
 ## 392. 🔴 A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT — *"your calendar didn't accept the request"* when the user declined the card — **MEASURED 2/30 ON DEVICE 2026-08-21 (#199A's re-run), CALENDAR-ONLY. Spawned rather than kept inside #199A, whose own claim is refuted. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built + merged 2026-08-23 (PR #353) with NO treatment elected, per Owen's route; the n≥30 device run is what remains.**
 
 **The measurement** (`planning/reports/2026-08-21-199a-decline.json`, decline
