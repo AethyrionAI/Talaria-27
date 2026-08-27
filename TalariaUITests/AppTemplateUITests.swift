@@ -683,6 +683,61 @@ final class TalariaUITests: XCTestCase {
                       "the Server page must show the talaria PLUGIN LINK row (#251-2A)")
     }
 
+    /// #224 bar 224-1D(i): the `// Agent Actions` control RENDERS on the
+    /// Privacy page, in its ruled position, and a mode switch lands.
+    ///
+    /// **This is the only 224-1D assertion that puts the section on a screen.**
+    /// The others are unit tests over copy strings and colours resolved from
+    /// palettes — real checks, but a palette resolving correctly says nothing
+    /// about whether the rows were ever added to `body`. It is also the only
+    /// place the VoiceOver labels are used the way a screen reader uses them:
+    /// as the element's identity. A later lane that shortens one back to a
+    /// bare mode name fails here, not just in the copy pin.
+    @MainActor
+    func testPrivacyAgentActionsControlRendersAndSwitchesMode() throws {
+        let context = UITestLaunchContext()
+        let app = makeApp(context: context)
+        app.launch()
+
+        guard waitForComposer(in: app, timeout: 15) != nil else {
+            XCTFail("chat composer should be the first-launch landing state")
+            return
+        }
+
+        app.buttons["Open settings"].tap()
+        XCTAssertTrue(app.otherElements["settings.grid"].waitForExistence(timeout: 10),
+                      "Settings must open on the subsystem grid (#252)")
+        app.buttons["settings.card.privacy"].tap()
+
+        let section = app.descendants(matching: .any)["settings.privacy.agentActions"]
+        XCTAssertTrue(section.waitForExistence(timeout: 10),
+                      "Privacy must carry the // Agent Actions control (#224 ruling 6)")
+
+        let askEveryTime = app.buttons[
+            "Ask every time. Every reminder, event, and alarm waits for your approval."]
+        let neverAsk = app.buttons[
+            "Never ask. Actions go ahead without asking, and any that trip a caution are refused instead of created."]
+
+        // Bounded scroll — the section is third on the page, under Sensor
+        // Sharing, so it can start below the fold. Bounded rather than
+        // `while true` because a row that never arrives must FAIL the test,
+        // not spin it.
+        var swipes = 0
+        while !neverAsk.isHittable, swipes < 6 {
+            app.swipeUp()
+            swipes += 1
+        }
+        XCTAssertTrue(neverAsk.isHittable, "the Never ask row never came into view")
+        XCTAssertTrue(askEveryTime.exists, "the Ask every time row must render alongside it")
+        XCTAssertTrue(askEveryTime.isSelected,
+                      "a fresh install must land on Ask every time (#224 bar 224-1A)")
+        XCTAssertFalse(neverAsk.isSelected)
+
+        neverAsk.tap()
+        XCTAssertTrue(neverAsk.isSelected, "tapping Never ask must select it")
+        XCTAssertFalse(askEveryTime.isSelected, "the previous mode must clear")
+    }
+
     /// 252-B: swipe and grid-toggle navigation through the deck, plus the
     /// deferred coverage owed from Tasks 3–8 — page-dot tap navigation
     /// (each dot's accessibilityLabel is "Open <TITLE>") and, where

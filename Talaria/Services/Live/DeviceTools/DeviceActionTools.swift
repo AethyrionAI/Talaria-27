@@ -456,12 +456,19 @@ struct ReminderCreateTool: Tool {
             title: "Create this reminder?",
             detail: nil,
             caution: Self.dueCaution(for: parsedDue, now: now),
+            floorRefusal: ApprovalFloor.refusal(
+                nothingHappened: "No reminder was created.",
+                flagged: Self.dueCautionReason(for: parsedDue, now: now)),
             fields: [
                 .init(key: "title", label: "Title", value: title),
                 .init(key: "due", label: "Due", value: parsedDue.map { DeviceActionParsing.displayDate($0) } ?? ""),
                 .init(key: "list", label: "List", value: rawList.trimmingCharacters(in: .whitespacesAndNewlines)),
             ]
         )
+        // #224 Phase 1: Off's floor. Checked BEFORE the decline branch,
+        // because a refusal is not a decline — the user answered nothing, and
+        // saying "The user declined" would misattribute the decision.
+        if case .refused(let refusal) = decision { return refusal }
         guard case .approved(let values) = decision else {
             return "The user declined — no reminder was created."
         }
@@ -565,6 +572,32 @@ struct ReminderCreateTool: Tool {
             return "NEXT MORNING — \(DeviceActionParsing.timeOnly(date))"
         }
         return nil
+    }
+
+    /// #224 Phase 1: the DIGIT-FREE twin of `dueCaution`, for the Off floor's
+    /// refusal text.
+    ///
+    /// **Why a twin instead of reusing the row.** The floor's refusal is a
+    /// tool RESULT the model reads, and #233-E / #249-F each caught the model
+    /// mining a formatted timestamp out of exactly such a string into a
+    /// fabricated *"has been set for …"* success claim. The two Phase-0 rows
+    /// are digit-free already, so those tools pass their row straight through;
+    /// the reminder's three carry `displayDate`/`timeOnly` because they
+    /// predate the rule and are #233/#249's shipped, device-validated CARD
+    /// surface — rewriting them was never balloted and is not this lane's to
+    /// do. So the card keeps its dates and the refusal carries none.
+    ///
+    /// **Same predicates, same order, deliberately.** Restating the rules here
+    /// would let the two drift, and a floor that flags a different set than
+    /// the card does is a floor nobody can reason about — so this reads
+    /// `dueCaution`'s own output and returns the rule NAME it produced. The
+    /// mapping is total by construction: every branch above has an entry, and
+    /// `floorReasonMatchesEveryCautionRow` fails if one is ever added without
+    /// one.
+    nonisolated static func dueCautionReason(for date: Date?, now: Date) -> String? {
+        guard let row = dueCaution(for: date, now: now) else { return nil }
+        // The rows are "RULE — <formatted>" or a bare rule; take the rule.
+        return row.components(separatedBy: " — ").first
     }
 
     /// "None"/empty keeps no date; an unchanged display string keeps the
@@ -931,6 +964,11 @@ struct CalendarEventTool: Tool {
             title: "Add this event to the calendar?",
             detail: nil,
             caution: Self.startCaution(for: start, now: now),
+            // Phase 0's rows are digit-free by assertion, so this tool's
+            // refusal can carry the row itself — no twin needed.
+            floorRefusal: ApprovalFloor.refusal(
+                nothingHappened: "No calendar event was created.",
+                flagged: Self.startCaution(for: start, now: now)),
             fields: [
                 .init(key: "title", label: "Title", value: title),
                 .init(key: "startsAt", label: "Starts", value: DeviceActionParsing.displayDate(start)),
@@ -938,6 +976,7 @@ struct CalendarEventTool: Tool {
                 .init(key: "location", label: "Location", value: rawLocation.trimmingCharacters(in: .whitespacesAndNewlines)),
             ]
         )
+        if case .refused(let refusal) = decision { return refusal }
         guard case .approved(let values) = decision else {
             return "The user declined — no event was created."
         }
@@ -1155,12 +1194,21 @@ struct AlarmTool: Tool {
         guard let request = AlarmService.parse(raw) else {
             return "Couldn't read a time from \"\(raw)\" — nothing staged. Formats: 6:30am, 18:45, or 25m."
         }
+        // One clock read, shared by the card's row and the floor's refusal: two
+        // `Date()` calls could straddle a minute boundary and flag the card
+        // while the refusal says nothing was flagged.
+        let now = Date()
+        let caution = Self.caution(for: request, now: now)
         let decision = await confirmations.requestConfirmation(
             title: "Schedule on this iPhone?",
             detail: "It will ring through Silent mode and Focus.",
-            caution: Self.caution(for: request, now: Date()),
+            caution: caution,
+            floorRefusal: ApprovalFloor.refusal(
+                nothingHappened: "No \(request.kindNoun) was scheduled.",
+                flagged: caution),
             fields: [.init(key: "request", label: "Alarm", value: raw)]
         )
+        if case .refused(let refusal) = decision { return refusal }
         guard case .approved(let values) = decision else {
             return "The user declined — no \(request.kindNoun) was scheduled."
         }

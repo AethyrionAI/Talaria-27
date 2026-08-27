@@ -298,30 +298,46 @@ struct Phase0ActionCautionTests {
 @MainActor
 struct ApprovalModeScaffoldTests {
 
-    /// 224-0E. All three cases exist so that every switch over an approval
-    /// mode is exhaustive from day one (#306's C1 precedent — name the door
-    /// before anyone walks through it), and exactly one is selectable.
-    /// **If a later lane widens `selectable`, this test is what goes RED**:
-    /// shipping a mode has to be a deliberate edit to the line that says so.
-    @Test func approvalModeExposesOnlyManual() {
+    /// 224-0E, **updated 2026-08-26 by #224 Phases 1+2 — and this edit is the
+    /// event the test was built to force.**
+    ///
+    /// As landed, this asserted `selectable == [.manual]` and said in so many
+    /// words: *"If a later lane widens `selectable`, this test is what goes
+    /// RED — shipping a mode has to be a deliberate edit to the line that says
+    /// so."* Owen elected Phases 1+2 on 2026-08-26; the widening is that
+    /// deliberate edit, and rewriting this assertion is the acknowledgement it
+    /// demanded. **The property survives the change**: `selectable` is still a
+    /// literal list, so the next case added does not ship itself, and
+    /// `allThreeModesAreSelectableInRenderOrder` in
+    /// `ApprovalModesPhase12Tests` is the new tripwire.
+    ///
+    /// What did NOT change, and is asserted here rather than trusted: all
+    /// three cases still exist in order, the raw values are still the
+    /// persisted ones and are never renamed, and `.manual` is still the
+    /// default.
+    @Test func approvalModeExposesAllThreeAfterPhases12() {
         #expect(ApprovalMode.allCases == [.manual, .smart, .off])
-        #expect(ApprovalMode.selectable == [.manual])
+        #expect(ApprovalMode.selectable == [.manual, .smart, .off])
         #expect(ApprovalMode.defaultMode == .manual)
-        #expect(ApprovalMode.manual.isSelectable)
-        #expect(!ApprovalMode.smart.isSelectable)
-        #expect(!ApprovalMode.off.isSelectable)
+        // Bound out of the macro: `#expect` reads a key-path `allSatisfy` as a
+        // possibly-throwing call and demands a `try` that cannot be written.
+        let everyCaseIsSelectable = ApprovalMode.allCases.allSatisfy(\.isSelectable)
+        #expect(everyCaseIsSelectable)
         // Raw values are persisted; they are never renamed.
         #expect(ApprovalMode.allCases.map(\.rawValue) == ["manual", "smart", "off"])
     }
 
-    /// The clamp, which is what makes "unreachable" true of DATA and not just
-    /// of the UI: no persisted blob can arm a mode this build has no handling
-    /// for.
-    @Test func approvalModeClampsUnreachableValuesToManual() {
+    /// The clamp. It used to make "unreachable" true of DATA — a blob naming
+    /// `off` decoded to `.manual`, which was ruling 1's hold expressed in the
+    /// persistence layer. **With all three modes handled it is a NO-OP on
+    /// every value this build can produce, and it stays for the next
+    /// narrowing:** the first future lane to drop a case must not inherit a
+    /// settings file that arms it.
+    @Test func approvalModeResolvesEverySelectableModeToItself() {
         #expect(ApprovalMode.resolved(nil) == .manual)
-        #expect(ApprovalMode.resolved(.manual) == .manual)
-        #expect(ApprovalMode.resolved(.smart) == .manual)
-        #expect(ApprovalMode.resolved(.off) == .manual)
+        for mode in ApprovalMode.allCases {
+            #expect(ApprovalMode.resolved(mode) == mode)
+        }
     }
 
     /// Ruling 2's negative half: the mode must NOT be per-profile. The gate
@@ -419,10 +435,19 @@ struct ApprovalModeScaffoldTests {
         #expect(code(control).contains("LanguageModelSession("),
                 "the positive control no longer constructs a LanguageModelSession — this scan can no longer prove it detects one")
 
+        // **Extended 2026-08-26 by bar 224-2B.** The list IS the definition of
+        // "the approval path", so a lane that adds files to that path adds
+        // them here or the pin quietly stops covering what it names. Phases
+        // 1+2 put the mode's PERSISTENCE (`UserSettings`) and its CONTROL
+        // (`PrivacySettingsScreen`) on the path: a lane that wanted to route a
+        // staged action past the model would now have two more plausible
+        // places to do it from.
         let approvalPath = [
             "Talaria/Services/Support/ApprovalModeCore.swift",
             "Talaria/Services/Live/DeviceTools/ToolConfirmationCenter.swift",
             "Talaria/Services/Live/DeviceTools/DeviceActionTools.swift",
+            "Talaria/Models/UserSettings.swift",
+            "Talaria/Features/Settings/PrivacySettingsScreen.swift",
         ]
         for path in approvalPath {
             let source = try String(
@@ -451,11 +476,16 @@ struct ApprovalModeScaffoldTests {
             UserSettings.self, from: Data(#"{"userName":"Owen"}"#.utf8))
         #expect(legacy.approvalMode == .manual)
 
-        // A blob that NAMES an unreachable mode is clamped, not honoured —
-        // "unreachable" is true of the DATA, not just of the missing UI.
+        // **Updated 2026-08-26 (Phases 1+2).** This arm used to assert that a
+        // blob naming `off` was CLAMPED to `.manual` — "unreachable" being
+        // true of the DATA and not just of the missing UI. The control ships
+        // now, so a user's pick has to survive a relaunch or the setting is a
+        // no-op. Round-trip coverage moved to
+        // `aChosenModeRoundTripsNowThatAllThreeAreSelectable`; what stays here
+        // is the half that must NEVER change — the DEFAULT.
         let armed = try decoder.decode(
             UserSettings.self, from: Data(#"{"userName":"Owen","approvalMode":"off"}"#.utf8))
-        #expect(armed.approvalMode == .manual)
+        #expect(armed.approvalMode == .off)
 
         // Junk degrades to the default instead of failing the whole settings
         // decode and resetting every other preference (the `appearanceTheme`
@@ -471,9 +501,10 @@ struct ApprovalModeScaffoldTests {
     }
 
     /// The gate reads the mode through a provider (the provider-closure
-    /// pattern #283's transport seam established) and behaves exactly as it did
-    /// before #224: a card, every time.
-    @Test func theGateStagesACardUnderTheOnlyReachableMode() async {
+    /// pattern #283's transport seam established) and behaves under `.manual`
+    /// exactly as it did before #224: a card, every time. (Renamed 2026-08-26 —
+    /// it used to say "the only reachable mode", which Phases 1+2 falsified.)
+    @Test func theGateStagesACardUnderManual() async {
         let center = ToolConfirmationCenter()
         center.modeProvider = { .manual }
         let task = Task {
@@ -488,29 +519,53 @@ struct ApprovalModeScaffoldTests {
         _ = await task.value
     }
 
-    /// 224-0E's real teeth. A mode with no handling in this build cannot be
-    /// reached through settings — but if a later lane wires one in anyway,
-    /// the gate must not act on it. It stages the card regardless: the
-    /// default-CLOSED direction the gate was designed around (#29 — if the
-    /// app dies with a card pending, nothing was ever created). Nothing here
-    /// auto-approves, and nothing here refuses.
-    @Test func anUnreachableModeStillStagesTheCardRatherThanActing() async {
-        for mode in [ApprovalMode.smart, .off] {
+    /// 224-0E's real teeth, **rewritten 2026-08-26 for the modes it was
+    /// written to protect against.**
+    ///
+    /// As landed it asserted that `.smart` and `.off` — armed but unbuilt —
+    /// staged the card anyway, the default-CLOSED direction the gate was
+    /// designed around (#29 — an unhandled mode costs a prompt, never an
+    /// unapproved write). Phases 1+2 BUILT both, so the standing claim is now
+    /// the one that mattered all along and it survives in a sharper form:
+    /// **a flagged action is never silently created under any mode.**
+    /// `.smart` cards it, `.off` refuses it — and neither auto-approves.
+    ///
+    /// The only mode this can still catch acting wrongly is a future fourth
+    /// case, which the gate's `switch` will not compile without handling.
+    @Test func noModeSilentlyCreatesAFlaggedAction() async {
+        for mode in ApprovalMode.allCases {
             let center = ToolConfirmationCenter()
             center.modeProvider = { mode }
             let task = Task {
                 await center.requestConfirmation(
                     title: "Schedule on this iPhone?",
                     caution: "EARLY MORNING — CHECK AM/PM",
+                    floorRefusal: "No alarm was scheduled. Flagged.",
                     fields: [.init(key: "request", label: "Alarm", value: "4:00am")])
             }
-            var attempts = 0
-            while center.pending == nil && attempts < 2_000 { await Task.yield(); attempts += 1 }
+            if mode == .off {
+                // Refused before a continuation is ever taken, so this returns
+                // without anything needing to answer it.
+                let decision = await task.value
+                #expect(center.pending == nil, "Off staged a card for a flagged action")
+                if case .refused = decision {} else {
+                    Issue.record("mode off resolved a flagged action as \(decision)")
+                }
+                continue
+            }
+            let deadline = ContinuousClock.now.advanced(by: .seconds(20))
+            while center.pending == nil, ContinuousClock.now < deadline {
+                try? await Task.sleep(for: .milliseconds(2))
+            }
+            guard center.pending != nil else {
+                Issue.record("mode \(mode.rawValue) staged no card — see awaitStagedCard")
+                continue   // deliberately NOT awaiting: a leaked Task beats a hung suite
+            }
             #expect(center.pending?.caution == "EARLY MORNING — CHECK AM/PM")
             center.decline()
             let decision = await task.value
             if case .approved = decision {
-                Issue.record("mode \(mode.rawValue) auto-approved instead of staging the card")
+                Issue.record("mode \(mode.rawValue) auto-approved a FLAGGED action")
             }
         }
     }
