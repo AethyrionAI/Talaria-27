@@ -184,8 +184,8 @@ struct HermesControlsTests {
     /// intents are near-identical twins, which is exactly the shape a
     /// copy-paste swap survives unnoticed.
     @Test func controlDestinationsMatchTheirRoutes() {
-        #expect(OpenHermesChatIntent.destination == URL(string: "hermes://chat"))
-        #expect(OpenHermesVoiceIntent.destination == URL(string: "hermes://voice"))
+        #expect(OpenHermesChatIntent.destination == URL(string: "talaria://chat"))
+        #expect(OpenHermesVoiceIntent.destination == URL(string: "talaria://voice"))
     }
 
     /// Control-only plumbing must never shadow the app target's discoverable

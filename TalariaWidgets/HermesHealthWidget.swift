@@ -75,7 +75,7 @@ private struct HermesHealthView: View {
                 )
             }
         }
-        .widgetURL(URL(string: "hermes://health"))
+        .widgetURL(URL(string: "talaria://health"))
     }
 
     private func metricCard(icon: String, color: Color, label: String, value: String, palette: ThemePalette) -> some View {

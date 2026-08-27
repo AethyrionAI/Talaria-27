@@ -66,6 +66,6 @@ private struct HermesBriefingView: View {
                 Spacer()
             }
         }
-        .widgetURL(URL(string: "hermes://briefing"))
+        .widgetURL(URL(string: "talaria://briefing"))
     }
 }

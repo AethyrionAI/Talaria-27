@@ -131,7 +131,7 @@ struct OpenHermesChatIntent: AppIntent {
     /// Compile-time literal — parsing cannot fail (the no-force-unwrap
     /// convention targets network payloads, not constants). Internal so
     /// `HermesControlsTests` can pin which route this control claims.
-    static let destination = URL(string: "hermes://chat")!
+    static let destination = URL(string: "talaria://chat")!
 
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -164,7 +164,7 @@ struct OpenHermesVoiceIntent: AppIntent {
 
     /// Compile-time literal — parsing cannot fail. Internal for the same
     /// route pin as `OpenHermesChatIntent.destination`.
-    static let destination = URL(string: "hermes://voice")!
+    static let destination = URL(string: "talaria://voice")!
 
     @MainActor
     func perform() async throws -> some IntentResult {

@@ -7,7 +7,7 @@ import os
 // Decision pinned per the dispatch: App Intents (Ask Hermes from
 // Siri/Shortcuts) BYPASS this lock — the intent path has no UI, so a locked
 // phone can still ask Hermes headlessly, exactly like a lock-screen Siri
-// query. Anything that lands INTO the app UI (OpenURLIntent, hermes:// deep
+// query. Anything that lands INTO the app UI (OpenURLIntent, talaria:// deep
 // links, notification taps) hits the lock first, because the cover window
 // sits above everything the scene presents. Live Activities and widgets are
 // likewise unaffected — they render outside the app process entirely.

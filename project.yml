@@ -154,14 +154,30 @@ targets:
         # version bump is one edit per target and cannot drift apart again.
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
-        # #48: register the hermes:// custom scheme. The deep-link router
-        # (AppEntry.handleDeeplink) predates this key but was only reachable
-        # from widgetURL / App Intents, which bypass registration — this is
-        # what lets Safari, Shortcuts "Open URL", other apps, and tappable
-        # hermes:// links in Hermes replies open the app. First registrant
-        # wins for custom schemes — confirm no other app on the test device
-        # claims `hermes`.
+        # #48/#77: the app's custom URL schemes. The deep-link router
+        # (AppEntry.handleDeeplink → DeeplinkRouter) predates this key but was
+        # only reachable from widgetURL / App Intents, which bypass
+        # registration — this is what lets Safari, Shortcuts "Open URL", other
+        # apps, and tappable links in agent replies open the app. First
+        # registrant wins for custom schemes — confirm no other app on the
+        # test device claims either name.
+        #
+        # `talaria` is PRIMARY and is the only scheme any documentation, any
+        # in-app copy, or anything the app itself emits may name.
+        #
+        # ⛔ `hermes` is second, undocumented, and fully working BY RULING —
+        # not by accident, and not as leftovers. Owen, 2026-08-26, verbatim:
+        # "Yeah lets use Talaria in docs, and hermes can ride along incase
+        # someone wants an easter egg." So do NOT "tidy up" this entry, the
+        # matching literal in DeeplinkRouter.registeredSchemes, or the tests
+        # that pin it: a working, undocumented scheme IS the deliverable. This
+        # comment is the ONE place that ruling is quoted; everything else in
+        # the tree points back here rather than re-explaining it.
         CFBundleURLTypes:
+          - CFBundleTypeRole: Viewer
+            CFBundleURLName: org.aethyrion.talaria27.talaria
+            CFBundleURLSchemes:
+              - talaria
           - CFBundleTypeRole: Viewer
             CFBundleURLName: org.aethyrion.talaria27.hermes
             CFBundleURLSchemes:

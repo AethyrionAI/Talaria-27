@@ -48,7 +48,7 @@ One thing worth knowing up front: **pairing is optional.** On-device chat works 
 - **Agent files** — files your agent generates surface as tappable share bubbles in chat
 - **Widgets & Live Activities** — agent status, health tiles, and briefing widgets; alarm Live Activities; lock-screen toggle controls
 - **Share extension** — send a web URL, up to four images, a file, or plain text straight into Hermes from the iOS share sheet
-- **Siri & App Intents** — ask Hermes or start a voice session hands-free; conversations index into Spotlight
+- **Siri & App Intents** — ask Hermes or start a voice session hands-free; conversations index into Spotlight; `talaria://` links open the app from Safari, Shortcuts, or any other app
 - **Device tool belt** — the agent can read your calendar, reminders, contacts, weather (WeatherKit), health, and media, and set real alarms/timers (AlarmKit) — every action confirmed in-app before it fires
 - **Multi-host profiles** — pair more than one Hermes machine (e.g. a desktop and a dev box); each profile keeps its own API key in the Keychain
 - **Full settings suite** — System, Uplink, Server, Models, Voice, Appearance, Sessions, Privacy, Diagnostics, Developer — everything configurable in-app, including a full-bleed theme channel browser (the live app is the preview), 30+ alternate app icons, and an optional Face ID app lock
@@ -79,6 +79,21 @@ iPhone (Talaria)
 ```
 
 Chat connects **directly** to the Sessions API — server sessions, model selection, and mid-turn steering all ride that one connection. The plugin link rides the same gateway (the `/api/platforms/talaria/events` channel): pairing, query-time phone asks (location, health, motion, calendar, weather — per-sensor opt-in), and the inbox/directives/briefing channel. The relay + connector tier is **legacy and all but retired** — realtime voice, its last surface, moved onto the talaria plugin on 2026-08-22 (#383); the tier remains in-tree only on its retirement path (#223). *(Corrected 2026-08-25 by #309 Lane A: this line read "no longer called by current builds at all", which was not accurate. Pairing, device registration and token refresh were still on the relay and still ran on every cold launch — that chain is deleted now, and what is left is three read paths — host presence, the command catalog, and an app-state beacon — being re-homed onto the gateway by the next lane.)* Agent-file downloads are handled by the plugin's artifact mirror; the relay's download path is superseded. Sensor ingestion is gone outright (2026-08-16, #352): phone data answers query-time asks; nothing streams, nothing queues. The verified SSE event taxonomy and API contract live in [CLEAN_CHAT_PATH.md](CLEAN_CHAT_PATH.md). (Earlier versions used a third service — a models shim on `:8765`; it is retired and current builds never call it.)
+
+### URL scheme
+
+The app registers **`talaria://`**. Anything that can open a URL — Safari, Shortcuts' *Open URL*, another app, a link in an agent reply — can reach these routes:
+
+| URL | Opens |
+|-----|-------|
+| `talaria://chat` | the chat tab |
+| `talaria://session/{id}` | that session |
+| `talaria://ask?q=hello` | chat, with `hello` **seeded in the composer — never sent** |
+| `talaria://voice` | the voice overlay |
+| `talaria://health` | the permissions screen |
+| `talaria://briefing` | the latest daily briefing |
+
+`ask` stops at the composer on purpose: any app or web page can fire a custom-scheme URL, so auto-sending would let outside content inject agent turns. You still tap send.
 
 ---
 

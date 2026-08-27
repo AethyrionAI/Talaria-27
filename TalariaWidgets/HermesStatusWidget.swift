@@ -109,7 +109,7 @@ private struct HermesStatusView: View {
                     .foregroundStyle(palette.secondaryForeground)
             }
         }
-        .widgetURL(URL(string: "hermes://chat"))
+        .widgetURL(URL(string: "talaria://chat"))
     }
 
     /// Attribution for the last-message block ("Hermes · 2m ago").
@@ -136,7 +136,7 @@ private struct HermesStatusView: View {
                 .fill(entry.data.hostOnline ? .green : .gray)
                 .frame(width: 5, height: 5)
         }
-        .widgetURL(URL(string: "hermes://chat"))
+        .widgetURL(URL(string: "talaria://chat"))
     }
 
     // MARK: - Accessory Rectangular (Lock Screen — system-rendered)
@@ -166,7 +166,7 @@ private struct HermesStatusView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .widgetURL(URL(string: "hermes://chat"))
+        .widgetURL(URL(string: "talaria://chat"))
     }
 }
 
