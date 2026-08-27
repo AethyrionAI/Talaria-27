@@ -14348,6 +14348,22 @@ gate says so on every run.
 > Bars 415-A..D formalize at lane-open; 415-A proven RED on today's
 > main first, per its own proposal.
 
+
+> **⚖️ THE TWO STRAGGLERS RULED 2026-08-26 night (Owen: "shortcuts only.
+> Notate about the carplay. I don't see any reason to make changes that
+> we can't even see right now."):**
+> - **Shortcuts surface ELECTED:** `AskHermesIntent.title` + the
+>   `TalariaAppShortcuts` `shortTitle` rename to "Ask Talaria" — mini-lane
+>   dispatched.
+> - **CarPlay DECLINED-FOR-NOW, his reasoning verbatim above:**
+>   `CarPlayVoiceManager.swift`'s `titleVariants: ["Talk to Hermes"]`
+>   stays — CarPlay is UNVERIFIABLE today (#74: the CarPlay simulator
+>   window has been broken across beta 4/5/7 runtimes, three cycles), and
+>   a change nobody can see is a change nobody can verify. **This
+>   notation is the standing record: when #74's sim pass finally works
+>   (or CarPlay becomes otherwise verifiable), the one-line rename rides
+>   the first CarPlay-touching lane — it is deferred-with-a-trigger, not
+>   forgotten.**
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
 **2026-08-11 — what was run and what it found (Fable orchestrator + 4 subagents; sims
