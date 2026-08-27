@@ -531,7 +531,9 @@ final class TalariaUITests: XCTestCase {
             window=\(app.windows.firstMatch.frame)
             """
         )
+        XCTContext.runActivity(named: "XFLAKE pre hittable=\(startChatting.isHittable) frame=\(startChatting.frame) window=\(app.windows.firstMatch.frame) scroll=\(app.scrollViews.firstMatch.frame)") { _ in }
         startChatting.tap()
+        XCTContext.runActivity(named: "XFLAKE post wizardUp=\(startChatting.exists) composerIn5s=\(waitForComposer(in: app, timeout: 5) != nil) wizardUpAfter=\(startChatting.exists)") { _ in }
 
         // #137: landing straight in chat — no permissions interstitial.
         guard waitForComposer(in: app, timeout: 15) != nil else {

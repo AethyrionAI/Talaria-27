@@ -12485,7 +12485,23 @@ just the log.
 >   before that was considered. Named so the next occurrence does not lose it
 >   too.
 
-## 211A. offer-instead-of-act on READ paths, where no confirmation gate excuses it — **✅ INSTRUMENT BUILT + MERGED 2026-08-26 (instruments lane): `offer-read`, three arms x four read prompts, cells + scorer, bars 211A-B1..B7 met on the simulator. The DEVICE run is Owen's and is a runbook card; 211A-D1..D4 are pre-registered and UNRUN, so this entry still carries ZERO behavioural numbers.**
+
+> **📏 2026-08-27 — THE LONG-OWED `.xcresult`s EXIST, and the dedicated
+> diagnosis lane returned an honest non-answer.** Seven induced-load
+> reproduction attempts (load average to 186), ALL GREEN — slowest a
+> 63.9 s PASS — so the `testConnectedRelaunchSkipsTheConnectEntry` red
+> is NOT summonable by synthetic load; every historical red coincided
+> with REAL concurrent gate/sim activity. Full report:
+> `planning/reports/2026-08-27-xcuitest-relaunch.md`; artifacts (7
+> xcresults + logs): `~/.talaria-instrument-runs/20260827-xflake-diagnosis/`.
+> **The tripwire is armed on main:** XFLAKE diagnostic activities now
+> bracket the tap inside the test, so the NEXT natural red
+> self-documents in its own xcresult — diagnosis resumes from that
+> artifact, not from another reproduction hunt. WATCH. (Process note:
+> the 10-hour lane was cut short by a Claude Code process exit; the
+> orchestrator harvested its worktree — its only code product, the
+> 2-line instrumentation, is committed with the 7-green-loaded-runs
+> evidence standing as its verification.)## 211A. offer-instead-of-act on READ paths, where no confirmation gate excuses it — **✅ INSTRUMENT BUILT + MERGED 2026-08-26 (instruments lane): `offer-read`, three arms x four read prompts, cells + scorer, bars 211A-B1..B7 met on the simulator. The DEVICE run is Owen's and is a runbook card; 211A-D1..D4 are pre-registered and UNRUN, so this entry still carries ZERO behavioural numbers.**
 
 **FILED 2026-08-01** from the audit's unfiled-lanes list.
 
