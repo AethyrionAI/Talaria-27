@@ -146,6 +146,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); the refusal wording is the lever — **✅ THE STRING SHIPPED 2026-08-25 (PR #376): both branches carry an explicit do-not-claim clause, RED-first, mutation-proven both ways, 409-A/B/C MET. OPEN on 409-D only — the wording changed, the model's behaviour is UNVERIFIED until the next device `refusal-words` run**
 - **#413** 🐛 the assistant's FIRST utterance is captured as the USER speaking — realtime engine, first response only, 3/3 on BOTH Noisy and Normal (preset-independent, Owen's own A/B) — candidates filed (AEC convergence / route settle / channel mis-route); the AirPods probe discriminates acoustic vs software
 - **#414** 🐛 the phone 401s `GET /v1/models` against OJAMD — 410 historical log lines, pre-existing, quiet (chat + picker use other routes) — from the deploy report; first step is reading which credential slot the call sites resolve; may already be fixed by Lane B's Keychain hygiene, unmeasured
+- **#415** 🔴 the MIC STAYED ON after a Control Center voice launch (2/2, cleared by force-quit; privacy-surface real) + the control still says "Talk to Hermes" — Owen's 3108 pass; same-day log collect is the decaying evidence; #303's CC engine pin is the lead candidate class
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it**. **MEASURED 2026-08-11; clipping RULED OUT.** ~~Mechanism UNKNOWN~~ ~~⟵ INVESTIGATED 2026-08-25, candidates ranked~~ **⟵ ✅ MECHANISM MEASURED 2026-08-25 (measurement lane, unit repro): `openSession`'s wholesale replace + `mapStoredMessage`'s role refusal and empty usage fields zero BOTH totals inputs in ONE event, and the 9→7 row drop is the same event. Candidate ① CONFIRMED; candidate ③ (the `.voiceHermes` predicate split) is REAL but mutation-proven NOT the cause; the entry's "receipts render normally" claim is FALSIFIED — no reopened row carries `usage` or `turnDuration`, and the quoted numbers are the card's LAST TURN block via `SessionUsageIndex`. Shipped: 16 pins in `SessionTotalsAfterReopenTests`, a verbose-gated `/usage` instrument (NOT `#if DEBUG`), 3 seam breadcrumbs at `.notice`, and 330-G's six-step device script.** 330-A/B/E DISCHARGED. **⟵ ✅ FIXED 2026-08-25 (fix lane, `330-receipts-sidecar`): the `TurnReceiptSidecar` — session-id-keyed, replayed at open, `AgentAttachmentSidecar`'s pattern plus a priming tier — restores `usage`/`turnDuration`/`servingModel`/`isContextPriming` across the replace, and `mapStoredMessage` re-maps the STORED primer (a `user` row host-side) into the priming notice, collapsing its ack; that also closes a compounding defect where every reopen fed the primer back into the journal the next transplant is composed from. 330-C CONVERGED (four sites, one `isAgentAuthored` predicate — hygiene, M2 already proved it is not the cause). 330-D MET with its token source NAMED: `postPrimingTurn` returns nil whenever the priming run misses the 20 s `runsSyncBudget`, so the run id is kept and re-read off the interactive path onto the journal hop. 5 of 16 pins flipped RED-first (9 expectations), all rewritten; 16 → 34 tests; 3 isolating mutations.** **330-C/330-D DISCHARGED; only 330-G (Owen's device close) is left, and #312 (f) flips with it**
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
@@ -1775,6 +1776,9 @@ Logged 2026-07-17.
 
 ---
 
+
+> **📱 2026-08-26 night (Owen's third pass, BUILD 3108 — quoted on the paste, first time the build line was filled in) — PASSED: "all pass" across the five share shapes.**
+> CLOSED; archive move rides the next sweep.
 ## 124. ✨ Face ID app lock (free tier)
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
@@ -4338,6 +4342,10 @@ from a work desk over the Tailscale OTA path. Airplane mode as ground truth for 
 - Same session produced fresh #192-family evidence (silent badge flip on Hermes-thread send —
   recorded at #192) and new #194 (tool fixation).
 
+
+> **📱 2026-08-26 night (Owen's third pass, BUILD 3108 — quoted on the paste, first time the build line was filled in) — PASSED: "Audio stops, no failure banner when
+> switching sessions."** Both halves of the card met. CLOSED; archive
+> move rides the next sweep.
 ## 224. 🎨 Mirror Hermes's three-mode approval model — ~~ours is always-on Manual, theirs is Manual / Smart / Off, and it is a gateway config key~~ — **✅ OURS IS MANUAL / SMART / OFF TOO: PHASES 1+2 BUILT 2026-08-26** (Privacy → `// Agent Actions`; GLOBAL on `UserSettings`; `.manual` still the default on every install and every old blob; Smart is deterministic caution rules with no model anywhere near the path; Off ships WITH the floor, which REFUSES rather than cards). **Remaining on this item: the two DEVICE bars — 224-1F and 224-2C, runbook cards, pre-registered and UNRUN — and Phase 3's transcript receipts, still DEFERRED per ruling 7.** The HOST-side picker is a DIFFERENT actor and already shipped (#224-APP, 2026-08-25); the two never negotiate.
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
@@ -13924,6 +13932,39 @@ before any wire work.
 hygiene that just shipped — this may already be fixed by Lane B's
 Keychain work and merely UNMEASURED post-3087; the zero-401s-after-bounce
 observation is consistent with that but proves nothing).
+
+## 415. 🔴 THE MIC STAYED ON after a Control Center voice launch — 2/2 reproducible, cleared by force-quit — and the control still says "Talk to HERMES" — **FILED 2026-08-26 night per #268, from Owen's third runbook pass (BUILD 3108, verbatim: "Control center > Talk to Hermes (should be Talaria, right?) and the mic stayed on. Tried again, same result. Force quit, tried again, did NOT happen."). Mechanism NOT guessed; the SAME-DAY LOG COLLECT is the discriminating evidence and it decays in hours.**
+
+**The two facts, separately:**
+1. **The mic indicator persisted** after Control Center → Talk to Hermes,
+   twice in a row; after a force-quit the third attempt was clean. The
+   2/2-then-clean shape points at STATE ACCUMULATED in the long-running
+   process (an audio session/engine or tap not torn down on the CC-launch
+   path), not a per-launch race — but that is a candidate class, not a
+   finding. A live mic indicator is capture-session-alive: this is
+   privacy-surface real, not cosmetic.
+2. **The control's title says "Talk to Hermes"** — should be Talaria
+   (Owen's own parenthetical, and now doubly ruled by #77's
+   talaria-primary direction). A one-string fix that can ride any lane
+   touching the intents.
+
+**Candidates for (1), a starting list:** the CC cold-launch path pins the
+NATIVE engine (#303's measured asymmetry — this launch shape is exactly
+its territory); the native pipeline's `setVoiceProcessingEnabled` input
+tap surviving session end; a #198-family audio-session deactivation miss
+on the intent-launched path (the memo path got its async discipline in
+#198B — the CC voice path may not have). **Name it by measurement:**
+the locked-interval log corpus (#302/#323's own card — the FAIL was
+scored against it) would show which engine held the session and whether
+teardown ran. **⏰ The events were ~22:1x local on 08-26; logd evicts
+app-subsystem rows in HOURS — a `sudo log collect` tonight captures the
+2/2 reproductions AND the clean control run; tomorrow it likely cannot.**
+
+**Related:** #303 (the CC-launch engine pin — this may be its first
+user-visible cost, which would change its measured-only status), #198A/B
+(audio-session teardown discipline), #220 (engine attribution), #138
+(voice umbrella), #413 (the night's other voice finding — different
+shape, same subsystem), #77 (the naming direction).
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
