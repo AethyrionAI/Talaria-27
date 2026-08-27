@@ -128,4 +128,85 @@ struct AskHermesIntentTests {
                 == .answered("Recovered answer.")
         )
     }
+
+    // MARK: - #415-S naming — the Shortcuts surface says Talaria
+
+    /// **415-S-1.** Owen's straggler ruling, verbatim: *"shortcuts only."*
+    /// This is the COMPILED value the App Intents extractor bakes into the
+    /// bundle's `Metadata.appintents`, so it fails on a real regression
+    /// rather than on stale comment prose — `LocalizedStringResource` is
+    /// `Equatable`, and a literal that got commented out instead of changed
+    /// would not satisfy it. Same instrument as 415-N-1 used for the two
+    /// Control Center intents.
+    @Test func askIntentTitleNamesTalaria() {
+        #expect(AskHermesIntent.title == "Ask Talaria")
+    }
+
+    /// **415-S-2, the `AppShortcut` half.** `AppShortcut` publishes
+    /// initializers and **no readable `shortTitle` property** (checked in the
+    /// iOS SDK's `AppIntents.swiftinterface`), so the compiled value is
+    /// unreachable from a test and the source is the only honest instrument
+    /// — the #399 / 415-N-2 source-reading pattern.
+    ///
+    /// Both directions are asserted, and the presence half is matched WITH
+    /// its surrounding call so no amount of comment prose can satisfy it.
+    /// Fails loudly if the file cannot be read: a check that cannot run must
+    /// say so rather than pass.
+    ///
+    /// The absence half matches the QUOTED spelling only — that file may
+    /// legitimately discuss the old name in prose, but not as a literal.
+    @Test func theAppShortcutSpellsTalaria() throws {
+        let file = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // TalariaTests/
+            .deletingLastPathComponent()   // repo root
+            .appendingPathComponent("Talaria/Intents/StartVoiceSessionIntent.swift")
+        let source = try #require(
+            try? String(contentsOf: file, encoding: .utf8),
+            "cannot read Talaria/Intents/StartVoiceSessionIntent.swift — this check did not run"
+        )
+
+        #expect(source.contains("shortTitle: \"Ask Talaria\""),
+                "the Ask shortcut's shortTitle is missing or renamed")
+        #expect(!source.contains("\"Ask Hermes\""),
+                "the App Shortcut still spells a literal \"Ask Hermes\"")
+
+        // 415-S-5: the registration identity does NOT move with the title.
+        // Measured out of a real build product — `Metadata.appintents`
+        // records `identifier: "AskHermesIntent"` and
+        // `mangledTypeName: "7Talaria15AskHermesIntentV"`, so the system keys
+        // placed shortcuts off the TYPE, never the display string. Renaming
+        // the type is the Shortcuts-surface twin of 415-N-3's control-`kind`
+        // hazard: it would satisfy every other bar here and still orphan
+        // every shortcut Owen has already built.
+        #expect(source.contains("intent: AskHermesIntent()"),
+                "the shortcut's intent type moved — that orphans placed shortcuts")
+    }
+
+    /// **415-S-3.** CarPlay was DECLINED-FOR-NOW with a trigger, not
+    /// forgotten (Owen: *"I don't see any reason to make changes that we
+    /// can't even see right now"* — #74 has left the CarPlay simulator
+    /// broken across three runtimes, so the rename would be unverifiable).
+    ///
+    /// A bar of the form "we did not edit that file" is unfalsifiable in a
+    /// diff nobody re-reads, so the deferral gets a live guard instead: if a
+    /// future sweep takes this line before CarPlay becomes verifiable, this
+    /// goes red and the deferral is re-decided deliberately. The two sibling
+    /// strings ride along because they are host-meaning and must survive any
+    /// eventual rename of the idle title.
+    @Test func carPlayIdleTitleIsUntouched() throws {
+        let file = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // TalariaTests/
+            .deletingLastPathComponent()   // repo root
+            .appendingPathComponent("Talaria/CarPlay/CarPlayVoiceManager.swift")
+        let source = try #require(
+            try? String(contentsOf: file, encoding: .utf8),
+            "cannot read Talaria/CarPlay/CarPlayVoiceManager.swift — this check did not run"
+        )
+
+        #expect(source.contains("titleVariants: [\"Talk to Hermes\"]"),
+                "CarPlay's idle title moved — #415 declined that rename until #74 makes CarPlay verifiable")
+        // Host-meaning siblings: Talaria is a client for a Hermes host.
+        #expect(source.contains("\"Connecting to Hermes...\""))
+        #expect(source.contains("\"Hermes is speaking\""))
+    }
 }

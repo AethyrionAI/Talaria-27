@@ -23,7 +23,15 @@ struct AskHermesIntent: AppIntent {
     /// needs to see in the log to tell a real unreachable from a slow run.
     nonisolated static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "AskHermesIntent")
 
-    static let title: LocalizedStringResource = "Ask Hermes"
+    /// #415-S (Owen: *"shortcuts only"*). The Shortcuts/Siri surface names
+    /// the APP, matching the two Control Center controls renamed in 415-N.
+    /// The TYPE name stays `AskHermesIntent` deliberately: the App Intents
+    /// extractor records `identifier: "AskHermesIntent"` /
+    /// `mangledTypeName: "7Talaria15AskHermesIntentV"` in the bundle's
+    /// `Metadata.appintents`, so the system keys already-placed shortcuts off
+    /// the type and never off this string — renaming the type would orphan
+    /// them, exactly as moving a control `kind` would (415-N-3).
+    static let title: LocalizedStringResource = "Ask Talaria"
     static let description = IntentDescription(
         "Asks Hermes a question and speaks the answer without opening the app.",
         categoryName: "Chat"

@@ -31,8 +31,9 @@ import WidgetKit
 // reach any of that.
 
 /// The chat control (#7) — titled "Ask Talaria". Symbol matches the app's
-/// Ask Hermes shortcut (`text.bubble` in `TalariaAppShortcuts`), which keeps
-/// its own name: that is the Siri/Shortcuts surface, not this one.
+/// Ask shortcut (`text.bubble` in `TalariaAppShortcuts`), which #415-S
+/// renamed to "Ask Talaria" as well — a separate surface (Siri/Shortcuts),
+/// settled a lane later, and now spelling the same words.
 struct AskHermesControl: ControlWidget {
     /// Stable identity — the system keys placed controls by it; never rename.
     /// The value lives in `HermesControlKind` so `HermesControlsTests` can

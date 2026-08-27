@@ -47,7 +47,8 @@ struct TalariaAppShortcuts: AppShortcutsProvider {
             shortTitle: "Start Voice Session",
             systemImageName: "waveform"
         )
-        // Ask Hermes (#6). The question can't ride the phrase itself — App
+        // Ask Talaria (#6; the type is still `AskHermesIntent`, and must
+        // stay so — #415-S). The question can't ride the phrase itself — App
         // Shortcut phrase parameters must be AppEnum/AppEntity, not free-form
         // String — so Siri prompts for it (the parameter's requestValueDialog).
         AppShortcut(
@@ -58,7 +59,7 @@ struct TalariaAppShortcuts: AppShortcutsProvider {
                 "Ask \(.applicationName) something",
                 "Send \(.applicationName) a question",
             ],
-            shortTitle: "Ask Hermes",
+            shortTitle: "Ask Talaria",
             systemImageName: "text.bubble"
         )
     }
