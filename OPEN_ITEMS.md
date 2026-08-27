@@ -13945,8 +13945,12 @@ observation is consistent with that but proves nothing).
    privacy-surface real, not cosmetic.
 2. **The control's title says "Talk to Hermes"** — should be Talaria
    (Owen's own parenthetical, and now doubly ruled by #77's
-   talaria-primary direction). A one-string fix that can ride any lane
-   touching the intents.
+   talaria-primary direction). **⚖️ EXTENDED minutes later (Owen,
+   verbatim: "The talk and chat ones should be changed from hermes to
+   talaria") — BOTH Control Center controls rename. Scope is exactly the
+   two control titles (and their intent display names): the app still
+   says "Hermes" wherever it means THE HOST, which stays correct.**
+   Rename lane dispatched the same hour.
 
 **Candidates for (1), a starting list:** the CC cold-launch path pins the
 NATIVE engine (#303's measured asymmetry — this launch shape is exactly
