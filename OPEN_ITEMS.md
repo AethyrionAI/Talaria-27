@@ -118,7 +118,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#392** 🔴 **A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT** — *"your calendar didn't accept the request"* when the user declined the card. The calendar never saw it; `performCreate` returned *"The user declined"* and the model reported EventKit refused. **MEASURED 2/30 on device 2026-08-21, CALENDAR-ONLY (remind/alarm 0/20)** — which is the finding, not a detail: a fix aimed at declines in general would target the wrong surface. #180's family, #340's shape. Spawned from #199A's re-run rather than keeping that entry open under a changed meaning; bars 392-A..D pre-registered, and 392-A demands n>=30/arm after #372(c) proved tonight what a low base rate costs
 - **#387** 📝 POST-LAUNCH ONGOING MAINTENANCE — the running list (`private/POST-LAUNCH-MAINTENANCE.md`, gitignored), for obligations that begin at launch and never complete. **NAMED BY OWEN 2026-08-20. Entry 1: watch Apple's PCC pages, because #386's policy QUOTES them and a quote is a snapshot of a page we do not control. NOT BUILT — mechanism chosen at launch**
 - **#74** 🔧 Wave 5 — CarPlay voice upgrade: auto-start, observation tracking, routing (GitHub #19) — **🛑 BLOCKED BY THE iOS 27.0 SIM RUNTIME ACROSS TWO CONSECUTIVE BETAS. Attempted 2026-08-10 on beta4 (24A5390f) and RE-ATTEMPTED 2026-08-11 on beta5 (24A5408d): CarPlay takes the ✓ but no window and no external surface is ever created, while a 26.5 control in the SAME healthy Simulator.app process at the SAME moment brings its window up and writes an 800×480 surface.** App-side config verified correct (entitlement in the sim binary's `__TEXT,__entitlements`, not the ad-hoc signature); **74-A…E NOT RUN** (apparatus never came up — nothing observed-and-failed); **74-F MET** twice. **Pre-flight before any future re-stage: toggle CarPlay on a 27.x sim and WAIT ≥60 s — the control itself takes ~35 s, and "instantly" was wrong.** #45's grant filing stays sequenced behind the pass (Owen re-affirmed 2026-08-10), now knowingly across two beta cycles
-- **#77** 🔧 hermes:// URL scheme registered + ask?q= payload route (GitHub #48)
+- **#77** ✅ talaria:// URL scheme — primary + documented; hermes:// rides along by ruling + ask?q= payload route — device pass PASSED 2026-08-26 (seed-never-send confirmed), the naming election it was held open for EXECUTED the same night (PR #391: talaria:// registered first, router scheme-agnostic, README documents it, the ruling quoted once at the registration site). CLOSED; archive move rides the next sweep (GitHub #48)
 - **#123** ✨ Share extension — send anything into a Hermes session (free tier)
 - **#124** ✨ Face ID app lock (free tier)
 - **#127** 🔧 Monetization scaffold — MERGED DORMANT + gate walk DEVICE VERIFIED 2026-07-17 (fail-open live-confirmed on …
@@ -1414,7 +1414,7 @@ grant lands.
 > probe sim shut down. Next check rides the next runtime promotion round
 > (the #401 shape), alongside #402's PCC re-probe.
 
-## 77. 🔧 hermes:// URL scheme registered + ask?q= payload route (GitHub #48)
+## 77. ✅ talaria:// URL scheme — primary + documented; hermes:// rides along by ruling + ask?q= payload route (GitHub #48)
 
 > **Audit 2026-07-13:** PR #51 merged to main (GitHub #48 closed); code confirmed on main (`project.yml`/`Info.plist` CFBundleURLTypes hermes scheme, `ChatStore.pendingComposerSeed`/`seedComposer`/`consumeComposerSeed`, `AppEntry.handleDeeplink` ask?q= route). The 'not compiled' wording above is stale, but 🔧 correctly stands since no device-verification note has been added.
 
@@ -1512,6 +1512,148 @@ a Developer-screen toggle later? Shipped stance is seed-only.
 >   `CC-lane-2`, and the Swift Testing count **moves up** from the ~2721
 >   baseline by exactly the number of tests added — a count that did not move is
 >   a stale `.xctest`, not a pass.
+
+> **✅ EXECUTED 2026-08-26 night — PR #391 (`lane/77-talaria-scheme`, branched
+> off `4e17a5fc`, rebased onto `c551c354`).** `talaria://` is the primary,
+> documented scheme; `hermes://` is registered, working, and undocumented BY
+> RULING. Bar by bar:
+>
+> - **77-A — MET.** `project.yml`'s `CFBundleURLTypes` declares `talaria`
+>   first, `hermes` second; the generated `Talaria/Resources/Info.plist` diff
+>   is a **pure insertion** (the `hermes` dict is untouched, byte-for-byte).
+>   Idempotence measured, not assumed: two consecutive `xcodegen generate` runs
+>   left both artifacts identical —
+>   `923c82c29184eae8b17df8cfedd506add174f106  project.pbxproj` /
+>   `f1d543cdb3b606f27dfb3908fd7bac7d6fd5ba15  Info.plist` (`diff` exit 0).
+>   Pinned against the **BUILT** app plist by
+>   `DeeplinkSchemeTests.builtAppRegistersTalariaFirstAndHermesSecond` —
+>   `schemes == ["talaria", "hermes"]`, order included — plus a second pin that
+>   each entry keeps its own `CFBundleURLName`.
+> - **77-B — MET, RED FIRST.** `DeeplinkRouter.registeredSchemes` is the one
+>   accepted set and the guard reads `url.scheme` against it. All six routes
+>   (`chat`, `session/{id}`, `ask?q=`, `voice`, `health`, `briefing`) are driven
+>   under BOTH schemes and compared as whole outcome snapshots (tab, sheet,
+>   nav path, voice flag, composer seed), each pair also checked against the
+>   outcome it must produce so parity cannot pass vacuously.
+>   **The RED, on the unmodified tree** (`-only-testing:TalariaTests/DeeplinkSchemeTests`):
+>   ```
+>   ✘ builtAppRegistersTalariaFirstAndHermesSecond()  1 issue
+>   ✘ eachRegisteredSchemeHasItsOwnURLName()          1 issue
+>   ✘ everyRouteBehavesIdenticallyUnderBothSchemes() 12 issues
+>   ✘ talariaAskSeedsTheComposerAndNeverSends()       1 issue
+>   ✔ unregisteredSchemesRouteNowhere()               passed
+>   ✘ Test run with 5 tests in 1 suite failed with 15 issues
+>   ```
+>   The green one is the **control** and is why the other four mean anything:
+>   before the fix `talaria://` was itself unregistered, so "routes nowhere" was
+>   the true answer for it too. After the fix all five are green and that
+>   control still holds for `talaria27://` and `talariax://` — *scheme-agnostic*
+>   means "these two", not "anything".
+> - **77-C — MET.** Every surface that SPEAKS the scheme now says `talaria://`:
+>   README (2 places, below), **20 live production sites across 11 files** and
+>   **14 test literals across 4 suites** (counted, not estimated) — the
+>   `DeeplinkRouter` docstring and route comments, `ChatStore` /
+>   `ChatScreen`'s seed comments, `AppLockController`, the three intent files,
+>   and every EMITTER (`OpenHermesChatIntent`/`OpenHermesVoiceIntent`
+>   destinations, `SessionEntity`'s Spotlight URL + its `chat` fallback,
+>   `OpenAgentFileIntent`, and all five `widgetURL` taps). **`docs/` — the live
+>   Pages web root — named no scheme before this lane and names none now**
+>   (`grep -rIn 'hermes://\|talaria://' docs/` ⇒ 0 hits, before and after), so
+>   the merge publishes no new marketing copy; Owen's election was still quoted
+>   in the PR as the go for the README copy it does change.
+>   **The ruling is quoted VERBATIM in exactly one place** — the registration
+>   site in `project.yml` — reproduced below. `DeeplinkRouter`'s
+>   `registeredSchemes` and `DeeplinkSchemeTests` both POINT at that comment
+>   rather than re-explaining it, so the surviving `hermes` literal can never
+>   read as cruft to a future sweep.
+> - **77-D — MET.** Seed-never-send is untouched on both schemes:
+>   `talariaAskSeedsTheComposerAndNeverSends` pins the primary, the parity table
+>   pins the twin, and `DeeplinkRouter`'s `ask` case is unchanged apart from its
+>   comment. The two `ChatStorePersistenceTests` composer-seed pins are
+>   **byte-identical** — the only line that moved in that file is the
+>   `// MARK: - Composer seed (#48 …)` header's scheme name, which 77-C
+>   required. Recorded rather than glossed: that is one comment line, not an
+>   edit to a pin.
+> - **77-E — MET.** `TALARIA_SIM_NAME=CC-lane-2 scripts/mac/lane-gate.sh` under
+>   Xcode-beta6 (27.0) — **`GATE: PASS on 24A5423a`, exit 0**, eleven PASS lines
+>   and no FAIL:
+>   ```
+>   PASS  runtime: iOS 27.0 (24A5423a) on "CC-lane-2"
+>   PASS  TCC granted on CC-lane-2 (calendar, reminders)
+>   PASS  failure-advice classifier — CLASSIFIER: PASS (15 checks)
+>   PASS  project.pbxproj has no uncommitted drift
+>   PASS  Test run reported TEST SUCCEEDED
+>   PASS  Swift Testing tests run — 2726
+>   PASS  XCUITest tests run — 15
+>   PASS  Release build succeeded   ·   PASS  no Swift compile errors in Release
+>   ```
+>   **The count MOVED: 2721 → 2726, exactly +5** — the five new
+>   `DeeplinkSchemeTests` pins and nothing else, so this is not a stale
+>   `.xctest` reporting an old binary. Targeted pre-gate run of the five
+>   touched suites: **72 tests / 5 suites passed, `TEST SUCCEEDED`**.
+>   ⚠️ Read with #398-C's rule: green on **24A5423a (sim)**, not on the phone's
+>   build — this lane's surface is plist + routing, where that distinction is
+>   about as harmless as it gets, but the number still carries its runtime.
+>
+> **THE EASTER-EGG COMMENT, VERBATIM** (`project.yml`, at `CFBundleURLTypes` —
+> this is the ONE place the ruling lives):
+> ```yaml
+>         # `talaria` is PRIMARY and is the only scheme any documentation, any
+>         # in-app copy, or anything the app itself emits may name.
+>         #
+>         # ⛔ `hermes` is second, undocumented, and fully working BY RULING —
+>         # not by accident, and not as leftovers. Owen, 2026-08-26, verbatim:
+>         # "Yeah lets use Talaria in docs, and hermes can ride along incase
+>         # someone wants an easter egg." So do NOT "tidy up" this entry, the
+>         # matching literal in DeeplinkRouter.registeredSchemes, or the tests
+>         # that pin it: a working, undocumented scheme IS the deliverable. This
+>         # comment is the ONE place that ruling is quoted; everything else in
+>         # the tree points back here rather than re-explaining it.
+> ```
+>
+> **DOC SURFACES CHANGED — the enumeration, so the next reader need not grep:**
+> 1. `README.md` § *What it does* → the Siri & App Intents bullet now ends
+>    "…; `talaria://` links open the app from Safari, Shortcuts, or any other
+>    app".
+> 2. `README.md` § *Architecture* → **new `### URL scheme` subsection**: a
+>    six-row route table (`chat`, `session/{id}`, `ask?q=`, `voice`, `health`,
+>    `briefing`) plus the seed-never-send rationale in the user's language
+>    ("any app or web page can fire a custom-scheme URL … You still tap send").
+>    This is the first time the scheme has been documented anywhere in-repo.
+> 3. Code comments + emitters — the 20 production sites named under 77-C, plus
+>    the 14 test literals that follow them.
+>
+> **The only `hermes://` left anywhere in live code is inside
+> `DeeplinkSchemeTests` — its docstring (which points at `project.yml`) and one
+> assertion message.** `grep -rIn 'hermes://' docs/` and the same over
+> `Shared/ Talaria/ TalariaWidgets/ TalariaShare/ README.md` return **0**.
+>
+> **DELIBERATELY NOT CHANGED, and why** — a stale-looking `hermes://` in any of
+> these is correct, not an oversight:
+> - **Dated historical records**: `dispatch/*.md`, `planning/**`,
+>   `design/OPEN_ITEMS_AUDIT_2026-07-13.md`, `OPEN_ITEMS-ARCHIVE.md`, and this
+>   entry's own pre-election blocks. They record what was true when written;
+>   rewriting them would falsify the record (and #261/#317(a) forbid touching
+>   archive bytes outright).
+> - **`dispatch/DEVICE-PASS-RUNNING-LIST.md` §F10** — the runbook is the
+>   orchestrator's artifact this session (parallel lanes share that file), so
+>   the re-cut text is filed here for it to apply rather than edited in-lane.
+>
+> **RUNBOOK CARD, RE-CUT (§F10, #77) — ready to paste:**
+> ```
+> - [ ] §F10 — #77: type `talaria://session/{a real id}` into Safari's
+>   address bar. (PASS: the app opens that exact session.) Then, via
+>   Shortcuts, run "Open URL" with `talaria://ask?q=hello`. (PASS: composer
+>   is seeded with "hello" and focused, but NOT sent.) Confirm no other
+>   installed app claims the `talaria` scheme. The old `hermes://` forms
+>   still work on purpose (undocumented, by Owen's 2026-08-26 ruling) — one
+>   spot-check of `hermes://chat` is the easter-egg regression, not a
+>   requirement.
+> ```
+>
+> **STATE: CLOSED** — the device pass passed earlier the same night, the naming
+> election it was held open for is executed, and nothing is owed. **The archive
+> move rides the next sweep.**
 ## 123. ✨ Share extension — send anything into a Hermes session (free tier)
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
