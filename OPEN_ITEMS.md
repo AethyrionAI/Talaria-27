@@ -14810,6 +14810,120 @@ produced **3 failures across 2 tests** — both arms of the compiled-value pin
 (presence AND absence) plus `oldAppMeaningLiteralsAreGone`. The instrument
 discriminates; it is not asserting over an empty set.
 
+---
+
+### 🎯 FIX BARS 415-A … 415-D — pre-registered 2026-08-26 night (fix lane), BEFORE any code. Adapted from the forensics' proposals above; the differences are named where they exist.
+
+**What the fix is, stated before it is built.** `TalkStore` gains a **cover
+watch**: a re-evaluation of `AppLockGate` that outlives the single sample
+`deferUntilUnlocked` takes at the instant of start. The gate is the seam —
+`AppLockController.refreshCover()` is still its only writer, and the watch
+reads it through a **mirror of the suspension point the park already uses**
+(`waitUntilLocked()` beside `waitUntilUnlocked()`), not through a second
+observer, a notification, or a poll. **No new mechanism, no new writer, no
+new state machine** — that is the #323-class discipline applied to the fix
+for #302's own recurrence.
+
+**The park semantics are #302's, extended — not invented.** A session that
+becomes covered mid-flight is treated exactly as a start that arrived one
+second later would have been: **capture STOPS immediately** (the existing
+teardown, `voiceService.endSession()` + snapshot — the same body
+`discardAbandonedStart()` runs), the store **parks** on the same
+`isWaitingForUnlock` + `lockedWaitingMessage` state a pre-start lock
+produces, and on unlock it **resumes exactly once through the door the
+session came from** — or, if the start was abandoned/revoked while parked,
+it never resumes at all (302-F's rule, extended to the new door).
+
+Two consequences recorded now rather than discovered later:
+- **The stop is the BARE teardown, not `endSession()`.** The full path
+  publishes `lastCompletedSession`, which `MainTabView` injects into the
+  chat transcript — a transcript write behind the cover, which is
+  precisely what **#323** forbids. So a covered session's turns are
+  dropped rather than injected. In the ordering the forensics actually
+  measured this costs nothing (the cover arms 0.27–2.4 s into a start that
+  has no turns yet); in the defensive already-active ordering it trades
+  data for the covered-interval rule, deliberately.
+- **"Resume" means the store re-enters its start door, so the engine opens
+  a NEW session.** The engine's own session was torn down; nothing
+  pretends otherwise. Same shape a pre-start park produces.
+
+- **415-A — THE LOCK ARMING MID-FLIGHT PARKS THE SESSION, AND THE CAPTURE
+  CHAIN DOES NOT SURVIVE THE COVER.** Unit, and the only bar that
+  discriminates this defect from #302's fixed one. **Must be witnessed RED
+  on the unmodified tree before any fix lands — a bar that is green before
+  the fix is measuring the wrong thing.** Three orderings, scored
+  separately:
+  - **A-1 STARTING** (the measured ordering): gate UNLOCKED, drive
+    `startSessionDirectly()`; while the fake voice service is suspended
+    inside `startSession()`, flip `gate.setLocked(true)`. Assert the
+    capture chain does not stay up — the fake records the start and then an
+    **immediate stop**, `isSessionActive == false` — and that the store is
+    **parked** (`isWaitingForUnlock`, `statusMessage ==
+    lockedWaitingMessage`). Then `setLocked(false)` ⇒ it resumes
+    **exactly once** and stops claiming to wait.
+  - **A-2 ACTIVE** (the defensive ordering): a completed start, live
+    session, then `setLocked(true)` ⇒ stopped and parked; unlock ⇒ resumed
+    exactly once. Scored separately from A-1 because a fix that only
+    re-checks after `startSession()` returns closes the measured half and
+    leaves this one open.
+  - **A-3 ABANDONED WHILE PARKED**: cover arms mid-flight, then
+    `abandonSession()`, then unlock ⇒ **no resume, ever**. #139's defect
+    arriving through the new door — a naive park-and-resume opens a
+    microphone for nobody, which is the whole reason 302-F exists.
+  - Both start doors are covered (A-1 through `startSessionDirectly()`,
+    A-2 through `startSession()`), per 302-E's two-door rule.
+  - **Mutations:** delete the mid-flight re-check ⇒ A-1/A-2/A-3 RED;
+    park WITHOUT stopping capture ⇒ the capture-stopped assertions RED
+    while the parked-state ones stay green (that is the isolating pair —
+    a park that leaves the mic hot is the defect wearing the fix's
+    clothes); drop the post-unlock generation re-check ⇒ **A-3 alone** RED.
+- **415-B — the negative control that keeps 415-A honest** (mirror of
+  302-G). **App Lock OFF is a NO-OP on the mid-flight path:** driven
+  through a real `AppLockController` with `isEnabled: false`
+  (background → active, the transition that arms the lock when it is on),
+  the gate never locks, a started session is **never stopped**, **never
+  parks**, and starts **exactly once**; a store with **no gate wired** is
+  unchanged too. **Without this, 415-A is satisfied by a build that never
+  starts voice, or by one that parks every session forever** — the
+  availability defect traded for the privacy one. Its bar is to stay
+  **GREEN under every mutation**.
+- **415-C — the realtime engine grows the `#302-A` instrument, and the
+  park announces itself.** `LiveVoiceSessionService` emits the same three
+  always-on `.notice` lines `NativeVoicePipelineService` has — *audio
+  session activated for capture*, *capture chain HOT*, *capture chain
+  COLD* — at its own equivalent seams, carrying the same `(#302-A)`
+  marker, `privacy: .public`, and **never behind Verbose Logging**, so one
+  Console predicate reads BOTH engines forever after. `TalkStore` gains a
+  `.notice` line for the mid-flight park/resume itself, so 415-D can be
+  scored from the app's own log instead of framework CoreAudio rows a
+  later `log collect` may not retain (the fallback this forensics was
+  forced into). Pinned by a **source read** over both files — the
+  `SpeakerRouteOverrideTests` pattern, in the same file it already pins.
+  **Mutation:** delete any one instrument line ⇒ RED.
+- **415-D — device, and it must HOLD THE COVER OPEN.** Warm process:
+  background the app, tap Control Center → **Talk to Talaria**, **cancel
+  Face ID and hold the locked cover ≥30 s**. Score from a same-day
+  archive: no `capture chain HOT` and no `Starting AURemoteIO` may appear
+  while any `cover=locked` is in effect; the park line must appear
+  instead; after unlock, capture may go hot. Then the cell run 3 never
+  tested: **cold launch, tap the control, and UNLOCK** — the parked start
+  must resume rather than being the accident that made the force-quit run
+  look clean. Owen's card ships with this lane's result block; the bar is
+  **not scorable by this lane** and stays open until he runs it.
+
+**Pre-registered response.** 415-A green with its mutations isolating and
+415-B green throughout ⇒ the mid-flight ordering is closed and #302's
+supersession is answered. **415-A red ⇒ the fix is not built, whatever the
+other bars say.** 415-B red is the most informative failure available
+here — it means the app now defers or tears down voice with App Lock
+switched OFF, which is worse than the defect being fixed. 415-C is not
+scorable by unit assertion (an `os_log` line has no return value); its pin
+is structural and says so.
+
+**Instrument discipline for this lane's own counting:** baseline is
+**2729 Swift Testing + 15 XCUITest** (415-N's gate, same day) and the
+delta must equal the tests this lane adds and nothing else.
+
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
 **2026-08-11 — what was run and what it found (Fable orchestrator + 4 subagents; sims
