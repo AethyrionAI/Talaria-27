@@ -5655,6 +5655,130 @@ scored here.
 > scaffold and the caution system). Device bars (224-1F, 224-2C) become
 > runbook cards. Merge-on-green applies.
 
+**🎯 BARS 224-1A..1F / 224-2A..2D — FORMALIZED 2026-08-26 at lane-open,
+BEFORE any code, from the design of record's §6 sketch. Anchors re-resolved
+at HEAD `627ec37e`.**
+
+> **WHAT MOVED SINCE THE 08-07 SKETCH — read this before citing a §6 line.**
+> The sketch predates Phase 0 (2026-08-11), #323-D (App Lock), #409 (the
+> do-not-claim clause) and the 224-APP host picker (2026-08-25). Nine anchors
+> resolve differently now:
+> 1. **`locationSection` does not exist.** §3.3 says "between Location and App
+>    Lock"; `PrivacySettingsScreen.body` at HEAD composes `permissionsSection ·
+>    sensorStreamingSection · appLockSection · spotlightSection ·
+>    revokeSection · manageSection`, and Location is a ROW inside
+>    `sensorStreamingSection` (#137). The ruled position resolves to **between
+>    `sensorStreamingSection` and `appLockSection`** — the same reading order
+>    ruling 6 names, a different symbol.
+> 2. **The policy table already exists.** `ApprovalMode.disposition(hasCaution:)`
+>    (`Talaria/Services/Support/ApprovalModeCore.swift`) is §3.4's table as a
+>    pure function, and `ApprovalDisposition` already names `.card` /
+>    `.autoApprove` / `.refuse`. Phases 1+2 do not invent the policy; they give
+>    two of its three arms an implementation and widen `selectable`.
+> 3. **The caution layer is on ALL THREE tools** (Phase 0, 224-0A/0B), so
+>    §3.4's "once caution exists" caveats and §3.5's hard precondition are
+>    discharged — already noted in the doc, restated here because the bars
+>    depend on it.
+> 4. **`UserSettings.approvalMode` already ships, clamped.** 224-1A is no
+>    longer "add a key"; it is "widen the clamp without moving the default",
+>    and the Phase-0 pins that assert the clamp erases `off`/`smart`
+>    (`approvalModeExposesOnlyManual`, `approvalModeClampsUnreachableValuesToManual`,
+>    the `"approvalMode":"off"` arm of
+>    `approvalModeIsAGlobalUserSettingsKeyDefaultingToManual`) are **designed
+>    to go RED here** — they say so in their own doc comments. Editing them is
+>    the deliberate act the Phase-0 lane demanded; deleting them is not.
+> 5. **224-2B's pin already exists as 224-0F**, in two halves (the non-`async`
+>    body + the sim-only source scan, narrowed by #332-a). 224-2B EXTENDS it —
+>    it does not duplicate it.
+> 6. **The gate grew `lockStateProvider` (#323-D).** The lock OUTRANKS the mode
+>    and short-circuits ahead of the provider. Phases 1+2 must keep every
+>    disposition inside the unlocked branch, and `AppLockGateTests`'
+>    `lockedApprovalNeverConsultsTheMode` is what catches a lane that does not.
+> 7. **`ToolConfirmationCenter.Decision` has two cases** (`approved`,
+>    `declined`). The floor cannot ride `declined` — a refusal is not a decline
+>    and the tools' text says "The user declined", which would be a lie.
+> 8. **#409 exists now.** Its ruling — a refusal string the MODEL reads carries
+>    an explicit do-not-claim clause — postdates this design and applies
+>    directly: the Off floor's refusal is a tool RESULT, so the model reads it.
+> 9. **There is now a SECOND approvals picker in the app** —
+>    `ServerSettingsScreen`'s host APPROVALS panel (224-APP, 2026-08-25), which
+>    governs the HOST's `approvals.mode`. The Privacy control governs THIS
+>    PHONE's gate and nothing else; its copy must not be confusable with it.
+
+**PHASE 1 — Manual / Off, with the floor.**
+
+- **224-1A — the default survives the widening.** `.manual` on a fresh install
+  AND on a pre-existing settings blob with no key. Now that `selectable` is all
+  three, a blob naming `smart` or `off` must ROUND-TRIP rather than clamp
+  (that is the behaviour change), while junk still degrades to `.manual`
+  instead of failing the whole settings decode and resetting every preference.
+- **224-1B — the floor, RED first.** In `.off`, a clean staged action creates
+  with **no card**; a caution-tripping one creates **nothing** and returns an
+  explanatory refusal. The refusal is a tool RESULT the model reads, so per
+  #409 it carries an explicit do-not-claim clause, and per #233-E/#249-F every
+  refusal this build can produce is **DIGIT-FREE** — asserted, not reviewed.
+  RED witnessed before the change (the gate stages a card at HEAD for every
+  mode, by construction).
+- **224-1C — reads and permissions are untouched.** Two halves, because one is
+  not enough. (i) **Structural, everywhere-scorable:** no read tool holds a
+  `ToolConfirmationCenter` — `DeviceToolBelt.makeReadTools` cannot even accept
+  one — pinned by reflection over the real read belt. (ii) **Resumption
+  identity:** an auto-approve returns the SAME `.approved(values)` shape a
+  user's approve returns, with the staged field values, so every downstream
+  check — EventKit/AlarmKit authorization included — runs exactly as it does
+  under `.manual`. A mode cannot bypass an OS permission because it never
+  reaches one.
+- **224-1D — the Privacy control.** Three rows in a new `// Agent Actions`
+  section between `sensorStreamingSection` and `appLockSection` (ruling 6, as
+  re-resolved above). (i) renders in EVERY theme including Paper Tape;
+  (ii) **Off reads as `Design.Brand.forgeText`, never `dangerText`** — asserted
+  on the colour the row resolves, not by review; (iii) VoiceOver labels state
+  the CONSEQUENCE, not the mode name alone; (iv) the copy is honest about its
+  blast radius — it claims the three agent-staged writes and explicitly does
+  NOT claim the `/alarm` slash command, which is a second door with its own
+  alert (`ChatScreen.swift`, #193/#16) and is the USER typing, not the agent
+  acting. All four pinned by copy/colour tests, and the copy is production
+  (#218 — no `#if DEBUG` strings).
+- **224-1E — `GATE: PASS`** (units + XCUITest + **Release**), Swift Testing
+  count MOVED, before/after recorded here.
+- **224-1F — DEVICE (Owen, runbook card). PRE-REGISTERED AND UNRUN.** Scored
+  only by a device sitting; nothing in this lane may claim it.
+
+**PHASE 2 — Smart.**
+
+- **224-2A — the one-line difference holds in test, RED first.** In `.smart`,
+  clean actions auto-approve and caution-tripping ones **CARD** — not refuse.
+  The discriminator is the same staged action run twice: `.smart` ⇒ card,
+  `.off` ⇒ refusal. **(ii) The wee-hour threshold is NOT moved** — Phase 0's
+  finding 1 asked Phase 2 to decide deliberately and in writing, and the
+  decision is: a pre-07:00 alarm CARDS under Smart. The threshold is #233's,
+  it was balloted, and moving it is a different decision than the one Owen
+  elected. Pinned by a test naming `"6:30am"` explicitly, so the behaviour is
+  a written choice rather than a discovery in use.
+- **224-2B — the model-free pin EXTENDS 224-0F, and mutation-proves it.**
+  Ruling 5: no `LanguageModelSession` is constructed on the approval path. The
+  synchronous non-`async` half must still cover the widened decision path, the
+  source scan's file list must still name every file this lane edits on that
+  path, and a mutation (construct a session there) must red it.
+- **224-2C — DEVICE (Owen, runbook card). PRE-REGISTERED AND UNRUN.**
+- **224-2D — `GATE: PASS`, count moved.** Phases 1+2 ship in ONE PR, so ONE
+  gate run scores both 224-1E and 224-2D. Stated here rather than discovered
+  later: that is a deliberate merge, not a skipped bar.
+
+> **KILL CLAUSE, written before the run:** if giving `.autoApprove` or
+> `.refuse` a real path cannot be done without editing any tool's SUCCESS-claim
+> text, or without weakening #323-D's lock-outranks-mode short-circuit,
+> **stop and report** rather than proceeding. Both are defended surfaces
+> balloted by other decisions.
+
+> **OUT OF SCOPE, named so it is not discovered as a gap:** transcript receipts
+> for auto-approved actions (ruling 7 — DEFERRED, Phase 3, build nothing of
+> it; auto-approvals log to `os_log` per §3.7) · the host's `approvals.mode`,
+> `approval.request`, and `POST /v1/runs/{id}/approval` (the design's own "not
+> a phase") · the `/alarm` slash command's alert (224-1D(iv) makes the copy
+> honest about it instead) · MCP (`design/MCP_CLIENT_DESIGN.md` routes through
+> this same gate and stays Manual in its first version regardless).
+
 ## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code. ⟵ PREMISE RE-VERIFIED LIVE AT HEAD 2026-08-25 (Sonnet agent): the asymmetric gate survives exactly as filed (#221 built it this way; #383 only renamed the pairing predicate; a passing regression test PINS the cold-launch pin as current behavior, `RealtimeVoiceIndicatorTests.swift:193`). The runbook's #303-A/B card remains the right instrument and has never run — measurement first, fix election after.**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 2).** 303-A/B ride the OJAMD sitting (realtime-configured host — see the OJAMD handoff §11); no fix before 303-A runs.
