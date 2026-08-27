@@ -86,6 +86,12 @@ green, tracker close-out in the same PR. Stage an OTA after merges land
   structural-pin greps count COMMENTS too (reword comments, keep pins
   dumb) · CC-lane pool only, TALARIA_SIM_NAME always · beta6 is the
   toolchain (`DEVELOPER_DIR=/Applications/Xcode-beta6.app/...`).
+- **⛔ TIME-BOX open-ended hunts (the 10-hour xflake lane, 08-27):** a
+  reproduction/diagnosis lane gets an explicit attempt budget and a
+  report-back checkpoint IN THE BRIEF ("after N attempts or T hours,
+  stop and file what you have") — an honest non-answer at hour 2 beats
+  a marathon; the orchestrator failed to cap this one and a process
+  crash, not a decision, ended it.
 - **⛔ NEVER `pkill -f lane-gate.sh` or `pkill -f "xcodebuild -project"`
   (bit the night batch, 08-26):** pattern-kills murder EVERY lane's gate on
   the box — one lane's pre-rerun cleanup silently killed another's gate
