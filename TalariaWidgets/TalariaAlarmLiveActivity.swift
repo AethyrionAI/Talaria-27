@@ -63,7 +63,7 @@ struct TalariaAlarmLiveActivity: Widget {
         if let label = context.attributes.metadata?.label, !label.isEmpty {
             return label
         }
-        return "Hermes Timer"
+        return "Talaria Timer"
     }
 
     /// Countdown renders as a live system timer; the ringing/paused phases

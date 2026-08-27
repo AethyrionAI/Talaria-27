@@ -27,7 +27,7 @@ struct SpotlightIndexingTests {
             id: "sess-43", title: "   ", preview: nil, model: nil,
             source: nil, messageCount: 0, lastActive: nil, isActive: false
         ))
-        #expect(untitled.title == "Hermes Session", "blank titles fall back to a real label, not whitespace")
+        #expect(untitled.title == "Talaria Session", "blank titles fall back to a real label, not whitespace")
     }
 
     @Test func agentFilesComeOnlyFromHermesMessages() async throws {

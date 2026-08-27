@@ -6,7 +6,7 @@ import Testing
 /// indistinguishable from slow."**
 ///
 /// The 2026-07-20 device sweep asked Siri a question with the phone off the
-/// tailnet and off wifi. The intent answered *"Hermes is still working on it.
+/// tailnet and off wifi. The intent answered *"Talaria is still working on it.
 /// Open Talaria to watch it finish."* — the same words a genuinely slow but
 /// alive run gets. Nothing was working; nothing ever would.
 ///
@@ -358,7 +358,7 @@ struct AskHermesUnreachableHonestyTests {
         // silently re-colliding with the unreachable path.
         #expect(
             AskHermesIntent.stillWorkingDialog
-                == "Hermes is still working on it. Open Talaria to watch it finish."
+                == "Talaria is still working on it. Open the app to watch it finish."
         )
 
         // And every unreachable shape says something ELSE — the collapse the

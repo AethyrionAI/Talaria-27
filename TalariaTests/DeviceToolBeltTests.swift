@@ -69,7 +69,7 @@ struct DeviceToolBeltTests {
         )
         #expect(report.contains("current conversation"))
         #expect(report.contains("You:"))
-        #expect(report.contains("Hermes:"))
+        #expect(report.contains("Talaria:"))
         #expect(!report.contains("system banner"))
     }
 

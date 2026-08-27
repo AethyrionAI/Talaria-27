@@ -334,7 +334,7 @@ struct ConversationSearchTool: Tool {
         let currentHits: [String] = (conversation?.messages ?? []).compactMap { message in
             guard message.sender != .system,
                   let snippet = DeviceToolFormat.snippet(around: term, in: message.content) else { return nil }
-            let who = (message.sender == .user || message.sender == .voiceUser) ? "You" : "Hermes"
+            let who = (message.sender == .user || message.sender == .voiceUser) ? "You" : "Talaria"
             return "\(who): \(snippet)"
         }
         if !currentHits.isEmpty {

@@ -153,7 +153,7 @@ final class SpeechOutputService: NSObject {
 
     /// Speaks a short sample with the current voice/rate settings.
     func previewVoice() {
-        speak("This is how Hermes replies will sound.", messageID: UUID())
+        speak("This is how Talaria replies will sound.", messageID: UUID())
     }
 
     /// #129: which instance auditions a voice from Settings. Mid-session the

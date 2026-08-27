@@ -56,7 +56,7 @@ struct ThinkingIndicatorView: View {
         HStack(spacing: Design.Spacing.xs) {
             reasoningDots
             MonoLabel(
-                "Hermes Is Reasoning",
+                "Talaria Is Reasoning",
                 size: 11,
                 tracking: Design.Tracking.mono,
                 color: Design.Colors.mutedForeground

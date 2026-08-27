@@ -23,7 +23,7 @@ private struct LockScreenPreview: View {
                 .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Hermes")
+                Text("Talaria")
                     .font(.headline)
                     .foregroundStyle(.primary)
 
@@ -91,7 +91,7 @@ private struct DynamicIslandExpandedPreview: View {
                 .foregroundStyle(.yellow)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Hermes")
+                Text("Talaria")
                     .font(.headline)
                     .foregroundStyle(.white)
                 Text(status)

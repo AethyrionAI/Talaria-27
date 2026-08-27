@@ -337,7 +337,7 @@ struct MessageBubble: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Hermes: \(message.content)")
+        .accessibilityLabel("Talaria: \(message.content)")
         .accessibilityAddTraits(message.isStreaming ? .updatesFrequently : [])
         // #99 tap → full-screen preview; hoisted here (#262) so inline and
         // trailing chips share one presenter.

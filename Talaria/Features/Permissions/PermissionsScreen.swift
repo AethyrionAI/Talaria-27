@@ -44,7 +44,7 @@ struct PermissionsScreen: View {
                 color: Design.Colors.mutedForeground
             )
 
-            Text("Hermes works best with your permission. You control what data Hermes can access.")
+            Text("Talaria works best with your permission. You control what data Talaria can access.")
                 .font(Design.Typography.callout)
                 .foregroundStyle(Design.Colors.secondaryForeground)
         }

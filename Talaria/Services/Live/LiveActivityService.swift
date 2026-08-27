@@ -25,7 +25,7 @@ final class LiveActivityService {
         guard isAvailable else { return }
         let now = Date.now
         adoptExistingActivityIfNeeded()
-        let attributes = HermesActivityAttributes(agentName: "Hermes")
+        let attributes = HermesActivityAttributes(agentName: "Talaria")
         let state = HermesActivityAttributes.ContentState(
             status: "Listening", toolName: nil, elapsedSeconds: 0, startDate: now, sessionType: "voice"
         )
@@ -60,7 +60,7 @@ final class LiveActivityService {
         guard isAvailable else { return }
         let now = Date.now
         adoptExistingActivityIfNeeded()
-        let attributes = HermesActivityAttributes(agentName: "Hermes")
+        let attributes = HermesActivityAttributes(agentName: "Talaria")
         let state = HermesActivityAttributes.ContentState(
             status: "Working...", toolName: toolName, elapsedSeconds: 0, startDate: now, sessionType: "tool"
         )

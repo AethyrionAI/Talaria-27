@@ -14,5 +14,5 @@ struct HermesActivityAttributes: ActivityAttributes, Sendable {
     }
 
     /// Immutable for the lifetime of the activity.
-    var agentName: String = "Hermes"
+    var agentName: String = "Talaria"
 }

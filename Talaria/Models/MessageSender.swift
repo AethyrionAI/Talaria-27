@@ -38,8 +38,10 @@ enum MessageSender: String, Codable, Hashable, Sendable, CaseIterable {
     /// voice-only thread's replies are `.voiceHermes`, so the card
     /// generator's `== .hermes` eligibility test rejected the whole thread —
     /// it early-returned at its own guard and the conversation kept the
-    /// `"Hermes"` placeholder forever, which the drawer then rendered as its
-    /// own preview printed on both lines.
+    /// placeholder title forever, which the drawer then rendered as its
+    /// own preview printed on both lines. (That placeholder read `"Hermes"`
+    /// when #280 was written; #415-SWEEP renamed it to `"Talaria"` — see
+    /// `Conversation.isPlaceholderTitle`, which still matches both.)
     ///
     /// **Not the same question as "did this reply stream".** `.voiceHermes`
     /// rows never streamed and carry no reasoning, so

@@ -105,7 +105,7 @@ final class SpotlightIndexingService {
         // Unknown ids (cache cleared, different device) still resolve to a
         // bare entity so the open intent can route — the session list is the
         // authority once the app opens.
-        identifiers.map { sessionEntities[$0] ?? ChatSessionEntity(id: $0, title: "Hermes Session") }
+        identifiers.map { sessionEntities[$0] ?? ChatSessionEntity(id: $0, title: "Talaria Session") }
     }
 
     func suggestedSessions() -> [ChatSessionEntity] {

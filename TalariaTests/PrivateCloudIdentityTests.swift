@@ -74,7 +74,7 @@ struct PrivateCloudIdentityTests {
     @Test func onDeviceIdentityIsByteIdenticalToWhatShipped() {
         #expect(
             LocalChatBackend.identitySentence(for: .onDevice)
-                == "You are Hermes, the user's personal assistant, running entirely on their iPhone with Apple's on-device foundation model. The conversation is private and never leaves the device."
+                == "You are Talaria, the user's personal assistant, running entirely on their iPhone with Apple's on-device foundation model. The conversation is private and never leaves the device."
         )
     }
 

@@ -7,6 +7,6 @@ struct HermesAvatar: View {
         ReactorOrb(size: size, style: .standard)
             .frame(width: size, height: size)
             .accessibilityElement()
-            .accessibilityLabel("Hermes")
+            .accessibilityLabel("Talaria")
     }
 }

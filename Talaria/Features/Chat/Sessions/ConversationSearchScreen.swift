@@ -320,7 +320,7 @@ struct ConversationSearchScreen: View {
                       fill: Design.Colors.surface)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Matching turn from \(hit.role == .user ? "you" : "Hermes"): \(hit.snippet)")
+        .accessibilityLabel("Matching turn from \(hit.role == .user ? "you" : "Talaria"): \(hit.snippet)")
     }
 
     // MARK: Server session results

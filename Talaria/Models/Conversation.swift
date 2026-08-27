@@ -4,7 +4,34 @@ struct Conversation: Codable, Identifiable, Hashable, Sendable {
     /// Placeholder title for a not-yet-labeled conversation. On-device title
     /// generation (#4.8) only ever fires while the title still equals this,
     /// so a manual `/title` is never overwritten.
-    static let defaultTitle = "Hermes"
+    ///
+    /// **#415-SWEEP:** renamed Hermes → Talaria under Owen's standing naming
+    /// ruling. This string is user-visible — it is what the drawer shows
+    /// before on-device titling produces a real one — and the assistant that
+    /// answers may be entirely local, so naming the placeholder after the
+    /// host was wrong on its own terms.
+    static let defaultTitle = "Talaria"
+
+    /// The pre-#415-SWEEP placeholder, still carried by every conversation
+    /// created before that build.
+    ///
+    /// Renaming `defaultTitle` alone would have been a silent regression, not
+    /// a cosmetic change: the `#4.8` gate is an EQUALITY test against the
+    /// current constant, so those rows would have stopped matching it — they
+    /// would display the OLD name forever *and* never become eligible for
+    /// auto-titling again. A naming sweep that permanently strands "Hermes"
+    /// in the sessions drawer has defeated its own purpose, so placeholder
+    /// checks go through `isPlaceholderTitle` and accept both.
+    static let legacyDefaultTitle = "Hermes"
+
+    /// Whether a title is still the un-named placeholder (either vintage).
+    ///
+    /// Use this for the `#4.8` generation gate and for any merge that treats
+    /// "still a placeholder" as "safe to overwrite" — never a bare
+    /// `== defaultTitle`, which is blind to pre-#415 rows.
+    static func isPlaceholderTitle(_ title: String) -> Bool {
+        title == defaultTitle || title == legacyDefaultTitle
+    }
 
     let id: UUID
     var title: String
