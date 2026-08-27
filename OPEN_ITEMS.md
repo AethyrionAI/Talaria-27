@@ -156,6 +156,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#408** 🐛 a guardrail-declined image turn has no route — on-device `.guardrailViolation` dead-ends at Retry (n=4: the declined photo stable at 0/2 on-device, 1/1 on PCC; a different shot passed on-device); post-#390 nothing can opt an image down to OCR on that tier. **⚖️ RULED auto-degrade-once 2026-08-25 and ✅ BUILT + MERGED the same night (PR #378, `b03fabfb`): BOTH turn paths retry once through #390-B's own `composeTurnInput(… imageInputEnabled: false)`, the reply says so in production copy, text-only + PCC declines untouched; 408-A..E met, RED-first, five mutations each reding one named pin; gate 2568(+16)/14/Release. OPEN on the device re-send only (runbook card in the entry)**
 - **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); the refusal wording is the lever — **✅ THE STRING SHIPPED 2026-08-25 (PR #376): both branches carry an explicit do-not-claim clause, RED-first, mutation-proven both ways, 409-A/B/C MET. OPEN on 409-D only — the wording changed, the model's behaviour is UNVERIFIED until the next device `refusal-words` run**
 - **#413** 🐛 the assistant's FIRST utterance is captured as the USER speaking — realtime engine, first response only, 3/3 on BOTH Noisy and Normal (preset-independent, Owen's own A/B) — candidates filed (AEC convergence / route settle / channel mis-route); the AirPods probe discriminates acoustic vs software
+- **#414** 🐛 the phone 401s `GET /v1/models` against OJAMD — 410 historical log lines, pre-existing, quiet (chat + picker use other routes) — from the deploy report; first step is reading which credential slot the call sites resolve; may already be fixed by Lane B's Keychain hygiene, unmeasured
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it**. **MEASURED 2026-08-11; clipping RULED OUT.** ~~Mechanism UNKNOWN~~ ~~⟵ INVESTIGATED 2026-08-25, candidates ranked~~ **⟵ ✅ MECHANISM MEASURED 2026-08-25 (measurement lane, unit repro): `openSession`'s wholesale replace + `mapStoredMessage`'s role refusal and empty usage fields zero BOTH totals inputs in ONE event, and the 9→7 row drop is the same event. Candidate ① CONFIRMED; candidate ③ (the `.voiceHermes` predicate split) is REAL but mutation-proven NOT the cause; the entry's "receipts render normally" claim is FALSIFIED — no reopened row carries `usage` or `turnDuration`, and the quoted numbers are the card's LAST TURN block via `SessionUsageIndex`. Shipped: 16 pins in `SessionTotalsAfterReopenTests`, a verbose-gated `/usage` instrument (NOT `#if DEBUG`), 3 seam breadcrumbs at `.notice`, and 330-G's six-step device script.** 330-A/B/E DISCHARGED. **⟵ ✅ FIXED 2026-08-25 (fix lane, `330-receipts-sidecar`): the `TurnReceiptSidecar` — session-id-keyed, replayed at open, `AgentAttachmentSidecar`'s pattern plus a priming tier — restores `usage`/`turnDuration`/`servingModel`/`isContextPriming` across the replace, and `mapStoredMessage` re-maps the STORED primer (a `user` row host-side) into the priming notice, collapsing its ack; that also closes a compounding defect where every reopen fed the primer back into the journal the next transplant is composed from. 330-C CONVERGED (four sites, one `isAgentAuthored` predicate — hygiene, M2 already proved it is not the cause). 330-D MET with its token source NAMED: `postPrimingTurn` returns nil whenever the priming run misses the 20 s `runsSyncBudget`, so the run id is kept and re-read off the interactive path onto the journal hop. 5 of 16 pins flipped RED-first (9 expectations), all rewritten; 16 → 34 tests; 3 isolating mutations.** **330-C/330-D DISCHARGED; only 330-G (Owen's device close) is left, and #312 (f) flips with it**
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
@@ -767,6 +768,26 @@ native pipeline), **#1** (voice transcripts).
 > precedent it follows. Post-deploy phone flips to score: the Voice
 > tuning footnote (this entry's OJAMD arm) and the approvals picker
 > (#224's OJAMD arm).
+
+> **✅ THE OJAMD DEPLOY LANDED — same evening (report on the share,
+> `HANDOFF-OJAMD-2026-08-26-REPORT.md`; a model report — measured and
+> inferred kept apart).** `fb2e364 → b4e8dfa` clean ff-only (exactly the
+> four commits), `plugins list` **0.8.0**, `pair-qr` listed / `pair`
+> absent, listener pinned by START TIME (19:14:14 > the 19:09:46 pull),
+> health 200 on 0.20.5, downtime **~3m14s** (~90s of it = harness
+> permission blocks, §6 of the report). Probes: both
+> `device_auth_mismatch`, control `unknown_event_type` — #396 AND #224
+> code live-proven on OJAMD. **The floor silence was negative-controlled**
+> (the checker fires on a fake 0.20.2 — tested, not assumed). The
+> no-default-moves pin held ON HOST (`normal` ≡ no-arg, byte-identical).
+> `qrcode` ABSENT on both interpreters as the brief anticipated —
+> `pair-qr` will report actionably; nothing installed, nothing rendered.
+> **Still Owen's: the two phone flips** (Voice footnote gone; #224 picker
+> unlocked — both ready to check NOW), 241-E, the desktop relaunch
+> (#346), each its own go. Procedure findings filed: the survivor-check
+> self-match (CLAUDE.md corrected), the parent-kill-takes-child note,
+> bluebubbles config-off with a 7-week fossil state row, and the phone's
+> pre-existing `/v1/models` 401s → **#414**.
 ## 392. 🔴 A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT — *"your calendar didn't accept the request"* when the user declined the card — **MEASURED 2/30 ON DEVICE 2026-08-21 (#199A's re-run), CALENDAR-ONLY. Spawned rather than kept inside #199A, whose own claim is refuted. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built + merged 2026-08-23 (PR #353) with NO treatment elected, per Owen's route; the n≥30 device run is what remains.**
 
 **The measurement** (`planning/reports/2026-08-21-199a-decline.json`, decline
@@ -3475,6 +3496,22 @@ Logged 2026-07-20.
 
 ---
 
+
+> **✅ 2026-08-26 — THE OJAMD NVIDIA PRUNE IS DONE (Owen's explicit go,
+> given on the box; rode the deploy's single bounce).** Mechanism:
+> `model_catalog.excluded_providers: [nvidia]` — +2 lines, config backed
+> up (`config.yaml.bak-148nvidia-20260826-190905`), reversible by
+> deleting them; `NVIDIA_API_KEY` untouched. **Measured on the picker's
+> own route** (`/api/model/options`, before/after): payload 64,334 →
+> **49,760 chars (−22.7%)**, models 229 → **143 (−86)**, NVIDIA 86 → 0,
+> **zero collateral** (only the nvidia row changed). **Honest limit,
+> the report's own words:** the NVIDIA ROW is not hidden — it demotes to
+> an unconfigured placeholder like ~30 others. #148's stated harm
+> (payload bloat) is gone; row-gone-entirely would be a different
+> mechanism and a separate decision. Remaining on this sub-item: Owen's
+> phone-side glance (the picker should feel lighter on the OJAMD
+> profile), and the ruled option of pruning OTHER idle providers after
+> that eyeball.
 ## 162. 🛠 156a Tasks lane — **SHIPPED, on `main`** (`Talaria/Features/Tasks/`, reachable at `ContentView.swift:246`); **device checklist still owed** — header corrected 2026-08-01
 
 Dispatch `dispatch/FABLE-T27-156A-tasks-cron.md` executed 2026-07-22 on the Mac Mini
@@ -14607,6 +14644,31 @@ discipline on the memo path — same subsystem, different engine), #303
 (engine attribution discipline — satisfied structurally above), #1
 (voice transcripts posting to the session — the pollution path), #138
 (the voice umbrella).
+
+## 414. 🐛 THE PHONE 401s `GET /v1/models` AGAINST OJAMD — 410 historical lines of "API server rejected invalid API key", PRE-EXISTING andUNDIAGNOSED — **FILED 2026-08-26 per #268, from the OJAMD deploy report §3(e) (measured on-box, out of that session's scope by design). Build 3087 observed doing it twice the same day, pre-bounce. Mechanism deliberately NOT guessed.**
+
+**The measurement (OJAMD gateway log):** `GET /v1/models` from
+`100.68.60.11` (`Talaria%2027/3087`) rejected with "invalid API key" at
+18:12:26 and 19:05:58 on 08-26 — and **410 such lines historically**. No
+401s after the bounce, but the phone sent no traffic at all after it:
+absence of traffic, not evidence of anything.
+
+**Why it's interesting and not obviously harmful:** chat works against
+OJAMD (the runs plane authenticates fine), and the model PICKER reads
+`/api/model/options`, a different route — so whatever calls `/v1/models`
+is a background path failing quietly for weeks. **Candidates, a starting
+list:** a legacy/unscoped credential slot feeding that one call site (the
+#264 trio measured exactly this class — Uplink's `hostConfigured` read a
+legacy fallback the chat plane never dials); an empty-key request shape;
+or a stale profile's probe. First step is app-side and cheap: `git grep`
+the `/v1/models` call sites and READ which credential slot each resolves —
+before any wire work.
+
+**Related:** #264 (the legacy-fallback class, measured), #241 (the
+`/v1/models` route's sentinel history), #412/#309 (the credential-slot
+hygiene that just shipped — this may already be fixed by Lane B's
+Keychain work and merely UNMEASURED post-3087; the zero-401s-after-bounce
+observation is consistent with that but proves nothing).
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 

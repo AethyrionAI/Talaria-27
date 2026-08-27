@@ -155,7 +155,14 @@ a falsified mechanism while the tracker was right.)
   re-execs a child on the bundled runtime (`.hermes-runtime\...\python.exe`), and
   that child owns `:8642`. Killing only the port owner leaves the parent alive —
   **stop the parent first, then the child**, and confirm zero survivors matching
-  `hermes_cli.main gateway run` before relaunching.
+  `hermes_cli.main gateway run` before relaunching. **⚠️ The naive survivor
+  check SELF-MATCHES (caught live, 08-26 deploy): a PowerShell
+  `Where-Object CommandLine -like "*hermes_cli.main gateway run*"` matches the
+  QUERYING SHELL's own command line and can never return zero — at the
+  critical moment this invites hunting a phantom survivor or aborting a good
+  bounce.** Filter it: add `-and $_.ProcessId -ne $PID -and $_.Name -like
+  "*python*"`. Also normal: killing the parent may take the child with it —
+  the second kill reporting "not found" is success, not failure.
   **Do NOT `Start-Service HermesGateway`** — no such service exists, and its absence does
   **not** mean chat is down. Check the port owner instead:
   `Get-NetTCPConnection -State Listen -LocalPort 8642 → OwningProcess`. The API server is a
