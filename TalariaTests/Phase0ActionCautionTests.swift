@@ -294,7 +294,17 @@ struct Phase0ActionCautionTests {
     }
 }
 
-/// 224-0E / 224-0F — the mode scaffold: present, global, and unreachable.
+/// A gate call's outcome, observable WITHOUT awaiting it. `Task.value` on a
+/// call that parked on the confirm gate is not cancellation-responsive, so a
+/// test that awaits one unconditionally hangs the whole suite when the code
+/// under test stops resolving — which is exactly what a mutation makes it do.
+@MainActor
+private final class DecisionBox {
+    var decision: ToolConfirmationCenter.Decision?
+}
+
+/// 224-0E / 224-0F — the mode scaffold, ~~present, global, and unreachable~~
+/// present, global, and (since #224 Phases 1+2, 2026-08-26) REACHABLE.
 @MainActor
 struct ApprovalModeScaffoldTests {
 
@@ -532,40 +542,50 @@ struct ApprovalModeScaffoldTests {
     ///
     /// The only mode this can still catch acting wrongly is a future fourth
     /// case, which the gate's `switch` will not compile without handling.
+    /// **Never awaits the call unconditionally, and that is load-bearing.**
+    /// This test's whole job is to survive a MUTATION — a build where `.off`
+    /// stages a card instead of refusing. Under that mutation an
+    /// `await task.value` on the refuse arm can never return, so the test that
+    /// exists to catch the mutation would HANG the suite instead of failing
+    /// it. (Measured: it did, on the first RED run of this lane.) So the wait
+    /// watches for EITHER outcome and cleans up whichever happened.
     @Test func noModeSilentlyCreatesAFlaggedAction() async {
         for mode in ApprovalMode.allCases {
             let center = ToolConfirmationCenter()
             center.modeProvider = { mode }
-            let task = Task {
-                await center.requestConfirmation(
+            let box = DecisionBox()
+            Task { @MainActor in
+                box.decision = await center.requestConfirmation(
                     title: "Schedule on this iPhone?",
                     caution: "EARLY MORNING — CHECK AM/PM",
                     floorRefusal: "No alarm was scheduled. Flagged.",
                     fields: [.init(key: "request", label: "Alarm", value: "4:00am")])
             }
-            if mode == .off {
-                // Refused before a continuation is ever taken, so this returns
-                // without anything needing to answer it.
-                let decision = await task.value
-                #expect(center.pending == nil, "Off staged a card for a flagged action")
-                if case .refused = decision {} else {
-                    Issue.record("mode off resolved a flagged action as \(decision)")
-                }
-                continue
-            }
             let deadline = ContinuousClock.now.advanced(by: .seconds(20))
-            while center.pending == nil, ContinuousClock.now < deadline {
+            while center.pending == nil, box.decision == nil, ContinuousClock.now < deadline {
                 try? await Task.sleep(for: .milliseconds(2))
             }
-            guard center.pending != nil else {
-                Issue.record("mode \(mode.rawValue) staged no card — see awaitStagedCard")
-                continue   // deliberately NOT awaiting: a leaked Task beats a hung suite
+
+            if center.pending != nil {
+                // A card is the RIGHT answer for `.manual` and `.smart` and the
+                // WRONG one for `.off` (ruling 4 — carding would make Off
+                // secretly Smart).
+                #expect(mode != .off, "Off staged a card for a flagged action")
+                #expect(center.pending?.caution == "EARLY MORNING — CHECK AM/PM")
+                center.decline()
+                while box.decision == nil, ContinuousClock.now < deadline {
+                    try? await Task.sleep(for: .milliseconds(2))
+                }
             }
-            #expect(center.pending?.caution == "EARLY MORNING — CHECK AM/PM")
-            center.decline()
-            let decision = await task.value
+            guard let decision = box.decision else {
+                Issue.record("mode \(mode.rawValue) neither staged a card nor settled")
+                continue
+            }
             if case .approved = decision {
                 Issue.record("mode \(mode.rawValue) auto-approved a FLAGGED action")
+            }
+            if mode == .off, case .refused = decision {} else if mode == .off {
+                Issue.record("mode off resolved a flagged action as \(decision)")
             }
         }
     }

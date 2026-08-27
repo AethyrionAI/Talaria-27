@@ -1,6 +1,26 @@
 # APPROVAL MODES — mirroring Hermes's Manual / Smart / Off in Talaria (OPEN_ITEMS #224)
 
-**Status: PROPOSAL, awaiting Owen's approval. Nothing gets built before you answer.**
+> **✅ PHASES 1+2 LANDED 2026-08-26 — this document is now the DESIGN OF
+> RECORD FOR SHIPPED BEHAVIOUR, not a proposal.** Owen approved all eight
+> questions on 2026-08-10 (Phase 0 built the same week) and elected Phases 1+2
+> on 2026-08-26 (*"Smart is a part of hermes, makes sense that we should have
+> that too. Orchestrate that as a lane please"*), discharging ruling 1's hold.
+> **What ships:** the `// Agent Actions` control on the Privacy screen with all
+> three modes; `.smart` auto-approving clean staged actions and CARDING
+> caution-tripping ones; `.off` auto-approving clean ones and REFUSING
+> caution-tripping ones through the floor. **What does NOT:** Phase 3's
+> transcript receipts (ruling 7 — still deferred, auto-approvals log to
+> `os_log` and render nothing) and everything under §3.8 / "not a phase".
+> **Read §3 as built, with these caveats:** §3.3's insertion point named
+> `locationSection`, which has not existed since #137 — the control sits
+> between `sensorStreamingSection` and `appLockSection`, the same reading
+> order; §6's Phase 1–3 sketch bars are still NOT the pre-registration, which
+> lives in OPEN_ITEMS #224 (bars 224-1A..1F / 224-2A..2D, formalized
+> 2026-08-26 with nine re-resolved anchors listed there). Bar-by-bar results
+> are in that entry.
+
+**Status: ~~PROPOSAL, awaiting Owen's approval. Nothing gets built before you answer.~~
+APPROVED 2026-08-10 (all eight) · PHASE 0 BUILT 2026-08-11 · PHASES 1+2 BUILT 2026-08-26.**
 Written 2026-08-06 evening for a morning read, in the #258 pattern: one document, every
 open question carries a recommendation, say "approved" or name what you'd flip.
 **Scope:** design only. No code was written and nothing on the Hermes install was
@@ -127,6 +147,14 @@ is a separate, narrower mechanism and is not the model (`security.md:61-88`).
 
 ## 2. Our current state — where Manual lives and what it gates
 
+> **⛔ SUPERSEDED 2026-08-26 (Phases 1+2): the sentence below is FALSE now.**
+> There is a user-facing mode — Privacy → `// Agent Actions`, three rows,
+> global on `UserSettings.approvalMode` — and the gate is Manual only by
+> DEFAULT. Everything the paragraph says about the gate's mechanics
+> (`pending`, the checked continuation, the second-request auto-decline,
+> default-closed, edited values are what get created) is unchanged and still
+> accurate.
+
 **One always-on Manual gate, no user-facing mode.** `ToolConfirmationCenter`
 (`Talaria/Services/Live/DeviceTools/ToolConfirmationCenter.swift:15-17`): staged card in
 `pending` (`:48`), tool suspends on a checked continuation (`:138-142`), a second
@@ -168,6 +196,13 @@ must not imply it does (real-data-only rule).
 the battery." So the shape of "a mode that changes what the gate does" is already proven
 mechanically; what's missing is a production, persisted, user-visible one.
 
+> **⛔ AND THE UPDATE BELOW IS ITSELF SUPERSEDED 2026-08-26 (Phases 1+2): the
+> mode IS user-visible now, `ApprovalMode.selectable` is all three, and the
+> decoder's clamp is a no-op on every value this build produces (it stays as
+> the guard for the next NARROWING). `.manual` is still the default. The
+> battery flags are still untouched and still short-circuit ahead of the mode
+> read.**
+>
 > **📌 UPDATED 2026-08-11 (#224 Phase 0): a production, persisted mode now
 > exists — and is deliberately NOT user-visible.** `ApprovalMode`
 > (`Talaria/Services/Support/ApprovalModeCore.swift`) ships `.manual` /

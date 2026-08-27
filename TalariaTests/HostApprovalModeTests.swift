@@ -52,7 +52,9 @@ struct HostApprovalModeTests {
     // MARK: - 224-APP-C: the on-device gate enum is untouched
 
     @Test func theHostStateIsADistinctTypeFromTheOnDeviceGate() {
-        // The Phase-0 pins (`approvalModeExposesOnlyManual` and siblings)
+        // The Phase-0 pins (`approvalModeExposesAllThreeAfterPhases12` and
+        // siblings — renamed from `approvalModeExposesOnlyManual` when #224
+        // Phases 1+2 shipped the modes on 2026-08-26)
         // enforce the on-device enum directly; this arm records the
         // separation from THIS side: the host state is not an ApprovalMode
         // and never routes through its clamp.

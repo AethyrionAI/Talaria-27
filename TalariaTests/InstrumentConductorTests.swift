@@ -85,6 +85,36 @@ struct InstrumentConductorTests {
         #expect(!BatteryTestContainer.alarmWritesAttended)
     }
 
+    /// **#224 Phases 1+2: an instrument run pins the approval mode to
+    /// `.manual`, whatever the user has chosen, and restores it after.**
+    ///
+    /// Scored on a `confirmationMode: .none` spec on purpose — that is the
+    /// only shape the hazard reaches. `.autoAccept` and `.autoDecline`
+    /// short-circuit ahead of the mode read, but `.none` (the real
+    /// `read-tool` and `router-probe` instruments) arms neither, and those
+    /// are exactly the cells where the #200-series measured the model GRABBING
+    /// an action tool. Without this pin, such a grab on a phone set to *Never
+    /// ask* stops staging an unanswerable card and starts writing a real
+    /// reminder to the user's real list, unattended — the containment #331 was
+    /// ruled to protect — and every rate the instrument produces silently
+    /// carries a fourth hidden axis on top of #215, #343 and #398-A.
+    @Test func anInstrumentRunPinsTheApprovalModeToManualAndRestoresIt() async throws {
+        var duringRun: ApprovalMode?
+        let center = ToolConfirmationCenter()
+        center.modeProvider = { .off }
+        let (conductor, _, _, box) = makeConductor(center: center)
+        let s = spec("t-modepin", mode: .none) { _, _, _ in
+            duringRun = center.modeProvider()
+            box.records = [self.minimalRunRecord()]
+        }
+        let status = await conductor.run(spec: s, trials: 1, cells: nil, unattended: true)
+        #expect(status == .completed)
+        #expect(duringRun == .manual,
+                "a battery inherited the user's approval mode — its rate now carries a hidden axis")
+        #expect(center.modeProvider() == .off,
+                "the user's own mode must be restored when the run ends")
+    }
+
     @Test func declineModeUnattendedArmsDeclineAndNeverAlarms() async throws {
         var seen: (accept: Bool, decline: Bool, alarms: Bool)?
         let (conductor, center, _, _) = makeConductor()

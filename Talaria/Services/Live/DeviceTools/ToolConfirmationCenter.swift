@@ -73,17 +73,24 @@ final class ToolConfirmationCenter {
     /// the lock outranks the mode and this gate stages the card without ever
     /// asking `modeProvider` what it would rather do.
     ///
-    /// **Why short-circuit BEFORE the provider instead of after it.** Today
-    /// `.manual` is the only mode the settings layer can produce, so a gate
-    /// placed after the consult would be unobservable — it would pass for the
-    /// wrong reason and keep passing after someone deleted it. Reading the
-    /// lock first makes the property testable NOW, against a mode (#224
-    /// Phase 1's `.autoApprove`) that does not yet ship: bar 323-D spies on
-    /// the provider and goes red the moment this line is removed.
+    /// **Why short-circuit BEFORE the provider instead of after it.** When
+    /// #323-D was written, `.manual` was the only mode the settings layer
+    /// could produce, so a gate placed after the consult would have been
+    /// unobservable — it would have passed for the wrong reason and kept
+    /// passing after someone deleted it. Reading the lock first made the
+    /// property testable against a mode that did not yet ship: bar 323-D
+    /// spies on the provider and goes red the moment this line is removed.
     ///
     /// That is the 2026-08-18 ruling's *"a subsystem nobody wired becomes
     /// structurally impossible"* applied before the subsystem exists — which
     /// is the only time it is cheap.
+    ///
+    /// **✅ And it paid out on 2026-08-26**, when #224 Phases 1+2 gave
+    /// `.autoApprove` and `.refuse` real paths. The order is now load-bearing
+    /// rather than anticipatory: behind the cover, `.off` would otherwise
+    /// REFUSE a flagged action and `.smart` would auto-approve a clean one,
+    /// both without the user ever seeing them. `theLockOutranksEveryModeIncludingOff`
+    /// scores that outcome; 323-D's spy still scores the order.
     @ObservationIgnored var lockStateProvider: @MainActor () -> Bool = { false }
 
     #if DEBUG
