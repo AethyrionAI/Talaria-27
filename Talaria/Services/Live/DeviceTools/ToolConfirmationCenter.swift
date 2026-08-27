@@ -40,6 +40,13 @@ final class ToolConfirmationCenter {
     enum Decision: Sendable {
         case approved([String: String])
         case declined
+        /// #224 Phase 1 — Off's floor. **Not a decline, and the distinction is
+        /// the whole point:** the user did not answer anything, so a tool that
+        /// reported "The user declined" here would be lying about who decided.
+        /// The payload is the explanatory refusal the tool returns to the
+        /// model verbatim (built by `ApprovalFloor`, carrying #409's
+        /// do-not-claim clause).
+        case refused(String)
     }
 
     private static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "ToolConfirmationCenter")
@@ -48,36 +55,42 @@ final class ToolConfirmationCenter {
     private(set) var pending: PendingConfirmation?
     private var continuation: CheckedContinuation<Decision, Never>?
 
-    /// #224 Phase 0: the gate's approval mode, read through a provider so
-    /// this class keeps no settings dependency (the provider-closure
-    /// pattern #283's transport seam established, since retired by #382). The key is
+    /// #224: the gate's approval mode, read through a provider so this class
+    /// keeps no settings dependency (the provider-closure pattern #283's
+    /// transport seam established, since retired by #382). The key is
     /// GLOBAL — `UserSettings.approvalMode`, ruling 2 — because the gate
     /// governs THIS PHONE's writes, which happen identically whichever host a
     /// turn came from and happen at all when no host is configured.
     ///
-    /// `.manual` is the only value the settings layer can produce in this
-    /// build (`ApprovalMode.selectable == [.manual]`, and the decoder clamps
-    /// through `ApprovalMode.resolved(_:)`), so the disposition below is
-    /// always `.card` and the gate behaves exactly as it did before #224.
-    /// Phase 1 is the lane that gives `.autoApprove` and `.refuse` real
-    /// paths; this is the single production call site it edits.
+    /// **⛔ SUPERSEDED 2026-08-26 (Phases 1+2): the note that stood here said
+    /// `.manual` was the only value the settings layer could produce and that
+    /// the disposition was therefore always `.card`.** All three modes are
+    /// selectable now and all three dispositions have real paths below.
+    /// `.manual` remains the default (224-1A).
     @ObservationIgnored var modeProvider: @MainActor () -> ApprovalMode = { .manual }
 
     /// #323-D: whether App Lock is currently COVERING the app. When it is,
     /// the lock outranks the mode and this gate stages the card without ever
     /// asking `modeProvider` what it would rather do.
     ///
-    /// **Why short-circuit BEFORE the provider instead of after it.** Today
-    /// `.manual` is the only mode the settings layer can produce, so a gate
-    /// placed after the consult would be unobservable — it would pass for the
-    /// wrong reason and keep passing after someone deleted it. Reading the
-    /// lock first makes the property testable NOW, against a mode (#224
-    /// Phase 1's `.autoApprove`) that does not yet ship: bar 323-D spies on
-    /// the provider and goes red the moment this line is removed.
+    /// **Why short-circuit BEFORE the provider instead of after it.** When
+    /// #323-D was written, `.manual` was the only mode the settings layer
+    /// could produce, so a gate placed after the consult would have been
+    /// unobservable — it would have passed for the wrong reason and kept
+    /// passing after someone deleted it. Reading the lock first made the
+    /// property testable against a mode that did not yet ship: bar 323-D
+    /// spies on the provider and goes red the moment this line is removed.
     ///
     /// That is the 2026-08-18 ruling's *"a subsystem nobody wired becomes
     /// structurally impossible"* applied before the subsystem exists — which
     /// is the only time it is cheap.
+    ///
+    /// **✅ And it paid out on 2026-08-26**, when #224 Phases 1+2 gave
+    /// `.autoApprove` and `.refuse` real paths. The order is now load-bearing
+    /// rather than anticipatory: behind the cover, `.off` would otherwise
+    /// REFUSE a flagged action and `.smart` would auto-approve a clean one,
+    /// both without the user ever seeing them. `theLockOutranksEveryModeIncludingOff`
+    /// scores that outcome; 323-D's spy still scores the order.
     @ObservationIgnored var lockStateProvider: @MainActor () -> Bool = { false }
 
     #if DEBUG
@@ -197,7 +210,25 @@ final class ToolConfirmationCenter {
     /// decides. Tools run serially per session; if a second request somehow
     /// arrives while one is pending, it auto-declines (defensive — the gate
     /// never queues silently).
-    func requestConfirmation(title: String, detail: String? = nil, caution: String? = nil, fields: [Field]) async -> Decision {
+    /// - Parameters:
+    ///   - caution: the card's forge-amber row, and — since #224 Phase 1 —
+    ///     **the discriminator the whole mode system runs on**. Non-nil means
+    ///     the deterministic caution layer flagged this action, which is what
+    ///     `.smart` cards on and `.off` refuses. One seam, not two: the modes
+    ///     read exactly the rows #233/#249/Phase 0 already stage, so there is
+    ///     no second risk model to keep in sync with the card the user sees.
+    ///   - floorRefusal: the tool's own explanatory text for `.off`'s floor,
+    ///     built through `ApprovalFloor.refusal(nothingHappened:flagged:)`.
+    ///     `nil` for a clean action (nothing to refuse) — and `nil` on a
+    ///     FLAGGED action still refuses, with `ApprovalFloor.unnamedRefusal`,
+    ///     because falling back to the card would make Off secretly Manual.
+    func requestConfirmation(
+        title: String,
+        detail: String? = nil,
+        caution: String? = nil,
+        floorRefusal: String? = nil,
+        fields: [Field]
+    ) async -> Decision {
         #if DEBUG
         // Decline is checked FIRST: if both battery flags are ever set the
         // fail-safe direction is never-create.
@@ -225,24 +256,41 @@ final class ToolConfirmationCenter {
             return .approved(values)
         }
         #endif
-        // #224 Phase 0. `.card` is the only disposition with an
-        // implementation in this build, and the only one settings can
-        // produce. If a later lane arms a mode without also building its
-        // handling, the gate must NOT act on it: it stages the card anyway
-        // and says so in the log. That is the default-CLOSED direction this
-        // gate was designed around — an unhandled mode costs a prompt, never
-        // an unapproved write.
+        // #224 Phases 1+2 — the one place a mode changes what the gate does.
+        //
+        // The lock is read FIRST and short-circuits the consult entirely
+        // (#323-D): behind the cover, nothing auto-resolves — not an approve,
+        // not a refuse. The card stages and the tool suspends exactly as it
+        // does under `.manual`, so the user answers it when they unlock and
+        // see it. That is the ruling's in-flight policy (work finishes, the
+        // user still decides), and `lockedApprovalNeverConsultsTheMode` spies
+        // on the provider to prove the order rather than the outcome.
         if lockStateProvider() {
-            // #323-D. Nothing auto-resolves behind the cover — not an
-            // approve, not a refuse. The card stages and the tool suspends
-            // exactly as it does under `.manual`, so the user answers it when
-            // they unlock and see it. That is the ruling's in-flight policy
-            // (work finishes, the user still decides), not a refusal.
             Self.logger.notice("approval staged while App Lock covers the app — mode NOT consulted (#323-D)")
         } else {
-            let disposition = modeProvider().disposition(hasCaution: caution != nil)
-            if disposition != .card {
-                Self.logger.error("approval mode produced \(disposition.rawValue, privacy: .public) — this build ships no handling for it; staging the card")
+            switch modeProvider().disposition(hasCaution: caution != nil) {
+            case .card:
+                break
+            case .autoApprove:
+                // The staged values, unedited — byte-identical to what
+                // `approve()` builds from the same card. That identity is
+                // bar 224-1C(ii): the tool resumes at exactly the point a
+                // user's approve resumes it, so every downstream check —
+                // EventKit / AlarmKit authorization included — still runs. A
+                // mode cannot bypass an OS permission because it never
+                // reaches one.
+                //
+                // Ruling 7: receipts are DEFERRED, so this logs and renders
+                // nothing. `os_log` is the whole record for now, by decision.
+                Self.logger.notice("approval auto-approved by mode: \(title, privacy: .public)")
+                return .approved(Dictionary(uniqueKeysWithValues: fields.map { ($0.key, $0.value) }))
+            case .refuse:
+                // Off's floor (rulings 3 + 4). Nothing is created, nothing is
+                // asked, and the model is handed an explanatory refusal —
+                // Hermes's hardline blocklist, in our vocabulary.
+                let text = floorRefusal ?? ApprovalFloor.unnamedRefusal
+                Self.logger.notice("approval refused by the Off floor: \(title, privacy: .public)")
+                return .refused(text)
             }
         }
         guard continuation == nil else {
@@ -282,17 +330,26 @@ final class ToolConfirmationCenter {
         let waiting = continuation
         continuation = nil
         waiting?.resume(returning: decision)
-        if case .declined = decision {
+        // Switched rather than `if case … else`, because #224 added a third
+        // case: an `else` would have quietly filed a REFUSAL as an approval in
+        // both the log and the battery record. Nothing resolves a staged card
+        // as `.refused` today — the floor returns before a continuation is
+        // ever taken — but a two-armed conditional over a three-armed enum is
+        // how that stops being true without anyone noticing.
+        switch decision {
+        case .declined:
             Self.logger.notice("confirmation declined")
             #if DEBUG
             noteDecline()
             recordBatteryOutcome("declined")
             #endif
-        } else {
+        case .approved:
             Self.logger.notice("confirmation approved")
             #if DEBUG
             recordBatteryOutcome("accepted")
             #endif
+        case .refused:
+            Self.logger.error("a staged card resolved as refused — the floor is supposed to return before a card is ever staged")
         }
     }
 

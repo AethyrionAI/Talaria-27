@@ -52,12 +52,33 @@ struct HostApprovalModeTests {
     // MARK: - 224-APP-C: the on-device gate enum is untouched
 
     @Test func theHostStateIsADistinctTypeFromTheOnDeviceGate() {
-        // The Phase-0 pins (`approvalModeExposesOnlyManual` and siblings)
-        // enforce the on-device enum directly; this arm records the
-        // separation from THIS side: the host state is not an ApprovalMode
-        // and never routes through its clamp.
-        #expect(ApprovalMode.selectable == [.manual], "the on-device gate's pin, read from here")
+        // **Updated 2026-08-26 by #224 Phases 1+2, and the update is the
+        // point of the bar rather than a break in it.**
+        //
+        // 224-APP-C read `ApprovalMode.selectable == [.manual]` from here as a
+        // shorthand for "the host lane did not touch the on-device enum" —
+        // true of THAT lane, and false the moment Owen elected Phases 1+2,
+        // which touch it deliberately. The gate caught this; a targeted run
+        // that did not include this suite did not.
+        //
+        // What 224-APP-C actually claims survives untouched and is what this
+        // now asserts DIRECTLY: the host state is a different TYPE, carrying
+        // raw wire strings, and it never routes through the on-device enum or
+        // its clamp. Asserting the separation beats asserting a literal that
+        // belongs to the other lane — a pin on someone else's constant fails
+        // when they legitimately change it, which is noise, not a finding.
+        #expect(HostApprovalModeState.selectableModes == ["manual", "smart", "off"])
         #expect(HostApprovalModeState.selectableModes.count == 3)
+        // The host's modes are STRINGS off the wire; the gate's are a Swift
+        // enum. They happen to spell the same three words — that is upstream
+        // parity, not a shared type — and nothing converts between them: a
+        // host read lands as `.mode(String)`, never as an `ApprovalMode`, so
+        // no host answer can move this phone's own gate.
+        let (hostState, _) = HostApprovalModeState.from(
+            .ok(Data(#"{"ok":true,"mode":"off"}"#.utf8)))
+        #expect(hostState == .mode("off"))
+        #expect(UserSettings().approvalMode == .manual,
+                "a host reporting off must not have moved the on-device default")
     }
 
     // MARK: - 224-APP-B/D structural: the screen consumes the state honestly

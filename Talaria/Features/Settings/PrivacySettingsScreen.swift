@@ -162,6 +162,13 @@ struct PrivacySettingsScreen: View {
                     }
                     permissionsSection
                     sensorStreamingSection
+                    // #224 ruling 6: between "what the phone shares" and "who
+                    // can open the app" — the right reading order for "what
+                    // the agent may do without asking". The ballot said
+                    // "between Location and App Lock"; Location has been a ROW
+                    // inside `sensorStreamingSection` since #137, so this is
+                    // that position, re-resolved.
+                    agentActionsSection
                     appLockSection
                     spotlightSection
                     revokeSection
@@ -400,6 +407,117 @@ struct PrivacySettingsScreen: View {
                 }
             }
         )
+    }
+
+    // MARK: Agent Actions (#224 Phases 1+2)
+
+    /// The on-device confirm gate's mode — Manual · Smart · Off, mirroring
+    /// Hermes's `approvals.mode` for OUR OWN gate.
+    ///
+    /// **⚠️ Not to be confused with the HOST picker** in Settings → Server
+    /// (`ServerSettingsScreen.hostApprovalPanel`, #224-APP), which sets the
+    /// GATEWAY's approval mode for dangerous shell commands through the plugin
+    /// verb. The two never negotiate: this one governs what this phone writes,
+    /// that one governs what the host runs. The copy on both says which.
+    private var agentActionsSection: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            MonoLabel("// Agent Actions", size: 10, tracking: Design.Tracking.monoXWide,
+                      color: Design.Colors.mutedForeground)
+
+            VStack(spacing: 0) {
+                let modes = ApprovalMode.selectable
+                ForEach(Array(modes.enumerated()), id: \.element) { index, mode in
+                    approvalModeRow(mode)
+                    if index < modes.count - 1 {
+                        Rectangle()
+                            .fill(Design.Colors.hairline)
+                            .frame(height: 1)
+                            .padding(.horizontal, Design.Spacing.md)
+                    }
+                }
+            }
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.lg,
+                borderColor: Design.Colors.accentTint(0.12),
+                fill: Design.Colors.background.opacity(0.5),
+                innerGlow: false
+            )
+            .accessibilityIdentifier("settings.privacy.agentActions")
+
+            Text(Self.agentActionsCaption)
+                .font(Design.Typography.caption)
+                .foregroundStyle(Design.Colors.secondaryForeground)
+                .padding(.horizontal, Design.Spacing.xxs)
+        }
+    }
+
+    /// The section's blast-radius statement, `static` so a test can pin it —
+    /// the `sensorStreamingCaptionText` precedent, and for the same reason: a
+    /// later copy edit must not be able to quietly widen a claim the code
+    /// cannot keep.
+    ///
+    /// **Every clause is something the code does.** Three writes, named. Reads
+    /// governed by the permissions above, not by this (224-1C). And the
+    /// `/alarm` slash command called out explicitly, because it is a SECOND
+    /// door into AlarmKit with its own alert (`ChatScreen`, #16/#193) that
+    /// this setting deliberately does not govern — it is the user typing a
+    /// command, not the agent acting, and the gate exists to stop the MODEL
+    /// writing silently. Without this clause, "Never ask" would be untrue of
+    /// one path and the user would find out by being asked.
+    static let agentActionsCaption =
+        "Covers the reminders, calendar events, and alarms your agent stages on this phone. Reading your data always follows the permissions above, and an alarm you type yourself with /alarm always asks."
+
+    /// The row's tint, resolved from a PALETTE rather than read off the live
+    /// runtime, so a test can score it for every theme including Paper Tape
+    /// (224-1D(i)/(ii)) without driving `ThemeRuntime`.
+    ///
+    /// Ruling 3/4's colour discipline: Off is a WARNING, not a danger.
+    /// `dangerText` is for actual danger, and Off still has a floor — a
+    /// caution-tripping action is refused, never silently created. The role
+    /// itself lives on `ApprovalMode.accentRole`, whose type cannot express
+    /// "danger" at all.
+    static func approvalRowTint(for mode: ApprovalMode, in palette: ThemePalette) -> Color {
+        switch mode.accentRole {
+        case .brand: palette.accentText
+        case .warning: palette.forgeText
+        }
+    }
+
+    private func approvalModeRow(_ mode: ApprovalMode) -> some View {
+        let selected = settingsStore.settings.approvalMode == mode
+        let tint = Self.approvalRowTint(for: mode, in: ThemeRuntime.shared.palette)
+        return Button {
+            settingsStore.settings.approvalMode = mode
+        } label: {
+            HStack(alignment: .top, spacing: Design.Spacing.sm) {
+                StatusPip(color: selected ? tint : Design.Colors.mutedForeground, diameter: 7)
+                    .padding(.top, 5)
+                VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                    Text(mode.displayLabel)
+                        .font(Design.Typography.callout)
+                        .foregroundStyle(selected ? tint : Design.Colors.foreground)
+                    Text(mode.rowDetail)
+                        .font(Design.Typography.caption)
+                        .foregroundStyle(Design.Colors.secondaryForeground)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: Design.Spacing.xs)
+                if selected {
+                    MonoLabel("SELECTED", size: 9, weight: .medium,
+                              tracking: Design.Tracking.mono, color: tint)
+                }
+            }
+            .padding(.horizontal, Design.Spacing.md)
+            .padding(.vertical, Design.Spacing.sm)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .hoverEffect(.highlight)
+        // The label states the CONSEQUENCE, never the mode name alone
+        // (224-1D(iii)): three names read aloud in sequence tell a
+        // screen-reader user nothing about which one refuses their 4 AM alarm.
+        .accessibilityLabel(mode.accessibilityLabel)
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 
     // MARK: App Lock (#124)

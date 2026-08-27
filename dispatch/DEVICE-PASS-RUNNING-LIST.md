@@ -2177,10 +2177,22 @@ pass/fail check.
 **System 1 — the on-device confirm gate (#29, `ToolConfirmationCenter`).** The
 local brain's side-effecting tools (create reminder, create calendar event)
 suspend on it; the card renders inline at the chat tail with EDITABLE fields.
-There is no user-facing auto-approve — `autoAcceptForBattery` exists but is
+~~There is no user-facing auto-approve — `autoAcceptForBattery` exists but is
 harness-only, set by the Diagnostics battery buttons and cleared in their
 `defer`. So this gate is always live in ordinary use, and the whole #200-series
-ran through it.
+ran through it.~~
+**⛔ SUPERSEDED 2026-08-26 (#224 Phases 1+2): there IS a user-facing
+auto-approve now.** Privacy → `// Agent Actions` ships Ask every time / Ask
+when unusual / Never ask (global, `UserSettings.approvalMode`, default
+`.manual`). Under *Ask when unusual* a clean staged action is created with no
+card; under *Never ask* a clean one is created with no card and a
+caution-tripping one is REFUSED — never silently created (the floor). **Two
+things this does not change:** `autoAcceptForBattery` is still harness-only and
+still short-circuits AHEAD of the mode read, so no battery number is affected;
+and every #200-series run predates the control and was measured at the default,
+so those rates still describe the gate they were measured on.
+**Consequence for anyone running this section:** confirm the mode before
+scoring a card, because "no card appeared" now has two causes.
 
 **System 2 — HOST-side approvals: a THREE-mode config key, not a binary.**
 *(Corrected 2026-08-02 from Owen's screenshot + a source check — this section

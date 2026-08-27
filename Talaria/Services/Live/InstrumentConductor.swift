@@ -108,6 +108,26 @@ final class InstrumentConductor {
         // Explicit on EVERY path; mutually exclusive; never inherited.
         confirmationCenter.autoAcceptForBattery = (spec.confirmationMode == .autoAccept)
         confirmationCenter.autoDeclineForBattery = (spec.confirmationMode == .autoDecline)
+        // #224 Phases 1+2: **an instrument run pins the approval mode to
+        // `.manual` for its duration, whatever the user has chosen.**
+        //
+        // Found by this lane rather than by its bars. The two flags above
+        // short-circuit ahead of the mode read, so an `.autoAccept` or
+        // `.autoDecline` instrument is untouched by the setting — but a
+        // `confirmationMode: .none` instrument (`read-tool`, `router-probe`)
+        // arms neither, and those cells are precisely where the #200-series
+        // measured the model GRABBING an action tool it was not offered a
+        // reason to use. On a phone set to *Never ask*, such a grab would stop
+        // staging an unanswerable card and start writing a real reminder to
+        // the user's real list, unattended — which is exactly the containment
+        // #331 was ruled to protect.
+        //
+        // It is also a measurement fact: without this, a rate would carry a
+        // fourth hidden axis (#215's routing, #343's governor, #398-A's
+        // runtime — and now the user's approval mode), and every archive rate
+        // was measured before the setting existed.
+        let userApprovalMode = confirmationCenter.modeProvider
+        confirmationCenter.modeProvider = { .manual }
         BatteryTestContainer.alarmWritesAttended =
             (spec.confirmationMode == .autoAccept && spec.writesAlarms && !unattended)
         // A ~20-minute n=20 must survive auto-lock — work-desk runs have no
@@ -117,6 +137,7 @@ final class InstrumentConductor {
         defer {
             confirmationCenter.autoAcceptForBattery = false
             confirmationCenter.autoDeclineForBattery = false
+            confirmationCenter.modeProvider = userApprovalMode
             BatteryTestContainer.alarmWritesAttended = false
             UIApplication.shared.isIdleTimerDisabled = false
         }

@@ -366,10 +366,14 @@ struct UserSettings: Codable, Hashable, Sendable {
     /// host is configured, so making the safety posture change with the
     /// active profile would be a footgun with no upside.
     ///
-    /// `.manual` is the default AND the only value this build resolves to: no
-    /// user-facing control ships in Phase 0 (ruling 1), and the decoder
-    /// clamps through `ApprovalMode.resolved(_:)` so no persisted blob can
-    /// arm a mode whose handling does not exist yet.
+    /// **⛔ SUPERSEDED 2026-08-26 (Phases 1+2): this used to read "`.manual` is
+    /// the default AND the only value this build resolves to."** The Privacy
+    /// screen's `// Agent Actions` control ships all three modes on Owen's
+    /// 2026-08-26 election. `.manual` is still the DEFAULT — for a fresh
+    /// install and for every blob that predates the key (bar 224-1A) — and the
+    /// decoder still clamps through `ApprovalMode.resolved(_:)`, which is now
+    /// a no-op on every value this build can produce and remains as the guard
+    /// for the next narrowing.
     var approvalMode: ApprovalMode
 
     init(
@@ -520,11 +524,13 @@ struct UserSettings: Codable, Hashable, Sendable {
         appLockEnabled = try container.decodeIfPresent(Bool.self, forKey: .appLockEnabled) ?? false
         appLockGracePeriod = try container.decodeIfPresent(AppLockGracePeriod.self, forKey: .appLockGracePeriod) ?? .immediate
         voiceSensitivity = try container.decodeIfPresent(VoiceSensitivity.self, forKey: .voiceSensitivity) ?? .normal
-        // #224 Phase 0: `try?` for the `appearanceTheme` reason — a mode
-        // written by some later build must degrade to the default, never
-        // fail the whole settings decode and reset every preference — and
-        // `resolved(_:)` on top of it, because a blob that NAMES a mode
-        // this build ships no handling for must not arm it.
+        // #224: `try?` for the `appearanceTheme` reason — a mode written by
+        // some later build must degrade to the default, never fail the whole
+        // settings decode and reset every preference — and `resolved(_:)` on
+        // top of it, because a blob that NAMES a mode this build ships no
+        // handling for must not arm it. Since Phases 1+2 all three modes are
+        // handled, so `resolved(_:)` passes them through and a user's pick
+        // round-trips (224-1A); junk still degrades to `.manual`.
         approvalMode = ApprovalMode.resolved(
             (try? container.decodeIfPresent(ApprovalMode.self, forKey: .approvalMode)) ?? nil)
     }
