@@ -13970,6 +13970,71 @@ user-visible cost, which would change its measured-only status), #198A/B
 (voice umbrella), #413 (the night's other voice finding — different
 shape, same subsystem), #77 (the naming direction).
 
+---
+
+### 415-N — the NAMING half (fact 2 only). **Bars written first, 2026-08-26, before any edit.**
+
+**What HEAD actually spells, read before the bars were written** (the
+dispatch guessed `Chat with Hermes`; that string does not exist). The two
+Control Center controls are `AskHermesControl` and `TalkToHermesControl`
+(`TalariaWidgets/Controls/HermesControls.swift`), driven by
+`OpenHermesChatIntent` / `OpenHermesVoiceIntent`
+(`Shared/HermesControlIntents.swift`, compiled into BOTH targets). So the
+"chat one" Owen means is titled **"Ask Hermes"**, not "Chat with Hermes".
+
+**415-N-1 — the four user-facing title strings say Talaria.**
+`OpenHermesChatIntent.title == "Ask Talaria"` and
+`OpenHermesVoiceIntent.title == "Talk to Talaria"`, pinned as COMPILED
+values through the app module (`LocalizedStringResource` is `Equatable`).
+A test that only reads source text would pass on a commented-out literal;
+these two do not.
+
+**415-N-2 — the widget-target strings, structurally.** The `ControlWidget`
+structs are widget-target-only and cannot be compiled into the app test
+host, so their `Label` / `.displayName` / `.description` literals are
+pinned by READING `TalariaWidgets/Controls/HermesControls.swift` (the #399
+source-reading pattern, same shape as `RunsTransportSwitchTests`): the
+file must spell `"Ask Talaria"` and `"Talk to Talaria"` and must contain
+**no** `"Ask Hermes"` / `"Talk to Hermes"` string literal. Fails loudly if
+the file cannot be read — a check that cannot run must say so.
+
+**415-N-3 — the control `kind` identifiers do NOT move.** The system keys
+placed controls by `kind`; a rename orphans every control Owen has already
+placed. `HermesControlKind.askHermes`/`.talkToHermes` keep their
+`org.aethyrion.talaria27.control.*` values — already pinned by
+`HermesControlsTests.controlKindsAreStable`, which must stay green
+UNCHANGED. **A title rename that also moved a kind would pass 415-N-1 and
+still be a regression**, which is why this bar is written separately.
+
+**415-N-4 — "Hermes" survives where it means THE HOST, shown
+structurally.** A rename lane's real risk is a global search-and-replace,
+and a bar that only checks the two new titles cannot see that. So: the
+composer placeholder (`"Message Hermes…"`), the Connect Host copy (`"A
+Hermes gateway"`, `"Something's there, but it isn't Hermes"`) and the
+chat-status copy (`"Hermes host online"`) must all still be present in
+`Talaria/` source after the edit. These are host-meaning strings and stay
+correct.
+
+**415-N-5 — the gate.** `scripts/mac/lane-gate.sh` green on `CC-lane-2`
+under Xcode-beta6: Swift Testing + XCUITest + the Release build, positive
+markers from each. Baseline to beat: ~2726 Swift Testing tests (verified
+at lane open); the delta must equal the tests this lane adds and nothing
+else.
+
+**Explicitly OUT of scope, and each is a deliberate leave, not an
+oversight** — enumerated before the edit so the close-out cannot quietly
+grow: `AskHermesIntent` (the #6 Siri/Shortcuts intent, title "Ask
+Hermes"), `TalariaAppShortcuts`' `shortTitle: "Ask Hermes"`,
+`StartVoiceSessionIntent`'s description, and
+`CarPlayVoiceManager`'s `titleVariants: ["Talk to Hermes"]` — all
+different surfaces from the two Control Center controls Owen named.
+**The Siri PHRASES need no change at all**: they are already built from
+`\(.applicationName)` (`"Talk to \(.applicationName)"`, `"Ask
+\(.applicationName)"`), so Siri has always said Talaria. And the two
+control intents are `isDiscoverable = false` — they have no Siri phrases
+of their own to rename. Swift TYPE names (`AskHermesControl`,
+`OpenHermesChatIntent`, `HermesControlKind`) are not user-facing and stay.
+
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
 **2026-08-11 — what was run and what it found (Fable orchestrator + 4 subagents; sims
