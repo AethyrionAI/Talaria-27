@@ -1608,6 +1608,14 @@ a Developer-screen toggle later? Shipped stance is seed-only.
 > exists), but add-alongside is the zero-risk shape. **Entry stays OPEN
 > on this naming election alone** — a one-word go makes it a trivial
 > lane (plist + tests + the runbook card re-cut).
+
+> **⚖️ ELECTED 2026-08-26 night (Owen, verbatim: "Yeah lets use Talaria
+> in docs, and hermes can ride along incase someone wants an easter
+> egg").** The shape: `talaria://` becomes the PRIMARY, documented
+> scheme everywhere copy speaks; `hermes://` stays registered and
+> working, deliberately undocumented — an easter egg by ruling, not an
+> accident, so no future sweep "cleans it up." Lane dispatched the same
+> hour; bars at lane-open.
 ## 123. ✨ Share extension — send anything into a Hermes session (free tier)
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
