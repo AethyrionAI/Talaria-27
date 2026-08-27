@@ -146,7 +146,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); the refusal wording is the lever — **✅ THE STRING SHIPPED 2026-08-25 (PR #376): both branches carry an explicit do-not-claim clause, RED-first, mutation-proven both ways, 409-A/B/C MET. OPEN on 409-D only — the wording changed, the model's behaviour is UNVERIFIED until the next device `refusal-words` run**
 - **#413** 🐛 the assistant's FIRST utterance is captured as the USER speaking — realtime engine, first response only, 3/3 on BOTH Noisy and Normal (preset-independent, Owen's own A/B) — candidates filed (AEC convergence / route settle / channel mis-route); the AirPods probe discriminates acoustic vs software
 - **#414** 🐛 the phone 401s `GET /v1/models` against OJAMD — 410 historical log lines, pre-existing, quiet (chat + picker use other routes) — from the deploy report; first step is reading which credential slot the call sites resolve; may already be fixed by Lane B's Keychain hygiene, unmeasured
-- **#415** 🔴 the MIC STAYED ON after a Control Center voice launch (2/2, cleared by force-quit; privacy-surface real) — Owen's 3108 pass. **Log collect HAPPENED and the mechanism is NAMED: #302's ordering surviving #302's fix (App Lock arms ~1.2 s AFTER a warm CC tap clears the gate); the #303 engine-pin and #198 teardown-miss candidates are FALSIFIED. Fix bars 415-A…D proposed, NOT BUILT — that is what keeps this red.** The naming half is ✅ DONE (415-N, 2026-08-26): both CC controls read "Ask Talaria" / "Talk to Talaria"; host-meaning "Hermes" strings deliberately untouched.
+- **#415** 🔴 the MIC STAYED ON after a Control Center voice launch (2/2, cleared by force-quit; privacy-surface real) — Owen's 3108 pass. **Log collect HAPPENED and the mechanism is NAMED: #302's ordering surviving #302's fix (App Lock arms ~1.2 s AFTER a warm CC tap clears the gate); the #303 engine-pin and #198 teardown-miss candidates are FALSIFIED. Fix bars 415-A…D proposed, NOT BUILT — that is what keeps this red.** The naming half is ✅ DONE (415-N, 2026-08-26): both CC controls read "Ask Talaria" / "Talk to Talaria"; host-meaning "Hermes" strings deliberately untouched. **The SHORTCUTS half is ✅ DONE too (415-S, 2026-08-26, Owen's "shortcuts only"): `AskHermesIntent.title` + the `TalariaAppShortcuts` `shortTitle` both read "Ask Talaria", the type name and the registration identity deliberately unmoved (measured: App Shortcuts key off `mangledTypeName`, never the title, so nothing re-registers and nothing orphans). CarPlay stays declined-with-a-trigger and is now GUARDED by a test. 🚩 One un-enumerated third site flagged for Owen: `parameterSummary`'s `formatString` still reads "Ask Hermes ${question}" in the Shortcuts editor.**
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it**. **MEASURED 2026-08-11; clipping RULED OUT.** ~~Mechanism UNKNOWN~~ ~~⟵ INVESTIGATED 2026-08-25, candidates ranked~~ **⟵ ✅ MECHANISM MEASURED 2026-08-25 (measurement lane, unit repro): `openSession`'s wholesale replace + `mapStoredMessage`'s role refusal and empty usage fields zero BOTH totals inputs in ONE event, and the 9→7 row drop is the same event. Candidate ① CONFIRMED; candidate ③ (the `.voiceHermes` predicate split) is REAL but mutation-proven NOT the cause; the entry's "receipts render normally" claim is FALSIFIED — no reopened row carries `usage` or `turnDuration`, and the quoted numbers are the card's LAST TURN block via `SessionUsageIndex`. Shipped: 16 pins in `SessionTotalsAfterReopenTests`, a verbose-gated `/usage` instrument (NOT `#if DEBUG`), 3 seam breadcrumbs at `.notice`, and 330-G's six-step device script.** 330-A/B/E DISCHARGED. **⟵ ✅ FIXED 2026-08-25 (fix lane, `330-receipts-sidecar`): the `TurnReceiptSidecar` — session-id-keyed, replayed at open, `AgentAttachmentSidecar`'s pattern plus a priming tier — restores `usage`/`turnDuration`/`servingModel`/`isContextPriming` across the replace, and `mapStoredMessage` re-maps the STORED primer (a `user` row host-side) into the priming notice, collapsing its ack; that also closes a compounding defect where every reopen fed the primer back into the journal the next transplant is composed from. 330-C CONVERGED (four sites, one `isAgentAuthored` predicate — hygiene, M2 already proved it is not the cause). 330-D MET with its token source NAMED: `postPrimingTurn` returns nil whenever the priming run misses the 20 s `runsSyncBudget`, so the run id is kept and re-read off the interactive path onto the journal hop. 5 of 16 pins flipped RED-first (9 expectations), all rewritten; 16 → 34 tests; 3 isolating mutations.** **330-C/330-D DISCHARGED; only 330-G (Owen's device close) is left, and #312 (f) flips with it**
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
@@ -14243,7 +14243,10 @@ at lane open); the delta must equal the tests this lane adds and nothing
 else.
 
 **Explicitly OUT of scope, and each is a deliberate leave, not an
-oversight** — enumerated before the edit so the close-out cannot quietly
+oversight** *(⟵ the first two were later ELECTED and renamed by 415-S,
+2026-08-26; they were correctly out of scope for THIS lane and the
+enumeration is what let Owen rule on them)* — enumerated before the edit
+so the close-out cannot quietly
 grow: `AskHermesIntent` (the #6 Siri/Shortcuts intent, title "Ask
 Hermes"), `TalariaAppShortcuts`' `shortTitle: "Ask Hermes"`,
 `StartVoiceSessionIntent`'s description, and
@@ -14289,6 +14292,11 @@ is the deliverable as much as the rename is:
   `TalariaAppShortcuts`' `shortTitle: "Ask Hermes"`** — the Siri/Shortcuts
   surface, not a Control Center tile. Owen named the CC controls; renaming
   Shortcuts entries is a separate call and was not made.
+  **⟵ SUPERSEDED 2026-08-26: the call WAS subsequently made** (Owen,
+  ruling the stragglers: *"shortcuts only"*). Both strings now read
+  "Ask Talaria" — see **415-S** below. The TYPE name `AskHermesIntent`
+  is the only part of this bullet still standing, and 415-S records why
+  it must: it is the registration identity.
 - **`CarPlayVoiceManager`'s `titleVariants: ["Talk to Hermes"]`** — the
   CarPlay voice template's idle state, a third surface (the car screen).
   ⚠️ **Flagging it for Owen**: it is the same words on the same action, so
@@ -14364,6 +14372,147 @@ gate says so on every run.
 >   (or CarPlay becomes otherwise verifiable), the one-line rename rides
 >   the first CarPlay-touching lane — it is deferred-with-a-trigger, not
 >   forgotten.**
+
+---
+
+### 415-S — the SHORTCUTS half (the elected straggler). **Bars written first, 2026-08-26, before any edit.**
+
+**415-S-1 — the intent title is a COMPILED value and says Talaria.**
+`AskHermesIntent.title == "Ask Talaria"`, asserted through the app module
+(`LocalizedStringResource` is `Equatable`), exactly as 415-N-1 did for the
+two control intents. A source-text check would pass on a commented-out
+literal; this one does not.
+
+**415-S-2 — the `TalariaAppShortcuts` `shortTitle`, structurally.**
+`AppShortcut` exposes **no readable `shortTitle` property** — the SDK
+interface declares initializers only (verified in
+`AppIntents.swiftinterface`, iOS SDK 24A5422a), so the compiled value is
+unreachable from a test. It is pinned by READING
+`Talaria/Intents/StartVoiceSessionIntent.swift` (the #399 / 415-N-2
+source-reading pattern): the file must spell `shortTitle: "Ask Talaria"`
+**with its surrounding call** — matched that way so no comment prose can
+satisfy it — and must contain no `"Ask Hermes"` string literal. Fails
+loudly if the file cannot be read.
+
+**415-S-3 — CarPlay is UNTOUCHED, shown structurally.** Owen declined it
+with a trigger, so the bar is not "we didn't edit it" (unfalsifiable in a
+diff nobody re-reads) but a live guard:
+`Talaria/CarPlay/CarPlayVoiceManager.swift` must still contain
+`titleVariants: ["Talk to Hermes"]`. If a future sweep takes that line
+before #74 makes CarPlay verifiable, this goes red and the deferral is
+re-decided deliberately rather than by accident. The sibling host-meaning
+CarPlay strings (`"Connecting to Hermes..."`, `"Hermes is speaking"`)
+ride the same guard.
+
+**415-S-4 — the four test-pinned host-meaning strings stay green.**
+`HermesControlsTests.hostMeaningHermesStringsSurviveTheRename` is
+UNCHANGED by this lane and must stay passing: `"Message Hermes…"`,
+`"A Hermes gateway"`, `"Something's there, but it isn't Hermes"`,
+`"Hermes host online"`. Talaria is a client for a **Hermes** host; that
+word is load-bearing everywhere it means the host.
+
+**415-S-5 — the identity does NOT move.** The Swift type
+`AskHermesIntent` keeps its name (ruled out of scope) — and per the
+measurement below that name IS the registration key, so a type rename is
+the Shortcuts-surface equivalent of 415-N-3's control `kind` hazard.
+
+**415-S-6 — the gate.** `scripts/mac/lane-gate.sh` green on `CC-lane-2`
+under Xcode-beta6. Baseline to beat, verified at lane open: **2729** Swift
+Testing tests; the delta must equal the tests this lane adds and nothing
+else.
+
+**Explicitly OUT of scope** (enumerated before the edit, per 415-N's
+precedent, so the close-out cannot quietly grow): `CarPlayVoiceManager`'s
+`titleVariants` (declined-for-now, guarded by 415-S-3), the TYPE name
+`AskHermesIntent` (internal, and load-bearing per 415-S-5), and every
+host-meaning "Hermes" string in the app.
+
+**✅ 2026-08-26 — 415-S DONE.** Every bar met. **The strings, verbatim,
+before → after:**
+
+| surface | file | before | after |
+| --- | --- | --- | --- |
+| `AskHermesIntent.title` | `Talaria/Intents/AskHermesIntent.swift:26` | `Ask Hermes` | `Ask Talaria` |
+| `TalariaAppShortcuts` `shortTitle` | `Talaria/Intents/StartVoiceSessionIntent.swift:61` | `Ask Hermes` | `Ask Talaria` |
+
+Two sites, both ruled. One adjacent comment naming the old title was
+corrected in the same commit (close-out rule).
+
+**🔎 THE RE-REGISTRATION QUESTION, ANSWERED BY MEASUREMENT rather than
+recall — and the answer is "nothing to do", for a reason worth keeping.**
+App Shortcuts metadata is extracted at **BUILD** time into
+`Metadata.appintents/extract.actionsdata` inside the `.app` bundle. Read
+out of a real build product:
+
+```
+actions.AskHermesIntent.identifier        = "AskHermesIntent"
+actions.AskHermesIntent.mangledTypeName   = "7Talaria15AskHermesIntentV"
+actions.AskHermesIntent.fullyQualifiedTypeName = "Talaria.AskHermesIntent"
+autoShortcuts[].actionIdentifier          = "AskHermesIntent"
+autoShortcuts[].shortTitle.key            = "Ask Hermes"   ← pre-rename build
+```
+
+Three consequences:
+1. **No runtime call is needed.** The titles ship inside the binary's
+   extracted metadata and the system re-reads them on install.
+   `AppShortcutsProvider.updateAppShortcutParameters()` exists, but it
+   refreshes **dynamic parameter option values** (AppEnum/AppEntity) —
+   and this shortcut has no `parameterPresentation` at all, with phrases
+   built only from `\(.applicationName)`. There is nothing for it to
+   update, so calling it would be cargo cult.
+2. **Nothing orphans.** Registration keys off the TYPE
+   (`identifier` / `mangledTypeName`), never the display title, so
+   shortcuts a user has already built and any Siri bindings survive a
+   title change untouched. This is the same identity-vs-display split
+   415-N-3 pinned for the control `kind` — and it is why 415-S-5 forbids
+   renaming the type even though the type name is invisible.
+3. **The title is a bare localization KEY**, and this project ships no
+   `.xcstrings` / `.strings` catalog (checked), so the key *is* the
+   displayed string. No catalog entry is owed.
+   ⚠️ Not measured here: whether the Shortcuts app's own cache redraws
+   immediately on upgrade-install or only after a relaunch. That is
+   device-observable only and this lane is sim-bound; if a stale title
+   shows after the next OTA, relaunch before suspecting the code.
+
+**🚩 FLAGGED FOR OWEN — a THIRD "Ask Hermes" on this same surface that
+nobody has enumerated, found in the metadata above and deliberately NOT
+changed.** `AskHermesIntent.parameterSummary` is
+`Summary("Ask Hermes \(\.$question)")`, and the extractor bakes it as
+`formatString: "Ask Hermes ${question}"` — the row the Shortcuts **editor**
+draws for a configured action, while `title` is what the action
+*browser* lists. So after this lane the browser says "Ask Talaria" and a
+placed action still reads "Ask Hermes <question>". It was not in Owen's
+"shortcuts only" enumeration and not in 415-N's flag list, so renaming it
+would be the lane growing itself — but it is one line if elected, and
+this note is the standing record. *(Two further Hermes mentions in that
+file are host-meaning and correct as they stand: the intent
+`description` — "Asks Hermes a question…" — and the parameter's
+`requestValueDialog` — "What should I ask Hermes?" — both name the agent
+being asked, not the app doing the asking.)*
+
+**Test evidence.** `AskHermesIntentTests` 11 → **14 tests, +3**
+(`askIntentTitleNamesTalaria`, `theAppShortcutSpellsTalaria`,
+`carPlayIdleTitleIsUntouched`). **RED-first at HEAD, measured before the
+edit: 3 issues across 2 failing tests** — the compiled title, the
+`shortTitle` presence, and the old-literal absence — with 415-S-3's
+CarPlay guard already green, as it must be: it is a guard, not a goal.
+After the rename, `AskHermesIntentTests` + `HermesControlsTests` run
+together: **25/25 pass in 2 suites**, which also re-proves 415-N's eleven
+pins and 415-S-4's four host-meaning strings across the edit.
+
+**415-S-6, the gate** — `TALARIA_SIM_NAME=CC-lane-2` under Xcode-beta6,
+**GATE: PASS on 24A5423a**, first run, no flake re-runs: **2732 Swift
+Testing** + **15 XCUITest** + Release build clean (0 Swift compile
+errors), preflight all-PASS including the TCC grant, the classifier
+self-test (15 checks) and the `project.pbxproj` drift check. **The count
+MOVED 2729 → 2732, exactly +3** — this lane's three tests and nothing
+else, which is the check a stale `.xctest` would have failed. No
+`xcodegen` regen was owed: no Swift file was added or removed, and the
+pbxproj drift check confirms it. Baseline provenance: 2729 is 415-N's own
+measured gate count from earlier the same day, and `origin/main` was still
+at that lane's commit when this one branched (the parallel 415 fix lane
+had not landed).
+
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
 **2026-08-11 — what was run and what it found (Fable orchestrator + 4 subagents; sims
