@@ -5636,6 +5636,25 @@ scored here.
 > glances went unreported in the same message — presumed fine, not
 > scored; they can ride any future OJAMD-profile minute.)
 
+> **⚖️ ELECTED 2026-08-26, minutes later (Owen, verbatim: "Smart is a
+> part of hermes, makes sense that we should have that too. Orchestrate
+> that as a lane please").** This DISCHARGES ruling (1)'s hold — not by
+> its trigger phrase but by a direct election, which outranks it. **Scope,
+> derived from the design of record and stated so it can be trimmed:**
+> Phase 2 (Smart) structurally requires Phase 1 (the mode setting, the
+> Privacy-screen control, and Off-with-the-floor — ruling 3 of his own
+> 08-10 "approved all eight" ballot says Off ships WITH the floor), so
+> the lane is **PHASES 1+2 TOGETHER — the complete Manual · Smart · Off
+> mirror** under the eight standing rulings (global UserSettings gate ·
+> Privacy screen home · Off's floor REFUSES · Smart is deterministic
+> rules or nothing, no model on the safety path · receipts stay deferred
+> per ruling 7 · the host's `approvals.mode` is explicitly out of scope
+> per the design's own "not a phase"). The doc's §6 sketch bars
+> (224-1A..F, 224-2A..D) formalize into THIS entry at lane-open with
+> anchors re-resolved at HEAD (the 08-07 sketches predate Phase 0's
+> scaffold and the caution system). Device bars (224-1F, 224-2C) become
+> runbook cards. Merge-on-green applies.
+
 ## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code. ⟵ PREMISE RE-VERIFIED LIVE AT HEAD 2026-08-25 (Sonnet agent): the asymmetric gate survives exactly as filed (#221 built it this way; #383 only renamed the pairing predicate; a passing regression test PINS the cold-launch pin as current behavior, `RealtimeVoiceIndicatorTests.swift:193`). The runbook's #303-A/B card remains the right instrument and has never run — measurement first, fix election after.**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 2).** 303-A/B ride the OJAMD sitting (realtime-configured host — see the OJAMD handoff §11); no fix before 303-A runs.
