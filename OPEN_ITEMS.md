@@ -13452,6 +13452,24 @@ configuration the system never enters), **#388** (the beta5 surface sweep).
 > real order-dependence) stays with this filed note for whoever touches
 > the wizard's tests next; recurrence data now has its baseline.
 >
+> **🔴 ⟵ SUPERSEDED THE SAME NIGHT (2026-08-27 ~01:00, from #415's fix
+> lane): `main` IS NOT GREEN ON XCUITEST RIGHT NOW, and that is a
+> MEASUREMENT, not an inference.** A full gate run on **`origin/main`
+> itself** — commit `60a874dd`, detached, no lane changes, 2742 Swift
+> Testing and Release clean — ended `GATE: FAIL (3 checks)` on **this exact
+> test**, same assertion, same line. The lane that measured it did so as its
+> own exculpatory control after the test reddened **3 of 5** of its gate
+> runs; a paired isolated-bundle run had already shown base and branch both
+> **15/15** with the test at **37.983 s** on base and **37.731 s** on the
+> branch (the branch is *faster* on the failing test). **So the recurrence
+> tally is no longer "1 fail in 4 on an unchanged tree"** — it is roughly
+> **4 in 10 full-suite runs across two trees on one night**, and **0 in
+> every isolated bundle run**, which is exactly the shape the note above
+> declined to call a flake. Whoever owns the wizard's tests: the choice
+> (widen the 15 s `waitForComposer` budget vs find the order-dependence)
+> is now a live one, and until it is made, a lane's red gate on this test
+> means nothing about that lane. Evidence lives in #415's result block.
+>
 > **📱 398-B — DEVICE-OWED, and its target build is SUPERSEDED.** The bar reads
 > "re-measure on `24A5418b`"; that build is dead — the device left it on 08-24.
 > The bar's SUBSTANCE (re-measure the two load-bearing rates on the device)
@@ -15066,47 +15084,49 @@ engines log under `org.aethyrion.talaria`, `TalkStore` under
 `TalariaLog.subsystem`; the forensics' own predicate
 (`subsystem BEGINSWITH "org.aethyrion"`) catches both.
 
-**THE GATE — `TALARIA_SIM_NAME=CC-lane-3`, Xcode-beta6: `GATE: PASS on
-24A5423a`** on the rebased tree (415-S and the naming ruling merged
-underneath). **2742 Swift Testing** (2732 → 2742, **exactly +10** — the ten
-tests this lane adds and nothing else, which is the check
-`test-without-building` staleness would have failed) + **15/15 XCUITest** +
-Release build clean, preflight all-PASS. The 2 skips are the known-permanent
+**THE GATE — `TALARIA_SIM_NAME=CC-lane-3`, Xcode-beta6.** Five runs across
+three successive bases as two other 415 lanes landed underneath this one.
+**`GATE: PASS on 24A5423a` on the pre-sweep tree** (415-S + the naming
+ruling merged): 2742 Swift Testing, **15/15 XCUITest**, Release clean. On the
+FINAL tree (the naming sweep merged): **2752 Swift Testing** — 2742 → 2752,
+**exactly +10**, the ten tests this lane adds and nothing else, which is the
+check `test-without-building` staleness would have failed — **Release build
+clean, preflight all-PASS**, and one XCUITest red that **`main` itself
+carries tonight** (measured, below). The 2 skips are the known-permanent
 `CondenserFidelityTests` pair; nothing new was skipped. **Runtime caveat the
 gate prints itself (398-C): green on sim runtime 24A5423a**, which is why
 415-D exists.
 
-**🟡 IT TOOK FOUR GATE RUNS, AND THE PAIRED CONTROL — NOT AN ARGUMENT — IS
-WHAT SETTLED THE RED.** Two of the four ended
-`GATE: FAIL (3 checks)` on one XCUITest:
+**🔴 THE XCUITEST RED IS `main`'s, AND THAT IS A MEASUREMENT — THE CONTROL
+RAN INSTEAD OF THE ARGUMENT.** Three of this lane's five gate runs ended
+`GATE: FAIL (3 checks)` on one test:
 `TalariaUITests.testConnectedRelaunchSkipsTheConnectEntry` at
 `AppTemplateUITests.swift:538`, *"a successful connect should land straight in
-chat (#137)"* — Swift Testing and Release green in every run. **That test is
-already characterised in this tracker** (#300's lane): it sits right on its
-own 15 s `waitForComposer` budget inside a ~38 s test, and had failed once in
-four full-suite runs on unchanged trees, always under load.
-**A structural alibi was available and was deliberately not used** — this
-lane's diff touches voice start, the gate's waiter sets and two log lines,
-none of which the Connect Host wizard executes. The standing lesson is that
-such an argument is exactly what an isolation-passes/suite-fails
-order-dependence hides behind, so the control ran first:
+chat (#137)"* — Swift Testing and Release green in every one. **A structural
+alibi was available and was deliberately not used** (this diff touches voice
+start, the gate's waiter sets and two log lines; the Connect Host wizard runs
+none of it), because the standing lesson is that such an argument is exactly
+what a real order-dependence hides behind. So two controls ran, in order:
 
-| arm (same box, same simulator, back to back) | result | that test |
+| arm (same box, same simulator) | result | that test |
 |---|---|---|
-| `origin/main` (dfd8f69b), `-only-testing:TalariaUITests` | **15/15** | **37.983 s** |
+| `origin/main` `dfd8f69b`, `-only-testing:TalariaUITests` | **15/15** | **37.983 s** |
 | this branch, `-only-testing:TalariaUITests` | **15/15** | **37.731 s** |
+| **`origin/main` `60a874dd`, FULL `lane-gate.sh`, no lane changes** | **`GATE: FAIL (3)` — same test, same line** | — |
 
-**The branch arm is 0.25 s FASTER than base on the very test that failed** —
-so the diff does not move this test's margin, and the two reds track
-full-suite runs on a loaded box (load averages **8.43 / 17.50 / 21.92** and
-**6.26 / 11.75 / 19.38** at their starts). Tally on an effectively unchanged
-tree is now **3 fails in ~8 full-suite runs, 0 in every isolated bundle
-run.** **That is a real property of that test and it is not this lane's** —
-filed here because the next lane will meet it and deserves the paired numbers
-rather than the word "flake". *(The gate's "XCUITest tests run — 2" line on a
-red run is its documented MAX-over-`with 0 failures`-lines quirk when a run
-HAS a failure, not a truncated bundle — corrected once already in #300's
-entry, and it read exactly the same way here.)*
+**The last row is decisive: unmodified `main` fails this test in a full-suite
+gate run on this box tonight**, with 2742 Swift Testing green and Release
+clean — the exact red this lane was carrying. And in the isolated arms the
+branch is **0.25 s FASTER** than base on the very test that fails, so the
+diff does not even move its margin. **Tally across two trees on one night:
+~4 fails in 10 full-suite runs, 0 in every isolated bundle run** — the
+isolation-passes/suite-fails shape #300's note refused to call a flake, now
+with a base measurement behind it. **#300's "`main` IS green on XCUITest"
+(2026-08-26 morning) is superseded in its own home, dated, by this
+measurement.** *(The gate's "XCUITest tests run — 2" line on a red run is its
+documented MAX-over-`with 0 failures`-lines quirk when a run HAS a failure,
+not a truncated bundle — corrected once already in #300's entry, and it read
+exactly the same way here.)*
 
 **🟡 A second infrastructure note, same night.** Twice, a targeted
 `xcodebuild … test` after a source-change rebuild stalled ~6 minutes and
