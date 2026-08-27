@@ -142,7 +142,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#180** 🎨 UMBRELLA — the app hides its own degradation: one design default + a register ("four instances" is the as-filed count). Lane 180-L SHIPPED 2026-08-09 — bars 180-A..F. **⚖️ 08-25: the design question is RULED — Connect Host's state vocabulary adopted as THE standard; members migrate as lanes touch them (309-C6 is migration #1); umbrella stays open as the register**
 - **#182** 🎲 Second flaky UI test — `testMockPairingViaSettingsEntryPoint` launch timeout
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
-- **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and … **✅ BALLOT APPROVED 2026-08-10, all eight cards as recommended — Phase 0 dispatch owed (bars pre-register in the entry); Phases 1–3 hold** … ~~**→ BARS 224-0A..0G PRE-REGISTERED 2026-08-11; Phase 0 READY TO DISPATCH.**~~ **⟵ corrected 2026-08-24: Phase 0 RAN the same day it was ready — ALL SEVEN BARS MET 2026-08-11, MERGED as `5313499b`; the entry's own ✅ result block records it while this line still said dispatch-ready. What remains is Phases 1–3, HOLDING on ruling 1 (Owen's call, not a lane).**
+- **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and … **✅ BALLOT APPROVED 2026-08-10, all eight cards as recommended — Phase 0 dispatch owed (bars pre-register in the entry); Phases 1–3 hold** … ~~**→ BARS 224-0A..0G PRE-REGISTERED 2026-08-11; Phase 0 READY TO DISPATCH.**~~ **⟵ corrected 2026-08-24: Phase 0 RAN the same day it was ready — ALL SEVEN BARS MET 2026-08-11, MERGED as `5313499b`; the entry's own ✅ result block records it while this line still said dispatch-ready. What remains is Phases 1–3, HOLDING on ruling 1 (Owen's call, not a lane).** ~~*"ours is always-on Manual"*~~ **⟵ FALSIFIED 2026-08-26: PHASES 1+2 ARE BUILT. Owen elected them ("Smart is a part of hermes… Orchestrate that as a lane"), the hold is discharged, and the app now ships the full Manual · Smart · Off mirror — Privacy → `// Agent Actions`, global on `UserSettings`, `.manual` still the default, Off with the floor that REFUSES. Bars 224-1A..1E / 224-2A..2B/2D MET; what remains on this item is the two DEVICE bars (224-1F, 224-2C — runbook cards, pre-registered and UNRUN) and Phase 3's transcript receipts, still DEFERRED per ruling 7.**
 - **#303** 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins NATIVE even when the brain permits realtime (`init` reads the brain 35 ms before the sticky-default restores it; `startSession`'s re-check guards only the downgrade direction). **MASKED on the host it was found on — cost UNMEASURED**; needs a realtime-configured host. Observed in passing by #254's device run, **not investigated**
 - **#302** 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center "Talk to Hermes" launch begins on a LOCKED app. Whether the mic is ever LIVE behind the cover is **UNDETERMINED** and is the whole question; it **composes with #272** ~~which leaves the locked interval unbounded~~ (#272 FIXED 2026-08-09, PR #289 — the interval is now held by the Cancel-then-UNLOCK state instead). ~~Observed in passing, **not investigated**~~ **→ 🚨 ANSWERED ON DEVICE 2026-08-10 (§V1, build 2484): THE MIC IS LIVE BEHIND THE LOCK — 302-B RED, mic hot 34.9 s while `cover=locked`, going hot 3.87 s BEFORE the user cancelled; a second unplanned reproduction in the same corpus went hot 820 ms before App Lock even evaluated. 302-A "passed" by a 470 ms Face ID footrace, NOT a gate — there is no gate. Violates the 302-C contract Owen ruled the same morning. ~~FIX OWED, not built~~ → ✅ FIX BUILT 2026-08-20 (Thursday PM lane): `AppLockGate` is one consultable state, both voice doors defer until unlock, bars 302-D…G MET and each proven RED by mutation. ~~DEVICE VERIFICATION STILL OWED~~ → ✅ DEVICE-CONFIRMED 2026-08-20 ON BOTH ARMS: mic COLD behind the cover, and the parked start RESUMES on unlock (a real deferral, not a refusal). Only #124's seven App-Lock regression checks remain. Twin filing #323 carries the non-voice half**
 - **#308** 📝 PUBLISH the talaria plugin repo — the unblock for #269-B, and the update path it needs
@@ -5027,7 +5027,7 @@ from a work desk over the Tailscale OTA path. Airplane mode as ground truth for 
 - Same session produced fresh #192-family evidence (silent badge flip on Hermes-thread send —
   recorded at #192) and new #194 (tool fixation).
 
-## 224. 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and it is a gateway config key
+## 224. 🎨 Mirror Hermes's three-mode approval model — ~~ours is always-on Manual, theirs is Manual / Smart / Off, and it is a gateway config key~~ — **✅ OURS IS MANUAL / SMART / OFF TOO: PHASES 1+2 BUILT 2026-08-26** (Privacy → `// Agent Actions`; GLOBAL on `UserSettings`; `.manual` still the default on every install and every old blob; Smart is deterministic caution rules with no model anywhere near the path; Off ships WITH the floor, which REFUSES rather than cards). **Remaining on this item: the two DEVICE bars — 224-1F and 224-2C, runbook cards, pre-registered and UNRUN — and Phase 3's transcript receipts, still DEFERRED per ruling 7.** The HOST-side picker is a DIFFERENT actor and already shipped (#224-APP, 2026-08-25); the two never negotiate.
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **OWN SITTING; CLAUDE PREPS THE BRIEF.** The eight questions get a
@@ -5090,6 +5090,14 @@ Corrected here and in the device list.)
 every side-effecting on-device tool on an editable card. There is no user-facing mode at
 all — `autoAcceptForBattery` is harness-only. So the local brain can never be told "stop
 asking," and can never be told "use judgement."
+
+> **⛔ THAT PARAGRAPH DESCRIBES 2026-08-02 AND IS FALSE FROM 2026-08-26.** Phases
+> 1+2 shipped the user-facing mode (Privacy → `// Agent Actions`, three rows,
+> global on `UserSettings.approvalMode`, `.manual` still the default). The brain
+> CAN now be told "stop asking" (Never ask — with the floor) and "use judgement"
+> (Ask when unusual — deterministic rules, never the model). `autoAcceptForBattery`
+> is unchanged and still harness-only, and still short-circuits ahead of the mode
+> read, so no battery number is affected. Result block at the foot of this entry.
 
 **Two distinct things this could mean, and they are separable — Owen has endorsed the
 direction, not a design:**
@@ -5340,6 +5348,20 @@ value. **No user-facing control ships.**
   half: even if a future lane arms `.smart`/`.off` without building their
   paths, the gate stages the card anyway (default-CLOSED — an unhandled mode
   costs a prompt, never an unapproved write).
+  - **⛔ THE PREDICTION IN THIS BULLET FIRED, 2026-08-26.** Phases 1+2 widened
+    `selectable` and all four named tests went RED exactly as designed — see
+    the RED-witness block in the Phases 1+2 result at the foot of this entry.
+    Three were rewritten as the deliberate acknowledgement the design demanded
+    (`approvalModeExposesOnlyManual` → `approvalModeExposesAllThreeAfterPhases12`,
+    `approvalModeClampsUnreachableValuesToManual` →
+    `approvalModeResolvesEverySelectableModeToItself`,
+    `anUnreachableModeStillStagesTheCardRatherThanActing` →
+    `noModeSilentlyCreatesAFlaggedAction`), and
+    `theGateStagesACardUnderTheOnlyReachableMode` was renamed to
+    `theGateStagesACardUnderManual`. **The property survives:** `selectable`
+    is still a literal list rather than `allCases`, so the next case added
+    still does not ship itself, and the clamp still guards the next
+    NARROWING. Cite the new names from here on.
 - **224-0F — MET, in two halves, because one is not enough.**
   (i) `approvalPathDecisionsAreSynchronousAndModelFree` — **the pin is the
   absence of `async` on that test body**, not an expectation inside it. Every
@@ -5558,6 +5580,11 @@ scored here.
 >   host mode is a DISTINCT type (raw wire string); every Phase-0 pin
 >   (`approvalModeExposesOnlyManual`, not-per-profile, clamping) stays green
 >   untouched. Touching `ApprovalModeCore.swift` is the wrong lane.
+>   *(⛔ 2026-08-26: that test name is now `approvalModeExposesAllThreeAfterPhases12`
+>   — Phases 1+2 renamed it, deliberately, and DID touch `ApprovalModeCore.swift`,
+>   which was the right lane for it. The bar as written was correct for the
+>   224-APP lane and is unaffected: the HOST mode is still a distinct type
+>   and the two never negotiate.)*
 > - **224-APP-D:** the host-predates footnote (unsupported state) ships
 >   pinned copy naming the remedy ("after the host updates" shape, #396's
 >   pinned form); set-path failures surface honestly (unreachable ≠
@@ -5778,6 +5805,404 @@ at HEAD `627ec37e`.**
 > a phase") · the `/alarm` slash command's alert (224-1D(iv) makes the copy
 > honest about it instead) · MCP (`design/MCP_CLIENT_DESIGN.md` routes through
 > this same gate and stays Manual in its first version regardless).
+
+
+**✅ PHASES 1+2 RAN — 2026-08-26, branch `t27-224-phases12-modes` off
+`627ec37e`. 224-1A..1E and 224-2A..2B/2D MET; 224-1F and 224-2C are DEVICE
+bars, pre-registered and UNRUN — nothing in this lane scores them.**
+
+Result in one line: **the confirm gate has three modes now** — *Ask every time*
+(default, unchanged behaviour), *Ask when unusual* (clean staged actions go
+through, caution-tripping ones CARD), *Never ask* (clean ones go through,
+caution-tripping ones are REFUSED by the floor) — chosen on the Privacy
+screen, global on `UserSettings`, with no model anywhere on the path.
+
+**THE PRIVACY ROW COPY, VERBATIM** (`ApprovalMode` + `PrivacySettingsScreen`,
+production strings, pinned by test):
+
+- Section header: `// Agent Actions`
+- **Ask every time** — *"Every reminder, event, and alarm waits for your approval."*
+- **Ask when unusual** — *"Goes ahead unless the action trips a caution — an early-morning hour, or a time that has already passed. Those still ask."*
+- **Never ask** — *"Goes ahead without asking. An action that trips a caution is refused instead of created."*
+- Section caption — *"Covers the reminders, calendar events, and alarms your agent stages on this phone. Reading your data always follows the permissions above, and an alarm you type yourself with /alarm always asks."*
+- VoiceOver, per row (224-1D(iii) — the CONSEQUENCE, not the name):
+  - *"Ask every time. Every reminder, event, and alarm waits for your approval."*
+  - *"Ask when unusual. Actions go ahead without asking unless they trip a caution, and those still ask you first."*
+  - *"Never ask. Actions go ahead without asking, and any that trip a caution are refused instead of created."*
+
+**THE OFF-FLOOR REFUSAL, VERBATIM** (`ApprovalFloor`, one builder, three
+callers). Template, with a real instance beneath it:
+
+> `"<No X was created/scheduled.> Action confirmations are set to Never ask, and this request was flagged: <REASON>. This action was refused and did not run — do not tell the user it happened. Tell the user what was flagged and ask them to confirm what they meant, then try again with what they confirm."`
+>
+> *"No reminder was created. Action confirmations are set to Never ask, and this request was flagged: EARLY MORNING. This action was refused and did not run — do not tell the user it happened. Tell the user what was flagged and ask them to confirm what they meant, then try again with what they confirm."*
+>
+> Fail-safe form, for a flagged action whose tool supplied no text (reachable
+> only from a direct `requestConfirmation` call; refusing rather than carding,
+> because a card there would make Off secretly Manual for whichever tool
+> forgot): *"Nothing was created. Action confirmations are set to Never ask,
+> and this request was flagged as unusual. This action was refused and did not
+> run — do not tell the user it happened. Tell the user what was flagged and
+> ask them to confirm what they meant, then try again with what they confirm."*
+
+**🔴 THIS STRING REACHES THE MODEL, so #409's do-not-claim precedent applies
+and is HONOURED.** The floor's refusal is a tool RESULT — the model reads it
+and speaks next — which is exactly the channel the 336-A forensics measured
+answering a refusal with *"I've set the alarm for 6:30 AM"* **6/6**. The
+sentence *"This action was refused and did not run — do not tell the user it
+happened"* is `ApprovalFloor.doNotClaimClause`, one constant across all three
+tools, pinned in test on its own literal rather than by referencing the
+constant. **And it is DIGIT-FREE**, per #233-E/#249-F: the two Phase-0 caution
+rows are digit-free already, so the calendar and alarm tools pass their row
+straight through; the REMINDER's rows carry `displayDate`/`timeOnly`, so it
+passes `dueCautionReason` — a digit-free twin derived from its own row rather
+than restated — and the card keeps its dates untouched.
+**Not user-facing:** nothing renders this string; it is model-facing only
+(ruling 7 keeps receipts deferred, so an auto-approval and a refusal both log
+to `os_log` and render no row).
+
+**THE SMART RULE SET SHIPPED, enumerated.** Smart is `caution == nil ⇒
+auto-approve, caution != nil ⇒ card`, and the caution layer is the ONE seam —
+the same rows the card shows, not a parallel risk model. So the deterministic
+rules that make an action "unusual" are exactly these five, all pre-existing
+and unchanged by this lane:
+
+| Tool | Rule | Row |
+|---|---|---|
+| `createReminder` | `isPastDue` (5-min grace, #249) | `IN THE PAST — <date>` |
+| `createReminder` | `isEarlyMorning` (hours 0–6, #233) | `EARLY MORNING — <time>` |
+| `createReminder` | `isNextMorning` (asked ≥17:00, lands 07:00–11:59 next day, #249) | `NEXT MORNING — <time>` |
+| `createCalendarEvent` | `isPastDue` on the start (#224-0B) | `STARTS IN THE PAST` |
+| `createCalendarEvent` | `isEarlyMorning` on the start (#224-0B) | `EARLY MORNING START — CHECK AM/PM` |
+| `scheduleAlarm` | `isEarlyMorning` on the fixed time (#224-0A) | `EARLY MORNING — CHECK AM/PM` |
+| `scheduleAlarm` | `isPastDue` on today's occurrence (#224-0A) | `ALREADY PASSED TODAY — RINGS TOMORROW` |
+
+Countdowns trip nothing (always future, no clock hour to misread). **Zero
+model calls, zero added latency, zero new failure mode** — ruling 5 holds by
+construction, and 224-2B pins it.
+
+**Bar by bar:**
+
+- **224-1A — MET.** `.manual` on a fresh install (`UserSettings().approvalMode`)
+  and on a blob that predates the key. The behaviour CHANGE is that a blob
+  naming `off`/`smart` now round-trips instead of clamping — encode→decode
+  included, because a decoder alone is half of a persisted pick. Junk still
+  degrades to `.manual` without losing the rest of the blob. Tests:
+  `defaultIsManualOnAFreshInstallAndOnABlobThatPredatesTheKey`,
+  `aChosenModeRoundTripsNowThatAllThreeAreSelectable`,
+  `junkStillDegradesToManualWithoutLosingTheRestOfTheBlob`,
+  `allThreeModesAreSelectableInRenderOrder`.
+- **224-1B — MET, RED witnessed first (see the RED block below).** Gate seam:
+  `.off` + clean ⇒ `.approved(staged values)` with `pending == nil` throughout;
+  `.off` + flagged ⇒ `.refused(text)`, no card, and `declineCount` does NOT
+  move (a refusal is not a decline). Through the real tools:
+  `offRefusesAWeeHourCalendarEventAndCreatesNothing`,
+  `smartCardsTheWeeHourAlarmThatOffRefuses`,
+  `offRefusesAWeeHourReminderWithADigitFreeReason` — the last calls
+  `performCreate` TWICE on one relay, because #233's pre-gate bounce claims the
+  first wee-hour due per conversation and the gate is only reachable after it
+  (production behaviour, not a contrivance).
+  `everyFloorRefusalCarriesTheClauseAndNothingMineable` sweeps all nine
+  producible refusals for the clause, digit-freedom, the negative lead, and the
+  setting's name.
+- **224-1C — MET, in two halves.** (i) **Structural, scored everywhere:**
+  `noReadToolHoldsTheConfirmationGate` reflects over the REAL read belt (12
+  tools) and finds no `ToolConfirmationCenter` and no `ApprovalMode` — with a
+  POSITIVE CONTROL asserting the same reflection DOES find the gate on all
+  three action tools, because a reflection that cannot see a stored property
+  would report a clean read belt for the wrong reason. (ii) **Resumption
+  identity:** `anAutoApprovalIsByteIdenticalToAUserApprove` — an auto-approval
+  hands the tool the same `.approved(values)` dictionary a user's tap hands it,
+  so the tool resumes at exactly the point it resumes under `.manual`, which is
+  UPSTREAM of every EventKit/AlarmKit authorization check. **No mode can bypass
+  an OS permission because no mode ever reaches one.** Plus
+  `theGateIsTheOnlyPlaceAModeIsConsulted` (sim-only, #332-a shape): a scan of
+  all `Talaria/*.swift` finds `.disposition(hasCaution:` in exactly one file,
+  with a positive control on the declaration site.
+- **224-1D — MET, all four clauses.** (i) `offReadsAsForgeInEveryThemeAndNeverAsDanger`
+  resolves the row tint for **every `ThemeID` × every `AccentSlot`** and
+  asserts Off == `forgeText`, ≠ `dangerText`, Manual/Smart == `accentText`, and
+  — the part that makes the claim meaningful — that `forgeText != dangerText`
+  in each, Paper Tape included by name. **Honest scope: that is colour
+  RESOLUTION across themes, not a pixel render.** The render itself is scored
+  by a new XCUITest, `testPrivacyAgentActionsControlRendersAndSwitchesMode`,
+  which opens Settings → Privacy, finds `settings.privacy.agentActions`,
+  scrolls (bounded) to the rows, asserts a fresh install lands on *Ask every
+  time*, taps *Never ask*, and asserts the selection moves. (ii) the role type
+  `ApprovalModeAccentRole` has exactly two cases — **danger is not expressible
+  on an approval row at all**, which is a compile error rather than a comment.
+  (iii) VoiceOver labels pinned verbatim and asserted to be strictly longer
+  than the mode name with a consequence in them. (iv) the caption is pinned
+  verbatim and asserted to name the three writes, to disclaim reads, and to
+  name `/alarm`. **Position:** `theControlSitsBetweenSensorSharingAndAppLock`
+  reads `body`'s composition and pins the seven-section order — the only check
+  that can see the ruling-6 placement, since a render test proves it exists and
+  a copy test proves what it says, but neither notices it drifting to the
+  bottom of the screen.
+- **224-2A — MET.** `smartCardsTheVeryActionOffRefuses` (gate) and
+  `smartCardsTheWeeHourAlarmThatOffRefuses` (real `AlarmTool`) run the
+  IDENTICAL flagged action under both modes: Smart stages the card with its
+  amber row and Off refuses with no card. The design's one-line difference —
+  *Smart asks you about the unusual ones; Off refuses them* — holds in test.
+  **(ii) The wee-hour threshold was NOT moved**, and that is a written decision
+  rather than an inheritance: `theCanonicalMorningAlarmStillCardsUnderSmart`
+  names `"6:30am"` explicitly and asserts the card. The threshold is #233's, it
+  was balloted, and 224-0A's registered bar says "before 07:00 local" — a
+  missed bar is a falsification and so is a quietly improved one.
+- **224-2B — MET, EXTENDING 224-0F rather than duplicating it.**
+  `everyPhase12ApprovalDecisionIsSynchronous` exercises every new decision
+  surface (the widened `disposition`, `ApprovalFloor.refusal`, `accentRole`,
+  `resolved`) from a **deliberately non-`async` body** — a
+  `LanguageModelSession` turn is necessarily `await`ed, so putting the model
+  there stops the file compiling. 224-0F's source scan was **extended** with
+  the two files Phases 1+2 put on the path (`UserSettings.swift`,
+  `PrivacySettingsScreen.swift`); its positive control is unchanged.
+- **224-2D / 224-1E — MET.** One gate run scores both, deliberately: the two
+  phases ship in one PR. See the gate block below.
+- **224-1F, 224-2C — NOT RUN.** Device bars. The runbook card texts are
+  verbatim below; nothing here may be read as scoring them.
+
+**🔴 RED WITNESSED FIRST, and here is how.** The API had to exist for the tests
+to COMPILE (a build error is not a RED — 224-0C's own rule), so the BEHAVIOUR
+was reverted while the API stayed: `selectable` back to `[.manual]`, and the
+gate's disposition `switch` back to consult-log-and-stage-anyway, which is
+byte-for-byte what HEAD did. Verbatim
+(`/private/tmp/.../scratchpad/224p12-red2.log`):
+
+```
+✘ Test run with 44 tests in 6 suites failed after 180.303 seconds with 37 issues.
+```
+
+**Fifteen tests RED**, and the set is the bars: `allThreeModesAreSelectableInRenderOrder`,
+`aChosenModeRoundTripsNowThatAllThreeAreSelectable`,
+`approvalModeExposesAllThreeAfterPhases12`,
+`approvalModeResolvesEverySelectableModeToItself`,
+`approvalModeIsAGlobalUserSettingsKeyDefaultingToManual` (224-1A) ·
+`offAutoApprovesACleanActionAndNeverStagesACard`,
+`smartAutoApprovesACleanActionToo`, `anAutoApprovalIsByteIdenticalToAUserApprove`,
+`offRefusesAFlaggedActionInsteadOfCardingOrDeclining`,
+`aFlaggedActionWithNoFloorTextIsStillRefused`,
+`offRefusesAWeeHourCalendarEventAndCreatesNothing`,
+`offRefusesAWeeHourReminderWithADigitFreeReason`,
+`noModeSilentlyCreatesAFlaggedAction` (224-1B/1C) ·
+`smartCardsTheVeryActionOffRefuses`, `smartCardsTheWeeHourAlarmThatOffRefuses`
+(224-2A). The copy, colour, position, read-isolation and model-free bars stayed
+GREEN under the revert — **that is the control**: they say the failures came
+from the missing behaviour, not from a broken harness.
+
+> **⚠️ AND THE FIRST RED ATTEMPT HUNG THE SUITE — Phase 0's finding 3, again,
+> in a test written to catch a mutation.** `noModeSilentlyCreatesAFlaggedAction`
+> awaited `task.value` unconditionally on its `.off` arm, which is correct when
+> the floor returns immediately and is a **permanent hang** under any build
+> where `.off` stages a card instead — i.e. under exactly the mutation the test
+> exists to catch. It had to be killed by hand. The fix watches for EITHER a
+> staged card or a settled decision on a wall-clock deadline and cleans up
+> whichever happened; the re-run completed in 180 s with no hang. **The general
+> form is worth the next reader's time: a mutation-testable test that awaits
+> the code under test unconditionally is a test that cannot survive its own
+> mutation.**
+
+**THE GATE — 224-1E and 224-2D together. Verbatim** (logs in
+`/var/folders/…/talaria-gate.0ZPxOK1ZKh`):
+
+```
+  PASS  runtime: iOS 27.0 (24A5423a) on "CC-lane-2"
+  PASS  Test run reported TEST SUCCEEDED
+  PASS  Swift Testing tests run — 2721
+  PASS  XCUITest tests run — 15
+  PASS  Release build succeeded
+  PASS  no Swift compile errors in Release
+GATE: PASS on 24A5423a
+```
+
+**Counts MOVED, and the delta is exact: +28 Swift Testing (2693 → 2721) and
++1 XCUITest (14 → 15).** The 28 are 27 in the new `ApprovalModesPhase12Tests`
+plus `anInstrumentRunPinsTheApprovalModeToManualAndRestoresIt`; the XCUITest is
+`testPrivacyAgentActionsControlRendersAndSwitchesMode`. The Phase-0 edits are
+renames and rewrites, so they contribute zero. **No new SKIPs** — the two
+sim-only bars run on the simulator, which is where the gate runs.
+
+> **⚠️ THREE GATE RUNS, and honesty about all three rather than reporting the
+> green one. Both non-green runs are recorded, per the standing rule.**
+> - **Run 1 (`…F7WnjMCJoK`) — FAIL, one real test.** Swift Testing **2721** with
+>   a single issue: `HostApprovalModeTests.theHostStateIsADistinctTypeFromTheOnDeviceGate`,
+>   the 224-APP pin described in finding 4. A genuine catch, fixed in
+>   `26b3781d`. **Killed by hand mid-XCUITest** once the cause was clear.
+> - **Run 2 (`…tqkE4tdfwz`) — FAIL, and NOT a product failure: #219's
+>   runner-death family.** No Swift Testing count line at all, XCUITest 8, and
+>   **no assertion locus anywhere in the log** — six tests listed as failing,
+>   none of them ours, none with an issue recorded. Logged against #219 as
+>   occurrence 2 with its measured context.
+> - **Run 3 (`…0ZPxOK1ZKh`) — PASS, first try, quoted above.** Nothing changed
+>   between runs 2 and 3 except shutting `CC-lane-2` down and the host load
+>   falling (1-min average **53.7 → 5.6**).
+
+**MUTATIONS — three, each ISOLATING. Every one was built and run; none is a
+thought experiment.**
+
+- **M1 — DROP THE FLOOR** (`.refuse` returns `.approved(staged values)`
+  instead of `.refused`). **6 tests RED, and every one of them is an
+  Off-floor pin:** `offRefusesAFlaggedActionInsteadOfCardingOrDeclining`,
+  `aFlaggedActionWithNoFloorTextIsStillRefused`,
+  `offRefusesAWeeHourCalendarEventAndCreatesNothing`,
+  `offRefusesAWeeHourReminderWithADigitFreeReason`,
+  `noModeSilentlyCreatesAFlaggedAction`, plus the Off arm of both
+  Smart-vs-Off discriminators. **Every Smart-only, copy, colour, position,
+  read-isolation and model-free bar stayed GREEN.**
+- **M2 — MAKE SMART REFUSE INSTEAD OF CARD** (`.smart: hasCaution ? .refuse
+  : .autoApprove`). **5 tests RED, and every one of them is a Smart
+  discriminator:** `smartCardsTheVeryActionOffRefuses`,
+  `smartCardsTheWeeHourAlarmThatOffRefuses`,
+  `dispositionTableMatchesTheBallotedPolicy`,
+  `theCanonicalMorningAlarmStillCardsUnderSmart`,
+  `anEveningAskForTomorrowsAlarmAlsoCardsUnderSmart`. **Every Off-floor test
+  stayed GREEN** — which is the point: the two modes' pins do not overlap, so
+  *"Smart asks, Off refuses"* is measured rather than asserted.
+- **M3 — CONSTRUCT A `LanguageModelSession` ON THE APPROVAL PATH** (a real
+  one, with `Instructions`, inside `requestConfirmation`). **RED, on 224-0F's
+  source scan** (`approvalPathSourcesNeverReferenceALanguageModelSession`) —
+  ruling 5's structural guarantee, still firing after this lane widened the
+  file list it covers.
+
+**Findings the bars did not anticipate — three, and the first is the largest:**
+
+1. **🟡 AN EVENING-SET MORNING ALARM CARDS UNDER SMART AND IS REFUSED UNDER
+   OFF, and this lane did NOT fix it.** Phase 0's finding 1 named the wee-hour
+   rule (hours 0–6). It did not name #249's past-due rule, which under Smart
+   bites much harder: *"set an alarm for 7am"* asked at 9 PM has already passed
+   TODAY, so `AlarmTool.caution` stages `ALREADY PASSED TODAY — RINGS
+   TOMORROW`, and *caution ⇒ card*. Setting tomorrow's morning alarm in the
+   evening is close to the most common thing anyone does with an alarm, so in
+   practice a large share of alarms card under *Ask when unusual* and are
+   REFUSED under *Never ask*. **Found by this lane's own test, not by
+   inspection** (the clean-contrast case failed). **Left as-is deliberately:**
+   the registered bar is *caution ⇒ card*, one seam and no second risk model,
+   and carving an exception for one rule mid-lane would be a redefinition of a
+   bar rather than a fix. The alarm DOES ring, correctly, tomorrow — so the
+   honest question is whether that row should count as a caution under
+   Smart/Off at all, and that is a written decision with device evidence
+   behind it. Pinned as a NAMED behaviour by
+   `anEveningAskForTomorrowsAlarmAlsoCardsUnderSmart`; runbook card 224-2C
+   asks Owen to report the friction directly. **The one-line change, if it is
+   ever elected:** give the alarm's past-due row a disposition of its own, or
+   drop it from the Smart/Off discriminator while keeping it on the Manual
+   card.
+2. **The copy had to be rewritten because of finding 1.** A first draft read
+   *"Approves ordinary ones"*; an evening 7 AM alarm is about as ordinary as an
+   alarm gets, so that was a claim the code does not keep. Both rows now name
+   the DISCRIMINATOR — *"trips a caution"* — which is literally what the gate
+   reads, so the copy cannot drift from the behaviour without the behaviour
+   changing. A test bans the word "ordinary" from those two rows and requires
+   the phrase, so the reasoning survives the next copy edit.
+3. **🔴 AN INSTRUMENT RUN WOULD HAVE INHERITED THE USER'S MODE — fixed here,
+   one line plus its restore.** The battery flags short-circuit ahead of the
+   mode read, so `.autoAccept` / `.autoDecline` instruments were never at risk.
+   But `confirmationMode: .none` instruments (`read-tool`, `router-probe`) arm
+   NEITHER — and those are precisely the cells where the #200-series measured
+   the model GRABBING an action tool. On a phone set to *Never ask*, such a
+   grab would have stopped staging an unanswerable card and started writing a
+   real reminder to Owen's real list, unattended: exactly the containment #331
+   was ruled to protect. It is also a measurement fact — a rate would have
+   silently acquired a fourth hidden axis on top of #215's routing, #343's
+   governor and #398-A's runtime. **`InstrumentConductor` now pins the gate to
+   `.manual` for the duration of every run and restores the user's provider in
+   the same `defer` as the flags**, pinned by
+   `anInstrumentRunPinsTheApprovalModeToManualAndRestoresIt` — scored on a
+   `.none` spec, the only shape that reaches the hazard. **Consequence worth
+   stating: no archive rate is affected, and none needs annotating.**
+
+4. **A FOURTH pin lived in another lane's suite, and only the GATE found it.**
+   `HostApprovalModeTests.theHostStateIsADistinctTypeFromTheOnDeviceGate`
+   (224-APP-C) asserted `ApprovalMode.selectable == [.manual]` from the HOST
+   lane's file, as shorthand for "the host lane did not touch the on-device
+   enum." True of that lane; false the moment this one widened `selectable` on
+   Owen's election. **Eleven targeted suites were run before the gate and none
+   of them was this one** — the pin READ a symbol it did not own, so no
+   ownership-based selection could find it. Repointed onto the claim
+   224-APP-C actually makes (distinct TYPE, raw wire strings, nothing
+   converts, a host reporting `off` does not move this phone's default), which
+   is stronger than a literal borrowed from another lane. **Generalisable, and
+   cheap: before widening a shared constant, grep for every test that READS
+   it, not just the suite that owns it** — the pre-gate checklist's count-pin
+   rule, one level out.
+
+**Two behaviours named so they are not discovered as gaps:**
+
+- **The reminder tool's #233/#249 pre-gate BOUNCES still fire under every
+  mode**, once per conversation, upstream of the gate. So under *Never ask* a
+  first wee-hour reminder still produces an agent question — the agent asking,
+  not a card. That is the bounce doing its job, not the mode leaking.
+- **The `/alarm` slash command is untouched** and still shows its own alert
+  (#16/#193). It is the USER typing a command, not the agent acting, and the
+  gate exists to stop the MODEL writing silently — so the modes deliberately do
+  not govern it, and the section caption says so in words rather than leaving
+  the user to find out by being asked.
+
+**RUNBOOK CARD TEXTS — pre-registered, UNRUN. Verbatim, for the runbook
+artifact:**
+
+> **`#224-1F · Agent Actions — Never ask, and its floor`**
+>
+> **Build:** any build carrying #224 Phases 1+2 (Settings → Privacy shows a
+> `// Agent Actions` section with three rows).
+> **Setup:** Privacy → `// Agent Actions` → tap **Never ask**. Leave the app,
+> come back, reopen the screen — the pick must still be Never ask, and it must
+> NOT change when you switch host profiles (it is global by ruling 2).
+> 1. **Clean action, no card.** In chat: *"remind me to take out the bins at
+>    6pm"* (any time still ahead today). **PASS:** the reminder is created with
+>    NO confirmation card, and it is really in the Reminders app.
+> 2. **The floor refuses.** In chat: *"set an alarm for 4am"*. **PASS:**
+>    nothing is scheduled, no card appears, and the agent tells you it was
+>    flagged as early morning and asks what you meant. **FAIL if:** an alarm
+>    appears in the Clock app, or a card appears (a card here would mean Never
+>    ask is secretly Ask-when-unusual).
+> 3. **The claim check (#409).** Read the agent's step-2 reply word by word.
+>    **FAIL if it says the alarm was set, scheduled, or created in any form.**
+>    The refusal carries an explicit do-not-claim clause and this is the only
+>    place its effect on a real model can be seen.
+> 4. **Back to safety.** Set the mode to **Ask every time** and repeat step 2 —
+>    the card must return, with its amber `EARLY MORNING — CHECK AM/PM` row.
+> **Report:** the mode you were on, what appeared (card / artifact / neither),
+> and the agent's exact words for step 2.
+
+> **`#224-2C · Agent Actions — Ask when unusual`**
+>
+> **Setup:** Privacy → `// Agent Actions` → **Ask when unusual**.
+> 1. **Ordinary actions go through.** Three in a row, no taps expected:
+>    *"remind me to call the dentist at 3pm"*, *"put lunch with Sam on my
+>    calendar tomorrow at noon"*, *"set a 20 minute timer"*. **PASS:** all
+>    three created with NO card, and each artifact really exists in Reminders /
+>    Calendar / Clock.
+> 2. **The unusual one still asks.** *"set an alarm for 4am"*. **PASS:** a card
+>    appears carrying the amber `EARLY MORNING — CHECK AM/PM` row. Decline it —
+>    nothing is scheduled.
+> 3. **The known cost, and it is EXPECTED, not a bug.** *"set an alarm for
+>    6:30am"*, and then — in the evening — *"set an alarm for 7am"*. **A card
+>    is expected for both**: #233's wee-hour rule covers midnight–06:59, and
+>    #249's past-due rule fires on any morning time already gone today. This
+>    lane decided in writing not to move either threshold. **Report how it
+>    FEELS.** If being asked about your ordinary morning alarm is annoying in
+>    real use, that is the evidence for a future written decision, and it can
+>    only come from you.
+> 4. **Contrast against #224-1F.** The same 4 AM ask under *Never ask* is
+>    refused, not carded. If both modes behave the same way, one of them is
+>    wrong.
+> **Report:** counts for step 1 (cards seen / artifacts created out of 3), what
+> steps 2 and 3 did, and your read on step 3's friction.
+
+**Upstream corrections made in this commit** (close-out rule): the design of
+record gains a dated *"Phases 1+2 landed"* banner plus two in-place
+supersessions (§2's *"One always-on Manual gate, no user-facing mode"* and the
+Phase-0 note that said the mode was deliberately not user-visible) ·
+`dispatch/DEVICE-PASS-RUNNING-LIST.md` §F7's *"There is no user-facing
+auto-approve"* is struck and replaced, with the consequence for anyone running
+that section spelled out ("no card appeared" now has two causes) · this entry's
+own *"What we have … no user-facing mode at all"* paragraph and its index line
+· 224-0E's prediction block, which FIRED and now points at the new test names ·
+224-APP-C's parenthetical, whose cited test name changed · a stale comment in
+`HostApprovalModeTests` · and `ToolConfirmationCenter`'s #323-D note, which
+said `.manual` was the only mode settings could produce — that anticipatory
+guard is now load-bearing and says so.
 
 ## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code. ⟵ PREMISE RE-VERIFIED LIVE AT HEAD 2026-08-25 (Sonnet agent): the asymmetric gate survives exactly as filed (#221 built it this way; #383 only renamed the pairing predicate; a passing regression test PINS the cold-launch pin as current behavior, `RealtimeVoiceIndicatorTests.swift:193`). The runbook's #303-A/B card remains the right instrument and has never run — measurement first, fix election after.**
 
@@ -13803,6 +14228,35 @@ just the log.
 > full XCUITest bundle first-try green; the no-assertion runner-death
 > signature has not recurred. The gate's flake protocol (re-run once, record
 > BOTH runs) stays armed. Nothing owed.
+
+> **Occurrence (dated), 2026-08-26, #224 Phases 1+2 — BOTH RUNS RECORDED, and
+> this one has a SECOND candidate cause the earlier occurrences did not.**
+> - **Run 2 of that lane's three, 20:27, `GATE: FAIL` (4 checks).** The exact
+>   filed signature: **no Swift Testing count line at all**, XCUITest **8**,
+>   six tests listed as failing (`MessageIdentityUITests` ×2,
+>   `TalariaUITests` ×4 — **none of them the lane's own new test**), and the
+>   classifier's *"NO assertion locus anywhere in the log"* verdict. Not one
+>   `✘` with a locus in the whole run.
+> - **Run 3, 20:38, same commit `26b3781d`, `GATE: PASS` first try** — Swift
+>   Testing **2721**, XCUITest **15/15**, Release clean.
+> - **What changed between them, measured:** the 1-minute load average fell
+>   **53.73 → 5.62**, and `CC-lane-2` was shut down and re-booted by the gate.
+>   Only two simulators were booted throughout, so **#337's six-sim
+>   explanation does not apply here** — the load came from this lane's own
+>   overlapping builds.
+> - **🆕 THE SECOND CANDIDATE, and it is worth more than the load one because
+>   it is actionable: the failing run started ~40 s after an earlier gate was
+>   KILLED BY HAND mid-XCUITest.** That kill leaves the simulator's test
+>   runner and `testmanagerd` in whatever state they were in, and the next
+>   run inherits it. The recovery that worked was `simctl shutdown` before
+>   re-running. **Operational rule this suggests: after killing a gate during
+>   its XCUITest phase, shut the simulator down before the next run** — it
+>   costs seconds and removes a whole class of uninterpretable red.
+> - **Occurrence count is now 2, which the filing itself calls "a pattern."**
+>   What is owed per this entry's own terms is the `.xcresult` rather than the
+>   log — NOT captured here, because the run was overwritten by the green one
+>   before that was considered. Named so the next occurrence does not lose it
+>   too.
 
 ## 211A. offer-instead-of-act on READ paths, where no confirmation gate excuses it — **✅ INSTRUMENT BUILT + MERGED 2026-08-26 (instruments lane): `offer-read`, three arms x four read prompts, cells + scorer, bars 211A-B1..B7 met on the simulator. The DEVICE run is Owen's and is a runbook card; 211A-D1..D4 are pre-registered and UNRUN, so this entry still carries ZERO behavioural numbers.**
 
