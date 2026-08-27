@@ -146,7 +146,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); the refusal wording is the lever — **✅ THE STRING SHIPPED 2026-08-25 (PR #376): both branches carry an explicit do-not-claim clause, RED-first, mutation-proven both ways, 409-A/B/C MET. OPEN on 409-D only — the wording changed, the model's behaviour is UNVERIFIED until the next device `refusal-words` run**
 - **#413** 🐛 the assistant's FIRST utterance is captured as the USER speaking — realtime engine, first response only, 3/3 on BOTH Noisy and Normal (preset-independent, Owen's own A/B) — candidates filed (AEC convergence / route settle / channel mis-route); the AirPods probe discriminates acoustic vs software
 - **#414** 🐛 the phone 401s `GET /v1/models` against OJAMD — 410 historical log lines, pre-existing, quiet (chat + picker use other routes) — from the deploy report; first step is reading which credential slot the call sites resolve; may already be fixed by Lane B's Keychain hygiene, unmeasured
-- **#415** 🔴 the MIC STAYED ON after a Control Center voice launch (2/2, cleared by force-quit; privacy-surface real) — Owen's 3108 pass. **Log collect HAPPENED and the mechanism is NAMED: #302's ordering surviving #302's fix (App Lock arms ~1.2 s AFTER a warm CC tap clears the gate); the #303 engine-pin and #198 teardown-miss candidates are FALSIFIED. Fix bars 415-A…D proposed, NOT BUILT — that is what keeps this red.** The naming half is ✅ DONE (415-N, 2026-08-26): both CC controls read "Ask Talaria" / "Talk to Talaria"; host-meaning "Hermes" strings deliberately untouched. **The SHORTCUTS half is ✅ DONE too (415-S, 2026-08-26, Owen's "shortcuts only"): `AskHermesIntent.title` + the `TalariaAppShortcuts` `shortTitle` both read "Ask Talaria", the type name and the registration identity deliberately unmoved (measured: App Shortcuts key off `mangledTypeName`, never the title, so nothing re-registers and nothing orphans). CarPlay stays declined-with-a-trigger and is now GUARDED by a test. ~~🚩 One un-enumerated third site flagged for Owen: `parameterSummary`'s `formatString` still reads "Ask Hermes ${question}".~~** **⟵ ✅ 415-SWEEP DONE 2026-08-27 (Owen's STANDING RULING — "if it says Hermes outward on the phone, replace it with Talaria; exception being the in app connection"): the flagged `parameterSummary` is renamed AND the rule was applied WHOLESALE in one pass — 74 replacements across 37 files, every user-visible "Hermes" in the app/widget/intents targets classified app-meaning vs host-meaning and the whole inventory enumerated in the close-out (three lists + 7 borderline calls with reasoning). Newly swept surfaces no prior lane had inventoried: the **13 `Info.plist` permission usage descriptions** iOS renders in its own system alerts, the two **local-brain system prompts** ("You are Hermes" → Talaria — what the assistant answers when asked its own name), and **README/docs**, where the dispatch's premise was WRONG (#77 was a URL-scheme lane, not a naming lane) and six real app-meaning misses were found. ~100 host-meaning strings deliberately KEPT and newly pinned; fences (hermes:// scheme, CarPlay, control + widget `kind`s, type names) shown structurally. **The MIC FIX (415-A…D) is still what keeps this item red — naming is now fully done.**
+- **#415** 🔴 the MIC STAYED ON after a Control Center voice launch (2/2, cleared by force-quit; privacy-surface real) — Owen's 3108 pass. **Log collect HAPPENED and the mechanism is NAMED: #302's ordering surviving #302's fix (App Lock arms ~1.2 s AFTER a warm CC tap clears the gate); the #303 engine-pin and #198 teardown-miss candidates are FALSIFIED.** ✅ **FIX BUILT 2026-08-26 night — 415-A/B/C MET (RED-first witness 8 tests/21 issues, three isolating mutations): a mid-flight cover now stops capture and PARKS the session, resuming once on unlock via a cover watch on the gate's new `waitUntilLocked()`, and `LiveVoiceSessionService` finally carries the `#302-A` capture instrument. 🔴 OPEN ON 415-D ONLY — Owen's device run holding the cover open.** The naming half is ✅ DONE (415-N, 2026-08-26): both CC controls read "Ask Talaria" / "Talk to Talaria"; host-meaning "Hermes" strings deliberately untouched. **The SHORTCUTS half is ✅ DONE too (415-S, 2026-08-26, Owen's "shortcuts only"): `AskHermesIntent.title` + the `TalariaAppShortcuts` `shortTitle` both read "Ask Talaria", the type name and the registration identity deliberately unmoved (measured: App Shortcuts key off `mangledTypeName`, never the title, so nothing re-registers and nothing orphans). CarPlay stays declined-with-a-trigger and is now GUARDED by a test. ~~🚩 One un-enumerated third site flagged for Owen: `parameterSummary`'s `formatString` still reads "Ask Hermes ${question}".~~** **⟵ ✅ 415-SWEEP DONE 2026-08-27 (Owen's STANDING RULING — "if it says Hermes outward on the phone, replace it with Talaria; exception being the in app connection"): the flagged `parameterSummary` is renamed AND the rule was applied WHOLESALE in one pass — 74 replacements across 37 files, every user-visible "Hermes" in the app/widget/intents targets classified app-meaning vs host-meaning and the whole inventory enumerated in the close-out (three lists + 7 borderline calls with reasoning). Newly swept surfaces no prior lane had inventoried: the **13 `Info.plist` permission usage descriptions** iOS renders in its own system alerts, the two **local-brain system prompts** ("You are Hermes" → Talaria — what the assistant answers when asked its own name), and **README/docs**, where the dispatch's premise was WRONG (#77 was a URL-scheme lane, not a naming lane) and six real app-meaning misses were found. ~100 host-meaning strings deliberately KEPT and newly pinned; fences (hermes:// scheme, CarPlay, control + widget `kind`s, type names) shown structurally. **The MIC FIX (415-A…D) is still what keeps this item red — naming is now fully done.**
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it**. **MEASURED 2026-08-11; clipping RULED OUT.** ~~Mechanism UNKNOWN~~ ~~⟵ INVESTIGATED 2026-08-25, candidates ranked~~ **⟵ ✅ MECHANISM MEASURED 2026-08-25 (measurement lane, unit repro): `openSession`'s wholesale replace + `mapStoredMessage`'s role refusal and empty usage fields zero BOTH totals inputs in ONE event, and the 9→7 row drop is the same event. Candidate ① CONFIRMED; candidate ③ (the `.voiceHermes` predicate split) is REAL but mutation-proven NOT the cause; the entry's "receipts render normally" claim is FALSIFIED — no reopened row carries `usage` or `turnDuration`, and the quoted numbers are the card's LAST TURN block via `SessionUsageIndex`. Shipped: 16 pins in `SessionTotalsAfterReopenTests`, a verbose-gated `/usage` instrument (NOT `#if DEBUG`), 3 seam breadcrumbs at `.notice`, and 330-G's six-step device script.** 330-A/B/E DISCHARGED. **⟵ ✅ FIXED 2026-08-25 (fix lane, `330-receipts-sidecar`): the `TurnReceiptSidecar` — session-id-keyed, replayed at open, `AgentAttachmentSidecar`'s pattern plus a priming tier — restores `usage`/`turnDuration`/`servingModel`/`isContextPriming` across the replace, and `mapStoredMessage` re-maps the STORED primer (a `user` row host-side) into the priming notice, collapsing its ack; that also closes a compounding defect where every reopen fed the primer back into the journal the next transplant is composed from. 330-C CONVERGED (four sites, one `isAgentAuthored` predicate — hygiene, M2 already proved it is not the cause). 330-D MET with its token source NAMED: `postPrimingTurn` returns nil whenever the priming run misses the 20 s `runsSyncBudget`, so the run id is kept and re-read off the interactive path onto the journal hop. 5 of 16 pins flipped RED-first (9 expectations), all rewritten; 16 → 34 tests; 3 isolating mutations.** **330-C/330-D DISCHARGED; only 330-G (Owen's device close) is left, and #312 (f) flips with it**
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
@@ -5689,6 +5689,29 @@ local substitution — cited here to note this is *not* an instance of it).
 > realtime instrument (415-C), and a device re-run that HOLDS the cover open
 > (415-D). Until 415-A exists, "302-D…G MET" describes a gate that is real and a
 > race that is not covered.
+>
+> **✅ 2026-08-26 night, SAME DAY — THE BLIND ORDERING IS NOW COVERED. The
+> three unit owings above are BUILT and MET; only the device re-run is left.**
+> `TalariaTests/AppLockMidFlightCoverTests.swift` (10 tests) holds 415-A's pin:
+> gate OPEN at start, cover arms mid-flight, capture must stop and the session
+> must park — **witnessed RED on the unmodified tree first (8 tests, 21
+> issues)**, then green, then proven by three isolating mutations. The fix is a
+> **cover watch** on `TalkStore` waiting on a new `AppLockGate.waitUntilLocked()`
+> — the mirror of the suspension point *this* item's fix already uses, so
+> `refreshCover()` is still the gate's only writer and no second observer
+> exists. **The park semantics are 302-C's contract extended, not replaced:**
+> stop capture with the existing teardown, park on the same
+> `isWaitingForUnlock` + `lockedWaitingMessage` state, resume exactly once on
+> unlock, never resume an abandoned one (302-F's rule through the new door).
+> `parkedWaiterCount` still counts UNLOCK waiters only, deliberately — 302-E
+> and 302-G are written against that number and it means what it meant.
+> 415-C closed the instrument half: `LiveVoiceSessionService` now carries the
+> `#302-A` capture lines, so **the engine that carried all three #415 launches
+> can finally answer "was the mic hot?" in the app's own log** — the reason the
+> 2026-08-20 device pass here could not see this. **Still owed on THIS item:
+> nothing new; its own device verification and #415-D are the same
+> measurement, and #415-D's card is written.** Full result block, bar table,
+> mutations and the verbatim lines: **#415**.
 
 > **⚖️ 302-C RULED 2026-08-10 (Owen, on the wave-1 close-out): the contract
 > is DEFER-UNTIL-UNLOCK, and it is today's felt flow.** His words: *"Today, if
@@ -13971,7 +13994,7 @@ hygiene that just shipped — this may already be fixed by Lane B's
 Keychain work and merely UNMEASURED post-3087; the zero-401s-after-bounce
 observation is consistent with that but proves nothing).
 
-## 415. 🔴 THE MIC STAYED ON after a Control Center voice launch — 2/2 reproducible, cleared by force-quit — and the control said "Talk to HERMES" (**renamed — see 415-N**) — **FILED 2026-08-26 night per #268, from Owen's third runbook pass (BUILD 3108, verbatim: "Control center > Talk to Hermes (should be Talaria, right?) and the mic stayed on. Tried again, same result. Force quit, tried again, did NOT happen."). Mechanism NOT guessed; the SAME-DAY LOG COLLECT is the discriminating evidence and it decays in hours.** **→ ✅ COLLECT HAPPENED AND THE MECHANISM IS NAMED (2026-08-26, `whoGoesThere-415.logarchive`): this is #302 recurring through an ordering its bars cannot see — `AppLockGate` is sampled ONCE at start, and a Control Center tap on a WARM process clears it ~1.2 s BEFORE App Lock arms, so the cover comes down on top of an in-flight start. Mic hot 27.4 s / 13.4 s, most of it behind `cover=locked`. Engine was REALTIME both times and teardown RAN IN FULL — the #303 and #198 candidates are FALSIFIED. The force-quit run is a DEGENERATE control (cold ⇒ gate already armed ⇒ start parked ⇒ revoked unused). Fix bars 415-A…D proposed below; #302 carries a dated supersession. FIX NOT BUILT.** **⟵ ✅ 415-N DONE 2026-08-26: the NAMING half (fact 2) SHIPPED — both Control Center controls read "Ask Talaria" / "Talk to Talaria", host-meaning "Hermes" strings deliberately untouched and now pinned. That is the only half that is built; the MIC FIX (415-A…D) remains unbuilt, and it is what keeps this item red.**
+## 415. 🔴 THE MIC STAYED ON after a Control Center voice launch — 2/2 reproducible, cleared by force-quit — and the control said "Talk to HERMES" (**renamed — see 415-N**) — **FILED 2026-08-26 night per #268, from Owen's third runbook pass (BUILD 3108, verbatim: "Control center > Talk to Hermes (should be Talaria, right?) and the mic stayed on. Tried again, same result. Force quit, tried again, did NOT happen."). Mechanism NOT guessed; the SAME-DAY LOG COLLECT is the discriminating evidence and it decays in hours.** **→ ✅ COLLECT HAPPENED AND THE MECHANISM IS NAMED (2026-08-26, `whoGoesThere-415.logarchive`): this is #302 recurring through an ordering its bars cannot see — `AppLockGate` is sampled ONCE at start, and a Control Center tap on a WARM process clears it ~1.2 s BEFORE App Lock arms, so the cover comes down on top of an in-flight start. Mic hot 27.4 s / 13.4 s, most of it behind `cover=locked`. Engine was REALTIME both times and teardown RAN IN FULL — the #303 and #198 candidates are FALSIFIED. The force-quit run is a DEGENERATE control (cold ⇒ gate already armed ⇒ start parked ⇒ revoked unused). Fix bars 415-A…D proposed below; #302 carries a dated supersession. ~~FIX NOT BUILT.~~** **⟵ ✅ 415-N DONE 2026-08-26: the NAMING half (fact 2) SHIPPED — both Control Center controls read "Ask Talaria" / "Talk to Talaria", host-meaning "Hermes" strings deliberately untouched and now pinned.** **⟵ ✅ THE MIC FIX IS BUILT 2026-08-26 night (same day): 415-A/B/C MET — a session covered mid-flight now STOPS CAPTURE and PARKS, resuming exactly once on unlock, via a cover watch on the gate's new `waitUntilLocked()`; the realtime engine gained the `#302-A` capture instrument. 415-A was witnessed RED on the unmodified tree first (8 tests, 21 issues) and each mutation isolates. 🔴 STILL OPEN ON 415-D ONLY — the device run that HOLDS the cover open; its card is written in the result block, and until Owen runs it this item stays red.**
 
 **The two facts, separately:**
 1. **The mic indicator persisted** after Control Center → Talk to Hermes,
@@ -14923,6 +14946,189 @@ is structural and says so.
 **Instrument discipline for this lane's own counting:** baseline is
 **2729 Swift Testing + 15 XCUITest** (415-N's gate, same day) and the
 delta must equal the tests this lane adds and nothing else.
+
+### ✅ RESULT 2026-08-26 night — THE MID-FLIGHT ORDERING IS CLOSED. 415-A and 415-B MET, each mutation-isolated; 415-C SHIPPED on both engines and pinned; 415-D is Owen's and stays open.
+
+**415-A was witnessed RED on the unmodified tree first, as its own proposal
+demanded: 8 tests, 21 issues** (`-only-testing:TalariaTests/AppLockMidFlightCoverTests`,
+CC-lane-3, Xcode-beta6, sim runtime 24A5423a). The distribution was the
+predicted one and is recorded because it is the finding's regression pin:
+A-1 7 issues, A-2 6, A-3's park half 2, 415-C 4 + 2. **The three green-at-HEAD
+tests were green BY CONSTRUCTION and said so in their own doc comments before
+the run** — HEAD has no resume to suppress, no watch to leak, and 415-B is a
+negative control.
+
+**What shipped.** `TalkStore` gains a **cover watch**: one task per session,
+armed **before** the engine call (the window the device evidence lives in —
+the mic went hot 272 ms and 2.4 s *after* `locked=true`, inside that await),
+cancelled with the session. It waits on **`AppLockGate.waitUntilLocked()`**,
+a mirror of `waitUntilUnlocked()` added beside it. Three files:
+`Talaria/Services/Support/AppLockGate.swift`, `Talaria/Stores/TalkStore.swift`,
+`Talaria/Services/Live/LiveVoiceSessionService.swift`.
+
+**The subscription seam, and why it is not a new one.** The gate already IS
+the app-wide App-Lock observation point — `AppLockController.refreshCover()`
+is its only writer and `TalkStore`/`ChatStore`/`ToolConfirmationCenter` are
+its readers. So the mid-flight re-check rides the same state through the same
+kind of suspension point, rather than a second observer, a
+`NotificationCenter` name, or a poll. **`parkedWaiterCount` deliberately still
+counts UNLOCK waiters only** — 302-E's park and 302-G's `== 0` control are
+written against that number, and a cover watch armed on an unlocked app would
+silently change both answers. Cover watches are counted separately
+(`armedCoverWatchCount`).
+
+**The park semantics, chosen against #302's contract rather than invented.**
+302-C ruled the contract *defer-until-unlock*, and `deferUntilUnlocked` is its
+implementation: park, publish `isWaitingForUnlock` + `lockedWaitingMessage`,
+re-read the generation after the wait, resume or decline. A session covered
+mid-flight now gets **the same four steps**, in this order:
+1. **STOP first.** Capture ends through the existing teardown —
+   `discardAbandonedStart()`'s body — and **not** `endSession()`. That is a
+   decision, not an oversight: `endSession()` publishes
+   `lastCompletedSession`, which `MainTabView` injects into the chat
+   transcript, and a transcript write behind the cover is exactly what **#323**
+   forbids (*"the transcript kept it"* IS the reported defect there). A
+   covered session's turns are dropped instead. In the measured ordering this
+   costs nothing — the cover arms 0.27–2.4 s into a start with no turns yet.
+2. **Revoke like #139.** The generation is bumped, so a start still inside
+   `voiceService.startSession()` cannot land live when it returns; the door's
+   own re-check routes it into `discardAbandonedStart()`. Both orderings —
+   STARTING and ACTIVE — therefore end identically.
+3. **Park**, on the same two published fields a pre-start park uses, and
+   holding `isStartingSession` for the parked interval so **#254**'s
+   background revoke still sees an outstanding start. (The doors' `defer` no
+   longer clears a flag the park owns — one line, and it is the only change
+   to the pre-existing start path.)
+4. **Resume exactly once on unlock, through the door the session came from**
+   — or never, if it was abandoned while parked (302-F's rule through the new
+   door). The resume runs in a **fresh task**, because the resumed start
+   cancels this watch and a start running inside a cancelled task would fail
+   its first network call.
+
+| bar | verdict | what proved it |
+|---|---|---|
+| **415-A-1** cover arms mid-START ⇒ stopped, parked, resumed once | ✅ MET | RED at HEAD (7 issues); M2 ⇒ RED |
+| **415-A-2** cover arms over a LIVE session ⇒ same | ✅ MET | RED at HEAD (6 issues); M2 ⇒ RED |
+| **415-A-3** abandoned while parked ⇒ never resumes | ✅ MET | park half RED at HEAD (2 issues); M3 ⇒ its sibling arm RED |
+| **415-A** hygiene: the watch dies with its session | ✅ MET | `armedCoverWatchCount` 1 → 0; green at HEAD by construction |
+| **415-B** App Lock OFF / no gate wired ⇒ no-op | ✅ MET | green under every mutation — which is its bar |
+| **415-C** both engines carry the `#302-A` instrument | ✅ MET | RED at HEAD (4+2 issues); M4 ⇒ RED |
+| **415-D** device, cover held open ≥30 s | ⬜ OPEN | Owen's; card below |
+
+**The three isolating mutations, each run as its own build:**
+- **M2 — park WITHOUT stopping capture** (delete the teardown call): **5
+  issues, every one a capture assertion** (`!voice.isCapturing`,
+  `endCallCount >= 1`); the parked-state assertions and the resume assertion
+  stayed **green**. That is the registered isolating pair, measured: a park
+  that leaves the mic hot is this defect wearing the fix's clothes, and the
+  bar can tell them apart.
+- **M3 — drop the post-unlock generation re-check**: **exactly one test, one
+  issue** — `aParkedSessionSupersededWithoutCancellationNeverResumes`.
+  🟡 **And finding that arm took a second look, which is worth recording.**
+  The obvious dismissal path (`abandonSession()`) revokes through
+  `endSession()`, which ALSO cancels the watch — two belts, so the mutation
+  would have shown nothing there. `endSessionIfNeeded()` is the honest
+  isolator: while parked the session is not active, so it bumps the
+  generation and returns without ending anything and without touching the
+  watch, leaving the post-unlock re-read as the only thing between it and a
+  microphone opened for nobody.
+- **M4 — delete the realtime `capture chain HOT` line**: RED, isolated.
+  🟡 **Its first run exposed a weak pin and it was tightened before the
+  close.** The mutation comment I left behind quoted the phrase, so
+  `source.contains("capture chain HOT")` stayed **green** and only the marker
+  count went red — 415-N's own lesson from the same week, in a different
+  file. Every phrase is now matched **with its opening quote**, so only a
+  string literal satisfies it; the clean re-run reds both expectations.
+- **M1 — the whole mechanism absent** is the RED witness above, and is
+  labelled as such rather than re-run: deleting the cover watch from the
+  fixed tree reproduces exactly the state HEAD was in.
+
+**The instrument lines, verbatim** (all `.notice`, all `privacy: .public`,
+none behind Verbose Logging — one Console predicate now reads both engines):
+```
+LiveVoiceSessionService  (NEW, #415)          NativeVoicePipelineService (existing)
+  audio session activated for capture (#302-A)        audio session activated for capture (#302-A)
+  capture chain HOT — RTCAudioTrack.isEnabled=<b>     capture chain HOT — AVAudioEngine.isRunning=<b>
+      peerConnection=<state> (#302-A)                     inputTap=installed (#302-A)
+  capture chain COLD — was=<b>                       capture chain COLD — AVAudioEngine.isRunning
+      audioTrack=released session=deactivated (#302-A)    was=<b> now=<b> inputTap=removed (#302-A)
+
+TalkStore (NEW, #415 — so 415-D scores from the APP's log, not CoreAudio's)
+  voice session parked — App Lock cover armed mid-flight (#415)
+  parked voice session NOT resumed — abandoned under the cover (#415)
+  parked voice session resuming after unlock (#415)
+```
+The realtime HOT line reads the **transport's own state** (track enabled,
+peer connection state) for the same reason the native one reads
+`AVAudioEngine.isRunning` and not a wrapper flag: the wrapper is the thing
+under suspicion. Subsystems differ by file and that is pre-existing — the
+engines log under `org.aethyrion.talaria`, `TalkStore` under
+`TalariaLog.subsystem`; the forensics' own predicate
+(`subsystem BEGINSWITH "org.aethyrion"`) catches both.
+
+**THE GATE — `TALARIA_SIM_NAME=CC-lane-3`, Xcode-beta6: `GATE: PASS on
+24A5423a`.** **2739 Swift Testing** (2729 → 2739, **exactly +10** — the ten
+tests this lane adds and nothing else, which is the check
+`test-without-building` staleness would have failed) + **15/15 XCUITest** +
+Release build clean, preflight all-PASS. The 2 skips are the known-permanent
+`CondenserFidelityTests` pair; nothing new was skipped. **Runtime caveat the
+gate prints itself (398-C): green on sim runtime 24A5423a**, which is why
+415-D exists.
+
+**🟡 The FIRST gate run was RED, and the control — not an argument — is what
+settled it.** `GATE: FAIL (3 checks)`: Swift Testing 2739 green, Release
+clean, and one XCUITest red —
+`TalariaUITests.testConnectedRelaunchSkipsTheConnectEntry` at
+`AppTemplateUITests.swift:538`, *"a successful connect should land straight in
+chat (#137)"*. **That is a test this tracker already characterises**: it sits
+right on its own 15 s `waitForComposer` budget (38.396 s failing vs 38.470 s
+passing on an unchanged tree) and had failed **once in four full-suite runs**,
+always under a loaded box. Load averages at that run: **8.43 / 17.50 /
+21.92**, with another lane's simulator live. The identical build on a quiet
+box returned **15/15**. Recorded rather than waved off, because the standing
+lesson cuts the other way too — an isolation-passes/suite-fails split is what
+a real order-dependence looks like — so the honest tally is now **1 fail in
+5+ full-suite runs across unchanged trees, and this lane's diff touches no UI
+that test exercises.** *(The gate's "XCUITest tests run — 2" line on the red
+run is its documented MAX-over-`with 0 failures`-lines quirk when a run HAS a
+failure, not a truncated bundle — already corrected in the #300 lane's entry,
+and it read exactly the same way here.)*
+
+**🟡 Two instrument facts found in passing, both worth the next lane's
+time.** `-only-testing:TalariaTests/AppLockTests` matches **zero tests** and
+passes silently — that file's suites are named `AppLockStateMachineTests`,
+`AppLockGracePeriodTests` and `AppLockControllerTests`. And the simulator
+stalled twice with *"The test runner hung before establishing connection"*
+after a source-change rebuild, ~6 minutes each, clearing both times on a
+`simctl shutdown` + `boot`; nothing in the diff was implicated (no test host
+process existed at all), and the same build then ran green.
+
+### 📱 DEVICE CARD — 415-D (for the runbook; the only bar this lane cannot score)
+
+**Setup:** App Lock **ON**, grace **Immediately**. Install the build, launch
+it once, then **background it** (home swipe — do NOT force-quit; a cold
+process is the degenerate control that made run 3 look clean).
+
+1. **The warm Control Center repro, cover held open.** From the home screen
+   open **Control Center → Talk to Talaria**. Watch the lock arm — Face ID
+   will prompt: **cancel it, and leave the app sitting under the locked cover
+   for at least 30 seconds.** ✅ PASS = **the mic indicator goes cold the
+   moment the cover arms** and stays cold for the whole locked interval.
+   ❌ FAIL = the orange dot stays lit, or you can talk to it.
+2. **Then unlock** (tap UNLOCK, authenticate). ✅ PASS = the voice session
+   comes back by itself, exactly once.
+3. **The cell run 3 never tested — cold launch + unlock.** Force-quit the
+   app, tap the Control Center control again, and this time **authenticate**
+   instead of cancelling. ✅ PASS = the parked start resumes and voice
+   connects; ❌ FAIL = nothing happens (the parked start was lost).
+4. **Log evidence, same day** (`logd` evicts app rows in hours):
+   `sudo log collect --device-udid <whoGoesThere UDID>`, then read
+   `subsystem BEGINSWITH "org.aethyrion"`. **The bar:** no
+   `capture chain HOT` and no `Starting AURemoteIO` may appear while any
+   `cover=locked` is in effect, and
+   `voice session parked — App Lock cover armed mid-flight (#415)` must
+   appear at the arming instant. `parked voice session resuming after
+   unlock (#415)` marks step 2.
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
