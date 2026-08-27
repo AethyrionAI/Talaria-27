@@ -15067,7 +15067,8 @@ engines log under `org.aethyrion.talaria`, `TalkStore` under
 (`subsystem BEGINSWITH "org.aethyrion"`) catches both.
 
 **THE GATE — `TALARIA_SIM_NAME=CC-lane-3`, Xcode-beta6: `GATE: PASS on
-24A5423a`.** **2739 Swift Testing** (2729 → 2739, **exactly +10** — the ten
+24A5423a`** on the rebased tree (415-S and the naming ruling merged
+underneath). **2742 Swift Testing** (2732 → 2742, **exactly +10** — the ten
 tests this lane adds and nothing else, which is the check
 `test-without-building` staleness would have failed) + **15/15 XCUITest** +
 Release build clean, preflight all-PASS. The 2 skips are the known-permanent
@@ -15075,33 +15076,52 @@ Release build clean, preflight all-PASS. The 2 skips are the known-permanent
 gate prints itself (398-C): green on sim runtime 24A5423a**, which is why
 415-D exists.
 
-**🟡 The FIRST gate run was RED, and the control — not an argument — is what
-settled it.** `GATE: FAIL (3 checks)`: Swift Testing 2739 green, Release
-clean, and one XCUITest red —
+**🟡 IT TOOK FOUR GATE RUNS, AND THE PAIRED CONTROL — NOT AN ARGUMENT — IS
+WHAT SETTLED THE RED.** Two of the four ended
+`GATE: FAIL (3 checks)` on one XCUITest:
 `TalariaUITests.testConnectedRelaunchSkipsTheConnectEntry` at
 `AppTemplateUITests.swift:538`, *"a successful connect should land straight in
-chat (#137)"*. **That is a test this tracker already characterises**: it sits
-right on its own 15 s `waitForComposer` budget (38.396 s failing vs 38.470 s
-passing on an unchanged tree) and had failed **once in four full-suite runs**,
-always under a loaded box. Load averages at that run: **8.43 / 17.50 /
-21.92**, with another lane's simulator live. The identical build on a quiet
-box returned **15/15**. Recorded rather than waved off, because the standing
-lesson cuts the other way too — an isolation-passes/suite-fails split is what
-a real order-dependence looks like — so the honest tally is now **1 fail in
-5+ full-suite runs across unchanged trees, and this lane's diff touches no UI
-that test exercises.** *(The gate's "XCUITest tests run — 2" line on the red
-run is its documented MAX-over-`with 0 failures`-lines quirk when a run HAS a
-failure, not a truncated bundle — already corrected in the #300 lane's entry,
-and it read exactly the same way here.)*
+chat (#137)"* — Swift Testing and Release green in every run. **That test is
+already characterised in this tracker** (#300's lane): it sits right on its
+own 15 s `waitForComposer` budget inside a ~38 s test, and had failed once in
+four full-suite runs on unchanged trees, always under load.
+**A structural alibi was available and was deliberately not used** — this
+lane's diff touches voice start, the gate's waiter sets and two log lines,
+none of which the Connect Host wizard executes. The standing lesson is that
+such an argument is exactly what an isolation-passes/suite-fails
+order-dependence hides behind, so the control ran first:
 
-**🟡 Two instrument facts found in passing, both worth the next lane's
-time.** `-only-testing:TalariaTests/AppLockTests` matches **zero tests** and
-passes silently — that file's suites are named `AppLockStateMachineTests`,
-`AppLockGracePeriodTests` and `AppLockControllerTests`. And the simulator
-stalled twice with *"The test runner hung before establishing connection"*
-after a source-change rebuild, ~6 minutes each, clearing both times on a
-`simctl shutdown` + `boot`; nothing in the diff was implicated (no test host
-process existed at all), and the same build then ran green.
+| arm (same box, same simulator, back to back) | result | that test |
+|---|---|---|
+| `origin/main` (dfd8f69b), `-only-testing:TalariaUITests` | **15/15** | **37.983 s** |
+| this branch, `-only-testing:TalariaUITests` | **15/15** | **37.731 s** |
+
+**The branch arm is 0.25 s FASTER than base on the very test that failed** —
+so the diff does not move this test's margin, and the two reds track
+full-suite runs on a loaded box (load averages **8.43 / 17.50 / 21.92** and
+**6.26 / 11.75 / 19.38** at their starts). Tally on an effectively unchanged
+tree is now **3 fails in ~8 full-suite runs, 0 in every isolated bundle
+run.** **That is a real property of that test and it is not this lane's** —
+filed here because the next lane will meet it and deserves the paired numbers
+rather than the word "flake". *(The gate's "XCUITest tests run — 2" line on a
+red run is its documented MAX-over-`with 0 failures`-lines quirk when a run
+HAS a failure, not a truncated bundle — corrected once already in #300's
+entry, and it read exactly the same way here.)*
+
+**🟡 A second infrastructure note, same night.** Twice, a targeted
+`xcodebuild … test` after a source-change rebuild stalled ~6 minutes and
+ended *"The test runner hung before establishing connection."* No test-host
+process existed at all, so nothing in the diff was implicated; a
+`simctl shutdown` + `boot` of the lane's simulator cleared it both times and
+the same build then ran green. Recycling the sim before a post-rebuild run is
+the cheap prophylactic.
+
+**🟡 One more instrument fact found in passing.**
+`-only-testing:TalariaTests/AppLockTests` matches **zero tests** and passes
+silently — that file's suites are named `AppLockStateMachineTests`,
+`AppLockGracePeriodTests` and `AppLockControllerTests`. A `-only-testing:`
+name that matches nothing is a green run that measured nothing, which is the
+`test-without-building` trap wearing a different coat.
 
 ### 📱 DEVICE CARD — 415-D (for the runbook; the only bar this lane cannot score)
 
