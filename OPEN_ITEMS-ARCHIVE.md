@@ -44016,7 +44016,7 @@ Logged 2026-07-06.
 > Lock-Screen/Action-button arm dies with it (never a bar). Archive move
 > rides the next sweep. Twin note at #179.
 
-> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+> **✅ CLOSED 2026-08-26 night — Owen's formal close (SWEEP 9, approved on the runbook card / in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.** *(Marker date corrected same night — the sweep script had carried sweep 6's stamp verbatim since sweep 7; the entry bytes above are untouched.)*
 
 ## 112. ✨ Midnight Marquee collection — 7 themes / 8 palettes, first adaptive theme, +13 app icons (Lane L)
 
@@ -44049,7 +44049,7 @@ Logged 2026-07-12 (dispatch-prep session).
 > iPad icon-picker glance still rides Shelley's next install
 > (opportunistic, not a bar). CLOSED; archive move rides the next sweep.
 
-> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+> **✅ CLOSED 2026-08-26 night — Owen's formal close (SWEEP 9, approved on the runbook card / in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.** *(Marker date corrected same night — the sweep script had carried sweep 6's stamp verbatim since sweep 7; the entry bytes above are untouched.)*
 
 ## 121. ✨ Reasoning on resume — restore thinking panes from stored messages — MERGED (PR #120) 2026-07-19
 
@@ -44085,7 +44085,7 @@ Logged 2026-07-17.
 > reasoning there in full"), plus several other threads clean. CLOSED;
 > archive move rides the next sweep.
 
-> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+> **✅ CLOSED 2026-08-26 night — Owen's formal close (SWEEP 9, approved on the runbook card / in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.** *(Marker date corrected same night — the sweep script had carried sweep 6's stamp verbatim since sweep 7; the entry bytes above are untouched.)*
 
 ## 122. ✨ Session cost & usage surface — MERGED (PR #121) 2026-07-19
 
@@ -44121,7 +44121,7 @@ Logged 2026-07-17.
 > #330's, separately fixed last night and closing via its own 330-G
 > card.) CLOSED; archive move rides the next sweep.
 
-> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+> **✅ CLOSED 2026-08-26 night — Owen's formal close (SWEEP 9, approved on the runbook card / in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.** *(Marker date corrected same night — the sweep script had carried sweep 6's stamp verbatim since sweep 7; the entry bytes above are untouched.)*
 
 ## 179. 🐛 First Control Center tap is swallowed — action reports success before the widget extension exists — likely SUBSUMED by #58 (2026-07-25)
 
@@ -44186,7 +44186,7 @@ Logged 2026-07-23.
 > swallowed** ("a single tap brings me in"). Owen: "This can be closed."
 > CLOSED with #58 on his word; archive move rides the next sweep.
 
-> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+> **✅ CLOSED 2026-08-26 night — Owen's formal close (SWEEP 9, approved on the runbook card / in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.** *(Marker date corrected same night — the sweep script had carried sweep 6's stamp verbatim since sweep 7; the entry bytes above are untouched.)*
 
 ## 329. 🐛 A COLD LAUNCH classifies a still-running turn as FAILED and offers RETRY — tapping it duplicates the turn, because the host never stopped — **FILED 2026-08-11 from Owen's Group 7 device pass (#312 item (a)). MEASURED TWICE, with a control. ~~NOT STARTED; bars pre-register here before any code.~~** **⟵ HEADER CORRECTED 2026-08-24: premise code-read inverted the mechanism (the plane is gone, only the run id was lost), Owen ruled 329-C RECONCILE-FIRST the same evening, and the fix is ✅ BUILT + GATED that night — 329-A..E MET (result block at the foot); only 329-F (device, rides the NEXT staged OTA) remains.**
 
@@ -44356,7 +44356,7 @@ host, because on that plane there is nothing to consult.
 > recurrence that DUPLICATES an answer would be the thing to re-file.
 > CLOSED; archive move rides the next sweep.
 
-> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+> **✅ CLOSED 2026-08-26 night — Owen's formal close (SWEEP 9, approved on the runbook card / in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.** *(Marker date corrected same night — the sweep script had carried sweep 6's stamp verbatim since sweep 7; the entry bytes above are untouched.)*
 
 ## 360. 🔧 Dictation range-finalization robustness — `DictationController` assumes single-range, single-final transcriber results; the SDK contract is range-scoped with progressive finalization — **FILED 2026-08-17 evening, out of #359's investigation (whose artifact it did NOT cause — Owen typed those prompts; the falsification is recorded in #359). SHIPPED the same evening: ALL BARS 360-A..D MET (PR #311, merge `2210e56b`), gate PASS. Residual, stated honestly: the auto-stop grace timing is review-verified, not unit-tested — a device dictation pass is the honest closer. (Header updated 2026-08-18, stale-header sweep.)**
 
@@ -44446,7 +44446,7 @@ hedge pattern), #131/#82/#198 (this controller's prior hardening), #9
 > Both arms (short utterance + long ramble) survived the auto-stop grace.
 > CLOSED; archive move rides the next sweep.
 
-> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+> **✅ CLOSED 2026-08-26 night — Owen's formal close (SWEEP 9, approved on the runbook card / in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.** *(Marker date corrected same night — the sweep script had carried sweep 6's stamp verbatim since sweep 7; the entry bytes above are untouched.)*
 
 ## 371. 🐛 History-restored ✓ chips assert completions the app never witnessed, on runs nobody stopped — **FILED 2026-08-18 night per #268, from #327's explicitly-unfiled residual ("NOT filed here — it needs Owen, and it is entangled with #328 route 1"). ~~NOT STARTED.~~** **⟵ RULED provenance-label 2026-08-24 (decision pass) and ✅ BUILT + GATED the same night (trio lane) — 371-A..F met; only the device look remains (runbook).**
 
@@ -44513,7 +44513,7 @@ hedge pattern), #131/#82/#198 (this controller's prior hardening), #9
 > **📱 2026-08-26 evening (Owen's runbook pass, ~18:14 local; BUILD 3087, confirmed in-chat moments after the paste) — DEVICE PASS:** "dimmed check" — the provenance dim
 > confirmed on device. CLOSED; archive move rides the next sweep.
 
-> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+> **✅ CLOSED 2026-08-26 night — Owen's formal close (SWEEP 9, approved on the runbook card / in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.** *(Marker date corrected same night — the sweep script had carried sweep 6's stamp verbatim since sweep 7; the entry bytes above are untouched.)*
 
 ## 381. 🎨 Steer/interrupt is UNREACHABLE while the composer is `busyNoCommit` with the hold slot taken — **FILED 2026-08-18 night per #268, from #357-E's verdict (2026-08-17): with the #306 hold slot occupied the composer offers Stop only — no commit control — so mid-run steering cannot be exercised in exactly that state. A follow-up affordance is Owen's call. NOT STARTED.** **⟵ HEADER CORRECTED 2026-08-23: the call was MADE — Owen RULED *accept the limitation for now, WATCH* on 2026-08-18 ~22:40, with #368's cutover as the re-examination trigger. So this is not an open decision and not buildable work; it is a watch item waiting on #368.**
 
@@ -44570,7 +44570,7 @@ hedge pattern), #131/#82/#198 (this controller's prior hardening), #9
 > choices for steer or stop and steer." CLOSED; archive move rides the
 > next sweep.
 
-> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+> **✅ CLOSED 2026-08-26 night — Owen's formal close (SWEEP 9, approved on the runbook card / in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.** *(Marker date corrected same night — the sweep script had carried sweep 6's stamp verbatim since sweep 7; the entry bytes above are untouched.)*
 
 ## 390. 🔬 `.vision` IS TRUE ON BOTH TIERS — so #173's caption decision was made about a model that HAS vision, and the OCR path is now a CHOICE with a privacy dimension — **SPAWNED BY #388-A 2026-08-21 per its scope rule. RULED 08-24 (true vision both tiers, OCR fallback); ✅ BUILT + GATED 2026-08-25 — bars 390-A..F met, 390-G's behavioral half is the device runbook card; the PCC arm's flip PR (policy publish + gate flip, Owen's go received the same day) is the remaining step (result blocks below).**
 
@@ -44849,7 +44849,7 @@ gate should follow), **#386** (the published policy that describes the tiers),
 > unreported (they are unit-pinned; nothing rests on the glance).
 > Nothing remains on this entry; archive move rides the next sweep.
 
-> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+> **✅ CLOSED 2026-08-26 night — Owen's formal close (SWEEP 9, approved on the runbook card / in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.** *(Marker date corrected same night — the sweep script had carried sweep 6's stamp verbatim since sweep 7; the entry bytes above are untouched.)*
 
 ## 407. 📝 Text TYPED while dictation is live is DISCARDED on the next transcript tick — `mergedDictationText` recomputes from a base snapshot that predates the typing — **FILED 2026-08-24 night per #268, from #405's class sweep (read-only, verdict MINOR-adjacent). NOT a per-keystroke scrambler — the trigger is the dictation tick, not typing — but it is real input loss. ~~NOT STARTED; bars pre-register here before any code.~~** **⟵ RULED block-typing 2026-08-24 (decision pass) and ✅ BUILT + GATED the same night (trio lane) — 407-A..D met; only the 10-second device look remains (runbook).**
 
@@ -44904,5 +44904,651 @@ into the base snapshot vs block typing while dictating) is a product call.
 > and I can't use it while dictating." The ruled block-typing behavior
 > confirmed on device. CLOSED; archive move rides the next sweep.
 
-> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+> **✅ CLOSED 2026-08-26 night — Owen's formal close (SWEEP 9, approved on the runbook card / in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.** *(Marker date corrected same night — the sweep script had carried sweep 6's stamp verbatim since sweep 7; the entry bytes above are untouched.)*
+
+## 61. 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device re-verify owed
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F2**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
+**Spec written 2026-07-24: `dispatch/OPUS-T27-BUNDLE-A-178a-172-61-137.md`** (bundled with #178a, #172, #137). Do not re-spec; check merge state before sending.
+
+**2026-07-24 — THE COVERAGE GAP IS FIXED on `claude/t27-bundle-a-four-fixes`; the standalone device re-verify is still owed.**
+
+`degenerateCardReason` gained a **distinct exact-prefix branch** rather than a lowered floor, so the containment and prefix-echo checks keep both their tuning and their log tags — the log line naming which guard tripped is how this was diagnosed, and the new rule gets its own name (`verbatim prefix`) in it.
+
+**No length condition on the new branch, deliberately** — the spec offered that or dropping the floor, and both are floor-free. An exact prefix is not a ratio question: the card renders title and preview together, so a title that is literally the preview's opening is redundant on screen at any length, and the cost of a false positive is one truncation-fallback card. `degenerateCardReason(title: "Haiku", preview: "Haiku about rain in the spring")` is now non-nil, and that choice is pinned by a test so it cannot be reverted by accident.
+
+**Fail-first confirmed:** the device case returned nil before the change (observed, not assumed) and returns `"title and preview near-identical (verbatim prefix)"` after. Four tests added — the device case, the no-ratio/no-floor pair, a boundary above the 24-char floor that must still report `prefix echo`, a boundary inside the 2x ratio that must still report `containment`, and a mid-string echo past the ratio that must stay HEALTHY (the assertion a future tuning pass has to break on purpose).
+
+**Still owed:** the standalone device pass. Per the surface correction below, this cannot be verified against a paired host — the connected-mode Sessions drawer is server-fed and never touches `conversation.title`.
+
+**2026-07-23 — ROOT-CAUSED. Stop carrying this as "device re-verify owed".**
+
+*Surface correction first — three sessions were spent on the wrong screen.* The connected-mode
+Sessions drawer is SERVER-FED: `SessionsHermesClient.listSessions` maps `row.title` and
+`row.preview` straight from the Hermes sessions API into `HermesSessionInfo`. The on-device card
+never touches it. #61 renders ONLY via `conversation.title` / `generatedPreview` — i.e.
+`ChatScreen`'s own header and `LocalChatBackend.sessionInfo`, which builds the STANDALONE
+session list. **#61 can only be verified in standalone mode.**
+
+*Root cause — the mixed-card branch of `LocalIntelligenceService.conversationCard`.* When guided
+generation returns a title but an EMPTY preview, the function pairs the generated title with
+`fallback.preview`. With a non-empty user turn `fallbackCard` sets that preview to the
+assistant's FIRST line — exactly the line a lazy generated title echoes. The guard written for
+this case (`degenerateCardReason`) then has a coverage gap:
+- containment branch requires `shorter.count * 2 >= longer.count` (title must cover HALF the
+  preview)
+- prefix-echo branch requires `shorter.count >= 24`
+
+So **a generated title of 12-23 characters that is a verbatim prefix of a preview more than
+twice its length passes BOTH checks.** Device evidence (standalone, whoGoesThere, `cbcc824`):
+title ~"I can't create a haiku" (22) against preview ~"I can't create a haiku directly, but
+here's a simple one:" (~57). 22 >= 12 but 22*2 = 44 < 57, so containment misses; 22 < 24, so
+prefix echo misses.
+
+**Fix shape:** an EXACT verbatim prefix needs no length ratio. Either drop
+`cardPrefixEchoMinimumLength` to `cardContainmentMinimumLength`, or waive the ratio in the
+containment branch when `longer.hasPrefix(shorter)`.
+**Fail-first test:** `degenerateCardReason(title: "I can't create a haiku", preview: "I can't
+create a haiku directly, but here's a simple one:")` must return non-nil. It currently returns
+nil.
+
+**Evidence caveat:** the character counts are INFERRED. SwiftUI truncated both fields for
+display, so the numbers come from the visible prefixes plus the 48/90 `condensedLine` limits,
+not the stored strings. The threshold gap is structural and holds regardless; which side of it
+this particular title fell on is the estimated part. A Console read of which notice fired
+(`guided card degenerate` / `mixed card degenerate` / `on-device conversation card generated`)
+would settle it.
+
+**2026-07-23 — UNBLOCKED.** The card DoD was gated behind #142 (image-only sends). #142 is now
+resolved app-side by wire capture, so the #61 device re-verify is runnable.
+
+**Session C sweep 2026-07-20: DoD NOT closed — tangled with a NEW send-path defect (#142).**
+Sending an image ALONE delivers “[attachment]” as text to the model (image not seen); adding
+any text makes the image visible to the model. The card dedup check itself is therefore
+inconclusive — the attachment-only turn never carried the attachment. Re-run the card DoD
+after #142 lands.
+
+> **⏱️ 2026-08-19 — THAT BLOCKER CLEARED FOUR WEEKS AGO AND NOBODY NOTICED.**
+> #142 closed **2026-07-23** (archived: the app was EXONERATED by wire capture —
+> the defect is host-side handling of a text-less parts array). So the card-DoD
+> re-run this note defers has been runnable since then, and the Saturday device
+> list carries only "#61 standalone title", not this. Found by the 2026-08-19
+> board sweep, which was looking for exactly this shape: a gate that dissolved
+> while the text still says wait. **Not scheduled here — it goes on the next
+> device pass with #61's other owed checks.**
+
+> **MERGED 2026-07-17 (`588d885`, direct merge, loop-validated 755/62).** Recovery note for the
+> record: the fix branch `claude/t27-61-fallback-card-dedup` (07d8d9a) was deleted in error during
+> the 2026-07-17 branch cleanup (misjudged as superseded by Lane H without reading this item),
+> caught during the dispatch sweep, restored from local git objects, merged through the full loop.
+> Lesson: cleanup checks the ITEM TEXT, not the memory of it. → Device re-verify owed:
+> attachment-only/empty user turn → card title and preview are distinct, neither echoes the
+> reply's first line.
+
+> **2026-07-13 (eve): device FAIL confirmed → ROOT-CAUSED + FIXED (branch).** Title+preview both echoed the model's first line — the truncation fallback borrowed the reply's first line for BOTH fields when the user turn had no meaningful line (attachment-only/empty). Fix + fail-first test on `claude/t27-61-fallback-card-dedup` (07d8d9a); full suite 583/583. Merge + device re-verify owed.
+
+> **Audit 2026-07-13:** Header 🔧 is correct (2026-07-13 Lane H/PR #83 note leaves device re-verify owed), but the older 'Same not-compiled caveat as #60' line is stale — PR #12 (original) and PR #83 (Lane H guard) are both merged (PR_INDEX), and this item's own 2026-07-11/07-12 notes already record real on-device runs, not a pre-compile state.
+
+**Device pass 2026-07-11: FAIL** — title and preview show the same repeated raw text. Localize which path ran (guided generation vs deterministic fallback) via logs before touching code. Possibly same on-device-model degeneracy family as #102 (local brain phrase-looping in the same session).
+
+**Device evidence 2026-07-12 evening:** `on-device conversation card generated (#4.8)` observed in the whoGoesThere log — the GUIDED path succeeds at least sometimes. Earlier same-day chats showed pure truncation-fallback cards (raw first lines as title/preview) with nothing in the log to explain why; note the model-UNAVAILABLE path is the one card path that logs NOTHING (guard trips and generation failures both log) — worth a one-line logger fix, natural rider on the #110/#111 micro-PR.
+
+**MERGED 2026-07-13 (Lane H, PR #83).** Degenerate-card guard live: repetition / identical / containment / prefix-echo checks discard bad guided cards for the known-good fallback, and EVERY path now logs which guard tripped and which path produced it (`guided card degenerate` / `mixed card degenerate` / `FALLBACK card carries repetition` — the last one means the chat text itself was degenerate, #102 feeding #61). All three generation sites got token caps; temperatures untouched per spec. DEVICE RE-VERIFY OWED: fresh chat, first exchange → `/title`; if a card still degenerates, the log line names the path — that answer is the point.
+
+**Localized 2026-07-11 (source read):** guided generation runs at temperature 0.2–0.3 (`LocalIntelligenceService.swift:74/114/173`) — near-greedy, repetition-prone on the small on-device model. Not yet log-confirmed vs the guardrail-fallback path; Lane H adds a degenerate-card guard that protects both and logs which tripped. Spec: `dispatch/FABLE-LANE-H-local-brain-gen-health.md`.
+
+New `Services/Live/LocalIntelligenceService.swift` (FoundationModels): after the
+first completed exchange, `ChatStore` generates `{title, preview}` on-device and
+writes through `setConversationTitle`; the preview lands on
+`Conversation.generatedPreview` (persisted; surfaced in the `/title` readout).
+Runs only while the title is still the `Conversation.defaultTitle` placeholder —
+a manual `/title` is never overwritten. Same service condenses #60's reasoning
+to one line when foregrounded (also caught up on foreground return via
+`AppContainer.handleAppDidBecomeActive`).
+
+- Input trimming: `SystemLanguageModel.contextSize` (back-deployed 26.0; 8192 on
+  iOS 27 hardware) minus headroom; measured with `tokenCount(for:)` behind an
+  `#available(iOS 26.4, *)` guard (chars/3 conservative estimate below it).
+  API signatures verified against Apple docs JSON 2026-07-06.
+- Model unavailable (non-AI hardware, Apple Intelligence off, model
+  downloading) → deterministic truncation fallback (first meaningful lines,
+  word-boundary caps; fenced code never becomes a title). Unit-tested.
+- Guided generation via `@Generable` struct; guardrail/context errors also fall
+  back to truncation. Titles stay local — no Sessions-API title write (the API
+  has no verified endpoint for it; candidate follow-up).
+
+Same not-compiled caveat as #60. Device verify: first exchange in a fresh chat
+titles itself (~seconds later, `/title` shows Title + Preview); reasoning row
+collapses to a generated one-liner on AI hardware, last raw line otherwise.
+
+**Update 2026-07-06 (same-session adversarial review pass):**
+- **Critical fix — title/preview merge revert:** `mergeConversationMetadata` now preserves
+  the local conversation title (when the refreshed base still has the placeholder) and
+  `generatedPreview`. Without this, every post-turn merge into the Sessions client's empty
+  `currentConversation` reverted the title to "Hermes" — re-tripping the generation gate
+  every turn — and wiped the preview. Also fixes the long-standing quirk of a manual
+  `/title` reverting on the next exchange. Regression-tested
+  (`mergeKeepsLocalTitleAndPreviewOverPlaceholderBase`).
+- **Attachment-only first turn:** the synthetic "[N attachment(s)]" display placeholder is
+  no longer eligible as a title source (`normalizedRetryContent` maps it to "" — card
+  derives from the reply instead).
+- Placeholder-title literals consolidated onto `Conversation.defaultTitle` at every
+  construction site; token budget deduped (`promptInputBudget`); tokenizer round-trip
+  skipped when `utf8.count <= budget` (every token ≥ 1 byte); fallback card computed
+  lazily off the happy path.
+
+
+> **📱 2026-08-26 late evening (Owen's second runbook pass, BUILD 3101 — confirmed in-chat) — PASSED: "All good. Titles are generating."** The
+> standalone title/preview device re-verify, four weeks runnable and
+> finally run. CLOSED; archive move rides the next sweep. (280-F scored
+> on the same card — twin note at #280.)
+
+> **✅ CLOSED 2026-08-26 night — Owen's formal close (SWEEP 10, approved on the runbook card / in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.** *(Marker date corrected same night — the sweep script had carried sweep 6's stamp verbatim since sweep 7; the entry bytes above are untouched.)*
+
+## 280. 📝 A dictated-only thread gets a blank conversation-card title — **FILED 2026-08-07 from #78's lane. Bars pre-register here before any code.** **⟵ HEADER CORRECTED 2026-08-24: ✅ BUILT + MERGED 2026-08-10 (PR #299, merge `c935ab98`) — bars 280-A..E ALL MET; the result had lived ONLY in a commit message for two weeks (see the block at the foot). 280-F rides the device runbook's #61 card.**
+
+`ChatStore`'s title source uses `first(where: { $0.sender == .user })`, which
+yields empty text when every user turn was dictated. Cosmetic, and NOT a
+producing-turn search, so #275's shared-predicate bar deliberately does not
+cover it; left unchanged rather than altered without a bar. Fix is
+presumably the same `isUserAuthored` predicate, but it needs its own bar
+because the display semantics (should a voice thread's card show the
+transcript text?) are a product question, not a mechanical one.
+
+> **OWEN'S RULING 2026-08-09 — the card carries an ON-DEVICE GENERATED
+> title.** Not the raw first-user-message heuristic, and not a won't-do. The
+> product question this entry raised ("should a voice thread's card show the
+> transcript text?") is answered: it should show a *generated* title, the same
+> as any other thread.
+>
+> **⚠️ THIS ENTRY'S STATED MECHANISM IS FALSIFIED — DIAGNOSED 2026-08-09,
+> and the fix the entry suggests is a NO-OP.**
+>
+> The empty `firstUserText` is not the bug; it is a **designed-for input.**
+> `LocalIntelligenceService.fallbackCard` (`:448-466`) deliberately borrows
+> the reply's first line as the title and steps the preview to its second,
+> exactly as `ChatStore.swift:2508-2511`'s own comment says it does. An empty
+> user string is handled.
+>
+> **The real cause is that the generator is NEVER INVOKED for a voice
+> thread**, and there are two independent reasons, either of which alone is
+> sufficient:
+> 1. `appendVoiceTranscript` (`ChatStore.swift:1550-1596`) never calls
+>    `finalizeOnDeviceIntelligence()`. That function has exactly **two** call
+>    sites — `:1073` and `:2474` — and neither is on the voice path.
+> 2. Even if it were called, its eligibility guard (`:2501-2505`) requires
+>    `$0.sender == .hermes`, while a voice thread's replies are the distinct
+>    **`.voiceHermes`** case (`MessageSender.swift:8`). It would return at
+>    the guard.
+>
+> **Why this matters more than an ordinary wrong-cause note:** applying the
+> `isUserAuthored` predicate at `:2513`, as this entry suggests, **changes
+> nothing observable.** A lane could ship it, watch the suite go green, and
+> close #280 in good faith having fixed nothing. Bar 280-A is written
+> specifically to catch that.
+>
+> **And the symptom is worse than "cosmetic."** The title stays `"Hermes"` →
+> `LocalChatBackend.swift:1976` maps it to nil → `ChatScreen.swift:555-557`
+> falls back to the *preview* as the title while `:562` uses that same
+> preview as the subtitle. **One string printed twice** — which is the
+> duplicate-card shape #61 already recorded as a device-pass FAIL.
+>
+> Full diagnosis and six proposed bars:
+> `dispatch/OPUS-T27-280-dictated-thread-title.md`.
+
+> **📏 BARS PRE-REGISTERED 2026-08-10, BEFORE ANY CODE OF THIS LANE** — written
+> into this entry per CLAUDE.md's *"Where the BARS live"*, in a commit that
+> lands before the first line of implementation. Wording refined from the
+> dispatch's §5 proposals; strictness unchanged. **A missed bar is a
+> falsification, not a redefinition.**
+>
+> **280-A — a voice-only thread ends up with a real title.** After
+> `appendVoiceTranscript` settles a session carrying ≥1 spoken user turn and
+> ≥1 spoken reply, `chatStore.conversation?.title != Conversation.defaultTitle`.
+> *Evidence:* a unit test on the `ChatStore` path with the real
+> `LocalIntelligenceService` wired, polling to a non-default title.
+> **Assert non-default, NEVER exact text** — the model either generates
+> (device, nondeterministic) or throws `Code=5000` no-assets and the
+> deterministic truncation fallback runs (test host); both must clear the same
+> bar, and `pollUntil` gets a budget that tolerates a real generation.
+> *Device needed:* no. **This is the bar that catches the no-op** — it is RED
+> under B1 alone, so the `isUserAuthored`-only fix this entry suggested cannot
+> satisfy it.
+>
+> **280-B — the title is derived from what was SPOKEN.** The extracted input
+> function returns the spoken user line as `userText` and the spoken reply as
+> `assistantText` for a voice-only conversation — not `("", reply)` and not
+> nil. *Evidence:* pure-function unit test on
+> `ChatStore.conversationCardInputs(for:)`. *Device needed:* no. This is the
+> bar `isUserAuthored` actually earns; without it the predicate change is
+> unmeasured.
+>
+> **280-C — a mixed thread titles from its FIRST exchange, and a spoken
+> exchange counts as one.** A conversation whose first exchange is spoken and
+> whose second is typed yields inputs from the **spoken** pair. *Evidence:*
+> pure-function unit test. *Device needed:* no. Pre-registered because it is a
+> **behavior change** on threads that title fine today: it makes
+> `generateConversationCardIfNeeded`'s own doc comment (*"the conversation's
+> first completed exchange"*) true again. If Owen would rather a mixed thread
+> keep titling from the typed turn, that is a legitimate call — but it has to
+> be made before the code, not discovered after.
+>
+> **280-D — typed threads do not move.** A typed-only conversation yields the
+> same inputs and the same title as before the change, and a first user row
+> carrying only the `"[N attachment(s)]"` placeholder still normalizes to `""`.
+> *Evidence:* new pure-function rows plus the existing suite staying green.
+> *Device needed:* no. The attachment-placeholder row is the one that must
+> **not** be "fixed" — it is deliberate.
+>
+> **280-E — the generator still never overwrites a human title, and still runs
+> once.** A conversation retitled by hand before the voice append keeps its
+> title; two `appendVoiceTranscript` calls do not produce two generations.
+> *Evidence:* a unit test setting a title first; a second asserting the
+> `isGeneratingConversationCard` re-entrancy guard still holds. *Device
+> needed:* no. The async re-check inside the generation Task already guards
+> this; the bar pins that the new call site does not route around it.
+>
+> **280-F — the device confirmation, ROUTED not restated. OWED ON DEVICE; NOT
+> A MERGE BLOCKER.** One clause appended to the **existing** `#61` row in
+> `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F2** — *"…including a session whose
+> only user turns were spoken."* **Do NOT open a second device row** (#61's own
+> rule: *"One queue — a check that lives in two places drifts"*). *Evidence:*
+> the standalone drawer, phone in hand. A–E are unit-testable and are what the
+> gate proves; F is confirmation on the real surface and rides an existing
+> sitting.
+
+> **🔁 ANCHORS RE-VERIFIED AT HEAD `c4a1ca9`, 2026-08-10 — the mechanism read
+> above HOLDS; only its LINE NUMBERS are stale.** The diagnosis note was
+> written at `04af0a7` and PRs #288–#294 have merged since. Every claim
+> re-checked and confirmed; the current anchors are:
+>
+> | Claim | Note says | HEAD `c4a1ca9` |
+> |---|---|---|
+> | `appendVoiceTranscript`, no `finalizeOnDeviceIntelligence()` | `:1550-1596` | **`ChatStore.swift:1736-1785`** — confirmed, still absent |
+> | `finalizeOnDeviceIntelligence` call sites (exactly two) | `:1073`, `:2474` | **`:1166`, `:3056`** (function at `:3070-3073`) — still two, neither on the voice path |
+> | the `.hermes` eligibility guard | `:2501-2505` | **`:3086-3090`** — still `$0.sender == .hermes` |
+> | the `== .user` title source | `:2513` | **`:3097-3099`** |
+> | the comment that says an empty user side is designed for | `:2508-2511` | **`:3093-3096`** |
+> | `normalizedRetryContent` (touches no instance state) | `:2815-2821` | **`:3404-3410`** |
+> | `fallbackCard` | `LocalIntelligenceService.swift:448-466` | **unchanged, `:448-466`** |
+> | title → nil mapping | `LocalChatBackend.swift:1976` | **`:2038`** (and `:2053` for the stored-summary row) |
+> | preview-as-title fallback | `ChatScreen.swift:555-557` / `:562` | **`:583-586`** |
+> | `recordLocalOriginAfterSettledTurn` counts `.hermes` | `:1088-1100` | **`:1181-1193`** — untouched by this lane (#190B born-local semantics) |
+>
+> **Do not re-derive from the old numbers.** Line numbers are the first thing
+> a merge invalidates and the last thing anyone re-checks.
+>
+> **↑ AND THAT TABLE IS NOW ITSELF HISTORICAL (2026-08-10, post-fix).** It
+> describes the code as it stood at `c4a1ca9`, BEFORE the fix and before this
+> branch merged the #250/#132 lanes — the numbers moved again in that weave
+> (`conversationCardInputs` now sits at `ChatStore.swift:3105`, the spoken-path
+> invocation at `:1774`). **Read the table as a record of where the three
+> blockers WERE, not as a map of the current file.** Kept rather than rewritten
+> because it is the evidence that the diagnosis was verified at HEAD before any
+> code was written; the lesson it teaches is the reason it is being annotated
+> instead of edited.
+
+> **✏️ TWO WORDS IN THE ORIGINAL PARAGRAPH, CORRECTED 2026-08-10 (CLOSE-OUT
+> RULE — upstream, at the stale claim's own home).**
+> - **"Cosmetic" is retired; the word is "minor".** It is minor and it is not
+>   a blocker — but the rendered result is the drawer row printing **the same
+>   string as both its title and its subtitle**, the exact shape #61's
+>   `fallbackCard` comment records as a 2026-07-11 **device-pass FAIL**
+>   (*"repeats the first line on both lines"*). We fixed that shape once,
+>   deliberately, and this path reintroduces it through a different door.
+> - **"Fix is presumably the same `isUserAuthored` predicate"** stands
+>   superseded by the NO-OP finding above and is left in place only as the
+>   record of what was believed. The predicate change is necessary for 280-B
+>   and 280-C and is **not sufficient for anything** on its own.
+
+> **↔️ ONE UPSTREAM CORRECTION THIS LANE OWES OUTSIDE THIS ENTRY.**
+> `AgentAttachmentSidecar.swift:153-155` justifies keeping its private
+> `isAgentAuthored` with *"#275's `isUserAuthored` exists because FOUR sites
+> needed one answer; this question has exactly one asker."* The moment this
+> lane promotes `isAgentAuthored` to `MessageSender`, that comment is false —
+> it is corrected in the implementation commit, at its own home, not only
+> noted here.
+>
+> **And one thing that is NOT owed:** #61's surface correction (*"#61 can only
+> be verified in standalone mode"*) is **still true at HEAD** —
+> `LocalChatBackend.sessionInfo` (`:2036-2046`) remains the sole reader of
+> `conversation.title`. Named here so the next lane does not re-derive it.
+
+> **✅ RESULT — filed 2026-08-24, recording work DONE 2026-08-10. The lane
+> built, gated and merged the fix (fix `134cfe23`, docs `6259d8e4`, PR #299,
+> merge `c935ab98`) and wrote its bar-by-bar record into the DOCS COMMIT'S
+> MESSAGE — never into this entry.** For two weeks the header, the index
+> line, and this body all read as if nothing had been built; the entry was
+> one grep away from a re-dispatch (#389's shape, and the free-wins
+> "the lane's last commit updates the body and stops" pattern — here it did
+> not even update the body). Transcribed from `6259d8e4`:
+> - **280-A MET** — `voiceOnlyThreadGetsAGeneratedTitle`: the title leaves
+>   `Conversation.defaultTitle` after `appendVoiceTranscript(postToHermes:
+>   false)`.
+> - **280-B MET** — `voiceOnlyThreadYieldsTheSpokenExchange`: the spoken
+>   pair, not `("", reply)`.
+> - **280-C MET** — `mixedThreadYieldsTheSpokenFirstExchange`, plus a
+>   typed-first control so the rule is "first exchange wins", not "prefer
+>   spoken". Owen ruled 2026-08-10 that this ships as briefed.
+> - **280-D MET** — typed rows unchanged; the `"[N attachment(s)]"`
+>   placeholder still normalizes to `""` (deliberate).
+> - **280-E MET** — `manualTitleSurvivesAVoiceAppend` +
+>   `secondVoiceAppendDoesNotRegenerate`.
+> - **GATE: PASS** — 2033 units in 155 suites (+13 exactly over the 2020
+>   baseline, so the count moved by this lane's additions) + 14 XCUITest +
+>   Release clean.
+> - **280-F OWED ON DEVICE, NOT CLAIMED** — one clause on the existing #61
+>   §F2 row; it is carded on the device runbook (the §02 "Local titles &
+>   previews, incl. a spoken-only session" card). That is ALL that remains
+>   on this entry.
+
+
+> **📱 2026-08-26 late evening (Owen's second runbook pass, BUILD 3101 — confirmed in-chat) — 280-F PASSED on the shared card ("Titles are
+> generating", spoken-only session included per the card's scope).** The
+> last open bar. CLOSED; archive move rides the next sweep.
+
+> **✅ CLOSED 2026-08-26 night — Owen's formal close (SWEEP 10, approved on the runbook card / in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.** *(Marker date corrected same night — the sweep script had carried sweep 6's stamp verbatim since sweep 7; the entry bytes above are untouched.)*
+
+## 318. 🎨 Settings SEARCH — Claude Design direction 1b, filed as its own item — **FILED 2026-08-09 by Owen's §7.3 routing call on #252 ("close #252; file 1b its own number"). Per #268, this is 1b's first tracker existence. ⟵ HEADER CORRECTED 2026-08-25 (the lane's own close-out missed it and the invariant caught it POST-merge — a `;` chain swallowed the checker's exit; process note in the result block's commit): elected on the 08-25 ballot and ✅ BUILT + MERGED the same day (PR #372, squash `b5dd5f08`) — bars 318-A..E met, gate 2553(+6)/14/Release, four mutations isolating. Remaining: the device look (runbook card).**
+
+**Scope as inherited from the 1c/1b split:** a search affordance over the
+Settings surface — the nine subsystem channels plus their leaf toggles — so a
+user types "haptics" or "verbose" and lands on the owning card/deck page.
+Direction 1b was the search-first alternative that lost to 1c's grid/deck at
+the 2026-08-05 routing; it survives as the follow-on, not the replacement.
+
+**Constraints carried from #252 (closed):** the grid/deck is the shipped
+surface — 1b layers onto it rather than replacing it; the deck-entry
+nine-page build was accepted FINAL at the same decision pass, so search
+landing on a deck page inherits that behaviour as-is.
+
+**Cross-references:** **#252** (closed parent, archives next sweep), **#256**
+(archived; the strip this search would sit near).
+
+> **🎯 BARS 318-A..E — pre-registered 2026-08-25 at lane-open (elected on
+> the 08-25 ballot; premise re-verified live the same day — no search
+> exists in Settings at HEAD). Design, from the full leaf inventory
+> extracted today: a PURE, data-driven `SettingsSearchIndex` (the theme
+> catalog's shape) of entries {title, keywords, subsystem, detail-path};
+> the grid gains a HUD-style search field — a non-empty query replaces the
+> grid with a results list, a result tap routes through the EXISTING
+> `openSubsystem` seam to the owning deck page (the inherited
+> deck-behaviour-as-is constraint), a cleared query restores the grid, and
+> nested targets carry an honest detail path (e.g. "haptics" lands on
+> APPEARANCE with "Appearance → Tuning" printed on the row).**
+> - **318-A (coverage, RED first):** every `SettingsSubsystem` case is
+>   findable by its own title, enforced by iterating `allCases` against
+>   the index — a future subsystem added without entries goes RED.
+> - **318-B (the filing's own promises):** "haptics" → `.appearance`
+>   (detail naming Tuning) and "verbose" → `.developer` — the entry's two
+>   example queries, verified against the real toggles
+>   (`hapticFeedbackEnabled`, verbose logging); a garbage query returns
+>   nothing (the honest empty state renders NO MATCHES).
+> - **318-C (availability honesty):** results filter through the SAME
+>   `SettingsSubsystem.cases(privateCloudAvailable:)` list as the grid —
+>   with the tier absent no `.privateCloud` result can surface (#395-D's
+>   one-list rule); DEBUG-only rows (instruments, overrides) live inside
+>   `#if DEBUG` in the catalog, so a Release build cannot offer them by
+>   construction.
+> - **318-D (wiring):** a result tap calls `openSubsystem` — pinned
+>   structurally (#399-shape) so the search cannot grow its own second
+>   navigation door.
+> - **318-E:** GATE: PASS; the affordance's device look is a runbook card
+>   (Owen's eye — this is a 🎨 item).
+> Mutations planned: a subsystem's entries deleted → only A red; the
+> haptics keyword dropped → only B red; the availability filter bypassed →
+> only C red; the tap unwired → only D red.
+
+> **✅ BUILT + GATED 2026-08-25, the election's same day — bars 318-A..E
+> MET.** GATE: PASS **2553** Swift Testing (+6 exact: the
+> `SettingsSearchTests` suite) + 14 XCUITest + Release.
+> - `SettingsSearchIndex`: ~60 entries built from the day's full leaf
+>   inventory of the ten screens (real data only — every entry names a
+>   control that exists at HEAD); ranked matching (title-prefix > title >
+>   keyword-prefix > keyword, ties in deck order); DEBUG-only rows fenced
+>   in `#if DEBUG` so Release cannot offer them.
+> - The grid gains the HUD-style field; results replace the grid while a
+>   query is live; a tap clears the query and routes through
+>   `openSubsystem` — the deck's ONE door, structurally pinned (the pin
+>   caught its own first red honestly: its anchor found the first USAGE of
+>   the results view instead of the definition — re-anchored on
+>   `var searchResultsList`).
+> - **Evidence:** RED-first 5/6 on the stub (the garbage-query negative
+>   green by design — its teeth are the catalog not matching junk); GREEN
+>   37/37 across both Settings suites; **four mutations, each isolating**
+>   (Uplink entry deleted → only coverage red; haptics keyword dropped →
+>   only the B-family red; availability filter bypassed → only C red; the
+>   tap rewired to a raw `mode = .deck(...)` — the realistic second-door
+>   regression — → only the door pin red).
+> - **Remaining: the device look** (🎨 item — Owen's eye on the affordance;
+>   runbook card added). The filing's own promise works as written: typing
+>   "haptics" lands on APPEARANCE with "Appearance → Tuning" printed on
+>   the row.
+
+---
+
+
+> **📱 2026-08-26 late evening (Owen's second runbook pass, BUILD 3101 — confirmed in-chat) — the device look PASSED: "all searches land and take
+> you where it advertises."** The last open half. CLOSED; archive move
+> rides the next sweep.
+
+> **✅ CLOSED 2026-08-26 night — Owen's formal close (SWEEP 10, approved on the runbook card / in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.** *(Marker date corrected same night — the sweep script had carried sweep 6's stamp verbatim since sweep 7; the entry bytes above are untouched.)*
+
+## 325. 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** against its own background where WCAG's NON-TEXT floor is 3.0:1, and it is the colour of shipping warning **TEXT** — **FILED 2026-08-11 by the #320 lane, per #268 (measured while building the realtime voice indicator; given a number the day it was found rather than left inside one file's doc comment). MEASURED over all 90 (ThemeID × AccentSlot) cells and re-derived independently at filing time — not inferred. NOT STARTED. `Shared/ThemePaletteCore.swift` is DELIBERATELY UNTOUCHED by this filing: retuning curated per-theme hues is a design-system decision and needs OWEN'S CALL, not a lane's judgement. Bars pre-register here before any code.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): route (c) BUILT 2026-08-21; `forgeText` ships and measures 0/88.**
+
+**The measurement.** WCAG 2.1 relative luminance (sRGB linearisation, `L = 0.2126R + 0.7152G + 0.0722B`, ratio `(L₁+0.05)/(L₂+0.05)`) computed over every `(ThemeID × AccentSlot)` pair in `Shared/ThemePaletteCore.swift`, comparing the resolved `palette.forge` (= `Design.Brand.forge`, the warning token) against the resolved `palette.background`. 30 themes × 3 slots = **90 cells; 88 reachable** — Terminal's `lockedAccentSlot: .cyan` pin makes its amber and violet variants unreachable by construction. Run first on the #320 lane 2026-08-11, then **re-derived from scratch at filing time by a second parse of the same file: every figure below reproduced exactly.**
+
+| theme | slots | background | forge | forge : background |
+|---|---|---|---|---|
+| `springSprout` | all three | `0xFFF9F4` | `0xE89C30` | **2.18:1** |
+| `pulpNoir` | cyan, violet | `0xEFE3C6` | `0xC8912B` | **2.18:1** |
+| `retroSciFi` | all three | `0xF5F0E8` | `0xE67E00` | **2.52:1** |
+| `winterFrost` | all three | `0xF4F9FC` | `0xD49020` | **2.54:1** |
+| `stickerBombToybox` | all three | `0xF4F1EA` | `0xC96410` | 3.50:1 |
+| `comicFunnies` | all three | `0xFBF7EC` | `0xA87D00` | 3.50:1 |
+| `paperTape` | cyan, amber | `0xF2EFE9` | `0xA96A12` | 3.85:1 |
+| `pulpNoir` | amber | `0xEFE3C6` | `0x8F6A1E` | 3.88:1 |
+| `paperTape` | violet | `0xF2EFE9` | `0xB4530F` | 4.37:1 |
+
+**Against the thresholds:** SC 1.4.3 (AA, normal text) wants **4.5:1**; large text (≥18pt regular / ≥14pt bold) and SC 1.4.11 non-text UI both want **3.0:1**. So **11 of 88 reachable cells sit under the NON-TEXT floor** (4 themes: springSprout, pulpNoir, retroSciFi, winterFrost) and **21 of 88 sit under AA text contrast** (7 themes). The control makes the number legible as a defect rather than a house style: `palette.foregroundBright` on the same backgrounds **never drops below 10.99:1** (casinoLucky7s) and typically runs 16–20:1.
+
+**The shape is exact, and it is not "roughly half the catalogue": it is EVERY LIGHT THEME AND ONLY LIGHT THEMES.** All 7 light `ThemeID`s fail AA text contrast; all 23 dark themes pass with a **floor of 6.06:1** (casinoLucky7s). `forge` is a warm amber/orange tuned against near-black — carried onto a near-white ground unchanged, it has nowhere to go. (This corrects the "roughly half" figure the finding travelled with; the sweep says 7 of 30 themes / 21 of 88 cells. The named per-theme numbers were all exact.)
+
+**One of the seven is not opt-in.** `comicFunnies` is the LIGHT half of the adaptive Comic Book theme (#112 — `AppearanceTheme.comicBook.themeID(for: .light) == .comicFunnies`, pinned by `DesignThemeTests.comicBookFollowsTheSystemScheme`). A Comic Book user whose phone is in Light appearance lands on the 3.50:1 cell **without ever choosing a light theme**. Three of the seven failing palettes ship from #112 (pulpNoir, stickerBombToybox, comicFunnies).
+
+**Why this is not a niceness item: `forge` is the colour of warning TEXT the user is meant to read.** Named surfaces, verified at `c2b1389`:
+- `Talaria/Features/Talk/VoiceOverlayScreen.swift:165-170` — the `LOCAL VOICE · ON-DEVICE PIPELINE` badge, `MonoLabel(size: 9, weight: .medium, color: Design.Brand.forge)`. This is **#18's no-silent-substitution signal**: the one on-screen thing that tells a user the local engine is driving. At 9pt it is nowhere near WCAG's large-text carve-out, so 4.5:1 is its bar and 2.18:1 is what a springSprout user gets.
+- `Talaria/Features/Talk/VoiceOverlayScreen.swift:327` — `orbStatusLabel`'s `blockedReason`, `Design.Typography.callout`. Callout sits below the 18pt large-text line, so 4.5:1 applies here too.
+- `Talaria/Features/Talk/VoiceOverlayScreen.swift:355` — the **#84** mic-health hint ("connected but no mic signal"), `Design.Typography.caption`.
+- `Talaria/Features/Settings/VoiceSettingsScreen.swift:112,114,116` — `engineState`'s CHECKING / CONNECTING / BLOCKED; `:129` the Engine row when the engine is native; `:135,138` the Configured / Ready rows' `NOT CONFIGURED` and `BLOCKED`.
+
+**Blast radius beyond those (measured by grep, not asserted):** `Design.Brand.forge` is referenced **128 times in `Talaria/`**, of which **64 set it as a foreground colour** — 43 `.foregroundStyle(Design.Brand.forge)` + 21 `color: Design.Brand.forge` (excluding the 3 `StatusPip` uses) — across **24 files**, including `HostApprovalCard`, `ToolConfirmationCard`, `ToolActivityRail`, `TasksScreen`, `InsightsScreen`, `SkillsScreen`, `UplinkSettingsScreen`, `ConnectHermesScreen`. The remainder are pips, hairlines, borders and low-opacity fills, which answer to the 3.0:1 non-text floor instead. The widget target reads the same token from the same Shared catalog (`TalariaWidgets/HermesBriefingWidget.swift:35`, `HermesStatusWidget.swift:81`), so the numbers carry there unchanged.
+
+**What #320 did, and what it deliberately did NOT do.** The #320 lane hit this while building the realtime voice indicator and **routed around it for that one surface**: the indicator's text uses `Design.Colors.foregroundBright` and `forge` appears only on a 5pt pip (non-text, and comfortably over 3.0:1 everywhere). The reasoning and the numbers live in the doc comment of `Talaria/Features/Talk/RealtimeVoiceIndicator.swift`, pinned by two tests in `TalariaTests/RealtimeVoiceIndicatorTests.swift` — `theIndicatorTextIsLegibleInEveryThemeIncludingPaperTape` and `theWarningTokenIsNotLegibleEnoughForThisBadgeInEveryTheme`. **Both files live on the lane branch `t27-320-realtime-indicator` (worktree `.claude/worktrees/lane-320`), not on `main`** — this entry is the finding's home on the board, and the #320 lane's close-out should point here rather than leaving the token question inside one view's comment. **That was a workaround for one badge. The token is untouched, and the five surfaces above still render warning text at 2.18–4.37:1 on light themes.**
+
+**Why raising `forge` is Owen's call and not arithmetic.** These are curated per-theme hues, not accidents — `ThemePaletteCore.swift:262-265` states the invariant in the source: *"Warning ('forge') accent as resolved for this slot — curated per slot so it always stays separable from `base`."* Darkening `forge` on a light ground pushes it toward the accent it must stay separable from, and in three cells that margin is already almost gone (hue separation `forge`↔`base`: **stickerBombToybox/amber 0.4°**, `comicFunnies`/amber 1.3°, `pulpNoir`/amber 1.4°). For reference, a same-hue retune has to land under these relative luminances to clear each bar:
+
+| theme | forge L today | L max @ 4.5:1 | L max @ 3.0:1 |
+|---|---|---|---|
+| `springSprout` | 0.411 | 0.173 | 0.285 |
+| `pulpNoir` (cyan/violet) | 0.327 | 0.133 | 0.225 |
+| `retroSciFi` | 0.317 | 0.156 | 0.259 |
+| `winterFrost` | 0.340 | 0.170 | 0.280 |
+| `comicFunnies` | 0.230 | 0.168 | 0.277 |
+| `stickerBombToybox` | 0.216 | 0.157 | 0.260 |
+| `paperTape` (cyan/amber) | 0.188 | 0.153 | 0.255 |
+
+i.e. springSprout's warning amber has to lose **more than half its luminance** to become readable text on its own background. That is a visible re-design of four to seven palettes, not a nudge.
+
+**The routes, for the ruling (not a recommendation to build):**
+- **(a) Retune `forge` per light theme** — data-only, one line per failing variant thanks to #49's catalog (no switch arms), but it changes how four to seven shipped themes look and collides with the separability invariant above.
+- **(b) Rule `forge` non-text** — keep the hues, demote the token to pips/borders/fills (3.0:1 bar, which still fails in four themes), and migrate the 64 foreground sites to a legible token. Largest code change, no visual redesign of the palettes.
+- **(c) Add a second token** (`forgeText` / warning-on-light) resolved per theme, leaving `forge` as the decorative hue. Two tokens to keep honest forever.
+- **(d) Accept and document** — an explicit, dated decision that warning text is decorative on light themes, which at least stops the next lane re-discovering it.
+
+**BARS — pre-registered before any code, per the convention (bars live in the entry).** They bind whichever route (a)–(d) is chosen, except where named:
+- **325-A (the floor).** No shipping surface renders warning **text** below **4.5:1** against its own theme background, and no warning pip/border/fill below **3.0:1**, in any of the 88 reachable cells. **RED today: 21 cells under 4.5:1, 11 under 3.0:1.** Under route (d) this bar is not met and the ruling says so in writing — a documented exception, never a silent one.
+- **325-B (Deep Field is untouched).** `DesignThemeTests.deepFieldCyanMatchesLegacyConstants` and `.deepFieldWarningSwapsUnderAmberAccent` stay green **without edits**. Deep Field measures 12.39:1 (cyan/violet) and 7.68:1 (amber) — it needs nothing, and `ThemePaletteCore.swift`'s "Do not retune" comment stands.
+- **325-C (separability survives).** `DesignThemeTests.accentSlotsAreDistinctWithinEachUnlockedTheme` stays green, and **every retuned cell ends at least as separable from its accent `base` as it is today**, measured on both metrics recorded above (hue angle and contrast ratio) so the comparison is mechanical. The three near-zero cells (0.4° / 1.3° / 1.4°) do not clear this by arithmetic and need a stated design decision.
+- **325-D (a catalog-wide test, proven to fail first).** One Swift Testing case sweeping all 88 reachable cells against the ruled floor, **demonstrated RED on the pre-fix palette with the failure text recorded in this entry** before any palette value changes. #320's two point tests fold in or stay as surface-specific pins.
+- **325-E (the widget target too).** Verified through `Shared/ThemePaletteCore.swift` so both targets move together, with both `HermesWidgetData.swift` copies in lockstep per CLAUDE.md.
+- **Gate:** `scripts/mac/lane-gate.sh` green (Debug suite + Release build) with a dedicated `TALARIA_SIM_NAME`, and Calendar + Reminders TCC granted before the run.
+
+**Cross-references:** **#320** (the lane that measured this and routed around it for one badge; its close-out points here), **#49** (the data-driven palette catalog — the reason a fix is data and not switch arms, and the file this entry deliberately did not edit), **#18** (the no-silent-substitution rule whose `LOCAL VOICE` badge is the worst-affected surface — cited the way the surrounding code and #180's 180-D use the number; note that **tracker** item 18 in `OPEN_ITEMS-ARCHIVE.md` is the session-shelf scrim, so this is the GitHub-sequence collision CLAUDE.md warns about), **#112** (Midnight Marquee — ships three of the seven failing palettes and the adaptive Comic Book theme that reaches one of them automatically), **#84** (the mic-health hint, one of the affected surfaces), **#180** (honest degradation — a warning the user cannot read is the family's shape, arriving through the design system rather than through copy).
+
+> **2026-08-18:** four routes put to Owen at the ballot (recommendation:
+> (c), a `forgeText` token — least invasive, no curated-hue retune). Pick
+> pending.
+
+> **2026-08-18 ~22:45 — ROUTE RULED (Owen): (c), the `forgeText` token.**
+> A second token for text uses: dark themes resolve it to the hero amber
+> unchanged; light themes get a legible variant clearing 4.5:1. No
+> curated-hue retune; the ~64 text call sites migrate mechanically;
+> `DesignThemeTests`' byte-identity guard (Deep Field × cyan) must hold.
+> Lane not scheduled this week (the board's build slots are full) — next
+> free design slot; bars pre-register here when it opens.
+> **✅ 2026-08-21 EVENING — ROUTE (c) BUILT, AND IT NEEDED A SECOND HALF THE
+> RULING DID NOT ANTICIPATE. 325-A..E all met.**
+>
+> ### 🔴 Route (c) alone could NOT satisfy 325-A, and the sweep is what showed it
+>
+> 325-A has two clauses: text ≥ 4.5:1 **and** pip/border/fill ≥ 3.0:1. Route (c)
+> adds `forgeText` for text and *leaves `forge` as the decorative hue* — so it
+> fixes the first clause and does nothing for the second. **Four light themes
+> shipped a `forge` below even the non-text floor** (`springSprout` and
+> `pulpNoir` at 2.18:1, `retroSciFi` 2.52, `winterFrost` 2.54), which would
+> have left 325-A red on a lane that looked complete.
+>
+> **Put to Owen 2026-08-21 with mechanical candidates and rendered swatches on
+> each theme's real background. He ruled: nudge the four.** So the lane is
+> route (c) *plus* a minimal retune — four themes, and only to 3.0:1, not
+> route (a)'s 4.5 across seven.
+>
+> **His reason for caring is the one that reframes this entry:** *"They all
+> look like they're gonna be much better, honestly. I'll finally be able to
+> use those themes too!"* — **the only user of this app could not use seven of
+> its themes.** This was filed as a WCAG contrast item; it is actually a
+> catalogue half of which was unusable by its owner.
+>
+> ### 325-D — RED FIRST, and the numbers reproduced the entry's own
+>
+> `WarningTokenContrastTests` was written and run **before any palette value
+> changed**. Verbatim failure:
+>
+> ```
+> 21 of 88 reachable cells render warning TEXT below WCAG AA's 4.5:1 floor:
+>   springSprout × cyan/amber/violet — 2.18:1      retroSciFi × ×3 — 2.52:1
+>   pulpNoir × cyan/violet — 2.18:1                winterFrost × ×3 — 2.54:1
+>   stickerBombToybox ×3 — 3.50:1                  comicFunnies ×3 — 3.50:1
+>   paperTape × cyan/amber — 3.85:1                paperTape × violet — 4.37:1
+> 11 of 88 render warning DECORATION below WCAG's 3.0:1 non-text floor.
+> ```
+>
+> **21 and 11 — identical to the figures this entry computed by hand on
+> 2026-08-18.** Two derivations, three days apart, same answer. That is the
+> cross-check that makes the table trustworthy rather than quoted.
+>
+> The suite also carries a **census test that always passes and always
+> prints**, so these numbers are regenerable at any commit without re-deriving
+> the method. A table in a tracker entry with no way to reproduce it is a
+> claim, not a measurement.
+>
+> ### What shipped
+>
+> - **`ThemeAccentVariant.forgeText: Color?`**, per slot, defaulting to
+>   `forge`. Optional rather than required **on purpose**: a required field
+>   would have forced a value into all 21 dark variants and hidden the four
+>   hues that actually changed among twenty-one that did not.
+> - **Seven light themes** carry a `forgeText` clearing 4.5:1. **Only four**
+>   had `forge` nudged; `paperTape`, `stickerBombToybox` and `comicFunnies`
+>   keep their decorative hue exactly as shipped.
+> - **69 text call sites** on `forgeText`; **61 decorative** left on `forge`.
+>
+> ### 🔴 Two migration errors, both invisible to the gate
+>
+> Recorded because the lesson is about what tests cannot see.
+>
+> 1. **Under-migration.** The first pass excluded any site with an `Image(`
+>    within six lines, which swallowed **ten genuine `MonoLabel`/`Text` colour
+>    sites** that merely sit beside an icon — including `HostApprovalCard` and
+>    both `ToolConfirmationCard` labels. Fixed by binding to the **nearest**
+>    preceding construct rather than any within a window.
+> 2. **Over-migration.** The decorative regex matched `.stroke(` but not
+>    `.strokeBorder(`, so two borders were moved to `forgeText`.
+>
+> **Neither could fail a test.** Over-migrating a border still clears every
+> floor; under-migrating text still compiles, and the contrast sweep measures
+> the TOKENS, not which sites use them. **A green sweep proves the values are
+> right and says nothing about whether the right surfaces got them.** Both were
+> caught by reading call sites.
+>
+> **The asymmetry that governed the ~37 indirect sites** (computed colours
+> returned from a `switch`, where the consumer decides): `forgeText` clears
+> 3.0 as well as 4.5, so over-migrating costs a slightly darker decoration
+> while under-migrating leaves warning text at 2.18:1. Erring toward
+> legibility is the only direction whose failure mode is harmless.
+>
+> ### 🟡 An interaction with #320 — named, corrected, and deliberately NOT taken
+>
+> #320 made its voice-indicator badge use `foregroundBright` because `forge`
+> was illegible, and pinned that with a test asserting `forge` fails AA. That
+> test's docstring says it *hopes* to be broken: *"If the design system ever
+> raises `forge` above AA everywhere, this test fails and the indicator can go
+> back to the warning hue."*
+>
+> **#325 did not raise `forge` above AA — it added a second token that clears
+> it.** So the hoped-for outcome has arrived by a route the pin did not
+> anticipate: that badge could now show the warning hue legibly via
+> `forgeText`.
+>
+> Two obligations discharged, one decision left open:
+> - The pin's message said *"min 2.18:1"*, now false — the minimum is ~3.03:1
+>   after the nudge. **Corrected in the same commit (#317).** The assertion
+>   still holds (`forge` is still under AA) so the pin still guards the badge.
+> - **The badge itself was NOT changed.** That is #320's ruled surface, and a
+>   palette lane quietly editing another lane's design decision because it now
+>   *could* is how rulings stop being traceable. **Owen's call.**
+>
+> ### Bars
+>
+> **325-A** ✅ both clauses, all 88 cells. **325-B** ✅ `DesignThemeTests` green
+> with no edits — dark themes resolve `forgeText` to `forge`, and the census
+> shows `deepField` cyan 12.39:1 / amber 7.68:1, matching this entry's
+> pre-existing figures. **325-C** ✅ separability untouched (no `base` changed).
+> **325-D** ✅ demonstrated RED first, above. **325-E** ✅ the token lives in
+> `Shared/ThemePaletteCore.swift`, compiled into both targets; the widget has
+> no `forge` call sites of its own.
+>
+> **Gate:** `GATE: PASS`, Swift Testing **2428** / XCUITest 14 / Release
+> (2425 + 3 contrast tests).
+>
+> **Still owed: DEVICE verification.** The swatches were HTML on a flat
+> background; the app is the real test. Queued for Owen on the four worst
+> themes plus `paperTape` as a did-it-change-too-much control.
+
+
+> **📱 2026-08-26 late evening (Owen's second runbook pass, BUILD 3101 — confirmed in-chat) — the device verification PASSED: "no issues noted"
+> across the light themes.** The one remaining bar. CLOSED; archive move
+> rides the next sweep.
+
+> **✅ CLOSED 2026-08-26 night — Owen's formal close (SWEEP 10, approved on the runbook card / in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.** *(Marker date corrected same night — the sweep script had carried sweep 6's stamp verbatim since sweep 7; the entry bytes above are untouched.)*
+
+## 370. 🧹 The calendar REAP silently UNDER-DELETES — 42 created vs 25 reaped in #343's campaign (−17), possibly on Owen's REAL calendar — **FILED 2026-08-18 night per #268, from #343's own "NEEDS ITS OWN ITEM" (2026-08-15) — verified unfiled until tonight. NOT STARTED; the first bar is a measurement.**
+
+- 370-A (pre-registered): enumerate the residue — which of the 17 exist, on
+  which calendar (the #331 dedicated container vs the real default), before any
+  fix. Owen's glance at mid-August events is the cheap first read.
+- ⚠️ Read #331's entry before trusting any reap arithmetic — that lane's
+  negative test caught shipped code deleting from the real default calendar.
+
+
+> **📱 2026-08-26 late evening (Owen's second runbook pass, BUILD 3101 — confirmed in-chat) — 370-A PASSED: "No events found."** The mid-August
+> calendar residue glance is clean. CLOSED; archive move rides the next
+> sweep.
+
+> **✅ CLOSED 2026-08-26 night — Owen's formal close (SWEEP 10, approved on the runbook card / in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.** *(Marker date corrected same night — the sweep script had carried sweep 6's stamp verbatim since sweep 7; the entry bytes above are untouched.)*
 
