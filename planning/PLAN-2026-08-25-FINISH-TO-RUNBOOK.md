@@ -139,6 +139,49 @@ running and Lane B queues first):**
 Morning deliverables: merged lanes, a fresh staged OTA, the runbook
 republished with the new cards, handoff updated.
 
+## STATE AT THE 08-27 COMPACTION POINT (~00:30 local — the post-compaction contract)
+
+**Board: 68 live entries** (95 at plan-write). Sweeps 7–10 executed on
+Owen's approvals. Both hosts run plugin **0.8.0**; both approval pickers
+live; the app-side modes (#224 P1+2) shipped in **3101**; `talaria://`
+primary + `hermes://` easter egg in **3108** (device-confirmed); CC
+controls renamed to Talaria (PR #392, in no staged build yet).
+
+**IN FLIGHT, two lanes (both self-file their close-outs + merge on
+green — their completion notifications are self-contained):**
+1. **#415 FIX lane** (CC-lane-3, worktree agent branch
+   `worktree-agent-a745a46ee24e0c69a`): mid-flight App-Lock gate
+   re-evaluation (a voice session that becomes COVERED parks — closes
+   #302's blind ordering, the forensics-named mechanism) + the realtime
+   capture instrument. RED witness `AppLockMidFlightCoverTests` seen
+   running.
+2. **#415 SHORTCUTS mini-lane** (CC-lane-2): "Ask Talaria" in the
+   Shortcuts surface; was in its gate at compaction prep.
+
+**POST-COMPACTION STEPS when each lane reports:** review honestly →
+pull → prune worktree/branch (squash blinds `--merged`; delete by name)
+→ after BOTH land: stage ONE build (`ota-stage.sh main`, background,
+tracked) carrying renames+shortcuts+fix → runbook: add the fix lane's
+device card (warm-app CC tap → lock arms → mic goes cold; from its
+result block), mark cards, front-page bump, republish (source:
+scratchpad `talaria-device-runbook.html`, URL in this doc's foot,
+artifact edits via the same file path) → digest to Owen.
+
+**Sweep-11 pool accumulating:** #190, #123, #77 (+ whatever the lanes
+close). **CarPlay rename: DECLINED-FOR-NOW with a trigger** (#74's sim —
+recorded in #415; do not resurrect). **#414** (/v1/models 401s) filed,
+unelected. **#413** (phantom first utterance) filed — AirPods probe on
+the runbook. **OJAMD's gateway was down** at last check (Owen's word);
+`gateway_state.json` names causes. **#373 held** from sweep 8 (one
+bullet). **Instrument device runs + subset**: cards ready, never run.
+
+**Day-2 traps added to the record:** subagent waiters outlive their
+agents (sweep `until grep` after every lane; in briefs: kill your
+waiters); sweep-marker dates must not be inherited from the template
+(fixed for 9/10; write fresh markers); verify BEFORE the move runs, in
+a separate command; name-grep counts are name counts; the survivor
+check self-matches (CLAUDE.md carries the filter).
+
 ## Owen's standing state (do not re-ask)
 
 Stacking ruling (never hold builds/lanes for testing; edit the runbook) ·
