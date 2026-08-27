@@ -1862,6 +1862,11 @@ collapses to a generated one-liner on AI hardware, last raw line otherwise.
   skipped when `utf8.count <= budget` (every token ≥ 1 byte); fallback card computed
   lazily off the happy path.
 
+
+> **📱 2026-08-26 late evening (Owen's second runbook pass, BUILD 3101 — confirmed in-chat) — PASSED: "All good. Titles are generating."** The
+> standalone title/preview device re-verify, four weeks runnable and
+> finally run. CLOSED; archive move rides the next sweep. (280-F scored
+> on the same card — twin note at #280.)
 ## 74. 🔧 Wave 5 — CarPlay voice upgrade: auto-start, observation tracking, routing (GitHub #19)
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
@@ -2196,6 +2201,19 @@ a Developer-screen toggle later? Shipped stance is seed-only.
 
 ---
 
+
+> **📱 2026-08-26 late evening (Owen's second runbook pass, BUILD 3101 — confirmed in-chat) — PASSED with one raised question.** Seed-never-send
+> confirmed ("opens with text in composer"); no other app claims the
+> scheme ("can't confirm otherwise" — the honest limit of what a phone
+> can see, recorded as such). **Owen's question, verbatim: "Shouldn't we
+> use Talaria instead of hermes though?"** Answer on the record:
+> `CFBundleURLTypes` supports MULTIPLE schemes — `talaria://` can be
+> ADDED alongside `hermes://` (nothing breaks, both work; deprecating
+> the old one later is a separate choice). A rename-only would break
+> nothing today either (no external publisher of hermes:// links
+> exists), but add-alongside is the zero-risk shape. **Entry stays OPEN
+> on this naming election alone** — a one-word go makes it a trivial
+> lane (plist + tests + the runbook card re-cut).
 ## 112. ✨ Midnight Marquee collection — 7 themes / 8 palettes, first adaptive theme, +13 app icons (Lane L)
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
@@ -3512,6 +3530,11 @@ Logged 2026-07-20.
 > phone-side glance (the picker should feel lighter on the OJAMD
 > profile), and the ruled option of pruning OTHER idle providers after
 > that eyeball.
+
+> **📱 2026-08-26 late evening (Owen's second runbook pass, BUILD 3101 — confirmed in-chat) — the phone-side prune glance PASSED: "no more nvidia
+> bloat."** The #148 NVIDIA prune sub-item is now fully discharged on
+> both hosts (config edit + wire measurement + Owen's eye). The wider
+> Quicksilver umbrella's other sub-items are untouched by this pass.
 ## 162. 🛠 156a Tasks lane — **SHIPPED, on `main`** (`Talaria/Features/Tasks/`, reachable at `ContentView.swift:246`); **device checklist still owed** — header corrected 2026-08-01
 
 Dispatch `dispatch/FABLE-T27-156A-tasks-cron.md` executed 2026-07-22 on the Mac Mini
@@ -7081,6 +7104,10 @@ landing on a deck page inherits that behaviour as-is.
 
 ---
 
+
+> **📱 2026-08-26 late evening (Owen's second runbook pass, BUILD 3101 — confirmed in-chat) — the device look PASSED: "all searches land and take
+> you where it advertises."** The last open half. CLOSED; archive move
+> rides the next sweep.
 ## 323. 🐛 App Lock gates the SCREEN and nothing else — behind the cover, a full inference turn ran and the sensor pipeline collected GPS + health and tried to upload it — **FILED 2026-08-10 from #302's device run (§V1), which measured the microphone and caught this in the same corpus. MEASURED, not inferred. ~~NOT STARTED~~ → ✅ BUILT 2026-08-20 with #302; bars 323-A…E pre-registered before code and all MET. ~~**PR #329 OPEN**~~ **✅ PR #329 MERGED 2026-08-21 as `2767ca70` (marker corrected 2026-08-23 by the Opus-week audit — it sat stale through the header sweep because the checker's regex could not see this spelling; the regex is widened in the same commit)** (GATE: PASS, 2383/14/Release). DEVICE VERIFICATION rides #302's.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): 323-A…E ALL MET 2026-08-20, mutation-proven.**
 
 **How it was found.** #302's bar 302-B asked one question — is the *microphone*
@@ -7541,6 +7568,10 @@ i.e. springSprout's warning amber has to lose **more than half its luminance** t
 > background; the app is the real test. Queued for Owen on the four worst
 > themes plus `paperTape` as a did-it-change-too-much control.
 
+
+> **📱 2026-08-26 late evening (Owen's second runbook pass, BUILD 3101 — confirmed in-chat) — the device verification PASSED: "no issues noted"
+> across the light themes.** The one remaining bar. CLOSED; archive move
+> rides the next sweep.
 ## 329. 🐛 A COLD LAUNCH classifies a still-running turn as FAILED and offers RETRY — tapping it duplicates the turn, because the host never stopped — **FILED 2026-08-11 from Owen's Group 7 device pass (#312 item (a)). MEASURED TWICE, with a control. ~~NOT STARTED; bars pre-register here before any code.~~** **⟵ HEADER CORRECTED 2026-08-24: premise code-read inverted the mechanism (the plane is gone, only the run id was lost), Owen ruled 329-C RECONCILE-FIRST the same evening, and the fix is ✅ BUILT + GATED that night — 329-A..E MET (result block at the foot); only 329-F (device, rides the NEXT staged OTA) remains.**
 
 **What was run, and it was run twice with the second trial as a control.** Owen
@@ -10180,6 +10211,10 @@ transcript text?) are a product question, not a mechanical one.
 >   previews, incl. a spoken-only session" card). That is ALL that remains
 >   on this entry.
 
+
+> **📱 2026-08-26 late evening (Owen's second runbook pass, BUILD 3101 — confirmed in-chat) — 280-F PASSED on the shared card ("Titles are
+> generating", spoken-only session included per the card's scope).** The
+> last open bar. CLOSED; archive move rides the next sweep.
 ## 279. 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — **✅ FIXED AND MERGED 2026-08-09 as `12ed25b` (branch `claude/t27-279-retry-adoption`, commits `c4411cc` + `13e4049`). Bars 279-A..E MET, `GATE: PASS`. OPEN ONLY for 279-F, the device bar, which is Owen's.** *(Header corrected 2026-08-10 — it still read "FILED … Bars pre-register here before any code" for a full day after the fix merged, and that is what got this lane dispatched a second time. See the RE-DISPATCH note at the end of this entry.)*
 
 `ChatStore.retryMessage` does `messages.removeAll { $0.id == message.id }`
@@ -12759,6 +12794,17 @@ has been submitted.**
 > the "API server model name" field EMPTY, never rename the profile under
 > live sessions) is therefore load-bearing again for exactly that corner.
 
+
+> **📱 2026-08-26 late evening (Owen's second runbook pass, BUILD 3101 — confirmed in-chat) — 241-E half-run, honestly parked:** Owen created a fresh
+> session on the 0.8.0-deployed OJAMD ("new session on the new plugin")
+> but the phone has no surface to READ a stored model id — as designed;
+> the read was always box-side. The orchestrator's same-night read
+> attempt via the hermes-ojamd MCP failed twice (gateway unreachable
+> from the Mac's tailnet position at that moment; the phone reached it
+> fine minutes earlier — a path blip, not a host-down claim). **Recipe
+> stands:** next OJAMD desk minute, `GET /api/sessions` with the box's
+> key; the newest session's `model` must be a real provider id, not the
+> `hermes-agent` alias. Old sessions keep the alias by ruling.
 ## 236. 🔧 MessageIdentityUITests flaked AGAIN — the #195 family's second variant: reply rendered a hair past the 20s wait on a hot sim
 
 **FILED 2026-08-03 (midday) from the #235 lane's first gate run.**
@@ -16653,6 +16699,10 @@ scope: **wholesale, or a permanent dual path?**
 - ⚠️ Read #331's entry before trusting any reap arithmetic — that lane's
   negative test caught shipped code deleting from the real default calendar.
 
+
+> **📱 2026-08-26 late evening (Owen's second runbook pass, BUILD 3101 — confirmed in-chat) — 370-A PASSED: "No events found."** The mid-August
+> calendar residue glance is clean. CLOSED; archive move rides the next
+> sweep.
 ## 371. 🐛 History-restored ✓ chips assert completions the app never witnessed, on runs nobody stopped — **FILED 2026-08-18 night per #268, from #327's explicitly-unfiled residual ("NOT filed here — it needs Owen, and it is entangled with #328 route 1"). ~~NOT STARTED.~~** **⟵ RULED provenance-label 2026-08-24 (decision pass) and ✅ BUILT + GATED the same night (trio lane) — 371-A..F met; only the device look remains (runbook).**
 
 > **2026-08-19 — the surface this rides is now the DEFAULT** (#368 merged as

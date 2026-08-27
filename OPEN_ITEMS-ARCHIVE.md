@@ -27156,6 +27156,12 @@ effect per-process, and this box runs three processes that read it.**
 > Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
 
 
+
+> **⟵ APPEND-ONLY POINTER (2026-08-26 late evening (Owen's second runbook pass, BUILD 3101 — confirmed in-chat), per #317(a)):** the tail is
+> DISCHARGED — Owen relaunched the desktop apps and confirms "no more
+> hermes mobile mcp processes on mac or ojamd." The last legacy child
+> is gone on both boxes; the verify-per-process caveat has nothing left
+> to bite.
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
 **The evidence that makes this real:** production's one-Bool router routes "What can you do?" TOOLLESS (device check 2026-08-08, build 2225, fresh chat: reply named ZERO capability families — it is the toolless-lic2 self-description; IN=500 tokens = a beltless turn). The #284 registry-generated armed enumeration is unreachable on this question. Note the probe nuance recorded in #284's correction: the VECTOR schema routes capability-meta armed-all-groups, but the vector never shipped — production's router is the operative one.
@@ -34903,6 +34909,10 @@ which is the honest scope for a one-line gate change.
 
 > **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
 
+
+> **⟵ APPEND-ONLY POINTER (2026-08-26 late evening (Owen's second runbook pass, BUILD 3101 — confirmed in-chat), per #317(a)):** 365-C PASSED on
+> device — profile switch both directions, "greeted with banner on
+> both." The archived fix's closing device bar is met.
 ## 367. 🐛 Duplicate file chips on reopen — the turn-split refetch gives #364's reconstruction and the #277 sidecar replay each their OWN row to decorate, so one write renders two chips — **FILED 2026-08-18 ~19:30 from Owen's OJAMD reopen (screenshot: two `Ojamd-fix.md, MD · 81 bytes` chips, one on the tool-call row, one above the prose tail). App-side; first reproducible tonight because a LIVE mirror attach + reopen never coexisted before 0.5.0. The Mac presumably reproduces on any live-attached thread's reopen. **BUILT + MERGED 2026-08-18 as `8f6f9c42` (PR #321), gate PASS; the header carried no merge state at all until this 2026-08-19 correction. OWED: the shared `Ojamd-fix.md` reopen check with #349, on Friday's device minutes.** **⟵ ✅ THE OWED CHECK PASSED 2026-08-24 evening — CLOSED.**
 
 > **2026-08-24 evening — the shared reopen check RAN AND PASSED (Owen, on
@@ -37654,6 +37664,10 @@ this toggle does not answer), **#180** (the notice-honesty family).
 
 > **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
 
+
+> **⟵ APPEND-ONLY POINTER (2026-08-26 late evening (Owen's second runbook pass, BUILD 3101 — confirmed in-chat), per #317(a)):** the runbook's tile
+> card PASSED on device ("No issues noted") — the archived close's
+> device glance is confirmed after the fact.
 ## 397. 🐛 THE REALTIME→NATIVE FALLBACK NEVER ENDS THE REALTIME SESSION — a timed-out start can leave BOTH engines live — **FOUND 2026-08-22 while chasing #138, PROVEN FROM SOURCE, and NOT the cause of #138 (the log refutes that). Filed on its own merits per #268. NOT STARTED; bars pre-registered below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): BUILT + MERGED ~~2026-08-23~~ **2026-08-22** (PR #349; date re-corrected by the Opus-week audit — the sweep took GitHub's UTC day, git dates the squash 2026-08-22 20:50 -0500 and the entry's own result block says 08-22), mutation-verified.** **⟵ 2026-08-23 decision pass: that covers the FALLBACK path only — the #139 abandonment-branch sibling is now ELECTED (generation-scoped end, Owen's ruling; dated block at the foot of the entry).** **⟵ ✅ SIBLING BUILT + MERGED the same night (PR #355, squash `be32b2dc`) — 397-D/E/F all met, mutation-proven; result block at the foot. NOTHING remains owed on this entry.**
 
 **The site.** `VoiceEngineRouter.startSession()` (`:318-329`):
@@ -43093,6 +43107,13 @@ argument for making the relay more robust.
 
 > **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
 
+
+> **⟵ APPEND-ONLY POINTER (2026-08-26 late evening (Owen's second runbook pass, BUILD 3101 — confirmed in-chat), per #317(a)):** Lane B's four design
+> micro-calls (forge-not-red failures · the "—" unconcluded rung · the
+> three disconnect blurbs · the Keychain-honest footnote) were put to
+> Owen on the runbook and **ALL FOUR ACCEPTED as shipped: "1-4 are ok
+> with me."** The shipped defaults are now ruled state, not lane
+> judgment calls.
 ## 336. 🐛 THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — 3/120 armed trials claim an action with no recorded tool call; separately, 12 artifacts were reaped against 10 recorded calls — **MEASURED 2026-08-12 on `whoGoesThere` (#225's attended spiral run). TWO discrepancies pointing OPPOSITE ways; mechanism NOT elected. ⟵ 2026-08-25 (Opus forensics on the preserved bytes): BOTH discrepancies RESOLVED — the reap surplus is a closed-recorder window with the two orphans NAMED (determination, not a fit), and the 3 claims have a named, REPLICATED trigger. New finding spawned as #409. Dated block below. ⟵ ✅ 336-C BUILT 2026-08-26 (hygiene trio) — the recorder-integrity pin drives the real production call site, PASSED at HEAD (the recorder does not drop admitted calls) and is RED-witnessed against deleting that call site. **This entry's BUILD work is DISCHARGED.** What remains is not build work: Owen's 08-12 production hand-run fabrication has a trigger that is still unnamed, and the refusal-string trigger lives at #409.
 
 > **✅ CLOSED 2026-08-26 (sweep-8): nothing actionable remains here.** The
