@@ -145,7 +145,32 @@ running and Lane B queues first):**
 Morning deliverables: merged lanes, a fresh staged OTA, the runbook
 republished with the new cards, handoff updated.
 
-## STATE AT THE 08-27 COMPACTION POINT (~00:30 local — the post-compaction contract)
+## STATE AT THE 08-27 AFTERNOON COMPACTION (14:4x — supersedes the 00:30 block below)
+
+**Board: 66 live · 0 open PRs · main `08120139` · build 3120 staged ·
+suite 2752 + 15 · 1 worktree (main only) · 2 pool sims · no stray
+processes.** Everything the 00:30 block listed as in-flight MERGED
+(#415 fix `8ccc602b`, naming sweep `60a874dd`, shortcuts `da4017b0`,
+controls `39e5bb25`); sweeps 9–11 ran; the day's full record is handoff
+**§23**.
+
+**NOTHING IS RUNNING.** No lanes, no gates, no waiters, no monitors.
+The next action is Owen's — device cards, or a new election.
+
+**If he pastes runbook results:** file each verdict into its entry
+(dated, build-quoted), mark the runbook cards, offer the sweep pool.
+**If he elects work:** bars at lane-open, worktree, RED-first, gate,
+merge-on-green — and TIME-BOX any diagnosis lane (the trap below).
+
+**Live watches/parked:** #219 (XFLAKE tripwire armed — the next natural
+red self-documents; do NOT start another reproduction hunt), #413,
+#414, #373's bullet, #224 Phase 3 (deferred by ruling), CarPlay rename
+(deferred-with-trigger on #74). **OJAMD's gateway was down** at last
+report.
+
+---
+
+## STATE AT THE 08-27 00:30 COMPACTION (historical — superseded above)
 
 **Board: 68 live entries** (95 at plan-write). Sweeps 7–10 executed on
 Owen's approvals. Both hosts run plugin **0.8.0**; both approval pickers
