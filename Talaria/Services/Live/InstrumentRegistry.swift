@@ -914,6 +914,25 @@ enum InstrumentRegistry {
                            guard let backend else { return }
                            await backend.runOfferReadBattery(trials: trials)
                        }),
+        // #211A-E1..E3 (2026-08-27) — the TOOLLESS probe, registered as its own
+        // instrument rather than as a cell of `offer-read`.
+        //
+        // Two reasons, both learned the same evening. (1) `offer-read`'s run
+        // closure DISCARDS its cells argument, so `--cells toolless` would have
+        // been silently ignored and the operator would have got a default
+        // three-arm run reported under the probe's name — the #341 shape
+        // exactly, a selection that falls back while appearing to select.
+        // (2) A separate name keeps the default run's meaning frozen: every
+        // prior `offer-read` artifact stays comparable.
+        //
+        // It answers whether D1's >=50% is reachable by ANY arm. Its rate is a
+        // measurement, not a bar — see the entry.
+        InstrumentSpec(name: "offer-read-toolless", confirmationMode: .autoDecline,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runOfferReadBattery(trials: trials, arms: [.toolless])
+                       }),
         // #388 beta5 surface sweep: bars 388-A (capabilities, BOTH tiers),
         // 388-B (quota, plus the log needle it must be correlated against)
         // and 388-D's device-answerable half (does each of three

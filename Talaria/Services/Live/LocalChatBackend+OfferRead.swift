@@ -58,11 +58,25 @@ extension LocalChatBackend {
         /// hypothesis — so the honest placement is adjacent to its control,
         /// not maximally far from it.
         case toolRollback = "tool-rollback"
-        /// **The CEILING, and the detector's positive control.** Every read
-        /// tool is removed from the belt; the action tools and the production
-        /// instructions stay. The model now cannot answer a read question by
-        /// calling anything, so offering (or an honest denial) is all that is
-        /// left.
+        /// **The intended CEILING and positive control — but its founding
+        /// assumption is FALSIFIED (2026-08-27, #211A's two device runs).**
+        /// Every tool in `offerReadToolNames` is removed; the action tools and
+        /// the production instructions stay.
+        ///
+        /// ⚠️ This comment used to read *"The model now cannot answer a read
+        /// question by calling anything, so offering (or an honest denial) is
+        /// all that is left."* **It can.** Three tools are removed and the model
+        /// keeps a dozen, so it SUBSTITUTES: measured over two runs (n=20 per
+        /// prompt), `healthbare` answered with `readCalendar` — the user's
+        /// schedule, in place of their health — and `weatherbare` with
+        /// `currentLocation` + `searchPlaces("weather Saucier, MS")`. Both
+        /// offered on **0 of 20**. The two prompts with no substitute,
+        /// `motiondirect` and `stepsdirect`, offered 10/20 and 4/20.
+        ///
+        /// So this arm bounds nothing: D1's ≥50% assumes a ceiling that cannot
+        /// act, and this one acts in 25 of 40 trials. Restricting scoring to the
+        /// substitution-free prompts reaches only 35%. See `.toolless`, which
+        /// exists to answer whether ≥50% is achievable at all.
         ///
         /// It is **not a promotion candidate and never could be** — dropping
         /// useful tools globally is a product regression, the #200U
@@ -74,6 +88,21 @@ extension LocalChatBackend {
         /// drift can only push it in its already-expected direction, which is
         /// the cheapest place in the run to spend a confound.
         case noReadBelt = "no-read-belt"
+        /// **The TOOLLESS probe (#211A-E1..E3, 2026-08-27).** Zero tools on the
+        /// belt — not "the read ones removed", *all* of them. Substitution is
+        /// the mechanism that made `.noReadBelt` fail as a ceiling, and this is
+        /// the only arm in which substitution is impossible by construction.
+        ///
+        /// It answers ONE design question: is D1's ≥50% reachable by any arm on
+        /// this runtime, or was the threshold never grounded? Its own rate is
+        /// **not a pass/fail bar** — picking a threshold after seeing 17.5% and
+        /// 35.0% would be exactly the post-hoc redefinition #215 bans.
+        ///
+        /// **Never a promotion candidate**, for `.noReadBelt`'s reason and more
+        /// so: shipping an agent with no tools is not a product. The `cant` rate
+        /// is reported beside the offer rate because the discriminating outcome
+        /// (211A-E3) is the model DENYING rather than offering.
+        case toolless = "toolless"
     }
 
     /// The READ tools these prompts could be answered with. Named as data
@@ -82,6 +111,18 @@ extension LocalChatBackend {
     /// a hand-written `filter` in each is how they would.
     nonisolated static let offerReadToolNames: Set<String> = [
         "readHealth", "readMotion", "currentWeather",
+    ]
+
+    /// The three arms a DEFAULT `offer-read` run has always meant.
+    ///
+    /// Stated explicitly rather than left as `allCases` (#211A-E, 2026-08-27):
+    /// `.toolless` was added to the enum as a diagnostic, and `allCases` would
+    /// have silently turned every default run into four arms — changing what
+    /// every previous `offer-read` artifact is comparable to, without one line
+    /// of the diff saying so. A default that shifts when someone appends an
+    /// enum case is not a default.
+    nonisolated static let offerReadDefaultArms: [OfferReadArm] = [
+        .control, .toolRollback, .noReadBelt,
     ]
 
     /// The prompt rows, **selected from the pinned sets by tag rather than
@@ -142,6 +183,12 @@ extension LocalChatBackend {
             }
         case .noReadBelt:
             belt = tools.filter { !offerReadToolNames.contains($0.name) }
+        case .toolless:
+            // #211A-E1: EVERY tool, not a named subset. `.noReadBelt` filters by
+            // `offerReadToolNames` and that is exactly why it failed as a
+            // ceiling — the model reached for whatever was left. An empty belt
+            // is the only construction substitution cannot defeat.
+            belt = []
         }
         return (belt, swapped, belt.filter { offerReadToolNames.contains($0.name) }.count)
     }
@@ -266,7 +313,7 @@ extension LocalChatBackend {
     /// **The router runs per trial**, so the control's rate carries #215's
     /// warrant rather than its caveat — 337-C's lesson, applied at build time
     /// instead of as a follow-on bar.
-    func runOfferReadBattery(trials: Int, arms: [OfferReadArm] = OfferReadArm.allCases,
+    func runOfferReadBattery(trials: Int, arms: [OfferReadArm] = LocalChatBackend.offerReadDefaultArms,
                              warmup: Bool = LocalChatBackend.batteryWarmupDefault) async {
         guard await Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
@@ -307,7 +354,8 @@ extension LocalChatBackend {
                 probe: "211A manipulation check \(arm.rawValue)",
                 expected: true,
                 correct: Self.offerReadManipulationApplied(
-                    arm: arm, swapped: swapped, readToolsPresent: readToolsPresent) ? 1 : 0,
+                    arm: arm, swapped: swapped, readToolsPresent: readToolsPresent,
+                    beltCount: belt.count) ? 1 : 0,
                 trials: 1, variant: arm.rawValue, band: "manipulation", errors: 0,
                 metrics: [
                     "descriptionsSwapped": Double(swapped),
@@ -326,7 +374,8 @@ extension LocalChatBackend {
                         switch arm {
                         case .control: return "none (control)"
                         case .toolRollback: return "1 description swap (MotionTool), instructions untouched"
-                        case .noReadBelt: return "every read tool removed, instructions untouched"
+                        case .noReadBelt: return "the 3 offerReadToolNames removed (NOT every read tool — #211A), instructions untouched"
+                        case .toolless: return "every tool removed (belt empty), instructions untouched"
                         }
                     }(),
                     "noProseArm": "#211A tests tool choice FIRST per the entry — no arm here changes an instruction",
@@ -437,11 +486,16 @@ extension LocalChatBackend {
     /// for three arms for five days.
     nonisolated static func offerReadManipulationApplied(arm: OfferReadArm,
                                                          swapped: Int,
-                                                         readToolsPresent: Int) -> Bool {
+                                                         readToolsPresent: Int,
+                                                         beltCount: Int) -> Bool {
         switch arm {
         case .control: return true
         case .toolRollback: return swapped > 0
         case .noReadBelt: return readToolsPresent == 0
+        // #211A-E1: `readToolsPresent == 0` is ALSO true of `.noReadBelt`, so it
+        // cannot witness this arm — an empty belt is the claim, and only
+        // beltCount can state it.
+        case .toolless: return beltCount == 0
         }
     }
 
