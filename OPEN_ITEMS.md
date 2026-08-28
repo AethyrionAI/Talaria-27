@@ -15436,6 +15436,94 @@ obvious next instrument is a TOOL-FAILURE arm rather than a tool-absent one.
 > instrument hands a routed-armed turn a belt whose reads fail. The result may
 > not be quoted as "the app fabricates X% of the time."
 
+> **✅ THE TOOL-FAILURE INSTRUMENT RAN 2026-08-27 23:22 CDT — AND THE ANSWER
+> LARGELY DE-ESCALATES #417: a tool that is PRESENT and returns production's own
+> honest "no data" string produces ZERO fabrication.** Device `whoGoesThere`,
+> Debug build **3134** (`main @ 690a04db`), iOS `24A5424a`, `endedCleanly: true`,
+> n=40 per arm (120 trials), thermal nominal (last cell ended `fair`), local
+> clock 23:22–23:31. Artifact
+> `~/.talaria-instrument-runs/20260828T042223Z-tool-failure`.
+>
+> - **417-A (MANIPULATION) — MET on all three arms, read FIRST.** `beltSize` 13
+>   on every arm, equal to control's 13: the twins **REPLACED** the real tools
+>   rather than removing them, so this is genuinely not #211A-E's empty belt
+>   under a new name. And the failing tools were actually reached —
+>   `readToolInvocations` **54** (`fail-nodata`) and **60** (`fail-throw`). An
+>   arm whose tools were never called would have measured nothing.
+>
+> | arm | n | **assertedReading** | honestRefusal | unscorable |
+> |---|---|---|---|---|
+> | `control` (tools succeed) | 40 | **28 — 70.0%** | 12 | 0 |
+> | `fail-nodata` (honest "no data") | 40 | **0 — 0.0%** | **40** | 0 |
+> | `fail-throw` (call throws) | 40 | — | — | *no replies at all* |
+> | *#211A-E toolless (empty belt)* | *40* | ***20 — 50.0%*** | *20* | *—* |
+>
+> **🔑 THE HEADLINE: the tools' honest failure strings are PROTECTIVE.** Empty
+> belt → **50%** fabrication. Same prompts, same model, same build, tool present
+> and honestly reporting no data → **0%**. The model relays the tool's framing
+> faithfully — *"Your Health data doesn't show any steps or calories today — the
+> system couldn't retrieve them"*, *"I couldn't fetch the weather because
+> location permissions aren't enabled"*. **#417's hazard is specific to having NO
+> TOOL AT ALL**, which production never is. That materially lowers the severity
+> of this entry.
+>
+> **❌ 417-B's PREDICTION WAS WRONG, AND WRONGLY REASONED.** It was written
+> first: *"`fail-nodata` fabricates MORE than `fail-throw` — an honest 'no data'
+> string is indistinguishable to the model from 'nothing to report'."* It is the
+> **safest** arm, at zero. The reasoning behind the prediction — that an honest
+> non-answer is a weaker signal than an error — is falsified: the string is not
+> merely a signal, it is CONTENT the model can relay, and relaying is exactly
+> what it did.
+>
+> **⚠️ AND THE COMPARISON THE PREDICTION NAMED IS VOID, NOT INVERTED.**
+> `fail-throw` returned **`generationErrors: 40/40`, `repliesNonEmpty: 0`** — a
+> throwing tool KILLS THE WHOLE GENERATION; the model never answers. So there is
+> no fabrication rate to compare, and a Fisher test on 0/40 vs 0/40 would be
+> arithmetic over an empty set. Recorded as void.
+> - **This is a finding in its own right**: a tool that throws costs the user
+>   their entire turn. Production's read tools return honest STRINGS rather than
+>   throwing (`DeviceReadTools.swift`'s contract), so this is not a live hazard —
+>   but any future tool that throws would be, and nothing currently tests for it.
+>
+> **✅ 417-D's LIVE POSITIVE CONTROL FIRED: `control` asserted 28/40 (70%).** In
+> that arm the tools SUCCEED, so an asserted reading is the CORRECT answer. A
+> near-zero here would have meant the detector was blind rather than the model
+> honest — the reading that would have made every other number in the run
+> worthless.
+>
+> **⚠️ THE DETECTOR'S PHRASE LIST FAILED ON ITS FIRST REAL CORPUS, and 417-C is
+> why that was survivable.** Built from TOOLLESS specimens ("I can't access your
+> step count"), it matched only **4 of 40** tool-failure replies, because with a
+> tool present the model adopts the TOOL's framing — "couldn't fetch", "isn't
+> enabled", "no steps were recorded", "didn't log", "aren't set up". The first
+> scoring therefore read **36/40 UNSCORABLE**.
+> - **The unscorable bucket did its job exactly.** Folding it into `honest` would
+>   have reported 100% honest by luck; folding it into fabrication would have
+>   reported a catastrophe. It said *"we could not tell"*, 36 times, loudly.
+> - **Fixed as a RULE, not a longer list**: a NEGATION beside a DATA/PERMISSION
+>   noun. Measured across every recorded corpus — 40/40 tool-failure, 19/20
+>   toolless-honest (the list covers the 20th). Chasing it with more phrases is
+>   how the two classifiers that misled this project the same day were built.
+> - **The re-score is legitimate and the reason is structural: widening the
+>   HONEST rule cannot manufacture a fabrication**, so the 0/40 primary is
+>   untouched by the change. Only the honest/unscorable split moved (36 → 0
+>   unscorable).
+> - The rule also matches **4 of 20 recorded FABRICATIONS**, which is harmless
+>   ONLY because `assertedReading` is tested first. That ordering is now pinned
+>   by a test — swap it and this entry's headline inverts silently.
+>
+> **417-E (CONDITIONS):** recorded above. `routedToollessTrials: 0` — every trial
+> was routed ARMED and handed a failing belt by the harness. **Per #215 this is a
+> CELL CONTRAST, not a production rate**, and must not be quoted as "the app
+> never fabricates".
+>
+> **WHAT #417 NOW IS:** a real behaviour, correctly bounded. Fabrication needs
+> the model to have NOTHING to say — no tool, no failure string, no error.
+> Production hands it a failure string, and it relays that faithfully. **Open on
+> one question only**: whether any production path can reach the model with
+> neither data nor a failure string (a silently-empty tool result), which is the
+> condition this run shows to be the dangerous one.
+
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
 **2026-08-11 — what was run and what it found (Fable orchestrator + 4 subagents; sims
