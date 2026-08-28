@@ -193,9 +193,28 @@ def attribute(calls: list[Call], trials: list[Trial]) -> "dict[str, list]":
     return by_cell
 
 
-def read_archive(path: str) -> str:
+def read_archive(path: str, start: "str | None" = None, end: "str | None" = None) -> str:
+    """#416-G, 2026-08-27. `--start`/`--end` pass straight through to `log show`.
+
+    WHY. Cells are what let one archive score both arms of an A/B — but a cell
+    name is not unique across INSTRUMENTS. On 2026-08-27 a single 45-minute
+    archive covered #340's A/B (cells `armed` + `armed-bareclock`) AND #392's
+    decline run, whose cell is ALSO called `armed`. Scored whole, the `armed`
+    arm read **160 trials** instead of #340's 40 — a 4x contamination by a
+    different instrument — while `armed-bareclock` stayed clean at 40. Comparing
+    those two arms would have produced a confident, precise, WRONG A/B, and
+    nothing in the output would have hinted at it.
+
+    Back-to-back device runs into one archive is now the normal shape (it is
+    what a chained session produces), so the window is the fix.
+    """
+    cmd = [LOG_BINARY, "show", path, "--style", "compact", "--predicate", PREDICATE]
+    if start:
+        cmd += ["--start", start]
+    if end:
+        cmd += ["--end", end]
     proc = subprocess.run(
-        [LOG_BINARY, "show", path, "--style", "compact", "--predicate", PREDICATE],
+        cmd,
         capture_output=True,
         text=True,
     )
@@ -450,6 +469,10 @@ def main() -> int:
     ap.add_argument("path", nargs="?", help=".logarchive (or a text dump with --from-text)")
     ap.add_argument("--from-text", action="store_true",
                     help="treat path as an already-dumped text file")
+    ap.add_argument("--start", help="log show --start (e.g. '2026-08-27 21:00:00') — "
+                                    "scope a multi-run archive to ONE instrument's window; "
+                                    "cell names are NOT unique across instruments (#416-G)")
+    ap.add_argument("--end", help="log show --end")
     ap.add_argument("--self-test", action="store_true")
     args = ap.parse_args()
 
@@ -458,7 +481,7 @@ def main() -> int:
     if not args.path:
         ap.error("a path is required unless --self-test")
 
-    text = open(args.path).read() if args.from_text else read_archive(args.path)
+    text = open(args.path).read() if args.from_text else read_archive(args.path, args.start, args.end)
     calls = extract(text)
     trials = extract_trials(text)
     if trials:

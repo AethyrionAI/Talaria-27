@@ -890,6 +890,55 @@ this), **#180** (honest degradation), **#340** (a confident sentence about a
 non-existent artifact), **#343** (the governor fix that made the denominator
 real), **#372(c)** (tonight's lesson on base rates and power).
 
+> **✅ REPRODUCED / ⚠️ UNDERPOWERED — the device run happened 2026-08-27 evening
+> (21:04–21:12 CDT).** Device `whoGoesThere`, Debug build **3125**, iOS
+> **`Version 27.0 (Build 24A5424a)`**, `endedCleanly: true`, 120 trials
+> (30 per prompt × 4), `thermal: serious` start and end. Artifact
+> `~/.talaria-instrument-runs/20260828T020435Z-decline`; scored with
+> `scripts/mac/score-decline-attribution.py` (reads the run record — no
+> logarchive needed).
+>
+> | surface | trials | scorable | **tool** | user | unnamed | rate |
+> |---|---|---|---|---|---|---|
+> | **calendar** | 30 | **18** | **2** | 14 | 2 | **11.1%** |
+> | alarm | 30 | 21 | 0 | 21 | 0 | 0.0% |
+> | remind | 30 | 20 | 0 | 20 | 0 | 0.0% |
+> | haiku | 30 | 1 | 0 | 1 | 0 | 0.0% |
+>
+> **✅ THE REPRODUCTION BAR IS MET, on both of its halves.** ≥1 misattribution
+> among the calendar declines (**2**), and **remind/alarm stayed exactly 0** —
+> the calendar-only contrast, which IS the finding, holds on beta 7. The defect
+> is real and is not an artifact of the original 2/10 observation.
+>
+> **⚠️ THE POWER BAR IS NOT MET, and this is recorded as a MISS rather than
+> rounded away.** The card asked for **30 calendar declines**. Thirty calendar
+> *trials* produced only **18 scorable** ones, and the scorer still emits its own
+> `392-A needs n >= 30 CALENDAR declines per arm` warning on this very run. So
+> the clause *"a future treatment has its denominator"* is **NOT yet true**.
+> - **The conversion rate is the number to plan with: 18 scorable / 30 trials =
+>   60%.** Reaching 30 scorable calendar declines needs **~50 trials**, so a
+>   future run should pass `--trials 50` at minimum.
+> - This is exactly #372(c)'s lesson arriving on schedule — thin scorable n is
+>   the failure mode this instrument was built to stop being surprised by.
+>
+> **Consistency note, kept separate ON PURPOSE:** the same evening's pre-OTA
+> subset ran `decline --trials 10` and scored calendar **1/4 scorable
+> misattributed**, alarm 0/3, remind 0/8 — same direction, same surface. The two
+> runs are **NOT pooled** into a combined rate: different trial counts, different
+> thermal states (`fair` vs `serious`), and pooling to manufacture power is the
+> move that would make the underpowered verdict above disappear without any new
+> data.
+>
+> **Also not pooled:** #372's device run reports `declineAttributedToTool` of
+> 2/54 (control) and 3/59 (`.required`) on the SAME evening. That is the
+> card-clause surface, not this one — a different instrument with a different
+> denominator. Recorded here only so a future reader does not discover it and
+> assume it corroborates.
+>
+> **OWED:** a `--trials 50` re-run to earn the treatment denominator. No
+> treatment exists by Owen's ruling, so there is no urgency — but the next run of
+> this instrument should be the bigger one, not another 30.
+
 ## 45. 🔧 CarPlay voice mode — scaffold on main, gated on Apple's voice-conversational entitlement
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
@@ -7875,6 +7924,56 @@ is NOT), **#215** (why a rate needs its denominator), `DeviceActionTools.swift:2
 > though it were an arm ("cell warmup — 1 TRIALS"). It is discarded by the
 > battery and must be excluded from, or explicitly labelled in, the per-cell
 > view. Filed to #373's residuals.
+
+> **✅ 340-H5′-A/B PASS — BOTH BARS MET, BOTH GUARDS HELD. Ran 2026-08-27
+> 21:00:12–21:04:35 CDT.** Device `whoGoesThere`, Debug build **3125**, iOS
+> **`Version 27.0 (Build 24A5424a)`**, `endedCleanly: true`, **n = 40 per arm**
+> (80 trials, 0 cut, 0 timeouts). **Clock regime: ALREADY-PAST** (H5′-D — the run
+> started at 21:00 local, well after 16:30). `thermal: serious` start and end on
+> both cells; both arms share it, so the within-run contrast is protected.
+> Artifact `~/.talaria-instrument-runs/20260828T020012Z-due-date`; logarchive
+> `~/Desktop/whoGoesThere-batteries2.logarchive` (preserved, per this entry's own
+> instruction that H5's correction exists because an archive was NOT kept).
+>
+> **Manipulation row read FIRST:** `armed` → `ReminderCreateTool`,
+> `armed-bareclock` → `ReminderCreateToolBareclock`, 1/1 each. The arms are
+> genuinely different tools.
+>
+> | bucket (denominator = TRIALS) | armed | armed-bareclock | verdict |
+> |---|---|---|---|
+> | **UNION omitted+wrong-value** *(the scorer's own named primary)* | 35/40 **87.5%** | 19/40 **47.5%** | **FELL, p = 2.54e-04** ✅ |
+> | **populated-future** *(the correct bucket)* | 0/40 **0.0%** | 18/40 **45.0%** | **ROSE, p = 6.38e-07** ✅ |
+> | wrong-value **(GUARD)** | 0/40 | 0/40 | **did NOT rise** ✅ |
+> | no-call **(GUARD)** | 5/40 12.5% | 3/40 7.5% | **did NOT rise** ✅ |
+> | already-past | 0/40 | 0/40 | clean in both |
+> | **route (a) — app-resolved a bare clock** | **0/40** | **18/40** | **THE MECHANISM FIRES** |
+>
+> Two-sided Fisher exact on both primaries. **Per this card's own wording —
+> *"Then (and only then) the guide text promotes"* — the promotion condition is
+> SATISFIED.**
+>
+> **Why this is the night's strongest result:** the same evening's #339 baseline
+> measured shipping code omitting `due` on **28/28 calls (100%)** with route (a)
+> firing **0/60**. The bareclock arm populates a correct FUTURE due **45%** of
+> the time with **zero** wrong values and **zero** already-past values — in the
+> ALREADY-PAST regime, where a lazy fix would have been caught buying its wins
+> with stale dates. It does not, and `no-call` FELL rather than rose, so the
+> improvement was not traded for a stall (340-H5′-B's guard, and 372-HD2's).
+>
+> **🔴 THE SCORE ALMOST CAME OUT WRONG, AND THE FIX IS #416-G.** The evening's
+> archive spans the whole chained session, and **a cell name is not unique across
+> INSTRUMENTS**: #392's decline run also uses a cell called `armed`. Scored
+> whole, this A/B read:
+> - `cell armed — **160 TRIALS**` (#340's 40 pooled with #392's 120), against
+> - `cell armed-bareclock — 40 TRIALS` (clean, because only #340 ran it).
+>
+> A 4× contaminated arm compared against a clean one — **a confident, precise,
+> WRONG A/B, with nothing in the output hinting at it.** `score-due-omission.py`
+> gained `--start`/`--end` passthrough in the same commit; the numbers above are
+> scoped to `21:00:00–21:04:40`, and **the check that the window is right is that
+> both arms return exactly 40, matching the artifact's `trialsPerCell`.**
+> Back-to-back runs into one archive is the normal shape of a chained session, so
+> this trap was going to fire on somebody eventually.
 
 ## 339. 🧪 THE INSTRUMENT SUITE AS A REGRESSION GATE — run the batteries as a routine pass, not only as one-off investigations — **FILED 2026-08-12 on Owen's routing tonight: *"We may want to run through them as regression testing."* NO LANE YET; this is the filing, per #268 (a named idea gets a number the day it is made).**
 
@@ -14945,6 +15044,54 @@ generalises past this script.
 > **Owed, filed rather than fixed here:** the runbook's §05 precondition list
 > must name **"a DEBUG build"** alongside its build-number floors. Until then the
 > guard is what stops the next operator losing an evening.
+
+> **✅ 416-F's RED-FIRST DEBT IS PAID — isolating mutations run 2026-08-27 after
+> the device chain went idle.** The guard was written code-first; this is the
+> recovery, and each mutation kills ONLY its own bar:
+>
+> | mutation | 416-F1 | 416-F2 |
+> |---|---|---|
+> | **M1** — `SECONDS >= FIRST_OUTPUT_GRACE` → `>= 999999` (guard can never fire) | **RED ×3** — got **rc=2**, i.e. burned the full 600 s | green |
+> | **M2** — drop the `! grep -q "battery:"` evidence test | green | **RED ×2** — false positive on a producing run |
+>
+> M1's `rc=2 instead of rc=4` **is** the pre-#416-F behaviour reproduced on
+> demand: the run burns its whole timeout instead of aborting in ~1 s. Restore
+> verified **byte-identical** to the backup; `run-instrument-test.sh` PASS after.
+> **The mutation was DEFERRED, not skipped** — the device chain spawns a fresh
+> `run-instrument.sh` per member, so mutating it mid-run would have corrupted
+> live batteries. *A harness under test is a harness in use.*
+>
+> **⟵ 416-G ADDED THE SAME NIGHT — `score-due-omission.py` gained `--start` /
+> `--end`, because A CELL NAME IS NOT UNIQUE ACROSS INSTRUMENTS.** Found while
+> scoring #340-H5′ from a 45-minute archive covering the whole chained session:
+> - `cell armed` scored **160 TRIALS** — #340's 40 arm pooled with **#392's 120**,
+>   whose decline instrument also names its cell `armed`;
+> - `cell armed-bareclock` scored a clean **40**, because only #340 ran it.
+>
+> **A 4× contaminated arm compared against a clean one — a confident, precise,
+> WRONG A/B, and nothing in the output hinted at it.** The scorer's own docstring
+> says cells are "what lets one archive score both arms of an A/B"; it had no way
+> to exclude a DIFFERENT instrument's identically-named cell. Back-to-back runs
+> into one archive is the NORMAL shape of a chained session, so this was going to
+> fire on somebody.
+> - **The window's correctness check is not the flag, it is the count:** both
+>   arms must return exactly the artifact's `trialsPerCell` (40 and 40 here).
+>   Scoping without that check just moves the guess.
+> - Scorer `--self-test` PASS after the change.
+>
+> **🔢 THE EVENING'S TALLY OF ONE FAMILY — a green signal covering something it
+> could not see, FIVE times in one session:**
+> 1. `preota-subset.sh` exited **0** on `ok=0 failed=5`.
+> 2. A one-line `FAILED` hid a precondition abort that never touched the phone.
+> 3. `preota-subset-test.sh` died mid-run printing seven PASSes and **no verdict**.
+> 4. **#211A's glued header** made the entry invisible to every `^## ` tool — never
+>    counted, silently skipped by every invariant.
+> 5. `score-due-omission.py` pooling two instruments' identically-named cells into
+>    one arm.
+>
+> Each was caught only by checking a denominator or an exit code against
+> something independent. That is the generalisable lesson, and it is worth more
+> than any single fix here.
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
