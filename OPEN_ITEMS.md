@@ -13091,6 +13091,39 @@ test that directly before assuming it needs its own words.
 > UNSCORED and unquotable — D1 gates them, and D1 is now known to be ungrounded
 > rather than merely unmet, which is a reason to re-derive it, not to ignore it.
 
+> **⚖️ RULED 2026-08-27 — OWEN RESTATED THE QUESTION ("restate the question and
+> build the tool-failure instrument").**
+>
+> **#211A's founding question was "does it OFFER instead of ACTING?" — and that
+> question presumes offering and acting are the alternatives. They are not.**
+> Measured with nothing to act with (#211A-E, n=40): **50% fabricate, 50% honest
+> refusal, 20% offer** (offers overlap both halves). Offering is the RARE
+> behaviour, not the failure mode.
+>
+> **THE RESTATED QUESTION, and it is now #417's:** on a read path, when the app
+> cannot supply the data, does the model **refuse honestly or FABRICATE**?
+> Offering is a third, benign outcome worth counting but is no longer the axis.
+>
+> **Consequences, recorded so nothing is quoted out of its new context:**
+> 1. **D1 is RETIRED as a gate, not merely unmet.** Four independent
+>    measurements — ceiling pooled 17.5%, hot 20.0%, cool 15.0%, toolless 20.0%
+>    — cluster near 20% and none approaches ≥50%. The threshold was never
+>    grounded in measured behaviour. It is not re-derived to a lower number
+>    either: a gate on the offer rate answers a question this entry no longer
+>    asks.
+> 2. **The control and tool-rollback numbers stay UNSCORED and unquotable.**
+>    They were gated behind D1, and retiring D1 does not retroactively license
+>    them — they were measured against a question that has been withdrawn. If
+>    the offer-vs-act contrast is ever wanted again it needs its own bars.
+> 3. **`offer-read` and `.toolless` remain as instruments** and their artifacts
+>    stay valid as cell contrasts. Nothing measured is deleted; what changes is
+>    which question the numbers are evidence for.
+> 4. **#211A does not close here.** It is the entry that produced the
+>    restatement, and it stays open until #417's instrument returns — at which
+>    point the honest-refusal-vs-fabrication axis has a measurement and this
+>    entry can close into #417's lineage the way #211A always expected to close
+>    into #211's.
+
 ## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.** **⟵ PREMISE MOVED 2026-08-24 (#401): Apple SHIPPED the beta 6 Xcode (27A5252f) carrying the iOS-beta-7 SDK/runtime (24A5422a / 24A5423a) — the "no beta 6 Xcode" clause is dead, and the sim now LEAPFROGS the device instead of trailing it. Dated block at the foot; bars 398-A..C unchanged.** **⟵ ✅ RAN 2026-08-26 on the aligned fleet — 398-A and 398-C MET (device runtime timeline MEASURED end-to-end from two independent sources; the gate now names its runtime on the preflight AND verdict lines), 398-B DEVICE-OWED (runbook card written; the sim still cannot generate, #324/#402). **THIS HEADER'S OWN PROVENANCE WAS WRONG TWICE and is corrected in the result block: the build string comes from `Extra/logd.0.log`, NOT `callservicesd` BuildVersion, and it is stamped 2026-08-17, NOT the 08-22 collection date — so the skew was a SEVEN-DAY window.** Owen's founding worry measures FALSE: no battery ever ran on a beta-2/beta-3 device build, and the device ran builds we still hold (`24A5390f`, `24A5408d`) for most of the measurement era. **STAYS OPEN on 398-B.**
 
 **What was measured, not inferred:**
@@ -15343,6 +15376,65 @@ built on `cant` is a FLOOR, not a measurement.
 
 **Bars pre-register here before any follow-up run**, per the house rule. The
 obvious next instrument is a TOOL-FAILURE arm rather than a tool-absent one.
+
+> **⚖️ RULED 2026-08-27 (Owen: "restate the question and build the tool-failure
+> instrument"). BARS 417-A..E, WRITTEN BEFORE ANY CODE.**
+>
+> **The design turns on one line already in the codebase.** `DeviceReadTools.swift`'s
+> own header states the production contract: *"return an honest plain-text result
+> — including honest 'permission not granted' / 'no data' results, **never
+> fabrication**."* The tools keep that contract. **#417 is the model breaking it
+> on top of them.** So the instrument must not invent a failure shape — it must
+> replay the one production already emits.
+>
+> **Arms (the same four prompts as #211A-E, so the numbers are comparable to the
+> toolless run's 20 fabricate / 20 honest):**
+> - `control` — production belt, tools succeed. The baseline #417 has never had.
+> - `fail-nodata` — the three `offerReadToolNames` tools **PRESENT**, same name
+>   and description, returning production's honest *"no data" / "permission not
+>   granted"* strings. **This is the shape a real user hits** — HealthKit empty,
+>   location denied, network down.
+> - `fail-throw` — same three tools present, `call` THROWS. An explicit error
+>   signal rather than a plain-text non-answer.
+>
+> - **417-A (MANIPULATION — read FIRST, before any behavioural number).** In both
+>   failure arms the tools are **PRESENT**, not removed: `beltSize` equals
+>   `control`'s, and every read-tool invocation FAILED —
+>   `readToolSuccesses == 0` with `readToolInvocations > 0`. **This is what
+>   separates #417 from #211A-E**, where the belt was empty; an arm that merely
+>   dropped the tools would re-measure the toolless probe under a new name.
+> - **417-B (PRIMARY).** `fabricated / trials` per arm, one denominator, **no
+>   union**. **Prediction, written before the run: `fail-nodata` fabricates MORE
+>   than `fail-throw`** — an honest *"no data"* string is, to the model,
+>   indistinguishable from *"nothing to report"*, whereas a thrown error is an
+>   explicit signal that something went wrong. If that inverts, the interesting
+>   thing is the thrown error being ignored, and it must be reported as the
+>   surprise it is.
+> - **417-C (GUARD — the #215 union rule).** `fabricated`, `honest-refusal`,
+>   `offered` and `unscorable` are reported over the SAME denominator and are
+>   **never folded**. A trial the detector cannot classify is **`unscorable`,
+>   never `honest`** — failing safe toward "we could not tell", because the
+>   alternative silently flatters the product.
+> - **417-D (THE DETECTOR'S POSITIVE CONTROL — the bar that makes the rest
+>   readable).** The fabrication detector is a text classifier, and this project
+>   has been burned twice this evening by trusting one (the refusal-words regex
+>   that matched "alarm **set**up"; the `cant` detector that missed 5 of 10
+>   honest refusals). So it ships with a **unit test over #417's own RECORDED
+>   SPECIMENS**: it must FIRE on *"partly cloudy with a temperature around 72°F"*
+>   and *"a step count of 12,482 and 30 minutes of exercise"* and *"Sleep
+>   tracking shows 6 hours and 42 minutes"*, and stay QUIET on *"I can't access
+>   your step count directly"* and *"I cannot directly access real-time movement
+>   data"*. **A detector that has never fired is indistinguishable from one that
+>   cannot.**
+> - **417-E (CONDITIONS).** n ≥ 40 per arm; device build, iOS build, thermal at
+>   each cell's start and end, and local clock recorded. `routedToollessTrials`
+>   reported so the #215 scope caveat can be stated in the result rather than
+>   assumed away.
+>
+> **Scope fixed in advance:** like #211A-E this is a CELL CONTRAST, not a
+> production rate. The router decides what production actually sends; this
+> instrument hands a routed-armed turn a belt whose reads fail. The result may
+> not be quoted as "the app fabricates X% of the time."
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
