@@ -1510,6 +1510,26 @@ Logged 2026-07-17. Built 2026-07-19 — suite 870/76 green (was 845/72) + UI tes
 
 ---
 
+> **📱 DEVICE PASS 2026-08-26 night, BUILD 3108 — the seven App-Lock checks — PASSED:
+> *"all pass"* (Owen's runbook paste, `TALARIA DEVICE RUNBOOK RESULTS —
+> 2026-08-27T03:21:41.730Z`).**
+>
+> **⚠️ FILED LATE, 2026-08-27 night, and the gap is the point.** The same paste
+> closed #190 and #123 — both were filed and archived in sweep 11 — but this
+> item's PASS was never written down. It sat for a full day as a live entry whose
+> latest note was device debt queued 2026-08-01, so anyone reading the tracker
+> (including me, tonight) would conclude the check had never been run. Owen
+> corrected it in-chat: *"I mean, I did the entry from the runbook."*
+>
+> **The lesson is narrow and worth keeping:** a runbook paste that closes three
+> cards must be reconciled card-by-card against the tracker, because the two
+> that got filed give no signal about the one that did not. Nothing in the
+> tracker can show you a filing that never happened.
+>
+> **SWEEP-READY.** Not archived here — #190 and #123 were closed by Owen's formal
+> close in sweep 11 and this one was simply missed; it rides the next sweep
+> rather than being closed unilaterally now.
+
 ## 127. 🔧 Monetization scaffold — MERGED DORMANT + gate walk DEVICE VERIFIED 2026-07-17 (fail-open live-confirmed on BOTH hosts: gate forced on, existing OJAMD + Mac pairings kept working, profile switch + chat clean); ASC product + sandbox purchase owed pre-flip
 
 > **MERGED 2026-07-18 (PR #114, `62d169b`), fully dormant** — `MonetizationConfiguration.isEnabled
