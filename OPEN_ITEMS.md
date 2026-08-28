@@ -12906,6 +12906,78 @@ test that directly before assuming it needs its own words.
 > itself needs re-derivation against beta 7** — which is a legitimate outcome,
 > but it must be decided BEFORE the re-run's other numbers are read, not after.
 
+> **🔬 RE-RUN 2026-08-27 21:44–22:00 CDT ON A COOLED DEVICE — THERMAL IS REFUTED,
+> AND THE CEILING ARM IS MIS-SPECIFIED. D1 fails again; the run is again
+> uninterpretable, and this time we know WHY.** Device `whoGoesThere`, Debug
+> **3125**, iOS **`24A5424a`**, `endedCleanly: true`, n=40/arm. Artifact
+> `~/.talaria-instrument-runs/20260828T024442Z-offer-read`.
+>
+> **The cooldown was REAL and is measured, not assumed:**
+> `thermal: control nominal→nominal · tool-rollback nominal→nominal ·
+> no-read-belt nominal→fair` — against the 21:44 run's `serious` on all three
+> cells. Owen cooled the phone between runs specifically to test this.
+>
+> **The pre-committed hypothesis test, and it comes out NEGATIVE:**
+>
+> | ceiling arm (`offeredWithoutActing / routedArmedTrials`) | rate |
+> |---|---|
+> | hot run (`thermal: serious`) | 8/40 = **20.0%** |
+> | cool run (`thermal: nominal`) | 6/40 = **15.0%** |
+> | two-sided Fisher | **p = 0.770 — indistinguishable** |
+> | pooled | **14/80 = 17.5%** |
+>
+> **Thermal was one of the two hypotheses this entry left open. It is now
+> FALSIFIED.** The other — "a real beta-7 behaviour change" — is ALSO not the
+> answer, and the metrics say why:
+>
+> **🔑 THE POSITIVE CONTROL CAN STILL ACT, SO IT IS NOT A CEILING.**
+> `readToolsPresent: 0` confirms the manipulation worked — every read tool was
+> removed. But the arm still made tool calls in **25 of 40 trials**:
+>
+> | ceiling arm, n=40 (cool run) | |
+> |---|---|
+> | `trialsWithToolCalls` | **25** |
+> | `armedActedNoOffer` | 13 |
+> | `armedOfferedAfterActing` | 12 |
+> | **`armedOfferedWithoutActing`** (D1's numerator) | **6** |
+> | `armedNeitherActedNorOffered` | 9 |
+>
+> Removing the READ tools leaves weather, battery, calendar and the rest, so the
+> model satisfies the prompt with a DIFFERENT tool instead of being forced to
+> offer. Control and tool-rollback both act 40/40; the ceiling drops to 25/40 —
+> **reduced, not eliminated.**
+>
+> **Therefore D1's ≥50% was never reachable by this arm on ANY runtime.** The
+> bar assumes a ceiling that CANNOT act; this one can. That is an instrument
+> defect, not a threshold that drifted with beta 7 — and it explains both runs
+> at once, which neither hypothesis in the original entry did.
+>
+> **⛔ THE BAR IS NOT BEING RE-DERIVED, and the reasoning matters.** Before the
+> re-run it was written down that a persisting ~20% would mean "the ≥50% bar
+> needs re-deriving against beta 7, decided BEFORE the other numbers are read."
+> That plan assumed the BAR was wrong. It is not — the ARM is. Re-deriving now
+> would be lowering a threshold until the data clears it, which is the
+> redefinition #215's discipline forbids. **The control-vs-rollback contrast
+> (0/40 vs 0/40 in BOTH runs, hot and cool, while the beltless arm offers
+> sometimes) is a directional pattern and is DELIBERATELY LEFT UNSCORED.**
+>
+> **❓ OWEN'S CALL — the instrument needs one of two design changes before #211A
+> can yield any number:**
+> 1. **A genuinely toolless ceiling arm** — remove ALL tools, not just the read
+>    belt, so "offer" is the only available move; or
+> 2. **Read-only prompts** — prompts that no non-read tool could satisfy, so the
+>    existing belt removal actually bites.
+>
+> (1) is the smaller change and matches the arm's stated intent ("the scorer's
+> positive control"). (2) preserves the current prompt set but needs each of the
+> four prompts audited against the full tool list. **Not started; bars re-register
+> here once a route is picked.**
+>
+> **One thing the run DOES establish:** the scorer is **not blind**. It detected
+> 18 offer-events in the ceiling arm (6 without acting + 12 after acting), so
+> offers are being recognised. D1's threshold was about POWER, not detectability,
+> and detectability is fine.
+
 ## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.** **⟵ PREMISE MOVED 2026-08-24 (#401): Apple SHIPPED the beta 6 Xcode (27A5252f) carrying the iOS-beta-7 SDK/runtime (24A5422a / 24A5423a) — the "no beta 6 Xcode" clause is dead, and the sim now LEAPFROGS the device instead of trailing it. Dated block at the foot; bars 398-A..C unchanged.** **⟵ ✅ RAN 2026-08-26 on the aligned fleet — 398-A and 398-C MET (device runtime timeline MEASURED end-to-end from two independent sources; the gate now names its runtime on the preflight AND verdict lines), 398-B DEVICE-OWED (runbook card written; the sim still cannot generate, #324/#402). **THIS HEADER'S OWN PROVENANCE WAS WRONG TWICE and is corrected in the result block: the build string comes from `Extra/logd.0.log`, NOT `callservicesd` BuildVersion, and it is stamped 2026-08-17, NOT the 08-22 collection date — so the skew was a SEVEN-DAY window.** Owen's founding worry measures FALSE: no battery ever ran on a beta-2/beta-3 device build, and the device ran builds we still hold (`24A5390f`, `24A5408d`) for most of the measurement era. **STAYS OPEN on 398-B.**
 
 **What was measured, not inferred:**
