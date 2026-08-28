@@ -14645,6 +14645,123 @@ process is the degenerate control that made run 3 look clean).
    appear at the arming instant. `parked voice session resuming after
    unlock (#415)` marks step 2.
 
+## 416. 🐛 THE INSTRUMENT HARNESS CANNOT RESOLVE `whoGoesThere` ANY MORE — every device instrument run has been dead since the phone's identifier changed form, and `preota-subset.sh` reports the wipeout as **EXIT 0** — **FILED 2026-08-27 evening, found by RUNNING the batteries rather than reading code (Owen: "lets go ahead and knock that out"). All five subset members "FAILED" in the SAME SECOND and no run directory was ever created.**
+
+**Two defects, surfaced by one run:**
+
+1. **🔴 BLOCKING — the device resolver's UDID extraction is FORMAT-LOCKED.**
+   `run-instrument.sh` pulls the identifier out of `devicectl list devices` with
+   `$i ~ /^[0-9A-F-]{36}$/` — a 36-character UUID. Every past run resolved
+   `whoGoesThere` as `91CBCB90-B313-5B09-A405-E0FE284C9D75` (36 chars — and that
+   is what every `run.log` from 08-12 through 08-21 records). Tonight
+   `devicectl` reports the SAME phone as **`00008150-000E794C3C47801C` — 25
+   characters**, the ECID-style form. The regex matches nothing, `UDID` comes
+   back empty, and the script exits 3 at its precondition check **before
+   `mkdir -p "$OUT_DIR"`** — which is why there is no artifact, no console log,
+   and no evidence beyond a one-line `FAILED`. **The phone was never touched.**
+   - **NOT a phone fault, NOT a TCC fault, NOT a lock fault** — the three things
+     a reader would suspect first, and the three the one-line failure invites.
+   - MEASURED, not inferred: the 25-char identifier is perfectly valid —
+     `xcrun devicectl device info apps --device 00008150-000E794C3C47801C`
+     answers on it (that is how build **3120** was confirmed installed). Only
+     OUR extraction is wrong.
+   - **When it broke is not yet pinned.** The last good run is 2026-08-21; the
+     fleet took Xcode-beta6 + iOS beta 7 on 08-24 (#401). A re-pair or the
+     beta-7 upgrade are both live candidates and the question is NOT load-bearing
+     for the fix — recorded as unpinned rather than guessed.
+
+2. **🟡 MASKING — `preota-subset.sh` exits 0 on a total wipeout.** Its final
+   statement is an `echo`, so `ok=0 failed=5` returned **exit 0**, and the
+   backgrounded invocation reported *"completed (exit code 0)"*. Any caller — a
+   script, a future gate, or an agent reading a task notification — is told the
+   subset SUCCEEDED when not one member ran. This is the banked
+   *success-marker-a-no-op-satisfies* family (see the `xcodebuild-beta4-stale-incrementals`
+   catalog) arriving inside the instrument harness itself.
+
+**Bars — WRITTEN BEFORE THE FIX (house rule). Proven by a new
+`scripts/mac/run-instrument-test.sh` in ~1 s against a fixture listing and a
+stubbed `xcrun`, no device required:**
+
+- **416-A** — an **ECID-form** identifier (25 chars) on a `physical` row RESOLVES.
+  *(Must be witnessed RED on the unmodified tree — this is the live defect.)*
+- **416-B** — a **UUID-form** identifier (36 chars) on a `physical` row STILL
+  resolves. The fix must not trade one format for the other: the iPad and every
+  historical run use this form.
+- **416-C** — a **`simulated`** row NEVER resolves, even when its name matches the
+  `--device` value. #333's phantom-hardware guard must survive the change.
+- **416-D** — no matching physical row ⇒ **exit 3** carrying the PRECONDITION
+  message, unchanged.
+- **416-E** — `preota-subset.sh` exits **NONZERO** whenever any member failed, and
+  still exits 0 when `failed=0`.
+
+**Why the regex was wrong even while it worked:** it encoded a FORMAT where the
+listing offers an ANCHOR. Every row prints `<identifier> (UDID)`, so the field
+immediately before the literal `(UDID)` token is the identifier regardless of its
+shape. Reading the anchor instead of guessing a length is a fix that cannot break
+again the next time Apple changes the form — which is the actual lesson, and it
+generalises past this script.
+
+> **✅ FIXED 2026-08-27 evening — 416-A…E ALL MET, RED WITNESSED FIRST.**
+> New self-test `scripts/mac/run-instrument-test.sh` runs in ~1 s with no
+> device (a stubbed `xcrun` serving a fixture listing + a `TALARIA_RESOLVE_ONLY`
+> seam that prints the resolved identifier and stops).
+>
+> **The RED, on the unmodified resolver:** `416-A FAIL` (rc=3, empty, stderr
+> `PRECONDITION: no connected physical device matching 'whoGoesThere'`),
+> `416-E FAIL` (`ok=0 failed=5` returned exit 0), with `416-C`/`416-D` already
+> green — so the failure is attributable to the defect, not to the new seam.
+>
+> **The fix, both halves:**
+> 1. `run-instrument.sh` now resolves the identifier as *the field immediately
+>    before the literal `(UDID)` token*, not by matching a 36-character shape.
+>    The listing prints that anchor on every row, so the resolver is now
+>    format-agnostic — it cannot break again the next time Apple changes the
+>    identifier's form, which is the actual lesson.
+> 2. `preota-subset.sh` exits **1** when any member failed (it previously ended
+>    on an `echo`). `failed=0` still exits 0.
+>
+> **LIVE PROOF:** `TALARIA_RESOLVE_ONLY=1 run-instrument.sh --device whoGoesThere`
+> now prints `00008150-000E794C3C47801C`, rc=0 — the real phone, resolved.
+>
+> **⚠️ TWO PROCESS FINDINGS FROM THIS FIX, both worth more than the fix:**
+>
+> **(a) A BAR-FORMATION ERROR, caught by the test's own first run.** 416-B
+> originally pointed at the iPad and called it "UUID-form." The iPad's
+> identifier is `00008122-0006186214E1801C` — **also 25-char ECID**. Tonight's
+> listing contains NO UUID-form physical row at all, so the bar as written could
+> not test what it claimed and would have passed vacuously after the fix. The
+> **fixture was corrected, not the claim**: a `LegacyFormPhone` row now carries
+> `91CBCB90-B313-5B09-A405-E0FE284C9D75`, the exact 36-char identifier every
+> archived `run.log` from 08-12 to 08-21 records for whoGoesThere. The bar now
+> guards the historical shape rather than an assumed one.
+>
+> **(b) THE FIX BROKE `preota-subset-test.sh` — and it failed in the worst
+> possible shape.** That file's SEQ-B block ended with `set -e`, which *enabled*
+> errexit rather than restoring it (the header is `set -uo pipefail`,
+> deliberately without `-e`; the preceding `set +e` guarded a state that never
+> existed). Harmless while every later command exited 0 — but the moment
+> `preota-subset.sh` began exiting nonzero on a failed member, SEQ-C's own
+> invocation killed the test mid-run: **seven PASS lines, no SEQ-C, no verdict
+> line, exit 1.** A skimming reader sees only PASSes. Fixed to `set +e`, and
+> SEQ-C now ASSERTS the nonzero exit (416-E pinned in both files).
+>
+> **This is the `success-marker-a-no-op-satisfies` family THREE TIMES IN ONE
+> EVENING** — the subset's exit 0 on a wipeout, the one-line `FAILED` that hid
+> a precondition abort behind what looked like a device problem, and a
+> self-test that dies before printing its own verdict. The catalog memory
+> (`xcodebuild-beta4-stale-incrementals`) gains the shell-harness forms.
+>
+> **NOT PINNED, deliberately:** *when* the identifier form changed. Last good
+> run 2026-08-21; the fleet took Xcode-beta6 + iOS beta 7 on 08-24 (#401); a
+> re-pair is equally plausible. Not load-bearing for the fix, and recorded as
+> unknown rather than guessed.
+>
+> **Verification:** `run-instrument-test.sh` PASS (7 checks) ·
+> `preota-subset-test.sh` PASS (12 checks, SEQ-C restored) ·
+> `lane-gate-classify-test.sh` PASS (15 checks, untouched control) ·
+> `oi-invariants.py` PASS. No app code touched, so no gate is owed —
+> this is Mac-side harness only.
+
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
 **2026-08-11 — what was run and what it found (Fable orchestrator + 4 subagents; sims

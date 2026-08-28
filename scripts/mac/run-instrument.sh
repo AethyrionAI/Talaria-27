@@ -101,9 +101,28 @@ if (( DEVICES_STATUS == 142 )); then
   echo "  Usually CoreDevice wedged; re-run, or unplug/replug the device." >&2
   exit 3
 fi
+# #416: the identifier is the field immediately BEFORE the literal `(UDID)`
+# token, not a string of a particular length. The previous form matched
+# `/^[0-9A-F-]{36}$/` — a 36-char UUID — which silently stopped matching when
+# `devicectl` began reporting whoGoesThere in the 25-char ECID form
+# (`00008150-000E794C3C47801C`). Because an empty $UDID exits 3 BEFORE the run
+# directory is created, every device instrument run died leaving no artifact and
+# no evidence beyond a one-line "FAILED" — read by three different readers as a
+# phone/TCC/lock problem. A length is a guess about a vendor's formatting; the
+# `(UDID)` token is an anchor the listing itself prints, so this cannot break
+# again the next time the form changes. `exit` after the first hit keeps the
+# original first-match-wins behaviour.
 UDID=$(printf '%s\n' "$DEVICES_RAW" | awk -v d="$DEVICE" \
-  '$0 ~ d && $NF == "physical" {for(i=1;i<=NF;i++) if ($i ~ /^[0-9A-F-]{36}$/) print $i}' | head -1)
+  '$0 ~ d && $NF == "physical" {for(i=2;i<=NF;i++) if ($i == "(UDID)") {print $(i-1); exit}}' | head -1)
 [[ -n "$UDID" ]] || { echo "PRECONDITION: no connected physical device matching '$DEVICE'" >&2; exit 3; }
+
+# #416 TEST SEAM (not a feature): print the resolved identifier and stop, so
+# `run-instrument-test.sh` can prove the resolver against a fixture listing in
+# ~1s without a device, a container copy, or a launch. Deliberately placed
+# AFTER the same precondition the real path uses, so a resolution failure still
+# exits 3 here exactly as it does in production — the seam observes the
+# decision, it does not make one.
+if [[ -n "${TALARIA_RESOLVE_ONLY:-}" ]]; then echo "$UDID"; exit 0; fi
 
 STAMP=$(date -u +%Y%m%dT%H%M%SZ); OUT_DIR="$OUT_ROOT/$STAMP-$INSTRUMENT"
 mkdir -p "$OUT_DIR" || { echo "PRECONDITION: cannot create $OUT_DIR" >&2; exit 3; }

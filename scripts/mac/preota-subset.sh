@@ -84,3 +84,14 @@ done
 echo "SUBSET COMPLETE ok=$OK failed=$BAD" | tee -a "$LOG"
 echo "score due-date from the DEVICE LOG (score-due-omission.py); decline via score-decline-attribution.py" | tee -a "$LOG"
 echo "log: $LOG"
+
+# #416: this script used to END on an echo, so `ok=0 failed=5` returned EXIT 0.
+# A total wipeout — five members that never touched the device — was reported to
+# every caller as success, and a backgrounded invocation announced "completed
+# (exit code 0)". Absence of a failure marker is not success (the gate's founding
+# rule, arriving here as an exit code). A partial failure is also a failure: the
+# caller can read ok=/failed= for the detail, but it must not have to.
+if (( BAD > 0 )); then
+  echo "SUBSET FAILED: $BAD of $((OK + BAD)) members did not complete — exiting nonzero" | tee -a "$LOG"
+  exit 1
+fi

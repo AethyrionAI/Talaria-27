@@ -24556,6 +24556,8 @@ runs are trustworthy), `planning/UNATTENDED-RUNS-HANDOFF.md` §6 (the queue this
 > Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
 
 
+> **📌 POINTER — appended 2026-08-27 per #317(a); the entry's own bytes above are unedited.** The Mac-side harness this item built acquired a blocking defect that is filed as **#416 (2026-08-27)**: `run-instrument.sh` extracted the device identifier by matching a 36-character shape, and every device instrument run died at the precondition check once `devicectl` began reporting `whoGoesThere` in the 25-character ECID form. **Nothing in 333-A…D is falsified** — those bars were met on the identifier form of the day — but a reader coming here to run an instrument should know the resolver was format-locked from some point after 2026-08-21 until #416 re-anchored it on the listing's `(UDID)` token. #416 also added the harness's first self-test, `scripts/mac/run-instrument-test.sh`.
+
 ## 338. 🛡️ THE HONESTY GUARD — a turn that CLAIMS a device action while executing ZERO tool calls must never reach the user as-is — **FILED 2026-08-12 on Owen's go ("all three please") the same hour #337-A confirmed the defect in production. This is the STOP-THE-BLEEDING lane: deterministic, app-side, and independent of model behaviour. Bars below pre-registered BEFORE code.**
 
 **Why app-side and why now.** #337-A proved the app tells users a reminder was

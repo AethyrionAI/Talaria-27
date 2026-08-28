@@ -84,7 +84,15 @@ set +e
 STUB_CALLS="$CALLS" STUB_OS="iOS 27.0 (24A5422a)" TALARIA_RUNNER="$STUB" \
   TALARIA_SUBSET_OUT="$OUT_A" TALARIA_EXPECTED_OS="24A5422a" "$SUT" > "$TMP/b1.log" 2>&1
 RC=$?
-set -e
+# #416: this used to read `set -e`, which ENABLED errexit rather than restoring
+# it — the file's header is `set -uo pipefail`, deliberately without -e, and the
+# preceding `set +e` was guarding against a state that never existed. Harmless
+# while every later command exited 0; the moment preota-subset.sh started
+# exiting nonzero on a failed member (416-E), SEQ-C's own invocation killed this
+# script mid-run: seven PASS lines, no SEQ-C, and NO verdict line, exit 1. A
+# self-test that dies before printing its verdict looks exactly like a clean run
+# to anyone skimming.
+set +e
 [[ $RC -eq 3 ]] && pass "SEQ-B: EXPECTED_OS mismatch vs previous artifact exits 3" \
                 || fail "SEQ-B: expected exit 3 on EXPECTED_OS mismatch, got $RC"
 [[ -s "$CALLS" ]] && fail "SEQ-B: a mismatched gate still launched the runner" \
@@ -108,6 +116,11 @@ OUT_C="$TMP/out-c"; mkdir -p "$OUT_C"
 CALLS="$TMP/calls-c.log"; : > "$CALLS"
 STUB_CALLS="$CALLS" STUB_OS="iOS 27.0 (24A5422a)" STUB_FAIL_NAME="decline" \
   TALARIA_RUNNER="$STUB" TALARIA_SUBSET_OUT="$OUT_C" "$SUT" > "$TMP/c.log" 2>&1
+RC_C=$?
+# #416-E, pinned here too: a PARTIAL failure is still a failure to the caller.
+[[ $RC_C -ne 0 ]] \
+  && pass "SEQ-C: one failed member makes the subset exit nonzero (rc=$RC_C)" \
+  || fail "SEQ-C: ok=4 failed=1 exited 0 — a failed member reported as success"
 [[ "$(wc -l < "$CALLS" | tr -d ' ')" == "5" ]] \
   && pass "SEQ-C: all five members attempted despite the failure" \
   || fail "SEQ-C: expected 5 launches, got $(wc -l < "$CALLS" | tr -d ' ')"
