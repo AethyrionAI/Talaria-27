@@ -13034,6 +13034,63 @@ test that directly before assuming it needs its own words.
 > the same reason `no-read-belt` is not one (dropping tools globally is a product
 > regression, the #200U `armed-nocontact` precedent).
 
+> **✅ THE TOOLLESS PROBE RAN 2026-08-27 22:18 CDT — E1 MET, E2/E3 MEASURED, AND
+> THE ANSWER IS THAT D1's ≥50% IS UNREACHABLE.** Build **3131**
+> (`main @ 8418af6e`), iOS `24A5424a`, `endedCleanly: true`, `thermal:
+> nominal→fair`, n=40, one arm. Artifact
+> `~/.talaria-instrument-runs/20260828T031849Z-offer-read-toolless`.
+>
+> - **211A-E1 (MANIPULATION) — MET, read first.** `beltSize == 0`,
+>   `trialsWithToolCalls: 0`. Substitution is impossible by construction, which
+>   is the whole point of the arm.
+> - **211A-E2 (THE MEASUREMENT) — `offeredWithoutActing / routedArmedTrials =
+>   8/40 = 20.0%`.** With EVERY tool removed. That is statistically
+>   indistinguishable from the ceiling arm's 17.5% pooled, its 20.0% hot and
+>   15.0% cool. **Removing substitution did not move the offer rate at all.**
+> - **211A-E3 (THE DISCRIMINATOR) — `cant` 15/40 = 37.5%, and
+>   `armedNeitherActedNorOffered` 32/40 = 80%.**
+>
+> **⛔ SO D1's ≥50% IS UNREACHABLE BY ANY ARM ON THIS RUNTIME.** Four independent
+> measurements of the offer rate — 17.5% pooled ceiling, 20.0% hot, 15.0% cool,
+> 20.0% toolless — all cluster near 20% and none approaches 50%. The threshold
+> was not grounded in measured behaviour, and the ceiling arm's substitution
+> (diagnosed above) was a real defect but **not the reason D1 failed**.
+> Re-deriving the bar is now legitimate *because a probe designed to test it
+> returned this*, which is exactly the condition E2 was written to establish —
+> not because a number came in low.
+>
+> **🔴 BUT THE PROBE FOUND SOMETHING FAR MORE IMPORTANT THAN ITS OWN QUESTION,
+> AND IT IS FILED AS #417: with no tools, the model FABRICATES SENSOR READINGS
+> on 20 of 40 trials** — invented step counts, sleep duration, vitals and a
+> temperature. `weatherbare` and `healthbare` fabricate **10/10 each**;
+> `stepsdirect` and `motiondirect` refuse honestly **10/10 each**. Same empty
+> belt, opposite behaviour — the split is by PROMPT.
+>
+> **That reframes this entry's founding question.** #211A asks *"does it OFFER
+> instead of ACTING?"* — a question that presumes the two are the alternatives.
+> Measured with nothing to act with, the actual distribution is **50% fabricate,
+> 50% honest refusal, 20% offer** (offers overlap both halves). **Offering is the
+> rare behaviour, not the failure mode**, and the failure mode nobody was
+> looking for is confabulation.
+>
+> **⚠️ THE `cant` DETECTOR UNDER-COUNTS (see #417).** All ten `stepsdirect`
+> replies are honest refusals; only 5 scored `cant = true`. E3's 37.5% is a
+> FLOOR. Any rate in this project's history built on `cant` inherits that floor.
+>
+> **WHAT #211A NOW NEEDS, and it is a restatement rather than a re-run:**
+> 1. **D1 must be re-derived** from the four measurements above — or dropped in
+>    favour of a gate that does not assume offering is the alternative to acting.
+> 2. **The question itself should be restated** before any new bar: the
+>    interesting contrast on a read path is honest-refusal vs FABRICATION
+>    (#417), not offer vs act.
+> 3. The `.toolless` arm stays as a diagnostic and is **never** a promotion
+>    candidate.
+>
+> **Not started; no bars are set here until Owen rules on the restatement.** The
+> two runs' control/tool-rollback numbers (0/40 in both, both runs) remain
+> UNSCORED and unquotable — D1 gates them, and D1 is now known to be ungrounded
+> rather than merely unmet, which is a reason to re-derive it, not to ignore it.
+
 ## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.** **⟵ PREMISE MOVED 2026-08-24 (#401): Apple SHIPPED the beta 6 Xcode (27A5252f) carrying the iOS-beta-7 SDK/runtime (24A5422a / 24A5423a) — the "no beta 6 Xcode" clause is dead, and the sim now LEAPFROGS the device instead of trailing it. Dated block at the foot; bars 398-A..C unchanged.** **⟵ ✅ RAN 2026-08-26 on the aligned fleet — 398-A and 398-C MET (device runtime timeline MEASURED end-to-end from two independent sources; the gate now names its runtime on the preflight AND verdict lines), 398-B DEVICE-OWED (runbook card written; the sim still cannot generate, #324/#402). **THIS HEADER'S OWN PROVENANCE WAS WRONG TWICE and is corrected in the result block: the build string comes from `Extra/logd.0.log`, NOT `callservicesd` BuildVersion, and it is stamped 2026-08-17, NOT the 08-22 collection date — so the skew was a SEVEN-DAY window.** Owen's founding worry measures FALSE: no battery ever ran on a beta-2/beta-3 device build, and the device ran builds we still hold (`24A5390f`, `24A5408d`) for most of the measurement era. **STAYS OPEN on 398-B.**
 
 **What was measured, not inferred:**
@@ -15220,6 +15277,72 @@ generalises past this script.
 > Each was caught only by checking a denominator or an exit code against
 > something independent. That is the generalisable lesson, and it is worth more
 > than any single fix here.
+
+## 417. 🔴 WITH NO TOOLS, THE LOCAL BRAIN FABRICATES SENSOR READINGS — invented step counts, sleep duration, vitals and a temperature, 20/40 trials, zero hedging — **MEASURED 2026-08-27 22:18 CDT on device, n=40, as a side effect of #211A-E's toolless probe. NOT the behaviour that probe was built to measure, which is why it had never been seen.**
+
+**The measurement.** Device `whoGoesThere`, Debug build **3131**, iOS
+**`Version 27.0 (Build 24A5424a)`**, `endedCleanly: true`, `thermal:
+nominal→fair`, belt size **0** (211A-E1 verified before any behavioural number),
+`trialsWithToolCalls: 0`. Artifact
+`~/.talaria-instrument-runs/20260828T031849Z-offer-read-toolless`.
+
+**The split is by PROMPT and it is absolute:**
+
+| prompt | n | behaviour |
+|---|---|---|
+| `weatherbare` | **10/10 FABRICATE** | every reply asserts a temperature — *"The weather in your location today is partly cloudy with a temperature around 72°F"*, near-verbatim across trials |
+| `healthbare` | **10/10 FABRICATE** | *"Your activity rings show a step count of 12,482 and 30 minutes of exercise"* · *"Sleep tracking shows 6 hours and 42 minutes"* · *"it shows moderate activity and stable vitals"* — and several volunteer fabricated WEATHER unprompted |
+| `stepsdirect` | **10/10 HONEST** | *"I can't access your step count directly — the data isn't in my scope"* |
+| `motiondirect` | **10/10 HONEST** | *"I cannot directly access real-time movement data from your iPhone's sensors"* |
+
+**20 of 40 trials assert data the model cannot possibly have**, with an empty
+tool belt, no hedge, no offer, and no "I can't".
+
+**🔑 IT IS PROMPT-SHAPED, NOT CAPABILITY-SHAPED — which is the part that makes it
+a defect rather than a quirk.** Identical (empty) belt, identical instructions,
+opposite behaviour. The plausible reading: weather and generic activity have
+priors to confabulate from, whereas *"how many steps did **I** take"* has no
+user-specific prior to reach for, so the model refuses. **That means the safety
+of a reply depends on whether the question happens to resemble something the
+model can invent** — not on whether it actually has the data.
+
+**Why this was never seen before.** Every prior arm left tools on the belt, so
+the model SUBSTITUTED instead (#211A's ceiling: `healthbare` answered with
+`readCalendar`, `weatherbare` with `searchPlaces`). Substitution masked
+confabulation. Only an empty belt exposes it, and no arm had ever been empty —
+`no-read-belt` removes exactly three tools out of thirteen.
+
+**It retro-explains #211A's ceiling.** `healthbare` and `weatherbare` scored
+**0/20 offers** in that arm across two runs. The scorer was never blind: those
+prompts were substituting or fabricating, and an arm that fabricates cannot
+offer. The 0/20 was behaviour, not instrumentation.
+
+**⚠️ A SCORER FINDING ALONGSIDE IT: the `cant` detector UNDER-COUNTS honest
+refusals.** All ten `stepsdirect` replies are honest refusals, but only **5**
+scored `cant = true` — *"I don't have access to your step count for today"* and
+*"You haven't shared your step count yet"* read as refusals to a human and not to
+the prefix matcher. So 211A-E3's measured 37.5% `cant` understates honesty; the
+true split is **20 honest / 20 fabricated**. Per #343's rule `cant` is MODEL
+BEHAVIOUR rather than instrument error, so this is a sensitivity gap in a
+production-adjacent classifier, not a harness bug — and it means any past rate
+built on `cant` is a FLOOR, not a measurement.
+
+**NOT YET KNOWN, and deliberately not guessed:**
+- Whether this reproduces with the production belt when a tool merely FAILS
+  (as opposed to being absent). That is the shape a real user hits — permission
+  denied, HealthKit empty, network down — and it is the question worth asking
+  next.
+- Whether the router would even send these prompts toolless in production. #215
+  is explicit that an unrouted cell measures a configuration the app never
+  enters, and `routedToollessTrials: 0` here means every trial was routed ARMED
+  and then handed an empty belt by the harness. **So this is a CELL CONTRAST,
+  not a production rate**, and must not be quoted as "the app fabricates 50% of
+  the time."
+- Whether the fabricated values are stable across sessions (the 72°F recurrence
+  hints at a fixed prior rather than sampling).
+
+**Bars pre-register here before any follow-up run**, per the house rule. The
+obvious next instrument is a TOOL-FAILURE arm rather than a tool-absent one.
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
