@@ -145,7 +145,35 @@ running and Lane B queues first):**
 Morning deliverables: merged lanes, a fresh staged OTA, the runbook
 republished with the new cards, handoff updated.
 
-## STATE AT THE 08-27 AFTERNOON COMPACTION (14:4x — supersedes the 00:30 block below)
+## STATE AT THE 08-27 **NIGHT** COMPACTION (~00:00 — supersedes every block below)
+
+**Board: 68 live · 0 open PRs · main `a2b2cbaa` · device AND staged on Debug
+build 3134 · 1 worktree · 2 booted sims · no stray processes.**
+**NOTHING IS RUNNING.** No lanes, no gates, no waiters, no monitors.
+
+**The night in one line:** the instrument harness could not resolve the phone and
+the installed build was Release (so `#if DEBUG` compiled the trigger out) — both
+fixed (#416), then all five owed instrument runs ran and scored.
+
+- **#340-H5′ PASSED** — both bars, both guards; promotion condition satisfied.
+- **#339** baselined on beta 7; **#372** HD1–HD4 met; **#392** reproduced but
+  underpowered (needs `--trials 50`).
+- **#211A's D1 retired by Owen's ruling** and its question restated to *honest
+  refusal vs fabrication*; that produced **#417**, and #417's own tool-failure
+  instrument was built and run the same night — **a present-but-failing tool
+  fabricates 0/40** where an empty belt fabricates 20/40. The failure strings are
+  protective.
+- **#398-A closed for free:** device is `24A5424a`, sim is `24A5423a` — parity
+  was assumed and is now measured FALSE; CLAUDE.md corrected in three places.
+
+**⚠️ The phone is on a DEBUG build (3134).** Re-stage Release before any UX card
+— DEBUG seams are live.
+
+**Owen's corner:** #392 at `--trials 50` · #417's one open question (can a
+production path reach the model with neither data nor a failure string?) ·
+#124 sweep-ready · the UX cards on a Release build · OJAMD's gateway still down.
+
+## STATE AT THE 08-27 AFTERNOON COMPACTION (14:4x — superseded by the block above)
 
 **Board: 66 live · 0 open PRs · main `08120139` · build 3120 staged ·
 suite 2752 + 15 · 1 worktree (main only) · 2 pool sims · no stray
