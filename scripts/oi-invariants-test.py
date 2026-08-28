@@ -114,6 +114,34 @@ def verdict(fn):
 # 1 · duplicate item numbers
 # --------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------
+# 0 · entry headers at a line start (#416)
+# --------------------------------------------------------------------------
+# The POSITIVE case is the real 2026-08-27 defect, reproduced verbatim in
+# shape: a header glued to the tail of a blockquote line. Every `^## ` tool —
+# this script, oi-split-verify.py, the sweep scripts — was blind to #211A for
+# as long as it looked like this, and reported PASS over a set that silently
+# excluded it.
+with_tracker("## 10. one\n\n## 11. two\n")
+check("headers: all at line start passes",
+      verdict(oi.check_headers_not_at_line_start), (True, False, 0))
+
+with_tracker("## 10. one\n\n> evidence standing as its verification.)## 11A. two\n")
+check("headers: a glued header FAILS (the #211A defect)",
+      verdict(oi.check_headers_not_at_line_start), (False, False, 1))
+
+# The counting rules QUOTE `## 216A.` as the canonical form. That is
+# documentation, not an entry, and it must not trip the check — which is why
+# the pattern requires non-whitespace glue rather than merely "not at column 0".
+with_tracker("> > **CANONICAL HEADER FORM — `## N.` or `## NL.` for lanes\n"
+             "> > (`## 216A.`). There is exactly one form.**\n\n## 10. one\n")
+check("headers: the counting-rules example is not a finding",
+      verdict(oi.check_headers_not_at_line_start), (True, False, 0))
+
+oi.LIVE = oi.Path(os.path.join(_TMP.name, "absent-tracker.md"))
+check("headers: a missing tracker is NO DATA, not a pass",
+      verdict(oi.check_headers_not_at_line_start), (False, True, 0))
+
 with_tracker("## 10. one\n\n## 11. two\n", "## 12. three\n")
 check("dupes: clean board passes", verdict(oi.check_duplicate_numbers), (True, False, 0))
 
@@ -333,6 +361,7 @@ check("report: no gh is NO DATA, not a pass",
 # --------------------------------------------------------------------------
 
 _covered = {
+    "check_headers_not_at_line_start",
     "check_duplicate_numbers", "check_claimed_merge_state",
     "check_open_pr_claims", "check_bar_results_live_under_their_own_item",
     "check_headers_claiming_not_started",

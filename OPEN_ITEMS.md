@@ -8015,6 +8015,75 @@ routinely-red or routinely-ignored gate is worse than none.
 > beta5/6-era; `pcc-surface` makes the transition legible). Carded in the
 > runbook §05.
 
+> **✅ 339 RAN 2026-08-27 evening — `SUBSET COMPLETE ok=5 failed=0`, and the
+> beta-7 baselines exist. THE NUMBERS ARE THE DELIVERABLE (this entry's own
+> terms): nothing below is pass/fail, because every recorded anchor predates the
+> runtime these were measured on.**
+>
+> **Provenance, stated first because #215/#343/#398-A all bear on it:** device
+> `whoGoesThere`, **Debug build 3125** (`main @ c421ba05`), **osVersion
+> `Version 27.0 (Build 24A5424a)`** — the RE-BASELINE line fired on the
+> `24A5418b → 24A5424a` transition, exactly as this entry predicted a first run
+> would. `endedCleanly: true` verified on every member BEFORE any number was
+> read. `reapSummary` zeros throughout — auto-decline held, nothing was written
+> to real calendars/reminders. Artifacts under
+> `~/.talaria-instrument-runs/20260828T01*`, log
+> `preota-20260828T012151Z.log`.
+>
+> ⚠️ **This run only happened after #416** — the harness could not resolve the
+> phone at all, and the installed Release build could not run an instrument at
+> all. Two blockers, neither of them the phone.
+>
+> | member | n | result |
+> |---|---|---|
+> | due-date | 20 | 17/20 tool calls · 0 cant · 0 denial · 0 timeout · latency median 2.39 s · thermal nominal→nominal |
+> | decline | 40 | calendar **1/4** scorable misattributed · alarm 0/3 · remind 0/8 · thermal nominal→**fair** |
+> | long-context-probe | 34 probes | **30 at 10/10, 4 at 0/10** — the 22 → 34 re-baseline CONFIRMED |
+> | pcc-surface | 3 | ctx **32768**, `isAvailable`, reasoning+vision+toolCalling+guidedGeneration all 1; a second tier at ctx 8192; ImagePlayground / VisualIntelligence / MediaIntelligence all `dlopen` OK **on device** |
+> | refusal-words | 60 | 62/62 probes correct; **3 of 48 armed replies still claim completion** |
+>
+> **🔴 THE HEADLINE — #340's omission is WORSE on beta 7, not better.** Scored
+> from Owen's same-evening logarchive (`whoGoesThere-batteries.logarchive`) via
+> `score-due-omission.py`:
+> **`due` OMITTED on 28/28 `createReminder` calls — 100.0%**, populated 0/28,
+> unreadable 0/28, already-past 0/28. The #340-C anchor was 10 of 11 (≈91%).
+> **`app-resolved a bare clock: 0/60` — #340's route (a) never fired once.**
+> - ⚠️ **Scope, stated because the scorer's own header demands it:** the archive
+>   spans the whole evening, so its "60 armed trials" denominator is due-date's
+>   20 PLUS decline's 40. The **per-CALL 28/28 is unaffected** by that mixing;
+>   the 43.3% trials-rate IS, and must not be quoted as due-date's own rate.
+>
+> **✅ #206's OWED 2×2 IS ANSWERED, and the answer is not the one the confound
+> feared.** The four E1 cells run ONE prompt ("Say that again more briefly")
+> across an offer/no-offer axis. Both **offer** arms scored **10/10**; both
+> **no-offer** arms scored **0/10** — and since those rows carry
+> `expected: false`, 0/10 means the router fired on **every** trial. So routing
+> is driven by the mere MENTION of setting a reminder, not by the offer tail:
+> **the offer is not the discriminator.** Identical in `ctx-a-long` and
+> `ctx-a-long-capped`, so the cap does not move it. This is a clean finding, not
+> a failure — but it is a NEW behavioural claim and it belongs to #334/#206 to
+> act on.
+>
+> **#409's verification — mostly fixed, not fixed.** The runbook framed it as
+> "do refusal-following turns stop claiming completion?" (old strings: 6/6 false
+> claims; phase-cut path: 9/9 honest). Measured here: **3 of 48** armed reply
+> texts assert completion, all the identical shape *"I've set a reminder for you
+> to test Talaria at 4:30 PM"*, all on the `remind` prompt; 37 are honest
+> refusals and the remainder are pre-confirmation offers ("Shall I proceed?").
+> - **⚠️ The instrument scored 62/62 CORRECT on the same run.** That is not a
+>   contradiction — the probe tests refusal VOCABULARY, not completion-claiming —
+>   but it means **#409's question is only answerable from the reply text**, and a
+>   green probe bar does not answer it. Worth knowing before anyone cites 62/62
+>   as "#409 verified."
+> - **Method note against myself:** the first pass reported 7 completion claims.
+>   Six were artifacts of my own regex matching "alarm **set**up" / "alarm
+>   **set**ting" inside honest refusals. Corrected before reporting; the honest
+>   count is 3.
+>
+> **Still owed on this entry:** nothing. The five members ran, scored, and are
+> baselined. Comparisons across the `24A5418b → 24A5424a` transition remain
+> inadmissible per this entry's own re-baseline rule.
+
 ## 334. 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips 5/5→0/5 between ctxlen 575 and 4,073; `'Say that again more briefly'` misroutes at BOTH 551 and 4,073 — **MEASURED 2026-08-12 on the iPad (the #333 runner's first scored probe, n=5/band, errors=0). ~~Mechanism UNKNOWN and deliberately not guessed.~~ ⟵ 2026-08-25 (Opus investigation): the mechanism was NEVER unknown — archived #206 named, measured, and published it 2026-07-30, and this entry never cited it. This is a REPLICATION of #206's offer-tail finding, not a mystery. ~~Product question below awaits Owen; bars pre-register when a route is picked.~~ ⟵ ⚖️ RULED + 🟢 APP HALF LANDED 2026-08-25 (PR #377, merge `12217bdb`): ARMED IS SAFE, so **the rows were mislabelled, not the router** — three `expected:` labels corrected, E1/E2 added to the grid (band count **22 → 34**), the no-op suffix pinned, #206's retracted length rationale removed from the router's comment, and NO router behavior change (the production diff is comment-only). ⏳ **STAYS OPEN:** E1 and E2 are DEVICE rows — the simulator cannot generate (#324) — so this entry closes on the next `long-context-probe` device run, which rides the runbook.**
 
 > **🔬 2026-08-25 — MECHANISM INVESTIGATION (Opus agent, read-only; full
@@ -12501,7 +12570,9 @@ just the log.
 > the 10-hour lane was cut short by a Claude Code process exit; the
 > orchestrator harvested its worktree — its only code product, the
 > 2-line instrumentation, is committed with the 7-green-loaded-runs
-> evidence standing as its verification.)## 211A. offer-instead-of-act on READ paths, where no confirmation gate excuses it — **✅ INSTRUMENT BUILT + MERGED 2026-08-26 (instruments lane): `offer-read`, three arms x four read prompts, cells + scorer, bars 211A-B1..B7 met on the simulator. The DEVICE run is Owen's and is a runbook card; 211A-D1..D4 are pre-registered and UNRUN, so this entry still carries ZERO behavioural numbers.**
+> evidence standing as its verification.)
+
+## 211A. offer-instead-of-act on READ paths, where no confirmation gate excuses it — **✅ INSTRUMENT BUILT + MERGED 2026-08-26 (instruments lane): `offer-read`, three arms x four read prompts, cells + scorer, bars 211A-B1..B7 met on the simulator. The DEVICE run is Owen's and is a runbook card; 211A-D1..D4 are pre-registered and UNRUN, so this entry still carries ZERO behavioural numbers.**
 
 **FILED 2026-08-01** from the audit's unfiled-lanes list.
 
@@ -12686,6 +12757,56 @@ test that directly before assuming it needs its own words.
 > 5. **211A-D4**, the four-bucket table under both denominators, the control's
 >    rate with its interval and no verdict, plus local clock time and the
 >    device's iOS build.
+
+> **🔴 211A RAN 2026-08-27 evening AND IS UNINTERPRETABLE — D1, the pre-registered
+> hard gate, FAILED. No other number from this run may be read, and none is
+> reported below.** Device `whoGoesThere`, Debug build **3125**, iOS
+> **`24A5424a`**, 20:36–20:53 CDT, `endedCleanly: true`, artifact
+> `~/.talaria-instrument-runs/20260828T013614Z-offer-read`.
+>
+> **The gate, in the scorer's own words:** *"the no-read-belt arm is a POSITIVE
+> CONTROL — if it does not offer, the scorer is blind and no other arm may be
+> read"*, primary metric `offeredWithoutActing / routedArmedTrials`. D1 required
+> **≥ 50%** at **n ≥ 30**.
+>
+> | arm | offeredWithoutActing / routedArmedTrials | |
+> |---|---|---|
+> | control | 0/40 | — |
+> | tool-rollback | 0/40 | — |
+> | **no-read-belt (ceiling)** | **8/40 = 20.0%** | **FAILS ≥50%** |
+>
+> n=40 satisfies n≥30; **20% does not satisfy ≥50%.** A missed bar is a
+> falsification, never a redefinition — so the control-vs-rollback contrast
+> (0/40 vs 0/40), which is sitting right there and looks like a clean null, is
+> **NOT REPORTED AS A RESULT**. It is unreadable by construction.
+>
+> **The cell is not broken — the ceiling genuinely did not offer.** The
+> manipulation check passed on all three arms (1/1 each) and
+> `readToolsPresent: 0` confirms every read tool really was removed from the
+> ceiling arm. `routeFailures: 0`, `cutTrials: 0`, `generationErrors: 0`,
+> `timeouts: 0`, `repliesNonEmpty: 40` in all three arms — so this is not #343's
+> governor, not a route failure, and not an instrument error.
+>
+> **Two live hypotheses, deliberately NOT decided:**
+> 1. **A real beta-7 behaviour change** — the ceiling's offer rate is simply
+>    lower on `24A5424a` than when the bar's ≥50% figure was chosen.
+> 2. **⚠️ THERMAL.** All three cells reported **`serious` at start AND end**.
+>    The immediately preceding subset ran `nominal → fair`; this run followed
+>    ~40 min of continuous battery work on a charging phone. A throttled device
+>    is a confound over the whole arm.
+>
+> The run cannot separate them, and guessing would be exactly the move this
+> project bans. **The guard row is also informative:**
+> `armedNeitherActedNorOffered` is **8 in the ceiling arm and 0 in both others** —
+> the ceiling stalled rather than offered, which is the shape 340-H5′-B's guard
+> exists to catch.
+>
+> **OWED: a clean re-run of 211A alone, on a COOL device** (Owen, 2026-08-27:
+> *"let it finish and then we can rerun any needed after"*). If the ceiling still
+> reads ~20% on a nominal-thermal phone, hypothesis 1 stands and **the ≥50% bar
+> itself needs re-derivation against beta 7** — which is a legitimate outcome,
+> but it must be decided BEFORE the re-run's other numbers are read, not after.
+
 ## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.** **⟵ PREMISE MOVED 2026-08-24 (#401): Apple SHIPPED the beta 6 Xcode (27A5252f) carrying the iOS-beta-7 SDK/runtime (24A5422a / 24A5423a) — the "no beta 6 Xcode" clause is dead, and the sim now LEAPFROGS the device instead of trailing it. Dated block at the foot; bars 398-A..C unchanged.** **⟵ ✅ RAN 2026-08-26 on the aligned fleet — 398-A and 398-C MET (device runtime timeline MEASURED end-to-end from two independent sources; the gate now names its runtime on the preflight AND verdict lines), 398-B DEVICE-OWED (runbook card written; the sim still cannot generate, #324/#402). **THIS HEADER'S OWN PROVENANCE WAS WRONG TWICE and is corrected in the result block: the build string comes from `Extra/logd.0.log`, NOT `callservicesd` BuildVersion, and it is stamped 2026-08-17, NOT the 08-22 collection date — so the skew was a SEVEN-DAY window.** Owen's founding worry measures FALSE: no battery ever ran on a beta-2/beta-3 device build, and the device ran builds we still hold (`24A5390f`, `24A5408d`) for most of the measurement era. **STAYS OPEN on 398-B.**
 
 **What was measured, not inferred:**
@@ -16466,6 +16587,49 @@ scope: **wholesale, or a permanent dual path?**
 > 7 arms × 3 prompts × 10 = **210 trials**. Its remedy arm sits LAST, so a
 > positive there is conservative and a null needs a reversed-order re-run
 > rather than a conclusion — read `card-clause-remedy` for the clean contrast.
+
+> **✅ 372-HD1…HD4 ALL MET — the device A/B RAN 2026-08-27 evening, and the
+> DECLINE HALF IS FINALLY OBSERVABLE.** Device `whoGoesThere`, Debug build
+> **3125** (`main @ c421ba05`), iOS **`Version 27.0 (Build 24A5424a)`**, local
+> clock **20:53–21:00 CDT**, `endedCleanly: true`, n=**60 per arm**. Artifact
+> `~/.talaria-instrument-runs/20260828T015327Z-card-clause-remedy`.
+> ⚠️ **`thermal: serious` at start AND end of BOTH cells** — the device had been
+> running batteries back-to-back for ~40 min. Recorded against every number
+> below; both arms share the state, so the within-run contrast is protected, but
+> an absolute rate from this run carries it.
+>
+> - **372-HD4 — MET, and read FIRST as the bar demands.** `toolCallingForced`
+>   is **0 on control** and **1 on toolmode-required**: the mode applied. n=60
+>   per arm (≥ 40). Runtime and clock recorded above per #398.
+> - **372-HD1 (PRIMARY) — MET.** `trialsWithToolCalls` over TRIALS rose
+>   **54/60 (90.0%) → 60/60 (100.0%)**, one-sided Fisher exact **p = 0.0137**.
+>   One number, one denominator, no union — as written.
+> - **372-HD2 (GUARD) — MET.** `armedImitations` **0 → 0**. No rise, so the
+>   forced call was not bought with imitation. `retryImitations` also 0 → 0,
+>   `claimsCreation` 0, `timeouts` 0, `generationErrors` 0 in both arms.
+> - **372-HD3 (REPORT) — the written-first prediction HOLDS.** The remedy arm
+>   exercises the decline half MORE often: `declineHalfExercised` **54 → 59**
+>   (of 60). The four verdicts over THAT denominator:
+>
+> | | n | user | tool-misattributed | unnamed | unscorable |
+> |---|---|---|---|---|---|
+> | control | 54 | 31 (57%) | **2 (3.7%)** | 0 | 21 (39%) |
+> | toolmode-required | 59 | 45 (76%) | **3 (5.1%)** | 2 | 9 (15%) |
+>
+> **🔑 THE SECONDARY FINDING IS ARGUABLY THE BIGGER ONE: `unscorable` fell
+> 39% → 15%.** The remedy does not merely force the call — it **more than halves
+> the fraction of trials nobody can score**, which is precisely why this entry
+> said the decline half "can now actually be SEEN." Any future decline work gets
+> a usable denominator by running under `.required`.
+>
+> **Tool-misattribution is PRESENT but small here (3.7% / 5.1%)** and does not
+> rise meaningfully under the remedy. Note this is a DIFFERENT surface from
+> #392's calendar-only finding and must not be pooled with it.
+>
+> **Scope:** production default is untouched — `.required` shipped as an ARM
+> only, pinned. Nothing here promotes it; HD1–HD4 were about whether it does
+> what it claims, and it does.
+
 ## 373. 🧹 Instrument/test hygiene bundle — small knives, one drawer — **FILED 2026-08-18 night per #268, collecting residuals re-homed from #333, #341, #224, #342 and #335 at their closes. 🟡 FIVE TAKEN 2026-08-21 PM; the rest still open and listed below.** **⟵ ⟵ FOUR MORE DONE + MERGED 2026-08-26 (bundle lane; PR #386, squash `fda2ad8e`): `cold-calfix` registered (count pin 49→50), the button-name tripwire made SELF-MAINTAINING (it reads the view's source now, RED-witnessed by the new button landing before its entry while the old literal list stayed green), #342's residual executed as what it really was, and #335's conductor hazard PINNED. Bars 373-A..E all MET. 🔴 TWO OF THE FOUR WERE ALREADY DONE when this lane opened — #342's checks since 2026-08-15, #335's fix since 2026-08-21 — and both were carried on the ballot and in this entry's own list; the premise check that caught it cost ten minutes. 🟡 STAYS OPEN on ONE bullet: `score-due-omission.py` reporting the #200V warm-up trial as an arm.**
 
 > **✅ 2026-08-21 PM — five items, chosen because they share one shape: a cheap

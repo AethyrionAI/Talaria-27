@@ -466,8 +466,43 @@ def check_headers_awaiting_a_decision_already_made() -> tuple[bool, str, list[st
     return True, "no header awaits a decision its own body records as made", []
 
 
+def check_headers_not_at_line_start() -> tuple[bool, str, list[str]]:
+    """#416, 2026-08-27. #211A's header was GLUED to the end of a blockquote
+    line — `...as its verification.)## 211A. offer-instead-of-act...` — so it
+    was not at a line start, and `^## ` under re.M is the anchor EVERY tool
+    here uses: this script, oi-split-verify.py, and the sweep scripts. The
+    entry was therefore invisible to all of them. It was never counted, and
+    every check above silently skipped it for as long as the glue existed.
+
+    That is the worst shape a tracker defect can take: the file reads fine to a
+    human, the verifier says PASS, and the PASS is over a smaller set than
+    anyone believes. A check that cannot see part of its own subject is not a
+    check — so the blind spot gets its own invariant.
+
+    Deliberately scoped to the LIVE file's ENTRY headers. The counting-rules
+    prose quotes `## 216A.` as its example of the canonical form, and that is
+    documentation, not an entry — so a bare occurrence is only a finding when
+    it is glued to NON-WHITESPACE text, which is what the real defect looked
+    like and what an example never does.
+    """
+    if not LIVE.exists():
+        return False, "NO DATA — OPEN_ITEMS.md not found", []
+    text = LIVE.read_text()
+    # A header preceded on its own line by other, non-whitespace content.
+    glued = re.findall(r"(?m)^.*\S+(## \d+[A-Z]?\. )", text)
+    if glued:
+        return (
+            False,
+            f"{len(glued)} entry header(s) not at a line start — invisible to every ^## tool",
+            [g.strip() for g in glued],
+        )
+    n = len(re.findall(r"(?m)^## \d+[A-Z]?\.", text))
+    return True, f"all {n} live entry headers start their own line", []
+
+
 CHECKS = [
     ("duplicate item numbers", check_duplicate_numbers),
+    ("entry headers at a line start", check_headers_not_at_line_start),
     ("claimed merge state vs git", check_claimed_merge_state),
     ("headers claiming an open PR", check_open_pr_claims),
     ("bar verdicts filed under their own item", check_bar_results_live_under_their_own_item),
