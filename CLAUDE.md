@@ -614,6 +614,21 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   string unmeasured until the next device log pass) — the fleet is ALIGNED
   for the first time since beta 5 and the adoption freeze is LIFTED. PCC may
   now be sim-testable (beta 7 fix): probe is #402.**
+  **⟵ 🔴 "ALIGNED" IS FALSIFIED — MEASURED 2026-08-27 (#416's device runs, #398-A's
+  owed number): the phone reports `Version 27.0 (Build 24A5424a)`, and the newest
+  sim runtime we hold is `24A5423a`. THEY ARE NOT THE SAME BUILD — the device is
+  one revision AHEAD, and we have no local twin of it again.** The number came
+  free from an instrument artifact's own `osVersion` field (the subset's
+  RE-BASELINE line printed the `24A5418b → 24A5424a` transition), which is
+  exactly the "most rates already carry it" route #398-A established — no
+  logarchive needed. **Two consequences, and only one is bad:** (1) any rate
+  measured on a simulator is measured on a build the user does not run, so the
+  #398-A discipline stands unchanged; (2) **the adoption freeze stays correctly
+  LIFTED** — our SDK is `24A5422a`, which is OLDER than the device runtime, and
+  the #324 dyld hazard only bites when a binary references symbols NEWER than the
+  runtime it launches on. Building on beta6's SDK for a `24A5424a` phone is the
+  safe direction. **Do not restate "the fleet is aligned"** — it was true for
+  three days on Owen's word and is now measured false.
   **⟵ PROVENANCE CORRECTED 2026-08-26 (#398-A, and the head of this bullet was
   wrong in two ways). (1) The build string does NOT come from a `callservicesd`
   `BuildVersion` — a predicate query against that process returns NOTHING on the
@@ -629,10 +644,14 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   `24A5408d` to 08-15 — **both of which we still hold as sim runtimes**, so for
   most of the measurement era there WAS an exact local twin. The genuine gap is
   one week on `24A5418b`. Full table + the extraction recipe:
-  `planning/reports/2026-08-26-398-device-runtime-timeline.md`. ⚠️ The device's
+  `planning/reports/2026-08-26-398-device-runtime-timeline.md`. ~~⚠️ The device's
   CURRENT (beta 7) build string is still unmeasured — the newest logarchive on
   this Mac is Aug 22 and predates the upgrade, so `24A5423a`-vs-device parity is
-  ASSUMED, not measured.**
+  ASSUMED, not measured.~~ **✅ MEASURED 2026-08-27: the device is `24A5424a`,
+  the newest sim runtime is `24A5423a` — parity is FALSE, the device leads by one
+  revision, and the timeline gains a fourth row (`24A5424a`, from 2026-08-24).
+  No logarchive was needed: the instrument artifact's own `osVersion` carried it,
+  which is the cheap route this very section prescribes.**
 - **Xcode-beta6** (`/Applications/Xcode-beta6.app`, Xcode 27.0 build 27A5252f, swiftlang
   6.4.0.33.1, iOS SDK 24A5422a — the *iOS beta 7* vintage) is the standard toolchain for
   iOS 27 targets — **promoted from beta5 on 2026-08-24 on Owen's explicit word** (#401:
@@ -667,9 +686,15 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   symbols (e.g. `SystemLanguageModel.variant`) dies at dyld launch on a beta4 27.0 runtime**
   (RBSProcessExitStatus domain:dyld(6) code:4, NO .ips, empty stdout) — `@available(iOS 27.0)`
   cannot weak-link between betas of the same version, so adopt new-SDK API only while every
-  target device/sim runtime is at least that vintage. (Fleet state 2026-08-24, #401: the
+  target device/sim runtime is at least that vintage. (~~Fleet state 2026-08-24, #401: the
   phone took iOS beta 7 the same day beta6 arrived — device, sims and SDK are ALIGNED,
-  so nothing is currently frozen. Probe live before assuming this holds.) The pinned sim
+  so nothing is currently frozen.~~ **CORRECTED 2026-08-27 by measurement: device
+  `24A5424a` · newest sim `24A5423a` · SDK `24A5422a` — three different builds, NOT
+  aligned. Nothing is frozen ANYWAY, and the reason matters: the freeze rule bites
+  only when the SDK is NEWER than a target runtime, and here the SDK is the OLDEST
+  of the three. So the conclusion survives while its stated premise does not — which
+  is precisely the shape "probe live before assuming this holds" was warning about.**)
+  The pinned sim
   UDID survived both the beta-4 runtime rebind and the seed prune — no re-pin needed.
   Team `DNL25ZFSD2`. DerivedData for **this** repo is
   `Talaria-gzpowyfsuofejnbsytskngrskzkm` — corrected 2026-07-30. The long-documented

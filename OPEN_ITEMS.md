@@ -12988,6 +12988,33 @@ configuration the system never enters), **#388** (the beta5 surface sweep).
 > > anywhere — lands in the JSON without a separate step. Read it back with
 > > `grep -rhoE '"osVersion" : "[^"]+"' planning/reports/<run>` and record it in
 > > this entry; that is the one line 398-A still owes.
+> **✅ 398-A's LAST GAP CLOSED 2026-08-27 — the device's CURRENT build string is
+> MEASURED: `24A5424a`.** It arrived free, from an instrument artifact's own
+> `osVersion` field during #416's device runs — the pre-OTA subset printed the
+> transition itself:
+> `⚠ RE-BASELINE: osVersion changed 'Version 27.0 (Build 24A5418b)' → 'Version 27.0 (Build 24A5424a)'`.
+> **No logarchive, no `log collect`, no device sitting** — exactly the "most
+> rates already carry it, read it don't guess it" route this entry established.
+>
+> **🔴 AND IT FALSIFIES THE ASSUMED PARITY.** The newest sim runtime on this Mac
+> is `24A5423a`; the device is `24A5424a`. They are NOT the same build — the
+> phone leads by one revision and **we hold no local twin of it**, so the
+> "fleet is ALIGNED" clause written on 2026-08-24 (Owen's word, honestly flagged
+> as unmeasured at the time) is now measured false. CLAUDE.md's three alignment
+> claims are corrected in the same commit per the close-out rule.
+>
+> **What does NOT change, and the distinction is the point:** the #324 adoption
+> freeze stays LIFTED. That hazard bites only when a binary references symbols
+> NEWER than the runtime it launches on, and our SDK (`24A5422a`) is the OLDEST
+> of the three — older SDK onto a newer device runtime is the safe direction.
+> **The conclusion survives while its stated premise does not**, which is the
+> shape CLAUDE.md's own "probe live before assuming this holds" was warning about.
+>
+> **Timeline gains a fourth row:** `24A5390f` 07-20→08-11 · `24A5408d`
+> 08-11→08-15 · `24A5418b` 08-17→08-24 · **`24A5424a` 08-24→present**. The
+> genuine no-twin gaps are now two: one week on `24A5418b`, and everything from
+> 08-24 onward.
+
 ## 408. 🐛 A GUARDRAIL-DECLINED IMAGE TURN HAS NO ROUTE — on-device `.guardrailViolation` on a sighted turn dead-ends at Retry, and post-#390 there is no way to opt an image DOWN to the OCR path — **FILED 2026-08-25 per #268, from Owen's first on-device vision turn (build 3022, device screenshot). ~~DESIGN ELECTION OWED; measure-informed bars pre-register here when a route is picked.~~** **⟵ ⚖️ RULED route (a) AUTO-DEGRADE ONCE 2026-08-25 (Owen, AskUserQuestion, n=4 in hand) and ✅ BUILT + GATED the same night (branch `408-guardrail-image-degrade`, PR #378, squash `b03fabfb`) — 408-A..E ALL MET, RED-first, and mutation-proven in both directions. BOTH turn paths are armed (`send` and `streamTurn` — the image door's only two call sites). **STAYS OPEN on the DEVICE half, which is a behavioural claim no simulator can make (#324):** nothing here shows the declined laundromat photo now completes on the phone — only Owen's runbook re-send can, and that card is written into the result block.**
 
 **The observation (device, 2026-08-25 14:42):** the same laundromat photo PCC
@@ -14761,6 +14788,42 @@ generalises past this script.
 > `lane-gate-classify-test.sh` PASS (15 checks, untouched control) ·
 > `oi-invariants.py` PASS. No app code touched, so no gate is owed —
 > this is Mac-side harness only.
+
+> **⟵ 416-F ADDED THE SAME EVENING — the second defect got a GUARD, not just a
+> diagnosis.** The evening's real cost was not the resolver: it was that a
+> **Release build cannot run an instrument at all** (the trigger is `#if DEBUG`
+> in `AppContainer.runAutoInstrumentsIfArmed`) while `ota-stage.sh` stages
+> Release **by default** — so build 3120 launched cleanly, printed nothing,
+> wrote no artifact, and burned a full 600 s timeout that reads as a phone, TCC,
+> or lock fault. Four more members were queued to lose 600 s each. `ota-stage.sh`'s
+> own comment already warned about this; **§05 of the device runbook lists build
+> NUMBERS as its precondition and never mentions the CONFIGURATION**, which is
+> why it had to be rediscovered at runtime.
+>
+> - **416-F1** — a launch that produces no `battery:` console output within a
+>   grace window aborts with **exit 4**, naming the Release / `#if DEBUG`
+>   hypothesis and printing the remedy (`ota-stage.sh <branch> Debug`), instead
+>   of burning `--timeout`.
+> - **416-F2** — a launch that DOES stream `battery:` is never aborted by the
+>   guard (no false positive on a slow-but-working run).
+>
+> **The discriminator is measured, not assumed:** a working run streamed **115
+> console lines inside its first minute** (`battery: START` within seconds),
+> while the Release run's console stayed empty for all 600 s. The message states
+> a HYPOTHESIS rather than a verdict — a crashed app looks identical from
+> outside — and points at `console.log` either way.
+>
+> **⚠️ PROCESS DEVIATION, disclosed: 416-F was written CODE-FIRST.** The guard
+> existed before its test, inverting RED-first. Recovered by isolating mutation
+> after the device runs finished (mutating the script mid-run would have
+> corrupted the live batteries — the deferral is itself worth noting: a harness
+> under test is a harness in use). Two seams were added to make the poll loop
+> testable in ~1 s rather than ~40 s: `TALARIA_FIRST_OUTPUT_GRACE` and
+> `TALARIA_POLL_INTERVAL`, both env-only, production defaults unchanged.
+>
+> **Owed, filed rather than fixed here:** the runbook's §05 precondition list
+> must name **"a DEBUG build"** alongside its build-number floors. Until then the
+> guard is what stops the next operator losing an evening.
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 

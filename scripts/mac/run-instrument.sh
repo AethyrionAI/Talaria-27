@@ -23,6 +23,16 @@ set -euo pipefail
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta6.app/Contents/Developer}"
 BUNDLE_ID="org.aethyrion.talaria27"
 DEVICE="" INSTRUMENT="" TRIALS=10 CELLS="" TIMEOUT=1800 OUT_ROOT="$HOME/.talaria-instrument-runs"
+# #416-F: how long to wait for the app's FIRST `battery:` console line before
+# concluding the build cannot run instruments at all (see the guard in the poll
+# loop). A working run emits within seconds; 120s is deliberately generous so a
+# slow cold launch can never trip it. Env-overridable so the self-test can drive
+# it down to ~1s without a device.
+FIRST_OUTPUT_GRACE="${TALARIA_FIRST_OUTPUT_GRACE:-120}"
+# #416-F: the poll cadence, env-overridable for the same reason — a self-test
+# that must wait 20s per loop iteration is a self-test nobody runs. Production
+# behaviour is unchanged at the default.
+POLL_INTERVAL="${TALARIA_POLL_INTERVAL:-20}"
 while [[ $# -gt 0 ]]; do case "$1" in
   --device) [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 3; }; DEVICE="$2"; shift 2;;
   --instrument) [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 3; }; INSTRUMENT="$2"; shift 2;;
@@ -206,12 +216,12 @@ DEVICECTL_CHILD_TALARIA_BUILD_SHA="$SHA" \
 xcrun devicectl device process launch --terminate-existing --console \
   --device "$UDID" "$BUNDLE_ID" >> "$OUT_DIR/console.log" 2>&1 &
 LAUNCH_PID=$!
-echo "launched (console pid $LAUNCH_PID); polling every 20s" | tee -a "$OUT_DIR/run.log"
+echo "launched (console pid $LAUNCH_PID); polling every ${POLL_INTERVAL}s" | tee -a "$OUT_DIR/run.log"
 
 STATUS=""; FIRST_STARTED=""
 SECONDS=0
 while (( SECONDS < TIMEOUT )); do
-  sleep 20
+  sleep "$POLL_INTERVAL"
   # Fail FAST on a refused launch instead of burning the whole timeout: a locked
   # device rejects the open ("device was not, or could not be, unlocked" /
   # FBSOpenApplicationServiceErrorDomain), the streamer exits, and no artifact
@@ -221,6 +231,35 @@ while (( SECONDS < TIMEOUT )); do
     echo "PRECONDITION: app launch was refused by the device (locked?) — see console.log:" | tee -a "$OUT_DIR/run.log"
     tail -3 "$OUT_DIR/console.log" | tee -a "$OUT_DIR/run.log"
     exit 3
+  fi
+  # #416-F: a RELEASE build CANNOT run an instrument at all — the trigger lives
+  # behind `#if DEBUG` (AppContainer.swift, `runAutoInstrumentsIfArmed`), and
+  # `ota-stage.sh` stages Release by DEFAULT. Such a build launches cleanly,
+  # prints nothing, writes no artifact, and burns the ENTIRE --timeout, which
+  # then reads as a phone/TCC/lock fault. Measured 2026-08-27: 600s lost on a
+  # phone that was working perfectly, and the next four members were queued to
+  # lose 600s each.
+  #
+  # The discriminator is a MEASUREMENT, not a guess: a live instrument streams
+  # `battery:` lines to the console within seconds (115 lines inside the first
+  # minute on the very next run), whereas the Release build's console stayed
+  # empty for all 600s. Prolonged silence with no artifact is therefore a real
+  # signal. Stated as a HYPOTHESIS in the message rather than a verdict — a
+  # crashed app looks the same from here, and the operator is pointed at the
+  # console either way.
+  if [[ -z "$FIRST_STARTED" ]] && (( SECONDS >= FIRST_OUTPUT_GRACE )) \
+     && ! grep -q "battery:" "$OUT_DIR/console.log" 2>/dev/null; then
+    echo "PRECONDITION: no instrument output after ${SECONDS}s and no artifact." | tee -a "$OUT_DIR/run.log"
+    echo "  A working run streams 'battery:' lines to the console within seconds." | tee -a "$OUT_DIR/run.log"
+    echo "  MOST LIKELY: the installed app is a RELEASE build. The instrument" | tee -a "$OUT_DIR/run.log"
+    echo "  trigger is '#if DEBUG' (AppContainer.runAutoInstrumentsIfArmed), and" | tee -a "$OUT_DIR/run.log"
+    echo "  scripts/mac/ota-stage.sh stages Release unless you pass Debug:" | tee -a "$OUT_DIR/run.log"
+    echo "      scripts/mac/ota-stage.sh <branch> Debug" | tee -a "$OUT_DIR/run.log"
+    echo "  Check with: grep -oE 'Talaria 27 [^<]*' ~/.talaria-ota/serve_root/index.html" | tee -a "$OUT_DIR/run.log"
+    echo "  (Also consistent with an app that crashed on launch — read console.log.)" | tee -a "$OUT_DIR/run.log"
+    echo "  Aborting at ${SECONDS}s instead of burning the full ${TIMEOUT}s timeout." | tee -a "$OUT_DIR/run.log"
+    kill "$LAUNCH_PID" 2>/dev/null || true
+    exit 4
   fi
   fetch_latest || continue
   S=$(status_of "$OUT_DIR/latest.json"); STARTED=$(started_of "$OUT_DIR/latest.json")

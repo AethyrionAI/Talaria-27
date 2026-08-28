@@ -113,6 +113,65 @@ else
   fail "416-D: expected exit 3 + PRECONDITION, got rc=$RC stderr='$(head -1 "$TMP/resolve.stderr")'"
 fi
 
+# ---- 416-F: a build that cannot run instruments aborts FAST, not at --timeout
+# The Release build launches cleanly and streams nothing (its trigger is behind
+# `#if DEBUG`). A working run streams `battery:` lines within seconds. This stub
+# xcrun drives the whole poll loop: the listing resolves, every container copy
+# reports not-found (so no artifact ever appears), and `process launch` either
+# stays silent (F1) or emits a battery line (F2).
+LOOPBIN="$TMP/loopbin"; mkdir -p "$LOOPBIN"
+cat > "$LOOPBIN/xcrun" <<EOF
+#!/bin/bash
+if [[ "\$*" == *"list devices"* ]]; then cat "$LISTING"; exit 0; fi
+if [[ "\$*" == *"copy from"* ]]; then
+  echo "Failed to retrieve the file node" >&2; exit 1
+fi
+if [[ "\$*" == *"process launch"* ]]; then
+  [[ -n "\${STUB_EMIT_BATTERY:-}" ]] && echo "battery: START trials=1 cells=1 (#200)"
+  sleep 30
+  exit 0
+fi
+exit 90
+EOF
+chmod +x "$LOOPBIN/xcrun"
+
+run_loop() {  # run_loop <timeout> ; honours STUB_EMIT_BATTERY
+  PATH="$LOOPBIN:$PATH" TALARIA_FIRST_OUTPUT_GRACE=1 TALARIA_POLL_INTERVAL=1 \
+    "$SUT" --device whoGoesThere --instrument decline --timeout "$1" \
+    --out "$TMP/loopruns" > "$TMP/loop.out" 2>&1
+}
+
+# 416-F1: silent launch ⇒ exit 4, fast, naming the Release/#if DEBUG hypothesis.
+run_loop 600; RC=$?
+LOOPLOG="$(ls -t "$TMP/loopruns"/*/run.log 2>/dev/null | head -1)"
+if [[ $RC -eq 4 ]]; then
+  pass "416-F1: a silent launch aborts with exit 4 instead of burning the timeout"
+else
+  fail "416-F1: expected exit 4 on a silent launch, got $RC"
+fi
+if grep -q "RELEASE build" "${LOOPLOG:-/dev/null}" && grep -q "#if DEBUG" "${LOOPLOG:-/dev/null}"; then
+  pass "416-F1: the abort names the Release / '#if DEBUG' hypothesis"
+else
+  fail "416-F1: the abort message does not name the cause — $(tail -2 "${LOOPLOG:-/dev/null}" 2>/dev/null)"
+fi
+grep -q "ota-stage.sh <branch> Debug" "${LOOPLOG:-/dev/null}" \
+  && pass "416-F1: the abort prints the remedy command" \
+  || fail "416-F1: the abort does not print the remedy"
+
+# 416-F2: a launch that DOES emit `battery:` must NOT trip the guard. It has no
+# artifact either, so it ends as an ordinary timeout — the point is that the
+# reason differs.
+STUB_EMIT_BATTERY=1 run_loop 3; RC=$?
+LOOPLOG="$(ls -t "$TMP/loopruns"/*/run.log 2>/dev/null | head -1)"
+if [[ $RC -eq 4 ]]; then
+  fail "416-F2: FALSE POSITIVE — a run that streamed 'battery:' was aborted as buildless"
+else
+  pass "416-F2: a run streaming 'battery:' is not aborted by the guard (rc=$RC)"
+fi
+grep -q "no instrument output" "${LOOPLOG:-/dev/null}" \
+  && fail "416-F2: the guard's message appeared on a run that produced output" \
+  || pass "416-F2: the guard stayed silent on a producing run"
+
 # ---- 416-E: preota-subset.sh exits NONZERO when any member failed ------------
 # Uses the subset's own documented seams (TALARIA_RUNNER / TALARIA_SUBSET_OUT),
 # the same ones preota-subset-test.sh drives.
