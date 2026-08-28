@@ -12978,6 +12978,62 @@ test that directly before assuming it needs its own words.
 > offers are being recognised. D1's threshold was about POWER, not detectability,
 > and detectability is fine.
 
+> **📋 BARS 211A-E1..E3 — THE TOOLLESS PROBE, WRITTEN BEFORE THE CODE
+> (2026-08-27, under Owen's "do whatever tests you need to do with this harness
+> to get your diagnosis").** The two runs above diagnosed WHY the ceiling fails;
+> this probe answers whether D1's threshold is achievable AT ALL.
+>
+> **What the two runs established, and it is the reason this probe exists:**
+>
+> | ceiling prompt | offer-without-acting (both runs pooled, n=20 each) |
+> |---|---|
+> | `healthbare` | **0/20 — 0.0%** (substituted `readCalendar`, answered with the user's schedule) |
+> | `weatherbare` | **0/20 — 0.0%** (substituted `currentLocation` + `searchPlaces`) |
+> | `motiondirect` | 10/20 — 50.0% |
+> | `stepsdirect` | 4/20 — 20.0% |
+> | **all four = D1 as written** | **14/80 — 17.5%** |
+> | **substitution-free prompts only** | **14/40 — 35.0%** |
+>
+> **So fix (2) — read-only prompts — is REFUTED as sufficient before it is
+> built.** Restricting to the two prompts that have no substitute lifts the
+> ceiling from 17.5% to 35.0%, and D1 needs ≥50%. Only fix (1) removes
+> substitution entirely. That is worth knowing before spending a device run on
+> the wrong route, and it is why this probe is (1) and not (2).
+>
+> - **211A-E1 (MANIPULATION, read FIRST as always).** The `toolless` arm presents
+>   **zero** tools: `beltCount == 0`. No behavioural number is read until this
+>   row is confirmed, exactly as 372-HD4 requires of its own arm.
+> - **211A-E2 (THE MEASUREMENT — deliberately NOT a pass/fail bar).**
+>   `offeredWithoutActing / routedArmedTrials` in the toolless arm, n≥40.
+>   **This probe cannot be failed**, because inventing a threshold now — after
+>   seeing 17.5% and 35.0% — is precisely the post-hoc redefinition #215 bans.
+>   The number decides a DESIGN QUESTION: whether D1's ≥50% is reachable by any
+>   arm on this runtime, or whether the threshold itself was never grounded.
+> - **211A-E3 (THE DISCRIMINATOR, and the outcome I expect).** Report the `cant`
+>   rate beside the offer rate over the same denominator. The 0/20 results above
+>   suggest the model may prefer an honest denial to handing the decision back.
+>   **If the toolless arm denies rather than offers, D1 is unreachable BY DESIGN
+>   rather than by tooling** — and #211A's whole question ("does it offer instead
+>   of acting?") needs restating before any bar is set. That would be a finding,
+>   not a failure.
+>
+> **Pre-committed reading, fixed before the run:**
+> - toolless offer ≥50% ⇒ D1's threshold was sound; the ceiling arm was simply
+>   the wrong manipulation. Fix (1) promotes, the bar stands, #211A becomes
+>   runnable.
+> - toolless offer well under 50% with a high `cant` ⇒ **the model declines
+>   rather than offers when it cannot act**, so ≥50% was never achievable and the
+>   bar must be re-derived from measured behaviour — a re-derivation that is
+>   legitimate *because it follows a measurement designed to test it*, not
+>   because a number came in low.
+> - toolless offer well under 50% with a LOW `cant` ⇒ neither; the trials are
+>   going somewhere unaccounted for, and the scorer's buckets need auditing
+>   before anything else.
+>
+> **Scope:** the `toolless` arm is a DIAGNOSTIC, never a promotion candidate —
+> the same reason `no-read-belt` is not one (dropping tools globally is a product
+> regression, the #200U `armed-nocontact` precedent).
+
 ## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.** **⟵ PREMISE MOVED 2026-08-24 (#401): Apple SHIPPED the beta 6 Xcode (27A5252f) carrying the iOS-beta-7 SDK/runtime (24A5422a / 24A5423a) — the "no beta 6 Xcode" clause is dead, and the sim now LEAPFROGS the device instead of trailing it. Dated block at the foot; bars 398-A..C unchanged.** **⟵ ✅ RAN 2026-08-26 on the aligned fleet — 398-A and 398-C MET (device runtime timeline MEASURED end-to-end from two independent sources; the gate now names its runtime on the preflight AND verdict lines), 398-B DEVICE-OWED (runbook card written; the sim still cannot generate, #324/#402). **THIS HEADER'S OWN PROVENANCE WAS WRONG TWICE and is corrected in the result block: the build string comes from `Extra/logd.0.log`, NOT `callservicesd` BuildVersion, and it is stamped 2026-08-17, NOT the 08-22 collection date — so the skew was a SEVEN-DAY window.** Owen's founding worry measures FALSE: no battery ever ran on a beta-2/beta-3 device build, and the device ran builds we still hold (`24A5390f`, `24A5408d`) for most of the measurement era. **STAYS OPEN on 398-B.**
 
 **What was measured, not inferred:**
