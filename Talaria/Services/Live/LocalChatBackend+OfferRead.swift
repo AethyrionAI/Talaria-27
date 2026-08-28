@@ -499,7 +499,16 @@ extension LocalChatBackend {
         }
     }
 
-    private func executeOfferReadTrial(belt: [any Tool], instructions: String,
+    // harness-visible
+    //
+    // Widened from `private` for #417's `tool-failure` battery, which MUST run
+    // its trials through this exact function rather than a copy: the whole
+    // point of that instrument is a result comparable to #211A-E's toolless
+    // run, and two hand-kept trial loops would drift the moment either changed.
+    // Swift's `private` is FILE-scoped, so sharing across the extension needs
+    // `internal` — see #216's convention. Private in spirit; grep the tag
+    // before treating it as an interface.
+    func executeOfferReadTrial(belt: [any Tool], instructions: String,
                                        options: GenerationOptions,
                                        prompt: String) async -> OfferReadTrialOutcome {
         var outcome = OfferReadTrialOutcome()

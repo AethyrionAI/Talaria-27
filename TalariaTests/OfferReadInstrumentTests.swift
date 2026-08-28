@@ -172,17 +172,25 @@ struct OfferReadManipulationTests {
     /// days — see `cardClauseManipulationApplied`.
     @Test func theManipulationColumnIsTrueOnlyWhenTheArmActuallyApplied() {
         #expect(LocalChatBackend.offerReadManipulationApplied(
-            arm: .control, swapped: 0, readToolsPresent: 3))
+            arm: .control, swapped: 0, readToolsPresent: 3, beltCount: 13))
         #expect(LocalChatBackend.offerReadManipulationApplied(
-            arm: .toolRollback, swapped: 1, readToolsPresent: 3))
+            arm: .toolRollback, swapped: 1, readToolsPresent: 3, beltCount: 13))
         #expect(!LocalChatBackend.offerReadManipulationApplied(
-            arm: .toolRollback, swapped: 0, readToolsPresent: 3),
+            arm: .toolRollback, swapped: 0, readToolsPresent: 3, beltCount: 13),
                 "a rollback that swapped nothing must NOT read as applied")
         #expect(LocalChatBackend.offerReadManipulationApplied(
-            arm: .noReadBelt, swapped: 0, readToolsPresent: 0))
+            arm: .noReadBelt, swapped: 0, readToolsPresent: 0, beltCount: 10))
         #expect(!LocalChatBackend.offerReadManipulationApplied(
-            arm: .noReadBelt, swapped: 0, readToolsPresent: 1),
+            arm: .noReadBelt, swapped: 0, readToolsPresent: 1, beltCount: 10),
                 "a ceiling arm that left a read tool must NOT read as applied")
+        // #211A-E1: the toolless arm is witnessed by an EMPTY belt, and
+        // `readToolsPresent == 0` cannot witness it — that is ALSO true of
+        // `.noReadBelt`, which is why the parameter was added.
+        #expect(LocalChatBackend.offerReadManipulationApplied(
+            arm: .toolless, swapped: 0, readToolsPresent: 0, beltCount: 0))
+        #expect(!LocalChatBackend.offerReadManipulationApplied(
+            arm: .toolless, swapped: 0, readToolsPresent: 0, beltCount: 10),
+                "a toolless arm with tools left on the belt must NOT read as applied")
     }
 }
 
@@ -199,9 +207,31 @@ struct OfferReadRegistryTests {
 
     /// The arm-name pin — 372-C5's shape. Adding an arm without naming it here
     /// is a failure rather than a silent widening of the export vocabulary.
+    ///
+    /// It DID its job on 2026-08-27: adding `.toolless` (#211A-E) turned this
+    /// red, which is the whole reason the pin exists. The arm is named here
+    /// rather than the pin being loosened.
     @Test func theBatteryHasThreeNamedArmsWithTheCeilingLast() {
         #expect(LocalChatBackend.OfferReadArm.allCases.map(\.rawValue)
+                == ["control", "tool-rollback", "no-read-belt", "toolless"])
+    }
+
+    /// **The claim that protects every prior `offer-read` artifact.**
+    ///
+    /// A DEFAULT run must still mean exactly the original three arms, ceiling
+    /// last. `.toolless` is a diagnostic reached only through its own
+    /// instrument (`offer-read-toolless`), and if it ever leaks into the
+    /// defaults, every artifact recorded before 2026-08-27 stops being
+    /// comparable to every artifact recorded after — silently, since the arm
+    /// count is not in the instrument's name.
+    ///
+    /// This is pinned SEPARATELY from `allCases` on purpose: the enum is
+    /// allowed to grow, the default is not.
+    @Test func theDefaultRunIsStillTheOriginalThreeArms() {
+        #expect(LocalChatBackend.offerReadDefaultArms.map(\.rawValue)
                 == ["control", "tool-rollback", "no-read-belt"])
+        #expect(!LocalChatBackend.offerReadDefaultArms.contains(.toolless),
+                "the toolless diagnostic must never ride a default run")
     }
 }
 

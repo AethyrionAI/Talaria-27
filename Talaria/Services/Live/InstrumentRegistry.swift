@@ -933,6 +933,23 @@ enum InstrumentRegistry {
                            guard let backend else { return }
                            await backend.runOfferReadBattery(trials: trials, arms: [.toolless])
                        }),
+        // #417 (2026-08-27, Owen's ruling) — the TOOL-FAILURE instrument.
+        //
+        // #211A-E measured fabrication with an EMPTY belt. A user never hits an
+        // empty belt; they hit tools that are PRESENT and FAIL — HealthKit
+        // empty, Location denied, network down. The failure arms replay
+        // production's own honest "no data" / "permission not granted" strings
+        // verbatim rather than inventing a failure shape, because an invented
+        // one measures something production never emits.
+        //
+        // Reuses offer-read's four prompts and trial mechanics so the result is
+        // directly comparable to the toolless run's 20 fabricate / 20 honest.
+        InstrumentSpec(name: "tool-failure", confirmationMode: .autoDecline,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runToolFailureBattery(trials: trials)
+                       }),
         // #388 beta5 surface sweep: bars 388-A (capabilities, BOTH tiers),
         // 388-B (quota, plus the log needle it must be correlated against)
         // and 388-D's device-answerable half (does each of three
