@@ -685,6 +685,17 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     func handleAudioRouteChange(_ reason: AVAudioSession.RouteChangeReason) async {
         guard hasActiveRealtimeSession else { return }
         updateAudioRouteSummary()
+        // #418: a mid-session route swap (AirPods in/out) re-logs the route.
+        // Read off-main per #198B; the formatter runs inside the same hop.
+        if let routeDetail = try? await AudioSessionOffMain.run({ audioSession in
+            LiveVoiceSessionService.audioRouteLogDetail(
+                inputs: audioSession.currentRoute.inputs.map { ($0.portType.rawValue, $0.portName) },
+                outputs: audioSession.currentRoute.outputs.map { ($0.portType.rawValue, $0.portName) },
+                sampleRateHz: audioSession.sampleRate
+            )
+        }) {
+            Self.logger.notice("#418 route after change: \(routeDetail, privacy: .public)")
+        }
         switch reason {
         case .newDeviceAvailable, .oldDeviceUnavailable, .override, .routeConfigurationChange, .categoryChange:
             if voiceState == .interrupted {
@@ -777,6 +788,10 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             ) {
                 try audioSession.overrideOutputAudioPort(.speaker)
             }
+            // #418: name the route the capture actually rides, at the moment
+            // the session is shaped. Logged after the override so it shows
+            // the route the session will really use.
+            Self.logger.notice("#418 route at session start: \(LiveVoiceSessionService.audioRouteLogDetail(inputs: audioSession.currentRoute.inputs.map { ($0.portType.rawValue, $0.portName) }, outputs: audioSession.currentRoute.outputs.map { ($0.portType.rawValue, $0.portName) }, sampleRateHz: audioSession.sampleRate), privacy: .public)")
         }
         // #302-A / #415: the capture-chain instrument, in the SAME words the
         // native pipeline uses, so one Console predicate reads both engines.
@@ -860,6 +875,13 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
                let role = item["role"] as? String,
                role == "assistant",
                let itemID = item["id"] as? String {
+                // #419: emitted BEFORE the reset and BEFORE the id overwrite,
+                // so both values this branch destroys are captured. The reset
+                // below is the only in-session path that can zero a RUNNING
+                // playback counter — this line names whether it just did.
+                let elapsedMs: Int? = assistantAudioPlaybackStartedAtUptime != nil
+                    ? currentAssistantAudioPlaybackMilliseconds() : nil
+                Self.logger.notice("#419 \(Self.assistantItemArrivalLogDetail(eventType: type, itemID: itemID, currentItemID: self.currentAssistantConversationItemID, playbackElapsedMs: elapsedMs), privacy: .public)")
                 currentAssistantConversationItemID = itemID
                 currentAssistantContentIndex = 0
                 resetAssistantAudioPlaybackTracking()
@@ -1268,6 +1290,53 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     private func resetAssistantAudioPlaybackTracking() {
         assistantAudioPlaybackStartedAtUptime = nil
         accumulatedAssistantAudioPlaybackMilliseconds = 0
+    }
+
+    // MARK: - #418/#419 log-line formatters (pure — pinned in VoiceInstrumentLogLineTests)
+
+    /// #419: describes an assistant `conversation.item.created`/`.added`
+    /// arrival. Two discriminations are load-bearing and separately pinned:
+    /// same-item-re-announced vs new-item (separates the beta/GA double-fire
+    /// candidate from the second-item candidate), and mid-playback vs idle
+    /// (mid-playback is the counter-zeroing event this instrument exists to
+    /// catch — the elapsed value it names is the one the reset destroys).
+    nonisolated static func assistantItemArrivalLogDetail(
+        eventType: String,
+        itemID: String,
+        currentItemID: String?,
+        playbackElapsedMs: Int?
+    ) -> String {
+        let relation: String
+        if currentItemID == nil {
+            relation = "first assistant item"
+        } else if currentItemID == itemID {
+            relation = "same item re-announced"
+        } else {
+            relation = "new item (replacing \(currentItemID ?? "?"))"
+        }
+        let playback: String
+        if let elapsedMs = playbackElapsedMs {
+            playback = "MID-PLAYBACK: resetting tracker at \(elapsedMs)ms"
+        } else {
+            playback = "assistant idle"
+        }
+        return "\(eventType) \(itemID) — \(relation) — \(playback)"
+    }
+
+    /// #418: describes the audio route + capture sample rate. Every port is
+    /// listed (an empty list says "none" rather than rendering blank) because
+    /// the whole question is WHICH input the capture rode — a line that
+    /// dropped ports would be #419's defect wearing #418's number.
+    nonisolated static func audioRouteLogDetail(
+        inputs: [(portType: String, portName: String)],
+        outputs: [(portType: String, portName: String)],
+        sampleRateHz: Double
+    ) -> String {
+        func list(_ ports: [(portType: String, portName: String)]) -> String {
+            guard !ports.isEmpty else { return "[none]" }
+            return "[" + ports.map { "\($0.portType) \"\($0.portName)\"" }.joined(separator: ", ") + "]"
+        }
+        return "in=\(list(inputs)) out=\(list(outputs)) sampleRate=\(Int(sampleRateHz))Hz"
     }
 
     private func currentAssistantAudioPlaybackMilliseconds() -> Int {
