@@ -145,6 +145,21 @@ running and Lane B queues first):**
 Morning deliverables: merged lanes, a fresh staged OTA, the runbook
 republished with the new cards, handoff updated.
 
+## STATE AT THE 08-31 NIGHT CLOSE (~01:1x — supersedes every block below)
+
+main `af6d4884` · 70 live entries · 0 open PRs · **OTA STAGED build 3146**
+(Release, main @ af6d4884 — Owen installs in the morning; carries the
+#418/#419 voice instruments + the #417-F location guard) · device on Release
+3137 · nothing running, no waiters, sims shut down.
+
+Tonight (Owen's overnight go — "up to two additional lanes, subagents, merge
+if green gate"): #413's AirPods probe log-scored CLEAN (leaning acoustic;
+spawned #418 + #419) · #418/#419 instruments MERGED (PR #396 `97e52d41`) ·
+#417's open question ANSWERED by full audit and 417-F CLOSED it (PR #397
+`6e994f41`) · #414 reframed: deliberately-keyless liveness probe, Owen's
+decision now · four stale `allCases` pins fixed on main (red since 08-27,
+first executed by tonight's gate). Handoff §25 has the full story.
+
 ## STATE AT THE 08-27 **NIGHT** COMPACTION (~00:00 — supersedes every block below)
 
 **Board: 68 live · 0 open PRs · main `a2b2cbaa` · device AND staged on Debug
