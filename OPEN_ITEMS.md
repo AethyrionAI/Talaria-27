@@ -13946,6 +13946,37 @@ discipline on the memo path — same subsystem, different engine), #303
 (engine attribution discipline — satisfied structurally above), #1
 (voice transcripts posting to the session — the pollution path), #138
 (the voice umbrella).
+> **🟢 2026-08-30 — THE AIRPODS PROBE RAN, AND THE PHANTOM WENT AWAY WITH THE
+> MIC's EARS COVERED.** Owen, Saturday morning: *"I have airpods in, and
+> started a voice session. It completed without interrupting itself."* That is
+> this entry's own pre-registered discriminator, and under its pre-registered
+> reading a vanishing phantom points at **candidates 1/2 (ACOUSTIC — echo
+> leaking through the canceller's warm-up)** and away from candidate 3
+> (app-side channel mis-route). The prior on speakerphone was **4/4
+> self-capture, every session, first utterance** (#138's 138-A table), so even
+> one clean AirPods session carries real weight — but it is stated as leaning,
+> not settled:
+>
+> - **N=1 against 4/4.** Fisher on 0/1 vs 4/4 is p≈0.20 — one more clean
+>   AirPods session makes it p≈0.067, three make it p≈0.029. Cheap to extend
+>   whenever AirPods are already in.
+> - **"Did not interrupt itself" is the AUDIBLE symptom.** The 2026-08-22
+>   archive proved phantom TURNS can arrive with ZERO barge-in events — so the
+>   probe's primary reading (does a phantom USER bubble appear in the
+>   transcript?) is one look away and not yet answered. Asked of Owen below.
+> - **Build/host unstated at report** — Release 3137 was staged for morning
+>   install; whether this session ran it, and on which profile, is asked
+>   rather than assumed. The five `#138` markers are ungated `.notice` lines
+>   (`LiveVoiceSessionService.swift:883-904,1314`), so a Release build still
+>   emits them and a same-day `sudo log collect` can score this objectively
+>   (zero `speech_started, assistant not playing` lines during the first
+>   reply = clean) — logd evicts app rows in hours, so that window is today.
+>
+> **What this buys if it holds:** the fix moves off the app's audio plumbing
+> entirely. The lever becomes the canceller's warm-up window — e.g. a
+> start-of-session turn-detection hold on the FIRST assistant utterance only
+> (server-side `interrupt_response`/threshold arm, per #396's surface), not
+> any further route surgery — 138-B already refuted that family.
 
 ## 414. 🐛 THE PHONE 401s `GET /v1/models` AGAINST OJAMD — 410 historical lines of "API server rejected invalid API key", PRE-EXISTING andUNDIAGNOSED — **FILED 2026-08-26 per #268, from the OJAMD deploy report §3(e) (measured on-box, out of that session's scope by design). Build 3087 observed doing it twice the same day, pre-bounce. Mechanism deliberately NOT guessed.**
 
