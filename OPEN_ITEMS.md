@@ -13148,6 +13148,25 @@ test that directly before assuming it needs its own words.
 >    entry can close into #417's lineage the way #211A always expected to close
 >    into #211's.
 
+> **🔧 2026-08-31 ~00:30 — FOUR STALE `allCases` PINS FIXED, and the defect
+> window is the lesson.** The 2026-08-27 `.toolless` lane grew `OfferReadArm`
+> to four cases and made the battery DEFAULT to the explicit three-arm
+> `offerReadDefaultArms` — but four assertions in `OfferReadInstrumentRunTests`
+> still compared the run record against `allCases`, so they were RED ON MAIN
+> from `690a04db` until tonight, and **the first thing ever to execute them
+> was tonight's #418/#419 lane gate** (4 unit FAILs + a 5th issue on the same
+> mechanism). Nothing was wrong with the battery; the pins' denominator was.
+> Fixed by re-denominating the four onto `offerReadDefaultArms` (the enum
+> -spelling pin at :215 correctly keeps `allCases`, and its name — which still
+> said "ThreeNamedArms" while pinning four — is corrected to
+> `theBatteryArmEnumIsPinnedWithTheCeilingLast`).
+> **Why it survived three days:** Thursday's targeted verification hit the
+> `-only-testing:` FILE-vs-TYPE trap, and after that catch the re-run targeted
+> `OfferReadManipulationTests` — the RUN suite was never re-executed post-edit.
+> The #416 family again: between an edit and the next full gate, an unexecuted
+> test is a green light that saw nothing. Verified green on main before
+> re-gating the instruments lane.
+
 ## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.** **⟵ PREMISE MOVED 2026-08-24 (#401): Apple SHIPPED the beta 6 Xcode (27A5252f) carrying the iOS-beta-7 SDK/runtime (24A5422a / 24A5423a) — the "no beta 6 Xcode" clause is dead, and the sim now LEAPFROGS the device instead of trailing it. Dated block at the foot; bars 398-A..C unchanged.** **⟵ ✅ RAN 2026-08-26 on the aligned fleet — 398-A and 398-C MET (device runtime timeline MEASURED end-to-end from two independent sources; the gate now names its runtime on the preflight AND verdict lines), 398-B DEVICE-OWED (runbook card written; the sim still cannot generate, #324/#402). **THIS HEADER'S OWN PROVENANCE WAS WRONG TWICE and is corrected in the result block: the build string comes from `Extra/logd.0.log`, NOT `callservicesd` BuildVersion, and it is stamped 2026-08-17, NOT the 08-22 collection date — so the skew was a SEVEN-DAY window.** Owen's founding worry measures FALSE: no battery ever ran on a beta-2/beta-3 device build, and the device ran builds we still hold (`24A5390f`, `24A5408d`) for most of the measurement era. **STAYS OPEN on 398-B.**
 
 **What was measured, not inferred:**

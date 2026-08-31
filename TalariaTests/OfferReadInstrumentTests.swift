@@ -211,7 +211,7 @@ struct OfferReadRegistryTests {
     /// It DID its job on 2026-08-27: adding `.toolless` (#211A-E) turned this
     /// red, which is the whole reason the pin exists. The arm is named here
     /// rather than the pin being loosened.
-    @Test func theBatteryHasThreeNamedArmsWithTheCeilingLast() {
+    @Test func theBatteryArmEnumIsPinnedWithTheCeilingLast() {
         #expect(LocalChatBackend.OfferReadArm.allCases.map(\.rawValue)
                 == ["control", "tool-rollback", "no-read-belt", "toolless"])
     }
@@ -268,7 +268,7 @@ struct OfferReadInstrumentRunTests {
         let record = try freshRun(after: known)
         #expect(record.endedCleanly == true)
         #expect(record.kind == "offer-read")
-        #expect(record.cells == LocalChatBackend.OfferReadArm.allCases.map(\.rawValue))
+        #expect(record.cells == LocalChatBackend.offerReadDefaultArms.map(\.rawValue))
     }
 
     @Test func everyArmRecordsWhetherItsTreatmentActuallyApplied() async throws {
@@ -278,7 +278,7 @@ struct OfferReadInstrumentRunTests {
         let record = try freshRun(after: known)
 
         let checks = record.probes.filter { $0.band == "manipulation" }
-        #expect(checks.count == LocalChatBackend.OfferReadArm.allCases.count)
+        #expect(checks.count == LocalChatBackend.offerReadDefaultArms.count)
         for row in checks {
             #expect(row.metrics?["descriptionsSwapped"] != nil)
             #expect(row.metrics?["readToolsPresent"] != nil)
@@ -302,7 +302,7 @@ struct OfferReadInstrumentRunTests {
         let record = try freshRun(after: known)
 
         let summaries = record.probes.filter { $0.band == "offer-read-summary" }
-        #expect(summaries.count == LocalChatBackend.OfferReadArm.allCases.count)
+        #expect(summaries.count == LocalChatBackend.offerReadDefaultArms.count)
         for row in summaries {
             #expect(row.errors != nil)
             let attempted = try #require(row.metrics?["attempted"])
@@ -335,7 +335,7 @@ struct OfferReadInstrumentRunTests {
         let record = try freshRun(after: known)
 
         let trialRows = record.probes.filter { $0.band == "offer-read-trial" }
-        let expected = LocalChatBackend.OfferReadArm.allCases.count
+        let expected = LocalChatBackend.offerReadDefaultArms.count
             * LocalChatBackend.offerReadBatteryPrompts.count
         #expect(trialRows.count == expected)
         for row in trialRows {
