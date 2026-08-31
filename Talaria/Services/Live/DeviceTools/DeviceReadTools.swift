@@ -129,11 +129,28 @@ struct LocationTool: Tool {
         // The whole lookup AND the string extraction therefore happen inside
         // one MainActor hop, and only a [String] crosses back out.
         guard let parts = await Self.reverseGeocodedParts(for: fix) else {
-            return "Got a location fix, but reverse geocoding failed (this usually needs a network connection). Accuracy ±\(Int(fix.horizontalAccuracy))m."
+            return Self.locationAnswer(parts: [], horizontalAccuracyMeters: Int(fix.horizontalAccuracy))
         }
+        return Self.locationAnswer(parts: parts, horizontalAccuracyMeters: Int(fix.horizontalAccuracy))
+    }
+
+    /// #417-F: the one place the location answer is composed, pure so the
+    /// empty case is pinnable. #417's audit found the old inline composition
+    /// could return the bare label `"Current location: "` when MapKit handed
+    /// back an all-nil item — no data, no failure string, which is the ONE
+    /// condition #417's device instrument measured as fabrication-inducing
+    /// (20/40 with nothing to say vs 0/40 with an honest failure string).
+    /// Empty or all-empty parts therefore take the SAME honest string the
+    /// geocode-nil arm has always used. Empty fragments are dropped rather
+    /// than rendered as stray commas; populated composition is byte-identical
+    /// to the pre-fix behaviour and pinned by tests.
+    nonisolated static func locationAnswer(parts: [String], horizontalAccuracyMeters: Int) -> String {
         var uniqueParts: [String] = []
-        for part in parts where !uniqueParts.contains(part) {
+        for part in parts where !part.isEmpty && !uniqueParts.contains(part) {
             uniqueParts.append(part)
+        }
+        guard !uniqueParts.isEmpty else {
+            return "Got a location fix, but reverse geocoding failed (this usually needs a network connection). Accuracy ±\(horizontalAccuracyMeters)m."
         }
         return "Current location: \(uniqueParts.joined(separator: ", "))"
     }
