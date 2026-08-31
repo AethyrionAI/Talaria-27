@@ -141,9 +141,13 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#323** 🐛 App Lock gates the SCREEN and nothing else — behind the cover a FULL INFERENCE TURN ran and committed to the transcript, and the sensor pipeline collected GPS (±9.7 m) + health and **attempted to upload them**; the uploads failed only because the OJAMD gateway happened to be off. Root cause is #302's: the cover is an opaque `UIWindow`, `scenePhase` stays `.active`, and — until 2026-08-20 — nothing else consulted lock state. **MEASURED on device 2026-08-10; ~~NOT STARTED~~ → ✅ BUILT 2026-08-20 with #302 (bars 323-A…E MET, mutation-proven; device verification rides #302's). ✅ SEVERITY BOUNDED same day: the device passcode gates the lock-screen path (no device-lock bypass) — the exposure is an UNLOCKED phone in someone else's hands, which is exactly App Lock's own threat model. Real defect, fix owed, not an emergency**
 - **#408** 🐛 a guardrail-declined image turn has no route — on-device `.guardrailViolation` dead-ends at Retry (n=4: the declined photo stable at 0/2 on-device, 1/1 on PCC; a different shot passed on-device); post-#390 nothing can opt an image down to OCR on that tier. **⚖️ RULED auto-degrade-once 2026-08-25 and ✅ BUILT + MERGED the same night (PR #378, `b03fabfb`): BOTH turn paths retry once through #390-B's own `composeTurnInput(… imageInputEnabled: false)`, the reply says so in production copy, text-only + PCC declines untouched; 408-A..E met, RED-first, five mutations each reding one named pin; gate 2568(+16)/14/Release. OPEN on the device re-send only (runbook card in the entry)**
 - **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); the refusal wording is the lever — **✅ THE STRING SHIPPED 2026-08-25 (PR #376): both branches carry an explicit do-not-claim clause, RED-first, mutation-proven both ways, 409-A/B/C MET. OPEN on 409-D only — the wording changed, the model's behaviour is UNVERIFIED until the next device `refusal-words` run**
-- **#413** 🐛 the assistant's FIRST utterance is captured as the USER speaking — realtime engine, first response only, 3/3 on BOTH Noisy and Normal (preset-independent, Owen's own A/B) — candidates filed (AEC convergence / route settle / channel mis-route); the AirPods probe discriminates acoustic vs software
+- **#413** 🐛 the assistant's FIRST utterance is captured as the USER speaking — realtime engine, first response only, 3/3 on BOTH Noisy and Normal (preset-independent, Owen's own A/B) — candidates filed (AEC convergence / route settle / channel mis-route); the AirPods probe discriminates acoustic vs software — **✅ PROBE RAN 2026-08-30 (build 3137 Release, log-scored): phantom ABSENT with AirPods — no bubble, zero BARGE-IN, zero in-playback speech_started, 3 turns→3 responses→3 playbacks 1:1:1. Leaning ACOUSTIC (candidates 1/2); channel mis-route disfavored. N=1 vs the 4/4 speakerphone baseline; spawned #418 + #419**
 - **#414** 🐛 the phone 401s `GET /v1/models` against OJAMD — 410 historical log lines, pre-existing, quiet (chat + picker use other routes) — from the deploy report; first step is reading which credential slot the call sites resolve; may already be fixed by Lane B's Keychain hygiene, unmeasured
 - **#415** 🔴 the MIC STAYED ON after a Control Center voice launch (2/2, cleared by force-quit; privacy-surface real) — Owen's 3108 pass. **Log collect HAPPENED and the mechanism is NAMED: #302's ordering surviving #302's fix (App Lock arms ~1.2 s AFTER a warm CC tap clears the gate); the #303 engine-pin and #198 teardown-miss candidates are FALSIFIED.** ✅ **FIX BUILT 2026-08-26 night — 415-A/B/C MET (RED-first witness 8 tests/21 issues, three isolating mutations): a mid-flight cover now stops capture and PARKS the session, resuming once on unlock via a cover watch on the gate's new `waitUntilLocked()`, and `LiveVoiceSessionService` finally carries the `#302-A` capture instrument. 🔴 OPEN ON 415-D ONLY — Owen's device run holding the cover open.** The naming half is ✅ DONE (415-N, 2026-08-26): both CC controls read "Ask Talaria" / "Talk to Talaria"; host-meaning "Hermes" strings deliberately untouched. **The SHORTCUTS half is ✅ DONE too (415-S, 2026-08-26, Owen's "shortcuts only"): `AskHermesIntent.title` + the `TalariaAppShortcuts` `shortTitle` both read "Ask Talaria", the type name and the registration identity deliberately unmoved (measured: App Shortcuts key off `mangledTypeName`, never the title, so nothing re-registers and nothing orphans). CarPlay stays declined-with-a-trigger and is now GUARDED by a test. ~~🚩 One un-enumerated third site flagged for Owen: `parameterSummary`'s `formatString` still reads "Ask Hermes ${question}".~~** **⟵ ✅ 415-SWEEP DONE 2026-08-27 (Owen's STANDING RULING — "if it says Hermes outward on the phone, replace it with Talaria; exception being the in app connection"): the flagged `parameterSummary` is renamed AND the rule was applied WHOLESALE in one pass — 74 replacements across 37 files, every user-visible "Hermes" in the app/widget/intents targets classified app-meaning vs host-meaning and the whole inventory enumerated in the close-out (three lists + 7 borderline calls with reasoning). Newly swept surfaces no prior lane had inventoried: the **13 `Info.plist` permission usage descriptions** iOS renders in its own system alerts, the two **local-brain system prompts** ("You are Hermes" → Talaria — what the assistant answers when asked its own name), and **README/docs**, where the dispatch's premise was WRONG (#77 was a URL-scheme lane, not a naming lane) and six real app-meaning misses were found. ~100 host-meaning strings deliberately KEPT and newly pinned; fences (hermes:// scheme, CarPlay, control + widget `kind`s, type names) shown structurally. **The MIC FIX (415-A…D) is still what keeps this item red — naming is now fully done.**
+- **#416** 🐛 the instrument harness could not resolve `whoGoesThere` (identifier changed form; subset reported the wipeout as EXIT 0) — **FIXED 2026-08-27 the same night: anchor on the `(UDID)` token, nonzero subset exit, `run-instrument-test.sh` (12 checks), exit-4 Release-build abort. CLOSED-shape; riding the next sweep**
+- **#417** 🔴 with NO tools the local brain FABRICATES sensor readings (20/40, prompt-shaped) — **DE-ESCALATED same night by the tool-failure instrument: a PRESENT-but-failing tool fabricates 0/40 — the honest “no data” strings are protective. Open on one question: can any production path reach the model with neither data nor a failure string?**
+- **#418** 🐛 real speech through the AIRPODS MIC transcribed as CHINESE (assistant: “you sound muffled”) — n=1, build 3137, from the #413 probe session; input route + sample rate currently unlogged (first gap); corroborates #413's garbled-input→CJK reading
+- **#419** 🐛 the assistant-playback elapsed counter reads 0 EVERY TIME (all recorded readings, two archives) — a real barge-in would truncate the assistant item at `audio_end_ms: 0`, wiping the heard portion from server history; zeroing path evidence-pointed at a mid-playback assistant item event, mechanism undetermined until 419-A's one-line instrument exists
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it**. **MEASURED 2026-08-11; clipping RULED OUT.** ~~Mechanism UNKNOWN~~ ~~⟵ INVESTIGATED 2026-08-25, candidates ranked~~ **⟵ ✅ MECHANISM MEASURED 2026-08-25 (measurement lane, unit repro): `openSession`'s wholesale replace + `mapStoredMessage`'s role refusal and empty usage fields zero BOTH totals inputs in ONE event, and the 9→7 row drop is the same event. Candidate ① CONFIRMED; candidate ③ (the `.voiceHermes` predicate split) is REAL but mutation-proven NOT the cause; the entry's "receipts render normally" claim is FALSIFIED — no reopened row carries `usage` or `turnDuration`, and the quoted numbers are the card's LAST TURN block via `SessionUsageIndex`. Shipped: 16 pins in `SessionTotalsAfterReopenTests`, a verbose-gated `/usage` instrument (NOT `#if DEBUG`), 3 seam breadcrumbs at `.notice`, and 330-G's six-step device script.** 330-A/B/E DISCHARGED. **⟵ ✅ FIXED 2026-08-25 (fix lane, `330-receipts-sidecar`): the `TurnReceiptSidecar` — session-id-keyed, replayed at open, `AgentAttachmentSidecar`'s pattern plus a priming tier — restores `usage`/`turnDuration`/`servingModel`/`isContextPriming` across the replace, and `mapStoredMessage` re-maps the STORED primer (a `user` row host-side) into the priming notice, collapsing its ack; that also closes a compounding defect where every reopen fed the primer back into the journal the next transplant is composed from. 330-C CONVERGED (four sites, one `isAgentAuthored` predicate — hygiene, M2 already proved it is not the cause). 330-D MET with its token source NAMED: `postPrimingTurn` returns nil whenever the priming run misses the 20 s `runsSyncBudget`, so the run id is kept and re-read off the interactive path onto the journal hop. 5 of 16 pins flipped RED-first (9 expectations), all rewritten; 16 → 34 tests; 3 isolating mutations.** **330-C/330-D DISCHARGED; only 330-G (Owen's device close) is left, and #312 (f) flips with it**
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
@@ -13947,7 +13951,7 @@ discipline on the memo path — same subsystem, different engine), #303
 (voice transcripts posting to the session — the pollution path), #138
 (the voice umbrella).
 > **🟢 2026-08-30 — THE AIRPODS PROBE RAN, AND THE PHANTOM WENT AWAY WITH THE
-> MIC's EARS COVERED.** Owen, Saturday morning: *"I have airpods in, and
+> MIC's EARS COVERED.** Owen, Sunday evening (day corrected 2026-08-30 — the session ran 23:19, not AM): *"I have airpods in, and
 > started a voice session. It completed without interrupting itself."* That is
 > this entry's own pre-registered discriminator, and under its pre-registered
 > reading a vanishing phantom points at **candidates 1/2 (ACOUSTIC — echo
@@ -13977,6 +13981,53 @@ discipline on the memo path — same subsystem, different engine), #303
 > start-of-session turn-detection hold on the FIRST assistant utterance only
 > (server-side `interrupt_response`/threshold arm, per #396's surface), not
 > any further route surgery — 138-B already refuted that family.
+
+> **✅ 2026-08-30 23:19 — LOG-SCORED CLEAN. The archive agrees with Owen's ear,
+> and the reading firms up: ACOUSTIC.** Owen ran the collect himself
+> (`talaria-413-airpods.logarchive`, taken ~11 min after the session — same-day
+> per the logd-decay rule). Answers to the owed readings: **no phantom bubble
+> appeared** (the probe's primary reading, answered by the transcript), and the
+> build is **3137 — the RELEASE build**, which also makes this the first #138
+> instrument read off a Release binary (the markers are ungated `.notice`, and
+> they emitted exactly as designed).
+>
+> ```
+> 23:19:57.814  voice session starting on engine realtime (voiceHostPaired=true)
+> 23:20:02.312  speech_started (assistant idle)   ← Owen's greeting
+> 23:20:07.724  audio.started ─┐ FIRST utterance, 2.16 s
+> 23:20:09.881  audio.stopped ─┘ zero speech_started inside the window
+> 23:20:11.540  speech_started (assistant idle)   ← +1.66 s after stop: human cadence
+> 23:20:14.936  audio.started ─┐ 12.15 s
+> 23:20:27.083  audio.stopped ─┘ clean
+> 23:20:28.517  speech_started (assistant idle)   ← +1.43 s
+> 23:20:30.210  audio.started ─┐ 3.77 s
+> 23:20:33.981  audio.stopped ─┘ clean
+> ```
+>
+> **The scoring, against the code's own discriminator** (echo is distinguished
+> by *arriving during playback*, `LiveVoiceSessionService.swift:1313`):
+> **zero `#138 BARGE-IN` lines; zero `speech_started` during any playback
+> window; 3 user turns → 3 responses → 3 playbacks, strictly 1:1:1** — where
+> the 2026-08-22 speakerphone archive had 5 phantoms in 40 s with overlapping
+> responses. Every `speech_started` follows the previous `audio.stopped` by
+> 1.4–1.7 s, which is a person deciding to speak, not a canceller leaking.
+>
+> **Verdict under the pre-registered reading: candidates 1/2 (ACOUSTIC — echo
+> through the canceller's warm-up) are the surviving family; candidate 3
+> (app-side channel mis-route) is disfavored** — the app's plumbing was
+> identical in this session, and the only variable was that the mic could not
+> hear the TTS. Still N=1 session against the 4/4 speakerphone baseline
+> (Fisher p≈0.20 on first utterances); each further incidental AirPods session
+> tightens it, none needs to be scheduled.
+>
+> **Two spawned observations, filed on their own numbers rather than buried
+> here:** Owen's REAL speech through the AirPods mic transcribed as Chinese
+> (the assistant told him he was muffled) — **#418**, and it CORROBORATES this
+> entry's reading of the phantom text: garbled/attenuated input → CJK
+> fragments is now demonstrated in-house on real speech, not just inferred for
+> echo residue. And the archive shows every `audio.stopped` printing
+> `after 0ms` against 2–12 s real playbacks — a dead elapsed counter whose
+> consumer is barge-in TRUNCATION — **#419**.
 
 ## 414. 🐛 THE PHONE 401s `GET /v1/models` AGAINST OJAMD — 410 historical lines of "API server rejected invalid API key", PRE-EXISTING andUNDIAGNOSED — **FILED 2026-08-26 per #268, from the OJAMD deploy report §3(e) (measured on-box, out of that session's scope by design). Build 3087 observed doing it twice the same day, pre-bounce. Mechanism deliberately NOT guessed.**
 
@@ -15574,6 +15625,86 @@ obvious next instrument is a TOOL-FAILURE arm rather than a tool-absent one.
 > one question only**: whether any production path can reach the model with
 > neither data nor a failure string (a silently-empty tool result), which is the
 > condition this run shows to be the dangerous one.
+
+## 418. 🐛 REAL SPEECH THROUGH THE AIRPODS MIC TRANSCRIBED AS CHINESE — the assistant told Owen he sounded MUFFLED — realtime engine, one occurrence — **FILED 2026-08-30 per #268, from the #413 AirPods probe session (build 3137 Release, 23:19). Mechanism deliberately NOT guessed.**
+
+**The observation:** during the AirPods session that cleared #413's probe, the
+transcription of Owen's OWN speech came out as Chinese, and the assistant's
+reply said he sounded muffled. No phantom involved — the log shows the turn
+arriving at human cadence 1.66 s after playback stopped; this is degraded
+transcription of genuine input.
+
+**Why it earns a number instead of a #413 footnote:** it is the same
+recognizer signature (garbled input → CJK fragments) on a DIFFERENT input
+path — real speech through the Bluetooth mic rather than echo residue through
+the speakerphone canceller. That makes it corroborating evidence for #413's
+acoustic reading AND a distinct input-quality fault of its own: a user
+wearing AirPods gets worse transcription than one on speakerphone.
+
+**Candidates — a starting list, not a menu:**
+1. **Bluetooth capture-profile quality** — when the AirPods mic is the input,
+   capture may ride a lower-quality profile/sample-rate than the built-in mic
+   (asserted by nobody; the session's input route + sample rate are currently
+   UNLOGGED, which is the first gap to close).
+2. **Genuine acoustics** — mic placement/occlusion; "muffled" may simply be
+   true.
+3. **Server-side ASR behavior** on whatever format the BT route delivers.
+
+**The cheap probes:** (a) log `AVAudioSession.currentRoute` + `sampleRate` at
+session start — one `.notice` line, answers candidate 1 forever and gives #413
+its route attribution for free on every future session; (b) cross-ASR control:
+native dictation / a voice memo with the same AirPods — if Apple's recognizer
+also hears muffle, it is the route or the acoustics, not the realtime stack.
+n=1; no severity claim yet.
+
+**Related:** #413 (the session it fell out of; the CJK-signature corroboration
+runs both ways), #396 (voice-quality umbrella, different mechanism), #138.
+
+## 419. 🐛 THE ASSISTANT-PLAYBACK ELAPSED COUNTER READS 0 EVERY TIME — and a real barge-in would send `conversation.item.truncate` with `audio_end_ms: 0`, deleting the ENTIRE heard portion from server-side history — **FILED 2026-08-30 from the #413 archive read. Every recorded reading of this instrument is 0 ms; the zeroing mechanism is deliberately NOT asserted (no log line can currently see it).**
+
+**The measurement:** `#138 audio.stopped after Nms` printed **0** on all three
+stops in tonight's archive — against real playbacks of **2.16 s, 12.15 s and
+3.77 s** by wall-clock (`audio.started`→`audio.stopped` timestamps) — and the
+2026-08-22 fork archive's stop line also read `after 0ms`. **Every reading
+this instrument has ever produced is 0.** It shipped 2026-08-22 (build 2957)
+and nobody had read the value until tonight — the #416 family's shape again: a
+signal that always says the same thing regardless of what it measures.
+
+**The code read (`LiveVoiceSessionService.swift`):** the tracker itself is
+sound — `start` stamps uptime (:884), `stop` BANKS elapsed before nil'ing
+(:869, :659, and the stopped/cleared handlers), so a stop-path zero would
+still print the banked value. **The only path that zeroes a RUNNING counter is
+`resetAssistantAudioPlaybackTracking` (:865), whose in-session caller is the
+`conversation.item.created`/`.added` (assistant role) handler.** So the
+evidence points at an assistant item event arriving MID-playback — e.g. the
+beta/GA event pair (`created` + `added`) double-firing for one item, or a
+second assistant item landing while audio still drains — **but the mechanism
+is UNDETERMINED: those events have no log line, and #138's rule applies (no
+mechanism claim without a log line that would have to change if it were
+false).**
+
+**Why it matters beyond cosmetics — the consumer is TRUNCATION:**
+`truncateAndCleanUpAssistantState` sends `conversation.item.truncate` with
+`audio_end_ms: currentAssistantAudioPlaybackMilliseconds()` on every barge-in
+(VAD and manual). With the counter dead at 0, a genuine barge-in tells the
+server the user heard NONE of the utterance — server history drops the whole
+thing, and the model no longer knows what it managed to say before being cut
+off. Conversation-coherence defect, invisible until someone inspects a real
+barge-in's aftermath. Second consumer: the `#138 BARGE-IN … Xs into playback`
+line maps the same nil'd stamp to `"n/a"` — the instrument built for #138
+under-reports at exactly its moment of use. (Barge-in DETECTION is unaffected:
+the guard's `voiceState == .speaking` disjunct still fires.)
+
+**419-A, the discriminating instrument (not built):** one `.notice` line in
+the item.created/added handler — event type, role, whether it matched
+`currentAssistantConversationItemID`, and state — timestamped against
+`audio.started`. One session later the zeroing path is named instead of
+argued. Fix follows the naming, not the other way round.
+
+**Related:** #138 (the umbrella; the truncation path is its barge-in
+machinery), #413 (the archive that exposed it), #416 (the
+green-signal-covering-what-it-cannot-see family).
+
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
