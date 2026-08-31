@@ -579,6 +579,7 @@
 		EB212F8BD2739B0D58B1670A /* Icon-GlitchGarden@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = D0966B525D0A784483C8DFA2 /* Icon-GlitchGarden@2x.png */; };
 		EB8B9E16F3696A54FAC5B7B2 /* Icon-CerealBox@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 7384C6AD13192056C32579A4 /* Icon-CerealBox@3x.png */; };
 		EC2CFEC0788D7A4E080EACD0 /* TalariaPlatformInboxService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0EB2A3321F50892438510AB /* TalariaPlatformInboxService.swift */; };
+		ECB676231DAD90059B7B1D1B /* VoiceInstrumentLogLineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F54D7A4857FEAFF1A1D8A553 /* VoiceInstrumentLogLineTests.swift */; };
 		ECEA616F630F0C122AB5824B /* ActionBatteryCellSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF7F59DBFE279351F54E44D1 /* ActionBatteryCellSelection.swift */; };
 		ECECF61949B7CB09685EADFB /* VoiceOverlayScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CF7DE3CA7DE3F9908C24E5F /* VoiceOverlayScreen.swift */; };
 		ED33B71C2B3ABA8004FE43B1 /* LocalChatBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00699F0006940A80E8EA5B /* LocalChatBackend.swift */; };
@@ -1275,6 +1276,7 @@
 		F4E4E4E79B398DB1BEC0E4A8 /* BackendProfilesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendProfilesTests.swift; sourceTree = "<group>"; };
 		F4FD21974C01431F1F4BF095 /* BriefingDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingDetailScreen.swift; sourceTree = "<group>"; };
 		F51C80FDDAEBBFCAA3904612 /* ThemeArtDirectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeArtDirectionTests.swift; sourceTree = "<group>"; };
+		F54D7A4857FEAFF1A1D8A553 /* VoiceInstrumentLogLineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInstrumentLogLineTests.swift; sourceTree = "<group>"; };
 		F6BE1EBB06745A2F54F48D12 /* IconPreview-SolarForge.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-SolarForge.png"; sourceTree = "<group>"; };
 		F6DDD296EB3D124F59DAD98D /* GenUISurfaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenUISurfaceView.swift; sourceTree = "<group>"; };
 		F6F3C29A6904368CF4D9425B /* SessionStatsDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStatsDecodingTests.swift; sourceTree = "<group>"; };
@@ -1592,6 +1594,7 @@
 				B68C8CE6ADD9A54C49C2AA1C /* ToolProvenanceTests.swift */,
 				8064CC89E452AB4576D02AAB /* TurnReceiptsTests.swift */,
 				3277DE5030638176AE5B20D7 /* VoiceBootstrapTransportTests.swift */,
+				F54D7A4857FEAFF1A1D8A553 /* VoiceInstrumentLogLineTests.swift */,
 				A42B2B8FA97D4011C00D59F8 /* VoiceMemoAttachmentTests.swift */,
 				5F28E7FA18E6D1C83E907BC0 /* VoiceTranscriptTests.swift */,
 				983BB1D2C95DB88D6859C82D /* WarningTokenContrastTests.swift */,
@@ -3081,6 +3084,7 @@
 				E60743104E7E1D6D792F47D4 /* ToolProvenanceTests.swift in Sources */,
 				57E2B573942BCA2EC78C8550 /* TurnReceiptsTests.swift in Sources */,
 				1B7283916D34CBF1B1ACF4EE /* VoiceBootstrapTransportTests.swift in Sources */,
+				ECB676231DAD90059B7B1D1B /* VoiceInstrumentLogLineTests.swift in Sources */,
 				FD9C24D0167C5C2B57A089E8 /* VoiceMemoAttachmentTests.swift in Sources */,
 				B3C557575E129EB751B4C5EF /* VoiceTranscriptTests.swift in Sources */,
 				080F1AC772AB1E4B230941F6 /* WarningTokenContrastTests.swift in Sources */,
