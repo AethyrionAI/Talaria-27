@@ -15660,6 +15660,19 @@ n=1; no severity claim yet.
 **Related:** #413 (the session it fell out of; the CJK-signature corroboration
 runs both ways), #396 (voice-quality umbrella, different mechanism), #138.
 
+> **🎯 BARS 418-A1/A2 — pre-registered 2026-08-30 before any code (Owen's go:
+> "go ahead and build the small lane").**
+> - **418-A1 (the instrument):** `configureAudioSession` AND
+>   `handleAudioRouteChange` each emit one ungated `.notice` line carrying
+>   EVERY input and output port (type + name) and the session sample rate,
+>   read off-main per #198B. Session start and mid-session route swaps are
+>   both covered, so the next AirPods session attributes its route with no
+>   new build.
+> - **418-A2 (the formatter is pure and pinned):** the line's composition is
+>   a `nonisolated static` formatter (the `shouldOverrideOutputToSpeaker`
+>   convention), RED-first. Pre-registered mutation M3: omitting the sample
+>   rate from the composed line reds ONLY the sample-rate pin.
+
 ## 419. 🐛 THE ASSISTANT-PLAYBACK ELAPSED COUNTER READS 0 EVERY TIME — and a real barge-in would send `conversation.item.truncate` with `audio_end_ms: 0`, deleting the ENTIRE heard portion from server-side history — **FILED 2026-08-30 from the #413 archive read. Every recorded reading of this instrument is 0 ms; the zeroing mechanism is deliberately NOT asserted (no log line can currently see it).**
 
 **The measurement:** `#138 audio.stopped after Nms` printed **0** on all three
@@ -15704,6 +15717,25 @@ argued. Fix follows the naming, not the other way round.
 **Related:** #138 (the umbrella; the truncation path is its barge-in
 machinery), #413 (the archive that exposed it), #416 (the
 green-signal-covering-what-it-cannot-see family).
+
+> **🎯 BARS 419-A1/A2 — pre-registered 2026-08-30 before any code (same go).**
+> - **419-A1 (the instrument):** every assistant
+>   `conversation.item.created`/`.added` arrival emits one ungated `.notice`
+>   line naming the event type, the arriving item id, its relation to
+>   `currentAssistantConversationItemID` (first / same item re-announced /
+>   new item replacing), and — iff playback tracking is LIVE at arrival — the
+>   elapsed ms about to be destroyed. Emitted BEFORE the reset and BEFORE the
+>   current-id overwrite, so both destroyed values are captured. The
+>   same-vs-new discrimination is the whole point: it separates the
+>   beta/GA double-fire candidate from the second-item candidate.
+> - **419-A2 (the formatter is pure and pinned):** `nonisolated static`
+>   formatter, RED-first. Pre-registered mutations: **M1** — collapsing the
+>   mid-playback branch (always "idle") reds ONLY the mid-playback pin;
+>   **M2** — collapsing same/new (always "new item") reds ONLY the
+>   discrimination pin.
+> - **Scope fence:** this lane is the INSTRUMENT only. The truncation fix
+>   follows the naming, not the other way round — no behaviour change to the
+>   counter, the reset, or `truncateAndCleanUpAssistantState`.
 
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
