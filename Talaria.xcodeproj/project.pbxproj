@@ -522,6 +522,7 @@
 		D3CD6102741952537881D47C /* InsightsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 564FBB51A62CECD63D04A001 /* InsightsStore.swift */; };
 		D3E7437E18DE7F64ACF26C16 /* SplitViewLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BAC4C9847BE119AB66D781D /* SplitViewLayoutTests.swift */; };
 		D4119C70E30AA74F01F0D237 /* NativeVoicePipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F32CC922458D966FE602A7AE /* NativeVoicePipelineTests.swift */; };
+		D46A90B2812131C4A3BF5291 /* LocationAnswerCompositionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E60739AF9C030C8006BC4314 /* LocationAnswerCompositionTests.swift */; };
 		D4AB897DD794B1942650C1F6 /* View+Glass.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40646A4D57C4F9BB7BD3A2E /* View+Glass.swift */; };
 		D534C18BF7446EE2215B44D4 /* SpeechOutputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41D16ECA82E1B93428AB787F /* SpeechOutputTests.swift */; };
 		D5AC8A9B5F5062CFF20FAE3D /* StartVoiceSessionIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B9B3CCAEE9B1CF7C2BB4AF5 /* StartVoiceSessionIntent.swift */; };
@@ -1230,6 +1231,7 @@
 		E4E2A8259CF2628633EFE5A0 /* RealtimeVoiceIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeVoiceIndicator.swift; sourceTree = "<group>"; };
 		E5AD6E957D927DE3495F4B72 /* AppTemplateUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTemplateUITests.swift; sourceTree = "<group>"; };
 		E5B4BC4786992BD264AE00F3 /* HermesControlsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesControlsTests.swift; sourceTree = "<group>"; };
+		E60739AF9C030C8006BC4314 /* LocationAnswerCompositionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationAnswerCompositionTests.swift; sourceTree = "<group>"; };
 		E7F426FD56C06264562B21C0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E828E5C81481C4CBD167059E /* MarkdownListTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownListTests.swift; sourceTree = "<group>"; };
 		E89F96377330A24AB8029976 /* AppLockGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockGateTests.swift; sourceTree = "<group>"; };
@@ -1512,6 +1514,7 @@
 				5225896A0381DF9CEFD84EF9 /* LocalIntelligenceTests.swift */,
 				65B76EF12480785C00968B54 /* LocalSessionHistoryTests.swift */,
 				2D74D8A7E231F48BD446FB12 /* LocalSessionStoreTests.swift */,
+				E60739AF9C030C8006BC4314 /* LocationAnswerCompositionTests.swift */,
 				69438F0D38B60455035902BC /* MarkdownBlockQuoteTests.swift */,
 				A8B0819CCDD35E5401F1BFC3 /* MarkdownChartTests.swift */,
 				2F3AE56BB2027F533FD8B44F /* MarkdownHeadingTests.swift */,
@@ -3002,6 +3005,7 @@
 				CE06D7642092F56AD5B43D20 /* LocalIntelligenceTests.swift in Sources */,
 				FB1882D00D708B61E19B7A37 /* LocalSessionHistoryTests.swift in Sources */,
 				617D380F053A5F30A1384FA6 /* LocalSessionStoreTests.swift in Sources */,
+				D46A90B2812131C4A3BF5291 /* LocationAnswerCompositionTests.swift in Sources */,
 				9B6730A87263CACA6CBE568F /* MarkdownBlockQuoteTests.swift in Sources */,
 				D88C4D0DFF03453A96884BC6 /* MarkdownChartTests.swift in Sources */,
 				DB5453F40E26008C0C28B85F /* MarkdownHeadingTests.swift in Sources */,
