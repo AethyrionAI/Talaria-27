@@ -14054,6 +14054,39 @@ hygiene that just shipped — this may already be fixed by Lane B's
 Keychain work and merely UNMEASURED post-3087; the zero-401s-after-bounce
 observation is consistent with that but proves nothing).
 
+> **✅ 2026-08-30 night — MECHANISM NAMED FROM CODE (read-only subagent lane,
+> verified at the call site by hand; full report
+> `planning/reports/2026-08-30-414-models-401-diagnosis.md`): THE 401s ARE THE
+> APP WORKING AS WRITTEN.** Every candidate in the filing header is wrong in
+> the same interesting way — there is no credential-resolution defect at all.
+>
+> - **The caller is #247 B2's profile-switch verdict**
+>   (`AppContainer.swift:2318`): on every profile switch the app probes the
+>   NEW gateway with the new key and the **PREVIOUS gateway with `key: nil` —
+>   deliberately unauthenticated** (`probeGatewayVerdict` at `:2233` only
+>   attaches the bearer when a non-empty key is passed). The point is
+>   LIVENESS of the host being switched away from, without dialing its
+>   credential; a 401 maps to `.unkeyed`, which IS the "alive" signal.
+> - **The host logs an ABSENT header with the same words as a WRONG key** —
+>   "API server rejected invalid API key" — so each profile switch writes one
+>   alarming-looking line into the previous host's log. 410 lines ≈ the
+>   accumulated OJAMD↔Mac switch history, and "twice on 3087's day" = two
+>   switches. The log phrasing is upstream's; the app sends nothing invalid.
+> - **Lane B (#309-B9 credential hygiene) provably did not touch this path**
+>   — and build 3087 already contained Lane B, which is consistent: the 401s
+>   are not a bug Lane B could have fixed.
+>
+> **Consequence: the filing's severity collapses.** Nothing is failing —
+> a diagnostic probe is doing its job and the previous host's log phrasing
+> makes it look like an auth fault. **The only real cost is OPS NOISE: those
+> lines will send some future operator hunting a phantom key bug (this filing
+> is itself the proof).** Candidate mitigation if Owen wants the noise gone —
+> NOT built, product call: point the previous-host liveness probe at
+> `/health` instead of `/v1/models` **iff a live probe first confirms
+> `/health` answers unauthenticated on :8642** — same signal, no auth-reject
+> line. Alternatively: accept and let this entry document the line's meaning.
+> **Recommend: WATCH → decision, no code owed until ruled.**
+
 ## 415. 🔴 THE MIC STAYED ON after a Control Center voice launch — 2/2 reproducible, cleared by force-quit — and the control said "Talk to HERMES" (**renamed — see 415-N**) — **FILED 2026-08-26 night per #268, from Owen's third runbook pass (BUILD 3108, verbatim: "Control center > Talk to Hermes (should be Talaria, right?) and the mic stayed on. Tried again, same result. Force quit, tried again, did NOT happen."). Mechanism NOT guessed; the SAME-DAY LOG COLLECT is the discriminating evidence and it decays in hours.** **→ ✅ COLLECT HAPPENED AND THE MECHANISM IS NAMED (2026-08-26, `whoGoesThere-415.logarchive`): this is #302 recurring through an ordering its bars cannot see — `AppLockGate` is sampled ONCE at start, and a Control Center tap on a WARM process clears it ~1.2 s BEFORE App Lock arms, so the cover comes down on top of an in-flight start. Mic hot 27.4 s / 13.4 s, most of it behind `cover=locked`. Engine was REALTIME both times and teardown RAN IN FULL — the #303 and #198 candidates are FALSIFIED. The force-quit run is a DEGENERATE control (cold ⇒ gate already armed ⇒ start parked ⇒ revoked unused). Fix bars 415-A…D proposed below; #302 carries a dated supersession. ~~FIX NOT BUILT.~~** **⟵ ✅ 415-N DONE 2026-08-26: the NAMING half (fact 2) SHIPPED — both Control Center controls read "Ask Talaria" / "Talk to Talaria", host-meaning "Hermes" strings deliberately untouched and now pinned.** **⟵ ✅ THE MIC FIX IS BUILT 2026-08-26 night (same day): 415-A/B/C MET — a session covered mid-flight now STOPS CAPTURE and PARKS, resuming exactly once on unlock, via a cover watch on the gate's new `waitUntilLocked()`; the realtime engine gained the `#302-A` capture instrument. 415-A was witnessed RED on the unmodified tree first (8 tests, 21 issues) and each mutation isolates. 🔴 STILL OPEN ON 415-D ONLY — the device run that HOLDS the cover open; its card is written in the result block, and until Owen runs it this item stays red.**
 
 **The two facts, separately:**
@@ -15625,6 +15658,43 @@ obvious next instrument is a TOOL-FAILURE arm rather than a tool-absent one.
 > one question only**: whether any production path can reach the model with
 > neither data nor a failure string (a silently-empty tool result), which is the
 > condition this run shows to be the dangerous one.
+
+> **✅ 2026-08-30 night — THE OPEN QUESTION IS ANSWERED BY A FULL STATIC
+> AUDIT, and the answer is: YES, EXACTLY ONE PATH** (read-only subagent lane
+> over every production `Tool` conformance + the relay/governor/confirmation
+> layers; load-bearing claim re-verified by hand at the call site; full
+> report `planning/reports/2026-08-30-417-empty-tool-result-audit.md`).
+>
+> - **`LocationTool` can return `"Current location: "` — label, colon,
+>   nothing.** `reverseGeocodedParts` (`DeviceReadTools.swift:156`) returns a
+>   **non-nil EMPTY array** when MapKit hands back a map item whose `name`,
+>   `cityName` and `regionName` are all nil (all three are `nullable` in the
+>   iOS 27 SDK — checked against the headers), and the `guard let parts` at
+>   `:131` only catches **nil**, so the empty array joins into the answer
+>   string. An all-empty-string variant composes the same way. No data, no
+>   failure string — the exact condition this entry's instrument measured as
+>   the ONLY fabricating one, on the worst tool for it: an invented answer
+>   here is an invented LOCATION.
+> - **The other 14 production tools are structurally incapable of a
+>   content-free return** (every arm either interpolates real data or returns
+>   a prose failure string), and the relay, governor-refusal and confirmation
+>   layers all pass through non-empty prose. The DEBUG instrument tools
+>   cannot enter a production belt.
+> - How often MapKit actually produces an all-nil item is unmeasured
+>   (over-water fixes and sparsely mapped areas are the plausible geography)
+>   — but #417's own data says what an empty result does when it happens,
+>   so the path is worth closing on the audit alone.
+>
+> **🎯 BAR 417-F — pre-registered 2026-08-30 night, before any fix code
+> (rides Owen's standing overnight go: "pick up to two additional lanes").**
+> - **417-F (route empty into the PROVEN-PROTECTIVE shape):** the location
+>   answer composition becomes a pure `nonisolated static` formatter;
+>   empty-or-all-empty parts return the EXISTING honest geocode-failure
+>   string (accuracy figure included), never the bare label. RED-first over
+>   the empty and all-empty-string cases; pre-registered mutation **M-F**:
+>   removing the empty-parts arm reds ONLY the empty-case pins while the
+>   populated-case pin stays green. No behaviour change for any populated
+>   result — byte-identical composition, pinned.
 
 ## 418. 🐛 REAL SPEECH THROUGH THE AIRPODS MIC TRANSCRIBED AS CHINESE — the assistant told Owen he sounded MUFFLED — realtime engine, one occurrence — **FILED 2026-08-30 per #268, from the #413 AirPods probe session (build 3137 Release, 23:19). Mechanism deliberately NOT guessed.**
 
