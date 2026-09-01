@@ -151,7 +151,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#279** 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — **FIXED AND MERGED 2026-08-09 as `12ed25b`; bars 279-A..E MET (pre-fix user-row count 2 → 1), `GATE: PASS`. Stays open ONLY for 279-F (device, Owen).** …
 - **#270** 🪟 #251 SLICE 2C — desktop face v0: the `plugin.js` pane that answers "is it actually installed?" …
-- **#269** 🗣️ #251 SLICE 2B — the conversational installer: the AGENT installs its own plugin, the user never sees a terminal …
+- **#269** 🗣️ #251 SLICE 2B — the conversational installer: the AGENT installs its own plugin, the user never sees a terminal … **⟵ 2026-09-01: the APP HALF is BUILT + MERGED (PR #400 `582a8b49`, bars F/G/H/I/J met, consent = Owen's ruled Candidate B verbatim). Open: exactly the live-host half (B-A/B/D/E + B-C's N≥10), gated on a 🔐 per-experiment go**
 - **#263** 🐛 Plugin transport: discovery-pass module reloads SPLIT the hub singleton; the enqueue wake misses the … — **(b) FIXED + 263-G MET; (a) AS FILED FALSIFIED — open ONLY as the (a) WATCH** (the header predates both) …
 - **#254** 👁 Control Center buttons BIND (confirmed 2034); ghost session = connect-window ownership race — **WATCH (downgraded 2026-08-05, header corrected twice, 2026-08-09); premise MEASURED (254-F), fix landed under 254-A/B/C; **254-D OWED, 254-E UNRUNNABLE AS WRITTEN (device 2026-08-09; native `LIVE` arm passed in its place)** — STAYS OPEN**
 - **#249** 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the …
@@ -8677,6 +8677,27 @@ distinguish LIVE from the other two.
 > AMENDED, not redefined** — the agent installs + enables and STOPS, the user
 > restarts from the host's own affordance, and its evidence and 🔐 gate stand
 > unchanged.
+
+> **✅ 269-B-J SUPERSEDED: MET — 2026-09-01 ~02:27, on the pre-declared final
+> roll.** The bars above record J MISSED honestly at the moment of filing;
+> this block supersedes rather than rewrites. After the #219 hedge attempt
+> was falsified (that entry, same night), a stopping rule was declared BEFORE
+> the last run: one final gate on the rebased bytes — the same
+> identical-bytes re-roll #166a's Gate4 green was accepted on — then
+> merge-or-hold. It ran on CC-lane-2, box quiet: **GATE: PASS on 24A5423a —
+> 2809 Swift Testing (+20 exactly this lane) · 15/15 XCUITest (counted from
+> the `Test Case` ledger directly, because #423) · Release clean**
+> (`talaria-gate.qGBfEfdv9p`). Identical compiled bytes to the two red rolls;
+> the red is #219's flake, tallied there. **MERGED — PR #400, squash
+> `582a8b49`.**
+> - Two rebases rode the merge: post-#166a (pbxproj regenerated, ZERO drift,
+>   gate re-run = the pass above) and a final tracker-markdown-only
+>   conflict resolution against `20ee4e6f` (entry-219 union, chronological
+>   order) — **no re-gate after the second, stated deliberately: no compiled
+>   input changed.** Invariants PASS at both.
+> - **Open on #269 after tonight: exactly the live-host half** — 269-B-A/B/D/E
+>   and B-C's N≥10 measurement, all waiting on a 🔐 per-experiment go with the
+>   host awake. The app half (F/G/H/I/J) is done.
 
 ## 263. 🐛 Plugin transport: discovery-pass module reloads SPLIT the hub singleton (tool gated against a live phone), and the enqueue wake misses the parked drain (every query rides a full 25s poll cycle racing the 25s timeout) — **FILED 2026-08-06 late night from live forensics during the 260-E pass; absorbs 2A-B's owed transport instrumentation**
 
