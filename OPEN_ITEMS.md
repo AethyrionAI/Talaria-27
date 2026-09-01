@@ -144,6 +144,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#420** ✅ **CLOSED** — 🐛 the **"Auto-connect on launch" toggle is INERT** — one writer, ZERO production readers (moved to the Server screen when the Relay page retired; the move kept the UI and dropped the consumer). A control promising an effect it no longer has — #180's family from the opposite direction. Burned ~40% of the #350-D pilot's budget. ~~**⚖️ Owen's call: delete it or wire it — not a repair, a feature decision**~~ **⟵ ⚖️ RULED 2026-08-31 (DELETE the toggle, KEEP the persisted key — auto-connect-on-launch is not a behaviour the app intends to have post-#375, so wiring it would have invented a feature to justify a leftover switch) and ✅ BUILT + MERGED 2026-09-01, PR #398 `c48fcae1`: 420-A/B/C/GATE all MET. The test guards the property whose ABSENCE caused this — nothing reads the key — and it was watched RED on the untouched tree, then mutation-isolated (a re-introduced reader reds exactly one of the four pins). Gate 2783 Swift Testing (+6) / 15 XCUITest / Release clean, first run. No device bar was owed: an inert control's deletion changes nothing observable — what it removes is a lie the runbooks kept believing**
 - **#421** 🔴 **"OJAMD's gateway is down" is FALSE** — measured UP and healthy from the Mac (200 on both the CGNAT literal and the MagicDNS name; `/health/detailed` returns a running server's auth error). The PHONE cannot dial it: host-fed screens show `unsupported URL` = **-1002, a MALFORMED-URL error**, not a down host. Two fatal mechanisms in our code — no scheme validation anywhere, and MagicDNS names having no ATS exception (CIDR-keyed to `100.64.0.0/10`). **✅ SETTLED 2026-08-31: the field reads `/ojamd:8642`** — a relative path (scheme=nil, host=nil), rejected with exactly -1002. Mechanism 1 confirmed by measurement. **⚠️ Prepending `http://` is a TRAP — a MagicDNS host is then ATS-blocked; the working value is `http://100.110.102.59:8642`.** Corrects handoffs §23/§24
 - **#422** 🧠 **MEMORY–AGENT INTEGRATION** — succeeds #378. **⚖️ SHAPED + RULED POST-LAUNCH 2026-08-31 (Owen), and it splits in two:** (a) Talaria as a CLIENT of the host's providers — `hindsight`/`honcho` are 2 of the 8 Hermes memory plugins, so ONE delivery route buys all eight — host-tier only; (b) **Talaria's OWN local memory**, which serves the hostless default user and is recorded as a **DELIBERATE LAUNCH GAP** (*"It has no memory between sessions right now"*), not a backlog line. **Storage is solved** — SwiftData + `NLContextualEmbedding` (512-dim, on-device, `hasAssets=true`, probed 08-31); the difficulty is what earns a memory, whether the user can correct it, and two-store disagreement. **Recommended first shape: embedding retrieval over stored turns, NOT extracted facts** — #417 measured this model fabricating when it has nothing (20/40 → 0/40 with something real), so retrieval-of-real-text has the smallest lying surface
+- **#423** 🧰 **lane-gate's XCUITest counter under-reports on FAILED runs** — the `Executed N tests, with 0 failures` grep falls through to the LaunchTests sub-suite on a red run and prints "2" while all 15 ran; reads exactly like #219's runner-death and nearly misdirected the 09-01 overnight diagnosis twice. Green-run counts are unaffected. Fix shape: count Test Case lines; #300's classifier family
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
 - **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. ~~Mechanism deliberately not guessed~~ **⟵ INVESTIGATED 2026-08-25: the mechanism was published in archived #206 (2026-07-30) and this entry never cited it — "ends with an OFFER ⇒ armed" predicts 8/8 rows; length falsified three ways; a RETRACTED rationale still lives in the router's code comment (doc debt). ~~The open question is Owen's PRODUCT call: should a words-only turn after an offer route armed?~~ ⟵ **⚖️ RULED 2026-08-25: ARMED IS SAFE — the rows were mislabelled, not the router.** App half landed the same day (PR #377): three `expected:` labels corrected, **E1/E2 device rows added (band count 22 → 34 — a RE-BASELINE for #339's subset)**, the no-op suffix pinned (the "short" 551 row was never shortened — `suffix(560)` of a 551-char string), the retracted rationale rewritten on the latency basis, and the production diff comment-only. **⏳ OPEN on the next `long-context-probe` DEVICE run** (sim cannot generate, #324).****
@@ -10774,6 +10775,42 @@ just the log.
 > the gate log); the diagnosis this entry was
 > waiting for can resume from it. STILL WATCH — one sample.
 
+> **🧪 2026-09-01 (overnight, orchestrator) — A HEDGE WAS TRIED AND FALSIFIED,
+> and the falsification sharpens the mechanism again.** Tonight's final tally
+> for `testConnectedRelaunchSkipsTheConnectEntry`: **six full-suite reds**
+> (#269-B's gates ×2 + its unmodified-`origin/main` control ×1 + the
+> orchestrator's quiet-box re-gate ×1 + #166a's early gate ×1 + the hedge
+> branch's own gate ×1) against **two full-suite passes** (#420's gate,
+> #166a's Gate4) and clean isolated runs. The quiet-box red kills the
+> load-only account.
+> - **The hedge** (branch `219-hedge-start-chatting` @ `7dbb3c0f`, NOT
+>   merged — its own gate red on the same test): wait up to 5 s on
+>   `isHittable`, then one conditional re-tap — #164's ruled shape, #182's
+>   precedent. **Falsified as a fix by its own gate run:** the failing
+>   instance read `hittable=false` at t=22 s and stayed un-hittable through
+>   the ENTIRE 5 s wait; the re-tap, correctly gated on hittability, never
+>   fired. **This is not a millisecond settle race — the un-hittable state
+>   persists for the whole window in the affected instance.**
+> - **Same run, same frame, minutes apart: the two sibling wizard journeys
+>   read `hittable=true` and passed.** The state is per-test-instance, not
+>   per-boot and not per-frame. And **all 15 XCUITests RAN** — the runner
+>   did not die; 14 passed, exactly one failed (52.0 s).
+> - **Where the next diagnosis resumes:** the test's own `:527` debug
+>   activity (which logs `keyboards=`, `springboardAlerts=`, sibling
+>   hittability) did NOT appear in the .log for the failing instance — pull
+>   it from the xcresult. Candidate worth testing first: an invisible
+>   overlay/keyboard remnant from the PRECEDING in-suite test covering
+>   y≈509–565 for that instance only. Untested tonight — recorded, not
+>   asserted. Gate logs: `talaria-gate.8vQbvPdIOy` (hedged red, all Test
+>   Case lines present), `talaria-gate.OvEY5t4EZE` (269-B re-gate red).
+> - **A stopping rule was declared before the last roll:** one final gate on
+>   #269-B's rebased bytes — the same identical-bytes re-roll #166a's Gate4
+>   green was accepted on — then merge-or-hold. Result in #269's entry.
+> - **Sibling finding while reading these logs: the gate's XCUITest counter
+>   under-reports on failed runs — filed as #423.** WATCH stands; the hedge
+>   branch is Owen's morning call (merge as harmless belt-and-braces with
+>   the tracker block, or discard).
+
 ## 211A. offer-instead-of-act on READ paths, where no confirmation gate excuses it — **✅ INSTRUMENT BUILT + MERGED 2026-08-26 (instruments lane): `offer-read`, three arms x four read prompts, cells + scorer, bars 211A-B1..B7 met on the simulator. The DEVICE run is Owen's and is a runbook card; 211A-D1..D4 are pre-registered and UNRUN, so this entry still carries ZERO behavioural numbers.**
 
 **FILED 2026-08-01** from the audit's unfiled-lanes list.
@@ -15219,3 +15256,25 @@ scope: **wholesale, or a permanent dual path?**
 > **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): PARKED
 > post-launch.**
 
+
+## 423. 🧰 LANE-GATE'S XCUITEST COUNTER UNDER-REPORTS ON FAILED RUNS — "XCUITest tests run — 2" while all 15 ran — **FILED 2026-09-01 (overnight), found while reading two red gate logs. #300's classifier family.**
+
+**The defect:** `lane-gate.sh:336` counts XCUITests by grepping
+`Executed [0-9]+ tests?, with 0 failures`. On a run with a FAILING test, the
+failing suite's `Executed` line does not say `with 0 failures`, so the count
+falls through to the only clean sub-suite — `TalariaUITestsLaunchTests`,
+whose own line reads `Executed 2 tests, with 0 failures` — and the gate
+prints **"XCUITest tests run — 2"**.
+
+**Why it matters:** that line reads exactly like #219's title event ("runner
+dies mid-bundle") when the bundle in fact COMPLETED — 15 `Test Case` lines,
+14 passed, 1 failed. It nearly misdirected the 2026-09-01 overnight
+diagnosis twice (logs `talaria-gate.OvEY5t4EZE` and `.8vQbvPdIOy`, both
+showing the full Test Case ledger while the gate said 2). On a GREEN run the
+counter is correct, so every historical PASS count stands.
+
+**Fix shape (small):** count `Test Case '-\[` started/passed/failed lines
+(or per-suite Executed lines summed), and on a red run print
+passed/failed/total rather than a single number. Belongs beside #300's
+classifier; `scripts/mac/lane-gate-classify-test.sh` is the 1 s harness to
+extend. Not built tonight — filed so the next red is read correctly.
