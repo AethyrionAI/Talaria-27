@@ -436,6 +436,15 @@ struct AskHermesSnippetView: View {
         return false
     }
 
+    /// #415-SWEEP miss, found 2026-08-31: the badge on the app's OWN answer
+    /// card. Rule 1 of the sweep — the assistant persona, which the LOCAL
+    /// brain can answer with no host attached — so this is app-meaning and
+    /// takes the Talaria spelling. The intent's own title already reads
+    /// "Ask Talaria" (415-S); this card contradicted it one screen later.
+    /// Extracted to a constant so the naming suite can pin it: a string
+    /// buried in a `body` is exactly what the wholesale pass could not see.
+    static let headerLabel = "TALARIA"
+
     /// Pip colour and status word are the whole at-a-glance signal, and #56 is
     /// exactly about the two states that used to share them.
     private var pipColor: Color {
@@ -454,7 +463,7 @@ struct AskHermesSnippetView: View {
                 Circle()
                     .fill(pipColor)
                     .frame(width: 6, height: 6)
-                monoHeader("HERMES", color: accent)
+                monoHeader(Self.headerLabel, color: accent)
                 Spacer(minLength: 0)
                 monoHeader(statusWord, color: muted)
             }

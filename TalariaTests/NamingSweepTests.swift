@@ -123,6 +123,22 @@ struct NamingSweepTests {
                 == "Talaria is still working on it. Open the app to watch it finish.")
     }
 
+    /// **A 415-SWEEP MISS, found 2026-08-31 by the runbook staleness audit.**
+    /// `AskHermesIntent.title` and `parameterSummary` were renamed to "Ask
+    /// Talaria" by 415-S — and then the intent rendered a result card headed
+    /// "HERMES", one screen later, contradicting its own name.
+    ///
+    /// It is app-meaning under the sweep's own Rule 1: the badge on the
+    /// assistant's answer card, reachable with NO host (the local brain
+    /// answers this intent), so it never named the host in the first place.
+    /// It survived the wholesale pass because the string was buried inside a
+    /// SwiftUI `body`, where no reflection or compiled-value pin could see
+    /// it — which is why the fix EXTRACTS it rather than merely editing it.
+    @Test func theSiriResultCardIsBadgedTalaria() {
+        #expect(AskHermesSnippetView.headerLabel == "TALARIA")
+        #expect(AskHermesSnippetView.headerLabel != "HERMES")
+    }
+
     /// **The `Info.plist` permission usage descriptions — the surface no
     /// prior naming lane inventoried, and the most outward one in the app.**
     ///
