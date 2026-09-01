@@ -145,6 +145,25 @@ running and Lane B queues first):**
 Morning deliverables: merged lanes, a fresh staged OTA, the runbook
 republished with the new cards, handoff updated.
 
+## STATE AT THE 08-31 **LATE** CLOSE — the screen-driving session (supersedes below)
+
+main `053cc94f` · 73 live entries · 0 open PRs · runbook **29 open / 35 done** ·
+phone on Debug **3147**, profile left on **Mac Mini** · nothing running.
+
+Claude drove seven runbook cards through iPhone Mirroring (~1.5 M tokens).
+**3 cards closed** (#330-G → #330 CLOSES + #312(f) flips · #33 CLOSES ·
+#163 Check A), **4 new/corrected filings that outvalued them** (#420 inert
+toggle · #421 OJAMD is UP and the phone's profile can't dial it · falsely-green
+bars on #198B/#279/#312 · a 415-sweep miss fixed and merged).
+
+**Measured limits — Claude CANNOT drive:** Control Center (kills 4 cards),
+date/time pickers, anything needing voice or a second person, anything behind an
+auth prompt. **The working shape is screen-for-input, log-for-output** — the same
+verdict cost 197 k by screen and ~1.5 k by log.
+
+**The rest is Owen's by hand** (~20 min): the four Control Center cards, #162,
+#396 row 12, #220/#198A, #309-B. Full story: handoff §26.
+
 ## STATE AT THE 08-31 NIGHT CLOSE (~01:1x — supersedes every block below)
 
 main `af6d4884` · 70 live entries · 0 open PRs · **OTA STAGED build 3146**
