@@ -16222,6 +16222,28 @@ healthy machine. That is #180's family (honest degradation) on the input side.
 > provably cannot work: no scheme, or a host outside `100.64.0.0/10`. Both are
 > statically decidable at entry, and the Connect Host ladder already has an
 > honest place to say so. NOT built — a decision, not a repair.
+>
+> **⚖️ RULED 2026-08-31 — DO NOT BUILD THE GUARD (Owen, same day):** *"Lets not.
+> What if a user wanted to use this with pivpn or a self hosted wireguard."*
+> **He is right and the proposal was Tailscale-shaped.** A PiVPN host lands on
+> `10.8.0.x`, a self-hosted WireGuard host on whatever subnet its operator
+> chose — neither is in `100.64.0.0/10`, so a validator keyed to that range
+> would refuse exactly the self-hosting audience this app exists for. The
+> scheme half was defensible; the range half was not, and they were proposed
+> together. **Recorded as a decision, not a deferral: the field stays
+> permissive.**
+>
+> **🔎 THE COROLLARY HIS SCENARIO EXPOSES — filed as an observation, not a
+> proposal.** The same reasoning applies to ATS itself, with no validator
+> involved: the exception is CIDR-keyed to `100.64.0.0/10`
+> (`project.yml:392-394`), so **a WireGuard/PiVPN user pointing at
+> `http://10.8.0.1:8642` is ATS-blocked at -1022 today.** HTTPS is unaffected
+> (ATS permits it by default), so a self-hoster terminating TLS is fine and
+> only the cleartext-HTTP-to-private-IP path is closed. **That range quietly
+> defines which VPN topologies the Hermes tier supports** — worth knowing
+> before launch copy makes a broader claim. Not raised as work; #166b owns the
+> range and its four-arm proof.
+
 
 **Related:** #414 (the other OJAMD-vs-phone puzzle — a DIFFERENT cause: a
 deliberately keyless probe), #166b (the CIDR-keyed ATS exception and its
