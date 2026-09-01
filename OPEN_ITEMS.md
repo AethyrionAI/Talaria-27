@@ -149,6 +149,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#418** 🐛 real speech through the AIRPODS MIC transcribed as CHINESE (assistant: “you sound muffled”) — n=1, build 3137, from the #413 probe session; input route + sample rate currently unlogged (first gap); corroborates #413's garbled-input→CJK reading — **✅ INSTRUMENT BUILT 2026-08-31 (`97e52d41`): route + sample-rate line at session config and every route change; next session attributes the route for free**
 - **#419** 🐛 the assistant-playback elapsed counter reads 0 EVERY TIME (all recorded readings, two archives) — a real barge-in would truncate the assistant item at `audio_end_ms: 0`, wiping the heard portion from server history; zeroing path evidence-pointed at a mid-playback assistant item event, mechanism undetermined until 419-A's one-line instrument exists — **✅ 419-A BUILT 2026-08-31 (`97e52d41`): item-arrival line captures the destroyed elapsed + same-vs-new discrimination; next session names the path**
 - **#420** 🐛 the **"Auto-connect on launch" toggle is INERT** — one writer, ZERO production readers (moved to the Server screen when the Relay page retired; the move kept the UI and dropped the consumer). A control promising an effect it no longer has — #180's family from the opposite direction. Burned ~40% of the #350-D pilot's budget. **⚖️ Owen's call: delete it or wire it — not a repair, a feature decision**
+- **#421** 🔴 **"OJAMD's gateway is down" is FALSE** — measured UP and healthy from the Mac (200 on both the CGNAT literal and the MagicDNS name; `/health/detailed` returns a running server's auth error). The PHONE cannot dial it: host-fed screens show `unsupported URL` = **-1002, a MALFORMED-URL error**, not a down host. Two fatal mechanisms in our code — no scheme validation anywhere, and MagicDNS names having no ATS exception (CIDR-keyed to `100.64.0.0/10`). **One screenshot of the profile's Base URL field settles which.** Corrects handoffs §23/§24
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it**. **MEASURED 2026-08-11; clipping RULED OUT.** ~~Mechanism UNKNOWN~~ ~~⟵ INVESTIGATED 2026-08-25, candidates ranked~~ **⟵ ✅ MECHANISM MEASURED 2026-08-25 (measurement lane, unit repro): `openSession`'s wholesale replace + `mapStoredMessage`'s role refusal and empty usage fields zero BOTH totals inputs in ONE event, and the 9→7 row drop is the same event. Candidate ① CONFIRMED; candidate ③ (the `.voiceHermes` predicate split) is REAL but mutation-proven NOT the cause; the entry's "receipts render normally" claim is FALSIFIED — no reopened row carries `usage` or `turnDuration`, and the quoted numbers are the card's LAST TURN block via `SessionUsageIndex`. Shipped: 16 pins in `SessionTotalsAfterReopenTests`, a verbose-gated `/usage` instrument (NOT `#if DEBUG`), 3 seam breadcrumbs at `.notice`, and 330-G's six-step device script.** 330-A/B/E DISCHARGED. **⟵ ✅ FIXED 2026-08-25 (fix lane, `330-receipts-sidecar`): the `TurnReceiptSidecar` — session-id-keyed, replayed at open, `AgentAttachmentSidecar`'s pattern plus a priming tier — restores `usage`/`turnDuration`/`servingModel`/`isContextPriming` across the replace, and `mapStoredMessage` re-maps the STORED primer (a `user` row host-side) into the priming notice, collapsing its ack; that also closes a compounding defect where every reopen fed the primer back into the journal the next transplant is composed from. 330-C CONVERGED (four sites, one `isAgentAuthored` predicate — hygiene, M2 already proved it is not the cause). 330-D MET with its token source NAMED: `postPrimingTurn` returns nil whenever the priming run misses the 20 s `runsSyncBudget`, so the run id is kept and re-read off the interactive path onto the journal hop. 5 of 16 pins flipped RED-first (9 expectations), all rewritten; 16 → 34 tests; 3 isolating mutations.** **330-C/330-D DISCHARGED. ✅ 330-G MET ON DEVICE 2026-08-31 (build 3147, verbose tell passed, totals PRESENT + priming row + receipts intact across the reopen) — #330 CLOSES, and #312 (f) flips with it. Sweep-ready.**
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
@@ -16028,6 +16029,70 @@ promise and hides the emptiness.
 same disease, other direction), #375 (the relay retirement that plausibly
 orphaned the reader), #416 (the green-signal-covering-what-it-cannot-see
 family).
+
+## 421. 🔴 "OJAMD'S GATEWAY IS DOWN" IS FALSE — THE HOST IS UP AND HEALTHY, AND THE PHONE'S OJAMD PROFILE CANNOT DIAL IT — **MEASURED 2026-08-31 from the Mac. Two independent reasons the profile cannot work as configured; which one is live is one screenshot away.**
+
+**The belief this corrects:** handoffs §23 and §24 both record *"OJAMD's gateway
+was down at last report"*, and that framing shaped an entire evening — the
+device runbook's Hermes-host cards were run against the Mac instead, and the
+phone's OJAMD failures were read as the host's fault.
+
+**The measurement, from the Mac, 2026-08-31:**
+```
+curl http://100.110.102.59:8642/health          → 200 {"status":"ok", …}
+curl http://ojamd:8642/health                   → 200
+curl http://100.110.102.59:8642/health/detailed → {"error":{"code":"gateway_auth_failed"}}
+```
+A `gateway_auth_failed` is a **running server declining a key** — it is
+positive proof of liveness, not a connection failure. **The gateway is up, is
+answering on both the CGNAT literal and the MagicDNS name, and evidently has
+been.**
+
+**What the PHONE shows instead:** `OJAMD: gateway unreachable`, and host-fed
+screens (Skills, Tasks) render **"Unreachable / unsupported URL"**.
+`unsupported URL` is **`NSURLErrorUnsupportedURL` (-1002)** — a MALFORMED-URL
+error. A host that is down produces -1004 (cannot connect) or -1001 (timeout).
+**The error shape does not match the diagnosis the app is printing.**
+
+**Two mechanisms, both fatal, both in our own code:**
+1. **No scheme validation anywhere on the base URL.**
+   `GatewayHermesHostService.normalizedBaseURL()` only trims whitespace and
+   trailing slashes; `AppContainer.probeGatewayVerdict` (`:2236`) does
+   `URL(string: trimmed + "/v1/models")` with no scheme check. So a stored
+   `ojamd:8642` parses as **scheme `ojamd`, path `8642`** — a structurally
+   valid `URL` that URLSession rejects with exactly **-1002**. This fits the
+   observed error precisely. And `AppContainer+ConnectHost.displayAddress`
+   (`:409`) *deliberately* falls back to the raw string when it cannot parse a
+   host ("shown as typed rather than mangled"), so **the UI gives no signal
+   that the address is unusable** — it just looks like what you typed.
+2. **A MagicDNS name has no ATS exception and is blocked app-wide.** The
+   exception is CIDR-keyed to `100.64.0.0/10` (`project.yml:392-394`) — IP
+   literals in that range only. `http://ojamd:8642` is well-formed but
+   **ATS-blocked** (-1022), per #166b's own four-arm experiment and the
+   standing CLAUDE.md rule that MagicDNS names are blocked.
+
+So **whichever is live, the OJAMD profile cannot work while it names the host
+by anything other than a `100.64.0.0/10` literal.**
+
+**🎯 THE ONE MEASUREMENT THAT SETTLES WHICH (not yet taken):** read the OJAMD
+profile's **Base URL field verbatim** on the phone (Settings → Server → OJAMD,
+or Uplink). `ojamd:8642` ⇒ mechanism 1. `http://ojamd:8642` ⇒ mechanism 2.
+`http://100.110.102.59:8642` ⇒ both refuted and this entry needs re-opening
+from scratch. **The stored value is on the device; everything above is
+measured from the Mac plus a code read, so the mechanism is a strong
+hypothesis and the liveness is a FACT.**
+
+**Likely fix (one field):** set the OJAMD profile's base URL to
+`http://100.110.102.59:8642`. **Product question that outlives it:** should the
+app accept a scheme-less or non-CGNAT address at all, given it can never work?
+Today it accepts silently, renders it back as typed, and reports the
+consequence as *the host* being unreachable — which sends the user to debug a
+healthy machine. That is #180's family (honest degradation) on the input side.
+
+**Related:** #414 (the other OJAMD-vs-phone puzzle — a DIFFERENT cause: a
+deliberately keyless probe), #166b (the CIDR-keyed ATS exception and its
+four-arm proof), #180, #350 (asserted-vs-measured surfaces), #420 (a control
+whose effect is absent — same family, other direction).
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
