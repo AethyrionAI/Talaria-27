@@ -2861,6 +2861,62 @@ Logged 2026-07-22.
 > **Unchanged and still true: none of these block development; all of them
 > block submission.**
 
+> **🔴 2026-09-01 — THE 08-31 REFRESH TABLE ABOVE IS FALSIFIED ON TWO ROWS,
+> and the build list inherited both.** Measured tonight, at the moment the
+> "166a+166d lane" was about to be dispatched:
+> - **166a's manifest half shipped 2026-07-22** — `6d1515ec` ("privacy: add
+>   PrivacyInfo.xcprivacy for all three bundle targets"), all three files
+>   present and wired as Resources in the generated project (three
+>   `PBXBuildFile … in Resources` rows). The 2026-08-10 correction block
+>   above already said this; the 08-31 refresh re-asserted the entry's
+>   ORIGINAL "missing entirely — verified by find" paragraph without
+>   re-running the find. A corrected claim was re-falsified by quoting the
+>   entry's own oldest text — the newest-dated-block rule fails when the
+>   newest block itself regressed; the artifact (the tree) is the tiebreak.
+> - **166d shipped the same minute** — `d3c962dc` declares
+>   `ITSAppUsesNonExemptEncryption: false` (`project.yml:398`), commit
+>   subject names #166d. The refresh's "🔴 OPEN — one Info.plist key" and
+>   the build list's "absent from project.yml (verified)" were both false.
+>   **166d is DONE; nothing to build.**
+>
+> **The lane is NOT dissolved — it INVERTS: the manifests exist and are
+> INCOMPLETE.** The 07-22 content declares only UserDefaults
+> (CA92.1 + 1C8F.1); the app has since grown three UNDECLARED
+> required-reason API uses (measured tonight by grep over non-test sources):
+>
+> | category | site | manifest(s) owed |
+> |---|---|---|
+> | FileTimestamp | `ShareInboxCore.swift:226,305` (`.contentModificationDateKey`) | TalariaShare AND app — the file compiles into BOTH targets |
+> | SystemBootTime | `LiveVoiceSessionService.swift:1281,1346,1373` (`ProcessInfo.systemUptime`) | app |
+> | DiskSpace | `DeviceReadTools.swift:60-65` (`volumeAvailableCapacity*`) | app |
+>
+> That is exactly the ITMS-91053 exposure 166a names — arrived by DRIFT
+> (the app grew API use after the manifests were written), not by omission.
+> **166a's remaining scope: completeness, plus the tripwire that stops the
+> next drift.**
+>
+> **📋 2026-09-01 — 166a-COMPLETENESS LANE OPENED (overnight; Owen elected
+> "166a+166d", re-scoped by the above). Bars pre-registered before code:**
+> - **166a-G (manifests match measured use, per target):** each target's
+>   manifest declares a required-reason category IFF that target's compiled
+>   sources use an API in that category's family. The three gaps close with
+>   the measured reasons — FileTimestamp **C617.1** (in-container/app-group
+>   timestamps), SystemBootTime **35F9.1** (elapsed time between in-app
+>   events), DiskSpace **85F4.1** (displayed to the user by the storage
+>   read tool) — and nothing is declared "to be safe." [offline]
+> - **166a-H (the drift tripwire, RED-first for real):** a structural test
+>   derives per-target required-reason API use from the sources (curated
+>   pattern list per category) and asserts each target's manifest covers
+>   it. It must be RED on tonight's main — the three gaps above are the
+>   watched RED — before any manifest edit, and a deliberate mutation
+>   (remove one declared category) must re-redden it. [offline]
+> - **166a-I (built-product check):** the built app bundle carries the
+>   manifests at their expected paths and the built Info.plist carries
+>   `ITSAppUsesNonExemptEncryption` = false — read from the BUILD PRODUCT,
+>   not the source (the #218 lesson applied to plists). [Mac]
+> - **166-GATE:** `lane-gate.sh` PASS (units + XCUITest + Release), count
+>   moved. [Mac]
+
 ## 170. ⚠️ Task detail presents `model_snapshot` as if it were the job's model — and the phone cannot pin a model at all (device-found 2026-07-22). **LEAD 2026-08-01: 0.19.0 may have made the second half solvable.**
 
 > ## ❌ LEAD TESTED 2026-08-02 — **the lock does NOT govern. Do not adopt it.** The second clause of this item STANDS.
@@ -8340,6 +8396,48 @@ distinguish LIVE from the other two.
 > publication moment (which also fires #308's repo-goes-public ruling),
 > gated on Owen per the standing external-submissions rule.**
 
+> **⚖️ RULED 2026-09-01 (Owen, AskUserQuestion, overnight election): CONSENT
+> WORDING = CANDIDATE B ("verification-forward"), verbatim and now pinned:**
+> - Title: **"Set up the plugin over chat?"**
+> - Body: **"Talaria sends your agent the install instructions; you approve
+>   the steps on the host. Talaria then verifies the install with its own
+>   probe — it won't take the agent's word for it."**
+> - Confirm / decline: **Send · Not Now.**
+> - Restart guidance deliberately moves to the COMPLETION state (per the
+>   08-25 no-silent-restart ruling: point at the host's existing Restart
+>   Gateway affordance), NOT the ask.
+>
+> **📋 2026-09-01 — 269-B APP HALF OPENED (overnight; Owen's election).
+> Scope split on the record:** both original blockers are dissolved — the
+> restart story RULED 08-25, and the private repo stopped gating when
+> `hermes plugins install`'s `git@`/`ssh://`/`file://` + `--ref` support
+> was measured (08-31) — **but bars 269-B-A/B/D/E and the N≥10 half of B-C
+> all need a LIVE HOST and the 🔐 per-experiment go, which cannot be
+> granted overnight.** Tonight builds the APP HALF only; B-A..E stand as
+> written and wait for an approved window. App-half bars, pre-registered
+> before code:
+> - **269-B-F (consent-before-send, wired):** the setup prompt cannot reach
+>   the transport without the consent affordance's explicit confirm, and
+>   the consent copy is Owen's ruled Candidate B VERBATIM, pinned by test
+>   so a wording change is a deliberate act. Mutation arm: bypassing the
+>   confirm must turn the wiring test RED. [offline]
+> - **269-B-G (the verdict comes only from the probe):** after a setup
+>   turn, the rendered install state derives exclusively from the 269-A
+>   probe; no string in the agent's reply can flip the surface to LIVE.
+>   Mutation arm: wiring the verdict to reply text must go RED. [offline]
+> - **269-B-H (honest not-live copy + the restart pointer):** the
+>   not-live-after-setup state says only what was observed (269-A-C's
+>   closed vocabulary EXTENDED, not forked) and points at the host's
+>   existing Restart Gateway affordance — never an in-app restart, never a
+>   cause claim the app cannot distinguish. [offline]
+> - **269-B-I (the first-contact prompt is a pinned constant):** the prose
+>   the app sends is a testable constant, parameterized on install source
+>   (repo URL + `--ref`), instructing the agent to narrate before acting,
+>   to report failure honestly rather than retry silently (#180's rule),
+>   and NEVER to restart the gateway itself (08-25 ruling). Pinned by
+>   test. [offline]
+> - **269-B-J (gate):** `lane-gate.sh` PASS, count moved. [Mac]
+
 ## 263. 🐛 Plugin transport: discovery-pass module reloads SPLIT the hub singleton (tool gated against a live phone), and the enqueue wake misses the parked drain (every query rides a full 25s poll cycle racing the 25s timeout) — **FILED 2026-08-06 late night from live forensics during the 260-E pass; absorbs 2A-B's owed transport instrumentation**
 
 Two related defects, one module-lifecycle root, both observed live tonight:
@@ -13099,6 +13197,23 @@ family).
 > should pin that no production code reads `autoConnectOnLaunch` — that is the
 > property whose absence caused this, and it is the one worth guarding.
 > **This entry closes when that lands, not before.**
+
+> **📋 2026-09-01 — LANE OPENED (overnight; Owen's election, ruling above).
+> Bars pre-registered before code:**
+> - **420-A (the control is gone):** the "Auto-connect on launch" toggle no
+>   longer renders on the Server screen, and the "Auto-Connect on Launch"
+>   search-index row is deleted. [offline]
+> - **420-B (the absent-reader pin, RED-first for real):** a structural test
+>   asserts `autoConnectOnLaunch` is referenced ONLY by its declaration/
+>   Codable plumbing (`UserSettings.swift`) and the demo seed
+>   (`DemoData.swift`) — no other production file may touch it. This pin is
+>   genuinely RED on tonight's main (the toggle's own `get` is a reader);
+>   the deletion turns it GREEN. That ordering is the watched RED. [offline]
+> - **420-C (compat kept):** the persisted key, its Codable plumbing, and
+>   the decode default `true` survive untouched; existing decode coverage
+>   stays green. [offline]
+> - **420-GATE:** `lane-gate.sh` PASS. **The entry CLOSES when this lands**
+>   (per the ruling — the close rides the merge, not the ruling). [Mac]
 
 ## 421. 🔴 "OJAMD'S GATEWAY IS DOWN" IS FALSE — THE HOST IS UP AND HEALTHY, AND THE PHONE'S OJAMD PROFILE CANNOT DIAL IT — **MEASURED 2026-08-31 from the Mac. Two independent reasons the profile cannot work as configured; which one is live is one screenshot away.**
 
