@@ -49633,3 +49633,462 @@ routinely-red or routinely-ignored gate is worse than none.
 >
 > **Held back from the first pass of this sweep in error**, on the same
 > mistake as #339.
+
+## 414. 🐛 THE PHONE 401s `GET /v1/models` AGAINST OJAMD — 410 historical lines of "API server rejected invalid API key", PRE-EXISTING andUNDIAGNOSED — **FILED 2026-08-26 per #268, from the OJAMD deploy report §3(e) (measured on-box, out of that session's scope by design). Build 3087 observed doing it twice the same day, pre-bounce. Mechanism deliberately NOT guessed.**
+
+**The measurement (OJAMD gateway log):** `GET /v1/models` from
+`100.68.60.11` (`Talaria%2027/3087`) rejected with "invalid API key" at
+18:12:26 and 19:05:58 on 08-26 — and **410 such lines historically**. No
+401s after the bounce, but the phone sent no traffic at all after it:
+absence of traffic, not evidence of anything.
+
+**Why it's interesting and not obviously harmful:** chat works against
+OJAMD (the runs plane authenticates fine), and the model PICKER reads
+`/api/model/options`, a different route — so whatever calls `/v1/models`
+is a background path failing quietly for weeks. **Candidates, a starting
+list:** a legacy/unscoped credential slot feeding that one call site (the
+#264 trio measured exactly this class — Uplink's `hostConfigured` read a
+legacy fallback the chat plane never dials); an empty-key request shape;
+or a stale profile's probe. First step is app-side and cheap: `git grep`
+the `/v1/models` call sites and READ which credential slot each resolves —
+before any wire work.
+
+**Related:** #264 (the legacy-fallback class, measured), #241 (the
+`/v1/models` route's sentinel history), #412/#309 (the credential-slot
+hygiene that just shipped — this may already be fixed by Lane B's
+Keychain work and merely UNMEASURED post-3087; the zero-401s-after-bounce
+observation is consistent with that but proves nothing).
+
+> **✅ 2026-08-30 night — MECHANISM NAMED FROM CODE (read-only subagent lane,
+> verified at the call site by hand; full report
+> `planning/reports/2026-08-30-414-models-401-diagnosis.md`): THE 401s ARE THE
+> APP WORKING AS WRITTEN.** Every candidate in the filing header is wrong in
+> the same interesting way — there is no credential-resolution defect at all.
+>
+> - **The caller is #247 B2's profile-switch verdict**
+>   (`AppContainer.swift:2318`): on every profile switch the app probes the
+>   NEW gateway with the new key and the **PREVIOUS gateway with `key: nil` —
+>   deliberately unauthenticated** (`probeGatewayVerdict` at `:2233` only
+>   attaches the bearer when a non-empty key is passed). The point is
+>   LIVENESS of the host being switched away from, without dialing its
+>   credential; a 401 maps to `.unkeyed`, which IS the "alive" signal.
+> - **The host logs an ABSENT header with the same words as a WRONG key** —
+>   "API server rejected invalid API key" — so each profile switch writes one
+>   alarming-looking line into the previous host's log. 410 lines ≈ the
+>   accumulated OJAMD↔Mac switch history, and "twice on 3087's day" = two
+>   switches. The log phrasing is upstream's; the app sends nothing invalid.
+> - **Lane B (#309-B9 credential hygiene) provably did not touch this path**
+>   — and build 3087 already contained Lane B, which is consistent: the 401s
+>   are not a bug Lane B could have fixed.
+>
+> **Consequence: the filing's severity collapses.** Nothing is failing —
+> a diagnostic probe is doing its job and the previous host's log phrasing
+> makes it look like an auth fault. **The only real cost is OPS NOISE: those
+> lines will send some future operator hunting a phantom key bug (this filing
+> is itself the proof).** Candidate mitigation if Owen wants the noise gone —
+> NOT built, product call: point the previous-host liveness probe at
+> `/health` instead of `/v1/models` **iff a live probe first confirms
+> `/health` answers unauthenticated on :8642** — same signal, no auth-reject
+> line. Alternatively: accept and let this entry document the line's meaning.
+> **Recommend: WATCH → decision, no code owed until ruled.**
+
+> **⚖️ RULED 2026-08-31 (Owen, interactive decision pass): ACCEPT AND DOCUMENT
+> — CLOSED. No code.** The probe is working exactly as #247 B2 designed it: a
+> deliberately keyless liveness check of the host being switched AWAY from,
+> which asks "are you alive?" without dialing that host's credential. A 401 is
+> the ANSWER, not a failure.
+>
+> **What this entry is now FOR:** so the next person who greps a Hermes log and
+> finds hundreds of *"API server rejected invalid API key"* lines does not spend
+> an evening hunting a credential bug. **That is not hypothetical — this filing
+> IS that evening**, and the cost is the reason the record is worth keeping.
+>
+> **Not done, deliberately:** repointing the probe at `/health`. It would remove
+> the noise, but it needed a live probe proving `/health` answers
+> unauthenticated on `:8642`, and the noise is cheaper than the change.
+
+> **✅ CLOSED 2026-08-31 (sweep 13) on Owen's ruling above — accept and document.
+> No code was owed and none was written.**
+
+## 409. 🔴 THE GOVERNOR'S `same-tool-repeat` REFUSAL STRING IS ANSWERED WITH A FALSE COMPLETION CLAIM — 6/6 across two runs and two instruments, while the phase-CUT path is 9/9 honest — **FILED 2026-08-25 per #268, from the 336-A forensics (Opus agent, full report in the session transcript). INSTRUMENT-REACHABLE, essentially PRODUCTION-UNREACHABLE today; the refusal WORDING is the named lever. ⟵ ✅ THE STRING SHIPPED 2026-08-25 (branch `409-do-not-claim-clause`, PR #376) — both refusal branches carry the do-not-claim clause, RED-first and mutation-proven in both directions; 409-A/B/C MET. **STAYS OPEN on 409-D, which is a STRING claim and not a behavioural one:** nothing here shows the model stops lying, and only the next device `refusal-words` run can.**
+
+The mechanism, determined from `run-20260812-214629-F6C46C82` (three claim
+rows, input-token deltas proving a tool entry + refusal text in context) and
+replicated in `run-20260813-195020-D761EA0A` (three more, verbatim refusals
+recorded): when `ToolCallGovernor` refuses a call with the same-tool-repeat
+STRING (the model receives text telling it to "answer the user with what you
+have, and say plainly what you could not find out"), the model asserts the
+write happened — *"I've set the alarm for 6:30 AM."* — 6/6. When the
+governor's phase-cut THROWS instead (toolless retry), the turn is honest —
+9/9. **The refusal wording is the discriminating variable and it is testable
+OFFLINE against the two artifacts already on this Mac** before any device
+time: reword the refusal string (e.g., explicitly "do NOT claim the action
+happened — it was refused") and re-run the leaked cell.
+
+**Why production is safe today:** production calls `beginTurn()` per turn, so
+a real conversation essentially never reaches call #5 of one tool in one
+turn (#337-D's turn-reset cell: 0 refusals in 30 trials). The exposure is
+instrument runs and any future turn shape that chains ≥5 same-tool calls.
+**Deliberately NOT collapsed into:** Owen's 2026-08-12 hand-run fabrication
+(#336's (a) production case — fresh chat, no refusal, no call; trigger still
+unnamed) — different shape, do not collapse.
+
+**Related:** #336 (the forensics that named this), #337 (its 337-D results
+block attributes the leaked cell's dishonesty to declined turns without
+noticing its three un-cut refusal turns did the same for a different
+reason — archive pointer owed when a lane touches it), #343 (the
+turn-reset discipline that makes production safe), #338 (the honesty guard —
+NOT a catcher here by design: these claims follow a refusal, not a tool run).
+
+> **⚖️ RULED 2026-08-25, the filing's same hour (Owen, AskUserQuestion):
+> REWORD NOW.** The refusal string gains an explicit do-NOT-claim clause
+> ("the action was refused — do not claim it happened"); the next device
+> `refusal-words` run is the verification (runbook). Cheap insurance
+> against any future ≥5-same-tool-call turn shape.
+
+> **📐 BARS PRE-REGISTERED 2026-08-25 (lane-open, before code):**
+> - **409-A:** the `same-tool-repeat` refusal string contains an explicit
+>   do-NOT-claim clause ("the action was refused — do not claim it
+>   happened" in substance), pinned RED-first on the DECIDED text — the
+>   string `admit(tool:)` actually returns / `RefusalCapture` records —
+>   never a source-grep of the literal.
+> - **409-B:** the `perTurnBudget` sibling string gains the same clause —
+>   same class (`ToolCallGovernor.swift:142-144` invites "answer with
+>   what you have" without forbidding claiming), declared here BEFORE
+>   code as an explicit scope extension of the ruling; pinned the same
+>   way. If the lane finds a reason it should NOT ride along, that is a
+>   finding, not a silent drop.
+> - **409-C:** every existing governor/refusal-words/instrument test
+>   stays green, and the suite count MOVES by exactly the tests added
+>   (stale-`.xctest` check).
+> - **409-D:** this lane ships the STRING only — no behavioral claim.
+>   The behavioral verification is the next device `refusal-words` run
+>   (runbook note on the #339 subset card). The two preserved artifacts
+>   name the leaked cell but re-running it needs the device model —
+>   offline re-run is optional evidence, not a bar.
+
+> **✅ RESULT 2026-08-25 — THE CLAUSE SHIPPED (branch `409-do-not-claim-clause`,
+> PR #376). 409-A, 409-B, 409-C MET; 409-D is a STRING claim and nothing
+> more.**
+>
+> **The two strings now, verbatim** (`ToolCallGovernor.admit(tool:)`), with the
+> added sentence the only delta — every word the old strings carried survives:
+>
+> - `same-tool-repeat` — *"You have already called ⟨name⟩ several times this
+>   turn and it is not getting you closer. **This call was refused and did not
+>   run — do not tell the user the action happened.** Do not call it again —
+>   answer the user with what you have, and say plainly what you could not find
+>   out."*
+> - `perTurnBudget` — *"You have used all the tool calls available for this
+>   turn. **This call was refused and did not run — do not tell the user the
+>   action happened.** Answer the user now with what you already have, and say
+>   plainly what you could not find out."*
+>
+> The clause is ONE `private static let doNotClaimClause` interpolated into both
+> branches, so the siblings cannot drift apart — but each is pinned separately,
+> and each pin carries its own literal rather than referencing the constant, so
+> the tests are not tautologies against the code they guard.
+>
+> **Bar by bar:**
+> - **409-A ✅** — `theRepeatRefusalForbidsClaimingTheActionHappened()` calls
+>   `admit(tool:)` on a governor configured to trip the repeat cap and asserts
+>   over the string it RETURNS. No source-grep anywhere in the lane.
+> - **409-B ✅** — `theBudgetRefusalForbidsClaimingTheActionHappened()`, same
+>   shape on the budget branch. **No reason was found for the sibling not to
+>   ride along**, so the pre-registered extension stands as written.
+> - **409-C ✅** — `GATE: PASS` FIRST-RUN on `CC-lane-2` (exit 0): **2555 Swift
+>   Testing tests / 210 suites**, **14 XCUITest**, and `Release build succeeded`
+>   with no Swift compile errors — all three positive markers present. **2553 + 2
+>   = 2555, and #318's independently-recorded 2553 corroborates it exactly.** (2
+>   skips, both the known-permanent `CondenserFidelityTests` pair that needs
+>   Apple Intelligence hardware; no new skip.) **The +2 is established by construction, not
+>   by quoting an older run's total:** the diff touches exactly one test file
+>   (`ToolCallGovernorTests.swift`, 49 insertions / 0 deletions) and adds exactly
+>   two `@Test` functions, taking that suite from **10 on main to 12 here**.
+>   (Both gate-adjacent runs reported 12, not 10 then 12 — the pins were written
+>   BEFORE the source change, so the RED run already ran all twelve and scored
+>   `10 passed / 2 failed`.) No absolute baseline from a previous lane is
+>   used as the PRIMARY evidence on purpose — several lanes have landed since
+>   #401's 2482/200, so a quoted total alone would be the stale half of the
+>   stale-`.xctest` check rather than a guard against it. The 2553 agreement is
+>   a corroboration of the construction argument, not a substitute for it.
+>   `GovernorRefusalCaptureTests` and `ToolCallInstrumentTests` were run targeted
+>   alongside (39 tests / 3 suites, exit 0) and are unchanged and green.
+>   **No existing test pinned the old wording** — a repo-wide
+>   sweep for `could not find out` / `getting you closer` / `tool calls available
+>   for this turn` found the literals ONLY in `planning/reports/` run artifacts
+>   (the 337-D and #343 refusal-words captures), which are recorded evidence of
+>   what the model was handed on those dates and are deliberately left untouched.
+> - **409-D ✅ as scoped, and this is the part to read carefully** — **the lane
+>   changed a string and proved only that the string changed.** The 6/6
+>   false-completion rate was measured against the OLD text; nothing here
+>   re-measures it, and a reworded prompt is a hypothesis, not a fix. **Do not
+>   cite this block as evidence the model stopped claiming refused actions.**
+>   The verification is the next device `refusal-words` run (runbook, #339
+>   subset card); until it lands, #409's own finding stands unrefuted.
+>
+> **Method note (the discipline, not the result):** RED was witnessed first —
+> both new tests failed on `message.contains(...)` alone while all ten
+> pre-existing governor tests and every *other* assertion inside the two new
+> tests passed, which is what established that the clause was the only thing
+> missing. Then **each pin was mutation-checked in BOTH directions**: dropping
+> the clause from the repeat branch reddened exactly
+> `theRepeatRefusalForbidsClaimingTheActionHappened` (1 issue, budget pin still
+> green), and dropping it from the budget branch reddened exactly its sibling.
+> That second arm is not ceremony — with one shared constant feeding two call
+> sites, "both pins red together" is the specific way this design could have
+> failed to isolate, and it did not.
+>
+> **🔎 DRIVE-BY FINDING — `oi-invariants.py`'s merge check has a prose false
+> positive, and this entry tripped it twice.** Its `STALE_MERGE` regex keys on
+> the words *not* and *merged* **adjacent, case-insensitively, anywhere in an
+> entry body**, and #409's filed text contained *"Deliberately **NOT** merged
+> with: Owen's 2026-08-12 hand-run fabrication"* — a TOPIC merge (do not
+> collapse these two findings), not a git one. The check fires only on entries
+> that ALSO name a branch, so the sentence sat harmless from filing until this
+> lane put `409-do-not-claim-clause` into the entry — at which point the
+> invariant announced that #409 claimed to be unmerged while that branch was an
+> ancestor of main. **Both halves true, conclusion false.**
+>
+> **Fixed here in the entry, not in the script:** the word is now "collapsed",
+> which is what the same sentence already says two clauses later.
+>
+> **And then it fired a SECOND time on this very block** — writing the finding
+> up reintroduced the offending adjacency in the prose describing it, so the
+> check went red again on a paragraph whose entire subject is that the check
+> goes red wrongly. That is why the quotation above is written `**NOT** merged`:
+> the emphasis markers sit between the two words in the raw bytes the regex
+> reads, while the rendered text is unchanged. **Do not "tidy" that formatting
+> away** — it is load-bearing, and removing it re-reds the tracker.
+>
+> The script is untouched and the latent trap is unchanged: **any entry pairing
+> a branch name with that two-word phrase reports a false FAIL.** The failure is
+> loud rather than silent, which is the right direction for a check that fails
+> safe, so this is a papercut and not a defect worth a lane on its own. Filing
+> the regex narrowing (require a nearby PR/branch token, or exclude the
+> "…merged with" sense) is left to whoever owns #342's tooling.
+>
+> > **✅ THE NARROWING LANDED 2026-08-26 (#373's bundle lane, which owns #342's
+> > tooling), and it took the second of the two options offered above — the
+> > "…merged with" sense is excluded, scoped so that `not merged with main` /
+> > `origin/x` / `` `branch` `` still fire, because a narrowing that blinds a
+> > real catch is the only way that edit could have been worse than the bug.
+> > Pinned in both directions in the new `scripts/oi-invariants-test.py`.**
+> >
+> > **⚠️ AND THE PARAGRAPH ABOVE IS NOW OVERTAKEN ON ITS OWN INSTRUCTION: the
+> > `**NOT** merged` formatting is NO LONGER LOAD-BEARING.** Keeping it is
+> > harmless and it is left in place (it is a quotation of #409's filed text),
+> > but "removing it re-reds the tracker" is no longer true, for two independent
+> > reasons — the topic sense is excluded now, and `409-do-not-claim-clause` has
+> > been pruned from local and origin, so the check skips it as a branch git
+> > cannot resolve.
+> >
+> > **🔴 THE WORKAROUND WAS EVIDENCE OF A WORSE BUG THAN THE ONE IT DODGED, and
+> > this is the finding worth carrying.** It worked *because the emphasis
+> > markers sit between the two words in the raw bytes the regex reads* — which
+> > is to say **markdown bold could switch this check off.** #409 used that
+> > deliberately and reported it as a formatting trick; read the other way
+> > round, it means a genuinely stale entry written `**NOT** MERGED` would have
+> > sailed past a check whose entire job is catching that sentence. That is the
+> > archived #300 shape — a discriminator that cannot match the text it polices
+> > — cutting in the dangerous direction, and it had been latent since the check
+> > was written. Emphasis is now stripped before matching, so the check reads
+> > what a human reads.
+
+> **✅ 2026-08-27/28 — 409-D RAN ON DEVICE. Filed 2026-08-31; the result sat in
+> #339 for four days and never reached this entry.** `refusal-words` ran as a
+> member of the #339 pre-OTA subset (build **3125**, same artifacts as #334's
+> row above):
+>
+> | member | n | result |
+> |---|---|---|
+> | `refusal-words` | **60** | 62/62 probes correct; **3 of 48 armed replies still claim completion** |
+>
+> **409-D's verdict: MOSTLY FIXED, NOT FIXED.** The do-not-claim clause shipped
+> 2026-08-25 (PR #376) against a pre-fix rate of **6/6 false completion claims**
+> on the same-tool-repeat path. Post-clause the armed rate is **3/48 ≈ 6.3%** —
+> a large drop, and **not zero on a bar whose whole subject is a FALSE claim of
+> completion.** The scorer's probes are 62/62, so the instrument is sound and
+> the residue is model behaviour, not measurement.
+>
+> **What this does NOT settle,** in #339's own words: the question *"is only
+> answerable from the reply text"*, so a residual 3/48 is a rate on prose, not
+> a proof that the clause is ignored. Whether 6.3% is acceptable, or wants a
+> second wording pass, is Owen's call — **the entry should not be closed as
+> "#409 verified" on this number**, which #339 warns about explicitly.
+
+> **⚖️ RULED 2026-08-31 (Owen, interactive decision pass): 6.3% IS ACCEPTED —
+> CLOSED.** 409-D measured **3 of 48 armed replies still claiming completion**,
+> against a pre-clause **6/6**. The instrument is sound (62/62 probes correct),
+> so the residue is model behaviour, not measurement.
+>
+> **Recorded honestly rather than as "verified":** this entry does NOT close
+> because the false-claim rate reached zero. It closes because a prose clause
+> cannot reach zero by construction, the measured improvement is large, and the
+> two escalations were weighed and declined — another wording pass (diminishing
+> returns, needs another device run to score) and a structural detector
+> (suppress or annotate a completion claim that follows a refusal — much bigger
+> work, and nobody has argued the 6.3% is causing harm).
+>
+> **If the shape ever costs something real, the structural option is the one to
+> reach for**, and #339's `refusal-words` member is the instrument that would
+> measure it.
+
+> **✅ CLOSED 2026-08-31 (sweep 13) on Owen's ruling above — 6.3% accepted.**
+> The ruled reword shipped (PR #376) and was measured on device (409-D, 3/48
+> against a pre-clause 6/6). Closing on a non-zero rate is deliberate and its
+> reasoning is in the ruling block, not implied by the close.
+
+## 378. 🧭 156c — the MEMORY introspection surface — **FILED 2026-08-18 night, re-homed from #156's close. SCOPE DECISION FIRST, Owen routes: `~/.hermes/memories/*.md` vs the authoritative shared Honcho instance. Bars pre-register after scope.** **⟵ HEADER CORRECTED 2026-08-23: the SCOPE DECISION WAS MADE — Owen ruled 2026-08-18 ~22:40 for **local `~/.hermes/memories/*.md` first, read-only, no new dependency**, Honcho later if ever wanted. So bars can pre-register now; what is missing is a SCHEDULE, not a scope. *"Buildable when routed; not scheduled this week."*** **⟵ ✅ BUILT + MERGED 2026-08-26 (bundle lane; PR #386, squash `fda2ad8e`): bars 378-A..E written at lane-open and all MET, one RED-witnessed on the lane's own wording. `HermesMemoryReader` + a read-only `AgentMemorySection` on the Developer channel. THE SCOPE READING, stated because the ruling named a source and not a surface: `~` on iOS is the app container, so the ruled read resolves in DEV (a simulator shares the Mac's filesystem) and can never resolve on a device — so the panel reports UNREACHABLE there rather than EMPTY, which is the only honest difference and the whole point. A user-facing panel is NOT claimed: under this scope there is nothing for a device user to see, and both routes that would change that (plugin delivery, Honcho) are excluded by the ruling itself. Content carries #158/#159's one-layer caveat naming Honcho and Mem0.**
+
+> **2026-08-18 ~22:40 — SCOPE RULED (Owen, recommendations batch): local
+> `~/.hermes/memories/*.md` first,** read-only, no new dependency; Honcho
+> later if ever wanted. Buildable when routed; not scheduled this week.
+
+
+> **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** the local memories read, per the 08-18 scope ruling (read-only, no new dependency). Rides the bundle lane. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
+
+> **🔎 LANE-OPEN 2026-08-26 (bundle lane, branch `373-378-bundle`) — WHAT THE
+> RULED SCOPE MEANS ON A PHONE, SETTLED BEFORE ANY CODE. This entry had NO
+> bars; they are written here first (house rule).**
+>
+> **The ruling is unambiguous about the SOURCE and silent about the SURFACE,
+> and the gap between those two is the whole design question.** Owen ruled
+> local `~/.hermes/memories/*.md`, read-only, no new dependency. Follow that
+> literally and one fact decides the shape:
+>
+> - **`~` on iOS is the APP CONTAINER, not a host home directory.** There is no
+>   `~/.hermes` on `whoGoesThere` and there never will be — not because the
+>   install is hostless, but because those files live on OJAMD's filesystem and
+>   the phone has no path to it. A literal read on a device returns nothing, on
+>   every device, forever.
+> - **A SIMULATOR process shares the Mac's filesystem**, which is the same
+>   property `Phase0ActionCautionTests` already leans on to read the repo's own
+>   Swift sources at test time. So on the Mac Mini the ruled read genuinely
+>   resolves — `/Users/<user>/.hermes/memories/*.md` is right there, and on this
+>   box it is populated.
+> - **The two shapes that would make this user-facing are BOTH excluded by the
+>   ruling itself.** Host-delivering the files over the talaria plugin means a
+>   new verb and a host deploy — *a new dependency*, which the ruling forbids in
+>   the same sentence that set the scope. Honcho is *"later if ever wanted."*
+>
+> **SO THE LEAST-CLAIMING READING, adopted and stated rather than assumed: a
+> READ-ONLY DEVELOPER-SURFACE introspection panel over whatever local memories
+> directory is reachable, which reports UNREACHABLE on a device instead of
+> EMPTY.** That distinction is the entire honesty of the feature. "No memory
+> files found" on a phone would be a true sentence about the filesystem and a
+> false impression about the agent — the agent's memory is fine, this build
+> simply cannot see it. **A user-facing panel is NOT claimed by this lane**, and
+> the reason is recorded here so the next reader does not mistake the ceiling
+> for an oversight: under the ruled scope there is nothing for a device user to
+> look at, and lifting that needs a routing decision (plugin delivery or Honcho)
+> that Owen has not made.
+>
+> **AND THE CONTENT IS A PARTIAL VIEW EVEN WHERE IT WORKS — #158's hard caveat,
+> which #159 turned from hypothetical into fact.** Owen runs the built-in file
+> backend *and* a shared Honcho instance. If the profile's `memory.provider` is
+> Honcho or Mem0 these `.md` files are one layer and may be stale, while the
+> authoritative store is remote. A panel that renders them unlabelled would
+> present a partial view as complete, which is #25's invariant wearing a
+> different hat.
+>
+> **BARS, PRE-REGISTERED:**
+> - **378-A (the reader is pure, and it parses what the format actually is).**
+>   A directory URL in, a parsed result out — `§`-separated free-text entries
+>   per #158's source-confirm, `.md` files only, deterministic order, CRLF and
+>   blank-run tolerant, empty entries dropped rather than counted. No global
+>   state, no `FileManager` default-singleton reach-around, so every arm below
+>   is unit-reachable with a temp directory.
+> - **378-B (four states, and NONE of them says the agent has no memories).**
+>   Absent directory · present-but-empty · unreadable · *this build cannot
+>   reach a host filesystem* each render a DISTINCT message. Pinned by
+>   asserting the four differ AND that not one of them contains a claim about
+>   what the agent remembers — the specific dishonesty available here.
+> - **378-C (the completeness caveat is not optional).** Whenever content is
+>   shown, the surface says these files are one layer and may not be
+>   authoritative (#158/#159). Pinned structurally, so a future edit that drops
+>   the label reds.
+> - **378-D (read-only, and no new dependency — pinned, not promised).** No
+>   write path exists on the reader; no new package, no new network call, no new
+>   plugin verb. Pinned by source-level assertion over the new files, the same
+>   way this project pins its other "must not grow a call site" invariants.
+> - **378-E (it renders, and the gate is green).** The panel lives on the
+>   Developer settings channel — where host/dev introspection already lives —
+>   and builds Debug and Release.
+> - **No bar on showing a device user their agent's memory.** That is the thing
+>   this scope cannot do, and a bar claiming it would be met by a screen that
+>   lies.
+
+> **✅ 2026-08-26 — BUILT AND MERGED (bundle lane, branch `373-378-bundle`;
+> PR #386, squash `fda2ad8e`). BAR BY BAR:**
+>
+> **THE SCOPE READING, restated as the result: a read-only DEVELOPER-SURFACE
+> panel that reports UNREACHABLE on a device rather than EMPTY.** The ruling
+> named a source and was silent on a surface, and `~` being the app container on
+> iOS decides the rest. `HermesMemoryReader` (production, not DEBUG) +
+> `AgentMemorySection` on the Developer settings channel.
+>
+> - **378-A — MET.** `HermesMemoryReader.read(directory:fileManager:)` is pure
+>   with respect to everything but the directory handed to it, so every arm is
+>   unit-reachable with a temp directory. `§`-separated per #158's
+>   source-confirm, `.md` only, sorted deterministically, CRLF tolerated, empty
+>   entries **dropped rather than counted** — a trailing separator is
+>   punctuation, and counting it reports a file with one more memory than it
+>   has. One unreadable file inside a readable directory is reported as a file
+>   with zero entries rather than silently vanishing.
+> - **378-B — MET, and the bar reddened on its own author.** Four distinct
+>   states with four distinct headlines and details, and a forbidden-claim scan
+>   over every empty-handed one. **The first run failed it:** the
+>   missing-directory headline read **"NO MEMORIES DIRECTORY"**, which is
+>   strictly about a directory and scans at a glance as a verdict on the agent
+>   — the exact conflation this type exists to prevent, committed inside the
+>   type that exists to prevent it, and caught only because the bar was written
+>   before the code. Reworded to **"DIRECTORY NOT FOUND"**; the test was not
+>   touched.
+> - **378-C — MET.** #158's caveat ships with any content and only with content
+>   (mutation: always-on reddens all four empty-handed arms), and it NAMES
+>   Honcho and Mem0 rather than gesturing — because #159 made that caveat a
+>   fact: Owen runs the file backend AND a shared Honcho instance, so this view
+>   is one layer and may be the stale one.
+> - **378-D — MET, pinned rather than promised.** A structural scan over both
+>   new files forbids `URLSession`/`URLRequest`/`import Network`/`import
+>   Combine` and every `FileManager` write verb. "Read-only, no new dependency"
+>   was the ruling's wording; a doc comment saying so is not a constraint.
+> - **378-E — MET.** The panel renders on the Developer channel in Debug and
+>   Release. **GATE: PASS** (shared with #373 — see the PR for numbers).
+>
+> **WHAT THIS DELIBERATELY DOES NOT DO, and it is a ceiling rather than an
+> oversight.** On `whoGoesThere` this panel says *"Agent memory files live on
+> the Hermes host's filesystem, and this build has no path to one"* — and it
+> will say that on every device, forever, under this scope. No user-facing panel
+> is claimed. Lifting that needs a routing decision Owen has not made: host
+> delivery over the talaria plugin (a new verb and a host deploy — **a new
+> dependency, which the ruling forbids in the same sentence that set the
+> scope**) or the Honcho client (deferred, *"later if ever wanted"*). The value
+> banked today is the DEV read plus the honest-degradation machinery, both of
+> which either route would reuse unchanged.
+>
+> **UNMEASURED, and named rather than implied away:** the panel has not been
+> seen resolving real memories. The resolver prefers `SIMULATOR_HOST_HOME` (a
+> simulator process is handed the Mac user's home; `NSHomeDirectory()` is the
+> app container and would be wrong), falling back to the container — a fallback
+> that resolves to a nonexistent directory and therefore reports
+> `DIRECTORY NOT FOUND`, which is honest but is not the loaded arm. **Every
+> input that decides which arm renders is unit-pinned; that one 10-second dev
+> look is not, and it is a runbook card rather than a claim.**
+> **⚖️ RULED 2026-08-31 (Owen, interactive decision pass): CLOSED — THE LANE
+> DELIVERED WHAT IT CLAIMED.** 378-E is met: the read-only developer panel
+> (`AgentMemorySection.swift`, Developer channel) shipped 2026-08-26 and is
+> honest on a device, reporting **UNREACHABLE** rather than an empty list —
+> which was the point, since an empty list reads as "no memories" instead of
+> "cannot see them". **No user-facing panel was ever claimed by this lane.**
+>
+> **The open thread is NOT this entry's:** whether users should ever see the
+> agent's memory needs a delivery route the ruled scope deliberately excluded,
+> and Owen has thoughts on the wider shape. **Re-homed to #422 (memory agent
+> integration)** rather than left here as an indefinite placeholder — a lane
+> that met its bars should not stay open because a DIFFERENT question exists.
+
+> **✅ CLOSED 2026-08-31 (sweep 13) on Owen's ruling above — the lane delivered
+> its bars.** The wider memory question lives at **#422**, which was opened the
+> same hour rather than holding this entry open for a different question.
