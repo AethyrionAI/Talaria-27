@@ -6799,6 +6799,40 @@ not free and must be visible" is that lane's own sentence, in the code at
 >
 > **#312 (f) flips with this.**
 
+> **🔬 SAME-DAY LOG CORROBORATION (`talaria-cards.logarchive`, collected 08-31)
+> — the seam lines agree with the screen, independently.** The reopen back into
+> the test conversation:
+> ```
+> 20:20:13.857  #330 seam 2 · openSession 'api_1788225478_96cc9c62' REPLACE:
+>   departing [rows 6 · metered 0 · priming 0 · totals ABSENT · id D1FF400B]
+>   → arriving [rows 3 · metered 1 · priming 1 · totals PRESENT · id 40E54B97]
+> ```
+> `arriving … totals PRESENT · metered 1 · priming 1 · id 40E54B97` matches the
+> `/usage` read digit for digit. **Two independent instruments, one verdict** —
+> and the log cost ~1.5 k tokens against the screen's 197 k for the same answer,
+> which is the operational lesson for every remaining log-scored card: drive the
+> interaction, read the verdict from the archive.
+>
+> **⚠️ AN OBSERVATION THE SCREEN COULD NOT SHOW, recorded so it is not
+> rediscovered as a regression.** The step-5 hop *away* — into an OLDER
+> conversation — arrived the other way:
+> ```
+> 20:20:05.206  … 'api_1787805605_f8c88ed6' REPLACE:
+>   departing [rows 9 · metered 3 · priming 1 · totals PRESENT · id 11FEB17A]
+>   → arriving [rows 6 · metered 0 · priming 0 · totals ABSENT · id D1FF400B]
+> ```
+> That conversation's own seam 1 reads `stored 12 → mapped 6 (refused 6) · rows
+> carrying usage 0 (the stored transcript has none to carry)`. **So an older
+> thread still opens with an empty SESSION block.** The likely reading is that
+> there is simply nothing to restore — no host-side usage, and no sidecar entry
+> for a session that predates it — in which case ABSENT is the honest render and
+> not the defect. **But that is NOT determined by this archive, and #138's rule
+> applies: no mechanism claim without a log line that would have to change if it
+> were false.** Filed as an open QUESTION on a closed item, not a reopening:
+> *is the sidecar retroactive, and if not, is an empty block on pre-sidecar
+> threads the intended behaviour?* One `/usage` on an old thread plus a seam-1
+> read answers it whenever someone is next on the device.
+
 ## 332. 🎲 THE FIRST DEVICE SUITE RUN — three failures the simulator has been hiding, on two devices at once — **FILED 2026-08-11. The full unit suite had NEVER run on hardware; every green in this project's history came from a simulator. It ran on both `whoGoesThere` and Shelley's iPad in the same sitting and failed on both, differently. ~~NOT STARTED~~ → **332-a and 332-b FIXED 2026-08-12 on `t27-332ab-device-suite-test-fixes`** — both are sim-verified with witnessed negative controls, and each has ONE half left that only hardware can score, deferred to the next central device pass (this lane touched no device, by instruction). **332-c STAYS OPEN and is untouched** — its first bar is a measurement nobody has taken yet, and the entry must not be edited to assume the benign answer. Bars per finding below.**
 
 **The run.** `-only-testing:TalariaTests` on each device, `main` @ `7699c43`.
