@@ -1214,6 +1214,31 @@ struct ChatScreen: View {
                             .transition(.opacity)
                     }
 
+                    // #269-B: the conversational installer, where #251 ruled
+                    // it belongs — "consent surfaces in chat where the user
+                    // lives; the app probes to verify." A THIRD card in the
+                    // same family as the two above and, like them, its own
+                    // actor: this one is a plain consent for a message the
+                    // app wants to send in the user's name.
+                    switch container.pluginSetupStore.phase {
+                    case .awaitingConsent:
+                        PluginSetupConsentCard(store: container.pluginSetupStore)
+                            .transition(.opacity)
+                    case .sending:
+                        PluginSetupProgressRow(isVerifying: false)
+                            .transition(.opacity)
+                    case .verifying:
+                        PluginSetupProgressRow(isVerifying: true)
+                            .transition(.opacity)
+                    case .settled(let completion):
+                        PluginSetupResultRow(completion: completion) {
+                            container.pluginSetupStore.dismissResult()
+                        }
+                        .transition(.opacity)
+                    case .idle:
+                        EmptyView()
+                    }
+
                     if showStatusCard {
                         StatusCardView(
                             connectionLabel: connectionStatusLabel,

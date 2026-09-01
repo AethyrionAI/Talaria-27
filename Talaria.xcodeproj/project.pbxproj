@@ -39,6 +39,7 @@
 		09C932023113D147DD4354D1 /* InstallationIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42AF3B53554D652C80407B5A /* InstallationIdentity.swift */; };
 		09FB64373A514E96DB309ADD /* PermissionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068E0164B35DB9857A55847E /* PermissionStatus.swift */; };
 		0A9E5885F489B6F31EE74EF2 /* ServerSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637B1A2DE6232361D4E695DD /* ServerSettingsScreen.swift */; };
+		0ADC356623F81FDD63EE0C8B /* PluginSetupCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F56B88980E7DC0E9240525FC /* PluginSetupCard.swift */; };
 		0B0809CD17DB3324ED8E8C11 /* AttachmentInlining.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96D3920640ABF46FAC184C3D /* AttachmentInlining.swift */; };
 		0B36CC7964363BE5011CCB73 /* IconPreview-Terminal.png in Resources */ = {isa = PBXBuildFile; fileRef = 88975BD7EEDA7212610A9EFC /* IconPreview-Terminal.png */; };
 		0B418C993F999EE11B52D837 /* SkillDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B8D45542C56E5283250B286 /* SkillDecodingTests.swift */; };
@@ -66,6 +67,7 @@
 		1129B37439D5430176D73969 /* CronJobsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D086BA232F3A7F933073B7F8 /* CronJobsStore.swift */; };
 		116EF9006798F7E4FD0C6279 /* BackendProfilesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40715ACFEED629379C8F24E1 /* BackendProfilesStore.swift */; };
 		118338DF4533C8B3B58731B1 /* InboxLocalState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFA27EC6BEFCF9C3F3A54282 /* InboxLocalState.swift */; };
+		11AAA341DC533FE108C5B289 /* TalariaPluginSetupPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18BC6A794FCA0A7E22D4AE53 /* TalariaPluginSetupPrompt.swift */; };
 		130F0E44B9124664E761CA8C /* VoiceEngineRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCE85A8CE1548ED41FE4180D /* VoiceEngineRouter.swift */; };
 		139D0B71680BC959C5F2D251 /* CapabilitySurfaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C102CC9A9B7B18C77F6D1DB /* CapabilitySurfaceTests.swift */; };
 		144EDF50F11F387A3B23C0F0 /* DeeplinkSchemeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2562A35F3DF562CA48400F7 /* DeeplinkSchemeTests.swift */; };
@@ -444,6 +446,7 @@
 		AE96AF22761741B163619CDA /* InstrumentRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 103907FEC8F3C3BF7577104D /* InstrumentRegistry.swift */; };
 		AF7CCA621DC7DDEF66D419F6 /* ChatScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B51D21BD13D5D766B95E61CC /* ChatScreen.swift */; };
 		B14D98A0969B463B26C78532 /* MarkdownTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9960B9FE16ABC4CAB81D357 /* MarkdownTestSupport.swift */; };
+		B19F7CD69534B9B989240DF7 /* PluginSetupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 685DA1DC9AE55E1A15656434 /* PluginSetupStore.swift */; };
 		B1B96E3408CC52AADCD882D3 /* VoiceBootstrapTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BCB5A913915DD7214BDAE57 /* VoiceBootstrapTransport.swift */; };
 		B202DACD63BA046FC3F6EBE4 /* BatteryRunStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D73AD47FED8C4DA62D2303D3 /* BatteryRunStoreTests.swift */; };
 		B2C097A2CC20CACDCFB7B1D4 /* AppLockMidFlightCoverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8C1F6B4EB8F44EDDD301077 /* AppLockMidFlightCoverTests.swift */; };
@@ -473,6 +476,7 @@
 		C031D275A1C61DC2F100B389 /* SSEEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B91842CE9C8F9B0938C747E5 /* SSEEvent.swift */; };
 		C037C1F85943D624651BCB20 /* Icon-KaijuAttack@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 325BBB9012E78FDEBEC9F667 /* Icon-KaijuAttack@3x.png */; };
 		C071A887FB7D775DE0017757 /* IconPreview-SummerSolar.png in Resources */ = {isa = PBXBuildFile; fileRef = 85291A40EB53DE9F648C706C /* IconPreview-SummerSolar.png */; };
+		C0829FB07E96AFD98E1E56AF /* PluginSetupConsentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DEC3BB5936BD597592397B9 /* PluginSetupConsentTests.swift */; };
 		C0FF81DED4CD6E59145668D7 /* TaskScheduleDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19C6C9629F76EE94AD95BA67 /* TaskScheduleDraft.swift */; };
 		C1030FA2BBBCA9A79627A6F2 /* AppLockControllerRaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DACB616F407B28D67410AC1F /* AppLockControllerRaceTests.swift */; };
 		C20AE3B12E90CF743FAD2077 /* Icon-LunarDiner@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 9F6DE4A282467FF9B4ECD50F /* Icon-LunarDiner@3x.png */; };
@@ -742,6 +746,7 @@
 		17A9783DF0DB78DE9E409FD1 /* StatusIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusIndicator.swift; sourceTree = "<group>"; };
 		17EF240E4C67102BB6FF22F1 /* HostReachability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostReachability.swift; sourceTree = "<group>"; };
 		18522BB94AC368FD831EA0FF /* EntitlementServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementServiceProtocol.swift; sourceTree = "<group>"; };
+		18BC6A794FCA0A7E22D4AE53 /* TalariaPluginSetupPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalariaPluginSetupPrompt.swift; sourceTree = "<group>"; };
 		18D266B207E1D16C45A7C236 /* Icon-LuchaLibre@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-LuchaLibre@2x.png"; sourceTree = "<group>"; };
 		193B0D14BC2A55D65BAB1254 /* Icon-PulpNoir@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-PulpNoir@3x.png"; sourceTree = "<group>"; };
 		1971FA9A237E9A8F4081017B /* SlashCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlashCommand.swift; sourceTree = "<group>"; };
@@ -791,6 +796,7 @@
 		2CC5ECD744442BBF8982F5C6 /* IconPreview-NeonArcade.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-NeonArcade.png"; sourceTree = "<group>"; };
 		2D05226618AAF6BA5457D37C /* Icon-RetroSciFi@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-RetroSciFi@2x.png"; sourceTree = "<group>"; };
 		2D74D8A7E231F48BD446FB12 /* LocalSessionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSessionStoreTests.swift; sourceTree = "<group>"; };
+		2DEC3BB5936BD597592397B9 /* PluginSetupConsentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginSetupConsentTests.swift; sourceTree = "<group>"; };
 		2E21939E7A3C1BBFE3C156B1 /* IconPreview-PaperTape.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-PaperTape.png"; sourceTree = "<group>"; };
 		2EB44A40F5D84F7994A337C1 /* AttachmentDownscaleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentDownscaleTests.swift; sourceTree = "<group>"; };
 		2F3AE56BB2027F533FD8B44F /* MarkdownHeadingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownHeadingTests.swift; sourceTree = "<group>"; };
@@ -927,6 +933,7 @@
 		68053F9AC1107B6078C0A52D /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
 		68144B7B731A5FB65B02E49F /* CaptionLessImageFloorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptionLessImageFloorTests.swift; sourceTree = "<group>"; };
 		68412AEF0557CFB4DB5AA94D /* ApprovalModesPhase12Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApprovalModesPhase12Tests.swift; sourceTree = "<group>"; };
+		685DA1DC9AE55E1A15656434 /* PluginSetupStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginSetupStore.swift; sourceTree = "<group>"; };
 		6874BCC08D52FEC22B4949DF /* FilePreviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilePreviewTests.swift; sourceTree = "<group>"; };
 		692CE05A577894FFE49EDDF3 /* SpotlightOpenIntentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightOpenIntentTests.swift; sourceTree = "<group>"; };
 		69438F0D38B60455035902BC /* MarkdownBlockQuoteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownBlockQuoteTests.swift; sourceTree = "<group>"; };
@@ -1283,6 +1290,7 @@
 		F4FD21974C01431F1F4BF095 /* BriefingDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BriefingDetailScreen.swift; sourceTree = "<group>"; };
 		F51C80FDDAEBBFCAA3904612 /* ThemeArtDirectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeArtDirectionTests.swift; sourceTree = "<group>"; };
 		F54D7A4857FEAFF1A1D8A553 /* VoiceInstrumentLogLineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInstrumentLogLineTests.swift; sourceTree = "<group>"; };
+		F56B88980E7DC0E9240525FC /* PluginSetupCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginSetupCard.swift; sourceTree = "<group>"; };
 		F6BE1EBB06745A2F54F48D12 /* IconPreview-SolarForge.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-SolarForge.png"; sourceTree = "<group>"; };
 		F6DDD296EB3D124F59DAD98D /* GenUISurfaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenUISurfaceView.swift; sourceTree = "<group>"; };
 		F6F3C29A6904368CF4D9425B /* SessionStatsDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStatsDecodingTests.swift; sourceTree = "<group>"; };
@@ -1538,6 +1546,7 @@
 				76C159680F52012CC7372A0D /* OfferReadInstrumentTests.swift */,
 				CEEFD2EBDFDDF14AEF7CE5B1 /* Phase0ActionCautionTests.swift */,
 				C24F92920F1F5B9D7941E6D6 /* PhoneQueryResponderTests.swift */,
+				2DEC3BB5936BD597592397B9 /* PluginSetupConsentTests.swift */,
 				25D8C447B1F5E16B0EBCB49E /* PooledConnectionWedgeTests.swift */,
 				A956D51200B309F6ADFD61F3 /* PreflightInstrumentTests.swift */,
 				0D7C15F3423586D37B8FB015 /* PrivacyManifestCompletenessTests.swift */,
@@ -1764,6 +1773,7 @@
 				078776BA69767B945B3B0B82 /* InboxStore.swift */,
 				564FBB51A62CECD63D04A001 /* InsightsStore.swift */,
 				5947892A74BA10823951BC62 /* PermissionsStore.swift */,
+				685DA1DC9AE55E1A15656434 /* PluginSetupStore.swift */,
 				CDB6D170A1CF779CC5D6968C /* RunTurnPhase.swift */,
 				28B4489595DCA794247F0F65 /* SessionProfileIndexStore.swift */,
 				712CB7E063819A3CB9521687 /* SessionUsageIndexStore.swift */,
@@ -1822,6 +1832,7 @@
 				FC9503176968EC14B829B955 /* SyncStatus.swift */,
 				6462979787FAB9D9F3355834 /* TalariaPairPayload.swift */,
 				8F4E2E6C8A314FB772607573 /* TalariaPlatform.swift */,
+				18BC6A794FCA0A7E22D4AE53 /* TalariaPluginSetupPrompt.swift */,
 				F2FA13DEE0B0D8B6137FFF18 /* ThemeCatalog.swift */,
 				3F3EAD544A476678B4CAA8A8 /* TokenUsage.swift */,
 				0D05FEFC0C88B9061B363B56 /* ToolActivity.swift */,
@@ -2224,6 +2235,7 @@
 				8549D5DC5D745742DEFC60A2 /* MarkdownContentView.swift */,
 				57CF6F188E6A3E52F6D1204B /* MessageBubble.swift */,
 				F44FC928449FEFDDB4ABB8E3 /* MessageListIdentityProbe.swift */,
+				F56B88980E7DC0E9240525FC /* PluginSetupCard.swift */,
 				77A5740AD793BC1A65482BD0 /* SlashCommandMenu.swift */,
 				DC388517E5C6F45D742F0E43 /* StatusCardView.swift */,
 				C4FDA4808AB56DE98DA248FB /* ThinkingIndicatorView.swift */,
@@ -2792,6 +2804,8 @@
 				0D1E0856BED6801F057F89ED /* PermissionsScreen.swift in Sources */,
 				7105A431C0522A95D5577C02 /* PermissionsStore.swift in Sources */,
 				5079B69268BC322E428F67E6 /* PhoneQueryResponder.swift in Sources */,
+				0ADC356623F81FDD63EE0C8B /* PluginSetupCard.swift in Sources */,
+				B19F7CD69534B9B989240DF7 /* PluginSetupStore.swift in Sources */,
 				602E8B613EC5D0DC26659EFF /* PrivacySettingsScreen.swift in Sources */,
 				372B91AD600C192E0A9F49A5 /* PrivateCloudSettingsScreen.swift in Sources */,
 				49C16770357F4E4A3020373A /* PrivateRelayIndicator.swift in Sources */,
@@ -2851,6 +2865,7 @@
 				06585A72D4861950D2F3E978 /* TalariaPlatform.swift in Sources */,
 				EC2CFEC0788D7A4E080EACD0 /* TalariaPlatformInboxService.swift in Sources */,
 				6E7F26765271508DB4015350 /* TalariaPlatformLink.swift in Sources */,
+				11AAA341DC533FE108C5B289 /* TalariaPluginSetupPrompt.swift in Sources */,
 				08B3FB0C74D278495673F432 /* TalkModeScreen.swift in Sources */,
 				90858A93D62640CD1DCE932B /* TalkPreflight.swift in Sources */,
 				47529498EE239A6304A10651 /* TalkSessionRules.swift in Sources */,
@@ -3031,6 +3046,7 @@
 				2F5A252C222B9CF14FEFFE03 /* OfferReadInstrumentTests.swift in Sources */,
 				4FA7FCCEC0D4C5751BF88585 /* Phase0ActionCautionTests.swift in Sources */,
 				25FA14BE9CCB64B9F56E8BA4 /* PhoneQueryResponderTests.swift in Sources */,
+				C0829FB07E96AFD98E1E56AF /* PluginSetupConsentTests.swift in Sources */,
 				110F9E0704E7DEFA6AF10416 /* PooledConnectionWedgeTests.swift in Sources */,
 				7FAA9188B56A1915D645DAAC /* PreflightInstrumentTests.swift in Sources */,
 				1CFD281BBEB26726C8C6579C /* PrivacyManifestCompletenessTests.swift in Sources */,

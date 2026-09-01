@@ -295,6 +295,22 @@ goes away and comes back. **The app — not the agent's prose — confirms it wo
 and the Talaria pane in Hermes Desktop (#270) shows the same verdict in the same
 words. Nobody typed a command.
 
+> **⚠️ CORRECTED 2026-09-01 (the 269-B app-half lane) — the sample prose above
+> is FALSIFIED by Owen's 2026-08-25 ruling and must not be built.** *"…and
+> restart myself — I'll be back in about twenty seconds"* is exactly the step
+> the ruling forbids: **the agent and the app NEVER restart the gateway**, and
+> the flow ends by pointing the user at the host's own Restart Gateway
+> affordance (the statusbar Gateway popover's power button, or the Command
+> Palette entry). Task A1 is what settled it — a desktop-only user already has
+> that control, shipped, two ways — and upstream's own comment says the button
+> was visually isolated *"so it can't be hit by mistake."* There is no
+> "goes away and comes back" moment to design for, and no Hermes approval
+> question for a restart the agent never requests. The shipped first-contact
+> prompt (`TalariaPluginSetupPrompt.firstContact`, pinned by 269-B-I) says
+> *"Do not restart the gateway"* in so many words. Read the rest of this
+> section — the app confirms, not the prose; nobody types a command — as still
+> current; only the restart choreography is superseded.
+
 **The wording IS the product here, and it is bars-worthy** (270's three states,
 shared; §5's 269-B-C). Two specific claims must never be made: the app must not
 claim a capability on the agent's behalf that the agent's host will refuse (the
@@ -448,6 +464,17 @@ falsification, not a redefinition. **I did not edit `OPEN_ITEMS.md`.**
   **Offline (Mac).**
 
 ### 269-B — the conversational install (file now, run only after §8.1 and §8.2)
+
+> **⚠️ 269-B-A AMENDED 2026-09-01 (recorded, not redefined) — the restart is
+> the USER'S step, per Owen's 2026-08-25 ruling.** The bar below was written
+> 2026-08-09, before A1 established that a desktop-only user already has a
+> shipped Restart Gateway control. "The agent installs + enables + restarts"
+> is now "**the agent installs + enables and STOPS; the user restarts the
+> gateway from the host's own affordance; the app's 269-A probe — not the
+> agent's prose — flips to live.**" Everything else about the bar stands
+> unchanged, including its evidence and its 🔐 gate. The app half shipped
+> 2026-09-01 (bars 269-B-F..J) with the prompt saying *"Do not restart the
+> gateway"* verbatim; B-A still needs a live host and a per-experiment go.
 
 - **269-B-A (a clean install completes end-to-end, agent-driven).**
   From a host with no talaria plugin: the app sends its prompt, the agent installs

@@ -126,6 +126,7 @@ struct ServerSettingsScreen: View {
                     }
                     profileCards
                     talariaLinkPanel
+                    pluginSetupOffer
                     hostApprovalPanel
                     addProfileButton
                     if let deleteErrorMessage {
@@ -490,6 +491,40 @@ struct ServerSettingsScreen: View {
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("settings.server.talariaLink")
         .accessibilityLabel("Plugin link \(talariaLink.label)")
+    }
+
+    /// #269-B: where the conversational installer STARTS — on a measured
+    /// NOT LIVE, and nowhere else (`PluginSetupStore.offersSetup`). The
+    /// dispatch brief's §2 in one control: *"when the plugin is not live the
+    /// app says so plainly and offers the next step instead of a command."*
+    ///
+    /// Tapping it does not send anything. It raises the consent card in chat
+    /// — where #251 ruled consent belongs — and closes Settings so the user
+    /// lands on it; the send waits for the confirm there (269-B-F).
+    @ViewBuilder
+    private var pluginSetupOffer: some View {
+        if PluginSetupStore.offersSetup(for: talariaLink) {
+            VStack(alignment: .leading, spacing: Design.Spacing.xs) {
+                Text(PluginSetupStore.EntryAffordance.caption)
+                    .font(Design.Typography.caption)
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+                    .fixedSize(horizontal: false, vertical: true)
+                GhostButton(title: PluginSetupStore.EntryAffordance.actionLabel,
+                            systemImage: "bubble.left.and.text.bubble.right") {
+                    container.pluginSetupStore.requestConsent()
+                    router.dismissSheet()
+                }
+                .accessibilityIdentifier("settings.server.pluginSetupOffer")
+            }
+            .padding(.horizontal, Design.Spacing.md)
+            .padding(.vertical, Design.Spacing.sm)
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.lg,
+                borderColor: Design.Colors.accentTint(0.12),
+                fill: Design.Colors.background.opacity(0.5),
+                innerGlow: false
+            )
+        }
     }
 
     private var talariaLinkColor: Color {

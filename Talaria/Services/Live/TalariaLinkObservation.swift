@@ -69,3 +69,78 @@ enum TalariaLinkDisplayState: Equatable {
         }
     }
 }
+
+/// #269-B: what the app is willing to SAY once a conversational-setup turn is
+/// over. An EXTENSION of the closed vocabulary above, never a fork — every
+/// link-derived case is `resolve`d from a `TalariaLinkDisplayState`, so the
+/// chat card and the Server screen's PLUGIN LINK row are two renderings of
+/// one measurement rather than two opinions.
+///
+/// The copy obeys #269-A-C, which is the whole architecture in one sentence:
+/// **the agent narrates WHY, the app verifies WHETHER.** From here "never
+/// installed", "on disk but not enabled" and "enabled but not restarted" are
+/// the same 503 — so `notLive` says what was observed, says out loud that the
+/// cause is not knowable from the phone, and hands the reader the two places
+/// the answer actually lives: the agent's own message, and the host's own
+/// Restart Gateway control.
+///
+/// ⛔ It points at that control and never offers one. Owen ruled 2026-08-25
+/// that the flow ends by directing the user to the affordance Hermes already
+/// ships (the statusbar Gateway popover's power button, or the Command
+/// Palette entry) — no new restart mechanism is built, ever, and upstream's
+/// own comment says that button was visually isolated "so it can't be hit by
+/// mistake."
+enum TalariaPluginSetupCompletion: String, CaseIterable, Equatable {
+    /// The probe answered 401 — the adapter is registered and answering.
+    case live
+    /// The probe answered 503 — the platform is absent. Why is not knowable
+    /// from here.
+    case notLive
+    /// No answer at all: the host did not respond to the probe.
+    case hostUnreachable
+    /// The probe produced nothing usable (an unexpected status, or no host
+    /// configured). Not a verdict — an absence of one.
+    case notMeasured
+    /// The PHONE's own state, not the link's: the turn never dispatched, so
+    /// nothing was asked of the agent and nothing was measured. Deliberately
+    /// unreachable from any observation.
+    case promptNotSent
+
+    static func resolve(from state: TalariaLinkDisplayState) -> TalariaPluginSetupCompletion {
+        switch state {
+        case .livePaired, .liveNotPaired: .live
+        case .notLive: .notLive
+        case .hostUnreachable: .hostUnreachable
+        case .unknown: .notMeasured
+        }
+    }
+
+    var headline: String {
+        switch self {
+        case .live: "PLUGIN LINK LIVE"
+        case .notLive: "STILL NOT LIVE"
+        case .hostUnreachable: "HOST UNREACHABLE"
+        case .notMeasured: "NOT MEASURED"
+        case .promptNotSent: "NOTHING WAS SENT"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .live:
+            "Talaria probed the host and the plugin answered. Setup is done."
+        case .notLive:
+            "Talaria probed the host and the plugin did not answer. Talaria cannot tell from here whether it is missing, switched off, or waiting on a restart — your agent's message above says what it actually ran. A plugin only loads when the gateway starts, so if it was just installed, use Restart Gateway on the host (the Gateway popover's power button, or the Command Palette entry) and open this screen again."
+        case .hostUnreachable:
+            "Talaria could not reach the host, so it has nothing to report about the plugin either way."
+        case .notMeasured:
+            "The host did not give Talaria an answer it can read, so Talaria is not claiming anything about the plugin."
+        case .promptNotSent:
+            "Talaria could not send the setup message, so nothing was asked of your agent and nothing on the host was touched."
+        }
+    }
+
+    /// Only a live probe reads as success — the "never render 👍 off a Done!"
+    /// line (#269's momentum-report sharpening), applied to our own copy.
+    var isSuccess: Bool { self == .live }
+}

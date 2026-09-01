@@ -151,6 +151,13 @@ final class AppContainer {
     /// runs plane is the only turn transport; the old `useRunsTransport` (#382-deleted)
     /// Developer switch is gone (O6's "default stays OFF" was 3A-era).
     let hostApprovalStore = HostApprovalStore()
+    /// #269-B: the conversational installer's consent + verdict store. A
+    /// third sibling of the two gates above and, like them, its own actor —
+    /// a plain user consent for a message the app wants to send in the
+    /// user's name. Its three seams are wired in makeDefault; every default
+    /// is an honest dead end, so a store nobody wired can never fake a send
+    /// or manufacture a verdict.
+    let pluginSetupStore = PluginSetupStore()
     /// #251-2A: the talaria platform transport — auto-pairs with the ACTIVE
     /// profile's gateway key, drains the plugin's durable outbox into the
     /// Inbox, and answers the gateway's phone queries. Optional: nil in bare
@@ -820,6 +827,31 @@ final class AppContainer {
             )
         }
         container.chatStore.hostApprovals = container.hostApprovalStore
+        // #269-B: the conversational installer's three seams.
+        //
+        // The prompt rides the app's ORDINARY send path — it is a normal chat
+        // turn on the runs plane, not a private channel, which is what makes
+        // the whole flow visible in the transcript the user is reading.
+        // `sendMessage` returns only once the turn has settled (it awaits its
+        // own streaming task), so the probe below runs AFTER the agent is
+        // done rather than racing it.
+        container.pluginSetupStore.sendPrompt = { [weak container] prompt in
+            guard let container else { return false }
+            return await container.chatStore.sendMessage(prompt)
+        }
+        // Shown beside the verdict, never consulted for it (269-B-G).
+        container.pluginSetupStore.lastAgentReply = { [weak container] in
+            container?.chatStore.conversation?.messages.last(where: { $0.sender == .hermes })?.content ?? ""
+        }
+        // #269-A's probe, composed with the active profile's held token —
+        // the SAME two facts the Server screen's PLUGIN LINK row composes, so
+        // the two surfaces cannot disagree about what was seen.
+        container.pluginSetupStore.probe = { [weak container] in
+            guard let container else { return (nil, nil) }
+            let observation = await container.talariaPlatformLink?.probeLinkState()
+            guard let profile = container.profilesStore?.activeProfile else { return (observation, nil) }
+            return (observation, await container.talariaDeviceToken(for: profile))
+        }
         // #304 review-2 ruling: the voice pipeline deliberately does NOT get
         // this store. Its own consumer swallows a voice turn's approval
         // frame, and the only route from Talk to chat (ending the session)
