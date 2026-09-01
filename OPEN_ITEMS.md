@@ -2779,6 +2779,39 @@ Logged 2026-07-22.
 > recognition rather than exercise. Both are cheap to confirm on the next sitting
 > and neither is disputed — they are simply not evidenced to the bar's own wording.
 
+> **✅ 2026-08-31 — CHECK A MET ON DEVICE.** Build **3147**, Mac profile
+> (gateway up), driven through iPhone Mirroring. The Skills list loaded (**135
+> skills**), a garbage query `zzzqqqxyz` was typed into its search field, and
+> the empty state read **verbatim**:
+> ```
+> No skills match "zzzqqqxyz"
+> ```
+> **The query is echoed back exactly** — which is the whole bar (an empty state
+> that ECHOES rather than rendering a blank void). Check A is met.
+>
+> **Check B (the cron editor's hand-typed SKILLS value surviving a round-trip)
+> is NOT run** and is deliberately left open — see the caveat below.
+>
+> **⚠️ TWO PRECONDITIONS THIS CARD NEVER STATED, both of which cost a run:**
+> **(1) Skills is HOST-FED.** On a profile whose gateway is unreachable the
+> screen renders "Skills Unreachable / unsupported URL" and there is no search
+> field to type into at all. The card reads as a pure-UI check and is not one.
+> **(2) It is not in Settings.** Skills lives on the four-up rail at the bottom
+> of the SESSIONS DRAWER (`TASKS · SKILLS · INSIGHTS · ARCHIVE`,
+> `SessionsDrawer.swift:888`), not under any settings screen — a run that
+> searched Settings for it found `NO MATCHES` for *skills*, *cron* and *task*
+> and concluded, wrongly, that the screen might not exist.
+>
+> **🔬 UNRESOLVED OBSERVATION, recorded rather than filed as a bug.** Typing
+> `my-custom-skill` into the task editor's SKILLS field consistently rendered
+> **`amy-custom-skill`** — a spurious leading `a` — and once appeared to
+> re-corrupt with no input between two captures. It could not be separated
+> from iPhone Mirroring's own input unreliability (batched `type` provably
+> drops characters here; even per-key sends needed ~0.3 s spacing to land
+> `zzzqqqxyz` intact). **The cheap discriminator: type into that field with a
+> physical keyboard, off mirroring.** Until then this is an instrument artifact
+> candidate, not a defect claim.
+
 ## 165. 🧩 156d Insights lane — **SHIPPED, on `main`** (`Talaria/Features/Insights/`, reachable at `ContentView.swift:252`); **device checklist still owed** — header corrected 2026-08-01
 
 Dispatch `dispatch/FABLE-T27-156D-insights.md` executed 2026-07-22 on the Mac Mini
@@ -2867,6 +2900,30 @@ Remaining optional follow-on, NOT blocking submission: an in-app acknowledgement
 > enough sessions. Recorded as precondition-not-met rather than skipped, per the
 > bar's own instruction. **Also not evidenced:** the clause that the chat CTX gauge
 > stays unchanged and uncontradicted by this screen — not reported either way.
+
+> **🟡 2026-08-31 — RUN ON DEVICE; THE TRUNCATION HALF IS UNEXERCISABLE ON
+> THIS HOST, and that is recorded rather than skipped silently (the card's own
+> instruction).** Build **3147**, Mac profile. The Insights banner read
+> **verbatim**:
+> ```
+> ● LAST 376 SESSIONS · MAC MINI · AS OF 9:00 PM
+> ```
+> **376 sessions is below the truncation threshold** (the strip renders off
+> `isTruncated` against a 3×200 = 600 cap, `InsightsScreen.swift:194`), so the
+> `SHOWING THE n MOST RECENT SESSIONS` strip correctly does **not** appear.
+> **Absence here is the expected render, not a miss** — and the banner that IS
+> shown counts the fetched window and names its host and as-of time, which is
+> the honest shape this item wanted.
+>
+> **What remains owed is only the >600-session arm**, and it is host-gated: it
+> needs a host holding more than 600 sessions, which neither current host does.
+> Recorded as a standing precondition rather than an open task — nobody should
+> spend device minutes on it until such a host exists.
+>
+> Screen also carried, for the record: Tokens In 23.4M / Out 1.2M · Tool Calls
+> 2.7K / API 2.4K · Est cost from **48 of 376** sessions with cost data (an
+> honest partial-coverage statement) · By Source tui 62% / desktop 20% /
+> api_server 14% / acp 4% / cron <1% · By Model MiniMax-M3 51%.
 
 ## 166. 🍎 App Store review-risk register — hermex's actual submission runbook mapped onto Talaria
 
