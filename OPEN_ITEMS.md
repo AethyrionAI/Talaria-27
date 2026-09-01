@@ -148,6 +148,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#417** 🔴 with NO tools the local brain FABRICATES sensor readings (20/40, prompt-shaped) — **DE-ESCALATED same night by the tool-failure instrument: a PRESENT-but-failing tool fabricates 0/40 — the honest “no data” strings are protective. Open on one question: can any production path reach the model with neither data nor a failure string?** — **✅ ANSWERED 2026-08-31 (full static audit): exactly ONE path — LocationTool's bare label on an all-nil MapKit item — and ✅ 417-F CLOSED IT the same night (`6e994f41`, PR #397): empty parts now take the honest failure string. WATCH-shape**
 - **#418** 🐛 real speech through the AIRPODS MIC transcribed as CHINESE (assistant: “you sound muffled”) — n=1, build 3137, from the #413 probe session; input route + sample rate currently unlogged (first gap); corroborates #413's garbled-input→CJK reading — **✅ INSTRUMENT BUILT 2026-08-31 (`97e52d41`): route + sample-rate line at session config and every route change; next session attributes the route for free**
 - **#419** 🐛 the assistant-playback elapsed counter reads 0 EVERY TIME (all recorded readings, two archives) — a real barge-in would truncate the assistant item at `audio_end_ms: 0`, wiping the heard portion from server history; zeroing path evidence-pointed at a mid-playback assistant item event, mechanism undetermined until 419-A's one-line instrument exists — **✅ 419-A BUILT 2026-08-31 (`97e52d41`): item-arrival line captures the destroyed elapsed + same-vs-new discrimination; next session names the path**
+- **#420** 🐛 the **"Auto-connect on launch" toggle is INERT** — one writer, ZERO production readers (moved to the Server screen when the Relay page retired; the move kept the UI and dropped the consumer). A control promising an effect it no longer has — #180's family from the opposite direction. Burned ~40% of the #350-D pilot's budget. **⚖️ Owen's call: delete it or wire it — not a repair, a feature decision**
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it**. **MEASURED 2026-08-11; clipping RULED OUT.** ~~Mechanism UNKNOWN~~ ~~⟵ INVESTIGATED 2026-08-25, candidates ranked~~ **⟵ ✅ MECHANISM MEASURED 2026-08-25 (measurement lane, unit repro): `openSession`'s wholesale replace + `mapStoredMessage`'s role refusal and empty usage fields zero BOTH totals inputs in ONE event, and the 9→7 row drop is the same event. Candidate ① CONFIRMED; candidate ③ (the `.voiceHermes` predicate split) is REAL but mutation-proven NOT the cause; the entry's "receipts render normally" claim is FALSIFIED — no reopened row carries `usage` or `turnDuration`, and the quoted numbers are the card's LAST TURN block via `SessionUsageIndex`. Shipped: 16 pins in `SessionTotalsAfterReopenTests`, a verbose-gated `/usage` instrument (NOT `#if DEBUG`), 3 seam breadcrumbs at `.notice`, and 330-G's six-step device script.** 330-A/B/E DISCHARGED. **⟵ ✅ FIXED 2026-08-25 (fix lane, `330-receipts-sidecar`): the `TurnReceiptSidecar` — session-id-keyed, replayed at open, `AgentAttachmentSidecar`'s pattern plus a priming tier — restores `usage`/`turnDuration`/`servingModel`/`isContextPriming` across the replace, and `mapStoredMessage` re-maps the STORED primer (a `user` row host-side) into the priming notice, collapsing its ack; that also closes a compounding defect where every reopen fed the primer back into the journal the next transplant is composed from. 330-C CONVERGED (four sites, one `isAgentAuthored` predicate — hygiene, M2 already proved it is not the cause). 330-D MET with its token source NAMED: `postPrimingTurn` returns nil whenever the priming run misses the 20 s `runsSyncBudget`, so the run id is kept and re-read off the interactive path onto the journal hop. 5 of 16 pins flipped RED-first (9 expectations), all rewritten; 16 → 34 tests; 3 isolating mutations.** **330-C/330-D DISCHARGED; only 330-G (Owen's device close) is left, and #312 (f) flips with it**
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
@@ -5906,6 +5907,17 @@ host-side gateway stop/restart); ~25–30 min corded.
 > mark (f) PASS off a green suite** — that would be recording a prediction
 > as a measurement, which is the thing this row exists to prevent.
 
+> **🔴 2026-08-31 — 312(b)'s FAIL CLAUSE CONTRADICTS A DOCUMENTED-LEGITIMATE
+> STATE.** The card fails the run on "no priming tokens". But the Priming row
+> renders `"—"` **by design** when the token count is unknown
+> (`StatusCardView.swift:96-103`), which is this project's own real-data-only
+> convention — so a correct app can trip the card's FAIL. #330-G already
+> carries the right rule for the same surface, and the two should agree.
+> **Correction:** score the transplant NOTICE and the session block's
+> survival; treat `—` in Priming as PASS-compatible, and fail only on a
+> contradictory NUMBER. Turning verbose ON (for `/usage`) makes the whole
+> card cheap and unambiguous. Found by the runbook staleness audit.
+
 ## 314. 📝 Compose outbox: attachment turns have no durable wire-ready form — v1 limit, deliberately deferred, never re-examined — **FILED 2026-08-09 (successor C of #93's split; low priority).**
 
 An `.unreachable` turn carrying attachments takes the honest `.failed`
@@ -8847,6 +8859,25 @@ like `/retry` and `/undo` now are.
 > posted — so none can be resurrected by a merge and none is a #279. The
 > sentence is loose; the invariant is sound. Tightening it is free-bucket
 > prose, not a lane.
+
+> **🔴 2026-08-31 — 279-F IS UNRUNNABLE BY ITS OWN NAMED METHOD.** The card
+> says to trip a generation error with the #134 forced-trip harness. That
+> harness cannot produce the state 279-F observes: `debugRunForcedTrip`
+> (`ChatStore.swift:4921-4941`) sends **its own** prompt, and
+> `LocalChatBackend+Harnesses.swift:130-131` appends the assistant row as
+> **`.delivered`** — never `.failed`. Both Retry affordances are gated on
+> `status == .failed` (`MessageBubble.swift:207-214`, `:329-336`), so **no
+> Retry button can ever appear** and the bar has nothing to press. It is a
+> #102/#110 repetition instrument, not a failure injector — the Developer
+> screen's own success text says as much.
+> **The fix under test is still live** (`ChatStore.retryMessage:2817-2845`
+> carries the #279 adoption-tail fix), so the bar's INTENT stands; only its
+> method is void. **Candidate replacement (unverified, needs two device
+> attempts):** force-quit mid-local-stream, relaunch, and let the cold-load
+> scrub settle the interrupted user row `.failed`
+> (`ChatStore.swift:915-925`, `:998-1010`). If that does not reproduce twice,
+> 279-F needs a purpose-built DEBUG failure injector — do NOT keep spending
+> device minutes on the #134 path, which is now proven not to be it.
 
 ## 269. 🗣️ #251 SLICE 2B — the conversational installer: the AGENT installs its own plugin and the user never touches a terminal — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Owen ROUTED the shape on 2026-08-05 ("I like this. Empowers the user too") but it was never given an entry, a lane, or bars. NOT STARTED.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): 269-A MERGED 2026-08-16; the remainder of slice 2B is still unbuilt.**
 
@@ -12465,6 +12496,21 @@ once per device session.
 > targets it. Only 198B-A (device) remains on this item.**
 
 
+> **🔴 2026-08-31 — 198B-A's BAR IS AN ABSENCE BAR ON A STRING WE DO NOT
+> CONTROL, and it fails silently GREEN.** The card greps for
+> `AVAudioSession_iOS.mm:978`. That string has **zero emitters in our source**
+> — it is an Apple-internal diagnostic keyed to a LINE NUMBER inside Apple's
+> own file, and the device has since moved to `24A5424a`. The bar is "zero
+> such lines appear", so **if Apple renumbered that line, the grep returns
+> nothing and the card reads PASS while measuring nothing at all.** This is
+> the #416 family (a green signal covering what it cannot see) and the
+> "marker its component cannot emit" scar, combined into one step.
+> **Correction, not yet run:** grep the FILE (`AVAudioSession_iOS.mm`) without
+> the `:978`, at `fault` severity, and RECORD every line number seen — so the
+> bar measures the absence of the fault rather than the absence of one
+> spelling of it. Found by the runbook staleness audit; the fix that #198B
+> shipped is untouched by this — only its verification is.
+
 ## 198A. ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 
 **Two real phone calls, corded whoGoesThere, PID 14087, 2026-08-01.**
@@ -15866,6 +15912,50 @@ green-signal-covering-what-it-cannot-see family).
 > the counter, the reset, or truncation. **The next voice session's archive
 > names the zeroing path — same-item double-fire vs second-item — instead of
 > leaving it to argument; the fix lane follows that naming.**
+
+## 420. 🐛 THE "AUTO-CONNECT ON LAUNCH" TOGGLE IS INERT — a shipping settings control the user can flip that NOTHING READS — **FOUND 2026-08-31 by the runbook staleness audit (read-only, static), and CONFIRMED by hand at the call sites. Mechanism is not in doubt; the fix is a product call.**
+
+**The measurement:** `autoConnectOnLaunch` has exactly one writer and zero
+production readers.
+
+| site | what it does |
+|---|---|
+| `ServerSettingsScreen.swift:623-632` | the toggle's own `get`/`set` — label **"Auto-connect on launch"** |
+| `UserSettings.swift:276, 384, 416, 458, 493` | declaration + `Codable` plumbing + decode default `true` |
+| `DemoData.swift:167` | demo seed |
+| `TalariaTests/AppStoresTests.swift:3021` | one test seed |
+
+**Nothing consults it to decide anything.** Flipping it OFF changes no launch
+behaviour; the value round-trips to disk and is never read back by any
+connect path.
+
+**How it got here, and why that matters more than the toggle:** the control
+was *moved* to the Server screen when the Relay sub-page was retired
+(`ServerSettingsScreen.swift:10-11` says so outright). The move preserved the
+UI and dropped the consumer — the relay retirement (#375) removed whatever
+read it, and the switch stayed. **This is the #180 honest-degradation family
+arriving from the opposite direction: not a surface asserting a fact it
+cannot measure, but a CONTROL promising an effect it no longer has.**
+
+**Cost already paid:** it burned roughly 40% of the #350-D pilot's budget on
+2026-08-31 — the card said "auto-connect OFF" as a precondition, the operator
+could not find it on Uplink (it is on SERVER), and finding it would not have
+helped, because setting it changes nothing. A dead control does not merely
+mislead the user; it silently invalidates every runbook step that names it.
+
+**⚖️ OWEN'S CALL — two honest options, deliberately NOT chosen here:**
+1. **Delete the toggle** (and leave the persisted key for compatibility).
+   Correct if auto-connect-on-launch is not a behaviour we intend to have.
+2. **Wire it** to the launch connect path. Correct if the behaviour is wanted;
+   this is a real feature decision, not a repair, because nothing currently
+   defines what "auto-connect" should do post-#375.
+**Do not "fix" this by making the toggle look disabled** — that keeps the
+promise and hides the emptiness.
+
+**Related:** #180 (honest degradation), #350 (asserted-vs-measured surfaces —
+same disease, other direction), #375 (the relay retirement that plausibly
+orphaned the reader), #416 (the green-signal-covering-what-it-cannot-see
+family).
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
