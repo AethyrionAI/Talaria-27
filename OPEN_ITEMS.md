@@ -8531,10 +8531,18 @@ distinguish LIVE from the other two.
 
 > **✅ 269-B APP HALF — BUILT 2026-09-01 overnight. Bars 269-B-F/G/H/I MET,
 > RED-first with recorded output and two mutation arms that each isolated
-> exactly the pin they name. 269-B-J is MET IN ITS SUBSTANCE AND MISSED ON
-> ITS LETTER — see the gate block below, which is a MEASUREMENT, not an
-> excuse. B-A/B/D/E and the N ≥ 10 half of B-C are UNTOUCHED and stay open,
-> awaiting a live host and the 🔐 per-experiment go. #269 STAYS OPEN.**
+> exactly the pin they name. 🔴 269-B-J is MISSED — `lane-gate.sh` never
+> printed `GATE: PASS`, and that is recorded as a falsification, not
+> redefined into a pass. B-A/B/D/E and the N ≥ 10 half of B-C are UNTOUCHED
+> and stay open, awaiting a live host and the 🔐 per-experiment go. #269
+> STAYS OPEN.**
+>
+> **PR https://github.com/AethyrionAI/Talaria-27/pull/400 — OPEN, NOT MERGED.**
+> The standing overnight rule is merge-on-green; the gate was not green, so
+> the merge is Owen's call rather than this lane's. Branch
+> `claude/t27-269b-app-half` (commits `43ee3282` code + `6c263128` tracker).
+> No squash SHA to record yet — the block below is what the merge decision
+> should be read against.
 >
 > **What shipped.** Four new files —
 > `Talaria/Models/TalariaPluginSetupPrompt.swift` (`TalariaPluginInstallSource`
