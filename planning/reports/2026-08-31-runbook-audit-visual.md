@@ -28,6 +28,18 @@ Cards audited: `350d`, `56uh`, `309b-connect-host`, `163`, `165`, `162`, `33`, `
 
 ### (a) Is there still an auto-connect toggle anywhere in settings? — **Yes, but not where the card says, and it does nothing.**
 
+> **⚠️ SUPERSEDED 2026-08-31 (evening) — the answer is now NO.** This section's
+> finding became OPEN_ITEMS #420; Owen ruled the same day to **delete the
+> toggle** and keep the persisted key, and the deletion landed that night. The
+> control and its search-index row are gone from `ServerSettingsScreen.swift`
+> and `SettingsSearchIndex.swift`; `AutoConnectTogglePinTests` now pins that no
+> shipping source names the key outside `UserSettings.swift` and
+> `DemoData.swift`. **Everything below is the measurement as it stood before
+> the deletion — read it as evidence, not as current state.** The card wording
+> in "Exact corrected wording" is likewise stale in one clause: there is no
+> longer a toggle on Settings → SERVER to explain away, so the setup step is
+> simply the base-URL change plus a force-quit.
+
 - It exists: `Talaria/Features/Settings/ServerSettingsScreen.swift:623-632`, label **`"Auto-connect on launch"`**, mounted into the body at `:123`.
 - It is on **Settings → SERVER** (card 02), **not Uplink** (card 01). `Talaria/Features/Settings/SettingsChannels.swift:14` fixes the deck order `uplink, server, models, …`; `SettingsChannelsScreen.swift:200-201` maps `.uplink → UplinkSettingsScreen`, `.server → ServerSettingsScreen`. The file header at `ServerSettingsScreen.swift:10-11` says so outright: *"the auto-connect toggle moved here"* (from the retired Relay sub-page).
 - Searchable as "Auto-Connect on Launch" → `.server` (`SettingsSearchIndex.swift:65`) — that is how the operator should find it.
