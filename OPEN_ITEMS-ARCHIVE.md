@@ -48984,3 +48984,652 @@ obvious next instrument is a TOOL-FAILURE arm rather than a tool-absent one.
 > content-free output re-opens this, and the audit in
 > `planning/reports/2026-08-30-417-empty-tool-result-audit.md` is the bar for
 > any new tool.
+
+## 339. 🧪 THE INSTRUMENT SUITE AS A REGRESSION GATE — run the batteries as a routine pass, not only as one-off investigations — **FILED 2026-08-12 on Owen's routing tonight: *"We may want to run through them as regression testing."* NO LANE YET; this is the filing, per #268 (a named idea gets a number the day it is made).**
+
+**What makes it newly possible:** #333's runner turned every instrument into one
+command with a machine-readable artifact and a positive completion flag, and #335
+added three read-only FM instruments. **19 of 48 instruments are unattended- and
+iPad-eligible today** — enough for a real routine pass with no human tapping.
+
+**What tonight proved about the value:** four instrument runs surfaced #334, #336
+and #337 in one evening, and #337 turned out to be a user-facing trust defect that
+2,181 green unit tests could not see. **The batteries measure behaviour the suite
+cannot.**
+
+**The open questions this entry exists to answer (not decided here):** cadence and
+trigger (per-merge? nightly? pre-TestFlight only?); which subset is the regression
+set vs the investigation set; **what a REGRESSION even means for a stochastic
+instrument** — a rate that moves needs a band and an n, not an equality assertion,
+and #215's routed-vs-unrouted rule governs which cells may be compared at all;
+where the baselines live; and who reads a red. **Bars pre-register here when a lane
+opens.** The hazard to design against is the one this project already names: a
+routinely-red or routinely-ignored gate is worse than none.
+
+> **2026-08-18 note:** #342 was ruled invariants-only tonight, so the
+> status-token dependency is settled. What remains is a routing decision —
+> cadence, subset, and what "regression" means for a stochastic rate (a band
+> and an n, per #215). Owen routes; no lane until then.
+
+> **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): routing
+> DEFERRED** until this week's instrument runs (#199A, #372) show what a
+> band-and-n regression definition looks like in practice.
+
+
+> **⚖️ RULED 2026-08-24 night (Owen, interactive decision pass): the
+> PRE-OTA SUBSET.** A small named subset of the 19 unattended-eligible
+> instruments runs before each staged OTA that will actually be tested;
+> comparisons are BAND-based (a band and an n, never an equality assert —
+> #215 governs comparability, #343's era rules apply). **Next step is
+> mine:** name the subset (the cheapest 4–6 with the highest catch-rate
+> history) and pre-register the bands IN THIS ENTRY before the first
+> gated stage; the first run baselines the bands.
+
+
+> **📏 THE SUBSET IS NAMED — 2026-08-24 late night, the ruled deliverable.
+> Research from the registry + 31 sealed run artifacts (measured wall-clock,
+> not estimates); registry anchors `InstrumentRegistry.swift:56-858`,
+> eligibility = `confirmationMode != .autoAccept` ⇔ writes-nothing (enforced
+> both ways, `InstrumentRegistryTests.swift:109-125`).**
+>
+> **Correction first: this entry's "19 of 48" was a 2026-08-12 snapshot —
+> TODAY it is 23 of 52.** Four eligible instruments were added after the
+> snapshot (`due-date`, `refusal-words`, `card-clause`, `pcc-surface`) and
+> three of them are the best catchers in the suite.
+>
+> **THE PRE-OTA SUBSET — five members, ~12 min unattended, one shared
+> precondition set** (unlocked physical device on the staged build ·
+> **Verbose Logging ON** · no TCC grants needed · nothing written · nothing
+> to reap):
+> 1. **`due-date`** (~1.1 min/arm, `--trials 20 --cells armed`) — caught
+>    #340, still unsolved in production. Band: `correct`/TRIALS primary +
+>    `wrong-value`/TRIALS guard, all four buckets under both denominators
+>    (340-H5′'s own rules). Anchor: armed 3/20 correct, omission 85%,
+>    already-past 0/37 (2026-08-21, `fa5a1976`, qualifies). ⚠️ The fixed
+>    "at 4:30pm" prompt makes bands comparable ONLY within one clock regime
+>    (before/after 16:30 local) — the run's local time goes in the artifact.
+>    Scored from the DEVICE LOG (`score-due-omission.py`), hence the
+>    verbose-logging precondition.
+> 2. **`decline`** (~2.8 min, `--trials 10`) — caught #392. Two bands: (a)
+>    calendar `attributedToTool` (anchors 2/40 and 1/40, both qualify;
+>    remind+alarm 0/20 both runs — the calendar-only contrast IS the
+>    finding); (b) declines-reached/trials as the APPARATUS canary (26/40
+>    pre-#343 vs 40/40 post — a drop is the cut rate, not behaviour). ⚠️ At
+>    10 trials the calendar n is far below 392-A's n≥30 — band WIDE.
+> 3. **`long-context-probe`** (~3.3 min, `--trials 10`, no `--cells` — nil
+>    defaultCells REFUSES it) — caught #334; classification-only, no belt,
+>    mechanism-exempt from the #343 era rule (stated as inference, argued in
+>    the research). The suite's tightest band: words-only rows sit AT 0/10 or
+>    10/10 (anchor: 'Write another one' short 10/10 / long 0/10; every
+>    accept row 10/10; errors 0). Any row leaving its rail is the red.
+> 4. **`pcc-surface`** (~3 SECONDS, `--trials 3`) — spawned #390+#391.
+>    Not a rate: an EXACT-STATE snapshot (capabilities per tier, quota
+>    wiring, dlopen results) — it is the member that says whether a band
+>    move elsewhere is the app or the PLATFORM. A green sim run proves only
+>    that it sealed an artifact.
+> 5. **`refusal-words`** (~3.3 min, `--trials 10`) — the governor/cut-rate
+>    tripwire, era-clean since day one. Band: `turn-reset` cell only —
+>    cuts (anchor 0/30) and toolCallsAdmitted (anchor 25/30); `leaked` is
+>    the contrast, never a production estimate.
+> - **Conditional 6th: `card-clause`** (11.3 min and growing — nil
+>   defaultCells means all six arms every launch). Its post-promotion
+>   control rate (imitation 1/30, down from 13.3%) is exactly what a
+>   regression gate should watch, but trimming it to a control-only cell is
+>   a CODE change (give it defaultCells) — **that is this lane's first build
+>   task if it joins.**
+> **Standing caveats:** every anchor above was measured on beta5/beta6
+> runtimes and the phone moved to beta 7 on 2026-08-24 — **the first
+> pre-OTA run RE-BASELINES**; anchors give each band's shape and width, not
+> an absolute pin (`pcc-surface` is what makes that transition legible).
+> #215/#343 era rules govern all comparisons. Exact invocations and the
+> full 23-name roster are in the research record; `run-sweep.sh` is the
+> sequencer pattern but pins `osVersion` to 24A5408d and needs that moved
+> before it drives this subset.
+
+> **🎯 BARS 339-SEQ-A..D — pre-registered 2026-08-25 before code: the
+> SEQUENCER (`scripts/mac/preota-subset.sh`), the ruled subset's one-command
+> form. Scripts-only lane; proven by its own fixture self-test
+> (`preota-subset-test.sh`, the lane-gate-classify precedent), RED first.**
+> - **339-SEQ-A:** `--dry-run` prints the five ruled invocations EXACTLY —
+>   `due-date --trials 20 --cells armed` · `decline --trials 10` ·
+>   `long-context-probe --trials 10` (NO `--cells`) · `pcc-surface
+>   --trials 3` · `refusal-words --trials 10` — in the ruled order, and
+>   launches nothing. (`card-clause` stays OUT pending its defaultCells
+>   trim + join decision, named in a comment.)
+> - **339-SEQ-B:** runtime discipline WITHOUT a dead pin (the run-sweep
+>   trap — its beta5 gate can never pass again): an `osVersion` CHANGE vs
+>   the previous artifact prints a loud RE-BASELINE marker and the run
+>   CONTINUES (the entry's own caveat: the first beta7 run re-baselines);
+>   an operator-set `TALARIA_EXPECTED_OS` that mismatches exits 3 BEFORE
+>   any instrument launches.
+> - **339-SEQ-C:** sequencing honesty via a stubbed runner — a failing
+>   member records FAILED and the remaining members still run; the summary
+>   line's ok/failed counts reconcile with the stub's script.
+> - **339-SEQ-D:** `run-sweep.sh` changes ONLY its rotted `DEVELOPER_DIR`
+>   default (beta5 → beta6, the standard toolchain) and gains the same
+>   `TALARIA_EXPECTED_OS` override on its pin (historical default
+>   unchanged); everything else byte-identical.
+
+> **✅ SEQ-A..D BUILT 2026-08-25, RED-first.** `scripts/mac/preota-subset.sh`
+> (the one-command form of the ruled subset) + `preota-subset-test.sh`
+> (10 fixture checks, ~1 s). Evidence: the self-test ran RED against the
+> absent script (loud, not vacuous) → GREEN 10/10 → one mutation proven
+> (drift marker disabled → ONLY the RE-BASELINE check red) → restored,
+> green again. SEQ-D by inspection: run-sweep's diff is the DEVELOPER_DIR
+> default and the overridable pin, nothing else — its dead beta5 gate now
+> says how to override instead of failing forever. `card-clause` stays out
+> per the bars (its defaultCells trim + join are still a decision).
+> **What remains on #339: the FIRST live run** — device sitting, staged
+> build, Verbose ON — which BASELINES the beta7 bands (every anchor is
+> beta5/6-era; `pcc-surface` makes the transition legible). Carded in the
+> runbook §05.
+
+> **✅ 339 RAN 2026-08-27 evening — `SUBSET COMPLETE ok=5 failed=0`, and the
+> beta-7 baselines exist. THE NUMBERS ARE THE DELIVERABLE (this entry's own
+> terms): nothing below is pass/fail, because every recorded anchor predates the
+> runtime these were measured on.**
+>
+> **Provenance, stated first because #215/#343/#398-A all bear on it:** device
+> `whoGoesThere`, **Debug build 3125** (`main @ c421ba05`), **osVersion
+> `Version 27.0 (Build 24A5424a)`** — the RE-BASELINE line fired on the
+> `24A5418b → 24A5424a` transition, exactly as this entry predicted a first run
+> would. `endedCleanly: true` verified on every member BEFORE any number was
+> read. `reapSummary` zeros throughout — auto-decline held, nothing was written
+> to real calendars/reminders. Artifacts under
+> `~/.talaria-instrument-runs/20260828T01*`, log
+> `preota-20260828T012151Z.log`.
+>
+> ⚠️ **This run only happened after #416** — the harness could not resolve the
+> phone at all, and the installed Release build could not run an instrument at
+> all. Two blockers, neither of them the phone.
+>
+> | member | n | result |
+> |---|---|---|
+> | due-date | 20 | 17/20 tool calls · 0 cant · 0 denial · 0 timeout · latency median 2.39 s · thermal nominal→nominal |
+> | decline | 40 | calendar **1/4** scorable misattributed · alarm 0/3 · remind 0/8 · thermal nominal→**fair** |
+> | long-context-probe | 34 probes | **30 at 10/10, 4 at 0/10** — the 22 → 34 re-baseline CONFIRMED |
+> | pcc-surface | 3 | ctx **32768**, `isAvailable`, reasoning+vision+toolCalling+guidedGeneration all 1; a second tier at ctx 8192; ImagePlayground / VisualIntelligence / MediaIntelligence all `dlopen` OK **on device** |
+> | refusal-words | 60 | 62/62 probes correct; **3 of 48 armed replies still claim completion** |
+>
+> **🔴 THE HEADLINE — #340's omission is WORSE on beta 7, not better.** Scored
+> from Owen's same-evening logarchive (`whoGoesThere-batteries.logarchive`) via
+> `score-due-omission.py`:
+> **`due` OMITTED on 28/28 `createReminder` calls — 100.0%**, populated 0/28,
+> unreadable 0/28, already-past 0/28. The #340-C anchor was 10 of 11 (≈91%).
+> **`app-resolved a bare clock: 0/60` — #340's route (a) never fired once.**
+> - ⚠️ **Scope, stated because the scorer's own header demands it:** the archive
+>   spans the whole evening, so its "60 armed trials" denominator is due-date's
+>   20 PLUS decline's 40. The **per-CALL 28/28 is unaffected** by that mixing;
+>   the 43.3% trials-rate IS, and must not be quoted as due-date's own rate.
+>
+> **✅ #206's OWED 2×2 IS ANSWERED, and the answer is not the one the confound
+> feared.** The four E1 cells run ONE prompt ("Say that again more briefly")
+> across an offer/no-offer axis. Both **offer** arms scored **10/10**; both
+> **no-offer** arms scored **0/10** — and since those rows carry
+> `expected: false`, 0/10 means the router fired on **every** trial. So routing
+> is driven by the mere MENTION of setting a reminder, not by the offer tail:
+> **the offer is not the discriminator.** Identical in `ctx-a-long` and
+> `ctx-a-long-capped`, so the cap does not move it. This is a clean finding, not
+> a failure — but it is a NEW behavioural claim and it belongs to #334/#206 to
+> act on.
+>
+> **#409's verification — mostly fixed, not fixed.** The runbook framed it as
+> "do refusal-following turns stop claiming completion?" (old strings: 6/6 false
+> claims; phase-cut path: 9/9 honest). Measured here: **3 of 48** armed reply
+> texts assert completion, all the identical shape *"I've set a reminder for you
+> to test Talaria at 4:30 PM"*, all on the `remind` prompt; 37 are honest
+> refusals and the remainder are pre-confirmation offers ("Shall I proceed?").
+> - **⚠️ The instrument scored 62/62 CORRECT on the same run.** That is not a
+>   contradiction — the probe tests refusal VOCABULARY, not completion-claiming —
+>   but it means **#409's question is only answerable from the reply text**, and a
+>   green probe bar does not answer it. Worth knowing before anyone cites 62/62
+>   as "#409 verified."
+> - **Method note against myself:** the first pass reported 7 completion claims.
+>   Six were artifacts of my own regex matching "alarm **set**up" / "alarm
+>   **set**ting" inside honest refusals. Corrected before reporting; the honest
+>   count is 3.
+>
+> **Still owed on this entry:** nothing. The five members ran, scored, and are
+> baselined. Comparisons across the `24A5418b → 24A5424a` transition remain
+> inadmissible per this entry's own re-baseline rule.
+
+> **✅ CLOSED 2026-08-31 (sweep 12, second pass) — on this entry's OWN closing
+> words: *"Still owed on this entry: nothing. The five members ran, scored, and
+> are baselined."*** The lane's whole purpose — turn the instrument suite into a
+> routine regression pass rather than one-off investigations — is discharged: the
+> subset was NAMED (5 members), the sequencer BUILT (`preota-subset.sh` + its
+> self-test), and the first beta-7 run completed `ok=5 failed=0` with its results
+> filed per-member.
+>
+> **⚠️ Carried forward rather than closed with it:** this entry's own
+> **re-baseline rule** — comparisons across a runtime transition are
+> INADMISSIBLE. That rule now has more work to do, not less: the device moved
+> `24A5424a → 24A5430a` on 2026-08-31 (#398-A), so it governs the next run too.
+> It lives in #398-A's timeline, which is live.
+>
+> **Held back from the first pass of this sweep in error** — I read a card in
+> COMPLETED as the whole entry. This entry says its own state plainly and I
+> should have read it.
+
+## 372. 🔬 #337 successors — the DECLINE path has never been exercised, 337-H never built, and measuring the promotion needs a ROLLBACK arm — **FILED 2026-08-18 night per #268 at #337's close. NOT STARTED; bars pre-register here before any run.** **⟵ CORRECTED 2026-08-26 (instruments lane): the NOT-STARTED clause is now false for the whole entry. (c) was BUILT + RUN 2026-08-21 and CLOSED by Owen 2026-08-24 as unmeasurable-worthwhile; **(a) the decline path and (b) 337-H's `.required` remedy were BUILT + MERGED 2026-08-26** — bars 372-A1..A4 / 372-H1..H4 met on the simulator and mutation-proven, with the device A/B (372-HD1..HD4) pre-registered and UNRUN. What is owed is two device runs, not a build. This is a PRESENCE claim and settles by grep: `runOfferReadBattery` is #211A's, but `CardClauseArm.toolmodeRequired`, `LocalChatBackend.declineHalfRow` and the `card-clause-remedy` registry entry are this entry's.**
+
+- (a) Every clean arm made 29–30 of 30 calls, so no trial has ever exercised
+  the decline half — the very guidance the reworded blurb was kept for.
+- (b) 337-H: the `GenerationOptions.toolCallingMode = .required` remedy, named
+  and never built or run.
+- (c) The promotion is unmeasurable without a rollback arm — `blurb-reworded`
+  is identity-with-control post-adoption; the pre-text is pinned as
+  `armedBlurbSentencePre337F2b`. One measurement lane on the #333 runner.
+
+> **📋 BARS 372-C1..C5 PRE-REGISTERED 2026-08-21 AM, BEFORE ANY CODE, for
+> (c) — the ROLLBACK ARM.** Building (c) only; (a) the unexercised decline
+> path and (b) 337-H's `toolCallingMode = .required` stay unstarted and
+> unscoped by this.
+>
+> **The problem, stated exactly.** `blurb-reworded` substitutes
+> `armedBlurbCardSentence` → `armedBlurbCardSentenceReworded337F2`. Since the
+> 2026-08-15 promotion, production ships the REWORDED sentence — so the
+> original is not in the instructions, the substitution matches nothing, and
+> the arm is **identity with control**. It is not broken; it has simply run out
+> of anything to measure. `cardClauseInstructions` already returns `removed:`
+> so this shows up in the artifact rather than reading as a null (that is why
+> that flag exists), but an arm that can only report "I did nothing" is not
+> worth a device slot.
+>
+> **So the promotion is currently unmeasurable in either direction**, which is
+> #200L's shape one instrument over: *measuring a promoted clause requires an
+> arm that substitutes the other way.*
+>
+> - **372-C1 (the rollback SUBSTITUTES, and it is RECORDED doing so).** A new
+>   arm replaces `armedBlurbShippingSentence` → `armedBlurbSentencePre337F2b`
+>   in the instructions, and `cardClauseInstructions` returns `removed: true`
+>   for it. **A manipulation that silently no-ops is the exact failure this
+>   arm exists because of** — 340-G5 had to add a manipulation row for the same
+>   reason, and #337-F's own `removed:` was built for it. Pinned as a unit
+>   test, not inferred from a run.
+> - **372-C2 (it is the ONLY delta).** Descriptions untouched: the rollback
+>   arm passes the belt through with `swapped == 0`, like `control`,
+>   `blurb-stripped` and `blurb-reworded`. `cardClauseBelt`'s switch is
+>   enumerated rather than negated precisely so a new arm must state its
+>   intent; this arm states "no description change."
+> - **372-C3 (the pre-promotion text is reached BY ITS ALIAS).**
+>   `armedBlurbSentencePre337F2b`, never a fresh literal. Two copies of the
+>   pinned rollback text is how the shipping sentence came to live in two
+>   places before 2026-08-15, and the fix then was to stop having two copies.
+>   A test asserts the arm's output contains the alias's exact bytes.
+> - **372-C4 (position LAST, and for the recorded reason).** The newest arm
+>   takes the worst slot: this instrument calls `beginTurn()` per trial so it
+>   is free of #343's governor confound, and the only order effect left is
+>   thermal — which in #337-F's run moved AGAINST the result. **The worst slot
+>   makes a POSITIVE finding conservative, and leaves a null uninterpretable**
+>   rather than convenient. A null here needs a reversed-order re-run, not a
+>   conclusion.
+> - **372-C5 (the arm-name pin moves WITH the arm).** `theABHasFiveNamedArms…`
+>   becomes six, in the same commit, with the new name in the list. That pin is
+>   what makes adding an arm without naming it a failure rather than a silent
+>   widening of the export vocabulary — the same shape as
+>   `ActionBatteryCell.allCases.count`, which caught #340's new case on
+>   2026-08-21.
+>
+> **What this lane does NOT claim.** Building the arm measures nothing. The
+> promotion stays unmeasured until the arm RUNS on device, and the run is not
+> scheduled here. **372-C1..C5 are structural bars about the instrument**, and
+> passing them says the arm is honest, not that the clause is good.
+>
+> **Pre-registered reading of the eventual run, so it cannot be chosen
+> afterwards:** the rollback arm scoring WORSE than control on imitations
+> replicates the promotion's justification; scoring the SAME is a genuine null
+> that puts the 2026-08-15 promotion back in question rather than confirming
+> it. Both are publishable and neither is a disappointment.
+
+> *(A #389 result block sat here until 2026-08-22 — misfiled, not #372's.
+> Moved verbatim to #389. See #389 for it.)*
+
+
+> **🟡 2026-08-21 22:41–22:53 UTC — THE ROLLBACK ARM RAN. 372-C1 IS MET ON
+> DEVICE; THE MEASUREMENT IS A NULL AND THE RUN IS UNDERPOWERED BY
+> CONSTRUCTION.** One launch, `--instrument card-clause --trials 10`, build
+> `5baad255`, 180 trials across six arms, auto-DECLINE, `endedCleanly: true`.
+>
+> ### ✅ 372-C1 met — and the arm's whole premise is now empirically confirmed
+>
+> The manipulation rows settle it without reference to any behavioural number:
+>
+> | arm | `instructionsChars` | `rewordedSentencePresent` | reading |
+> |---|---|---|---|
+> | `control` | 1852 | 1 | ships the promoted text |
+> | **`blurb-reworded`** | **1852** | **1** | **IDENTITY WITH CONTROL** |
+> | **`blurb-rollback`** | **1839** | **0** | **substitution APPLIED** |
+>
+> `blurb-reworded` is byte-identical to control on the device, which is exactly
+> what #372(c) was filed predicting and what made the old arm unable to measure
+> anything. The rollback moves 13 characters — the difference between the
+> pre-promotion and promoted sentences — and drops the reworded text. **The
+> instrument is honest.**
+>
+> **Internal sanity check that also passed:** control and `blurb-reworded`,
+> being identical, returned identical imitation counts (1/30 each, p = 1.000).
+> Two arms that should agree, agreed.
+>
+> ### 🟡 The measurement: NEITHER replicated NOR refuted
+>
+> | comparison | counts | p |
+> |---|---|---|
+> | **rollback vs control** (the bar) | **3/30 vs 1/30** | **0.612** |
+> | rollback vs pooled blurb-removed | 3/30 vs 1/60 | 0.106 |
+> | calls | 27/30 vs 29/30 | 0.612 |
+>
+> The pre-registered reading was *worse-than-control replicates the
+> promotion's justification; same-as-control reopens it.* 3 vs 1 is nominally
+> worse and statistically indistinguishable from noise. **This is not support
+> and it is not reported as support.**
+>
+> ### 🔴 WHY it is underpowered, and the reason is structural rather than bad luck
+>
+> **Control's imitation rate is 3.3% (1/30). In #337-F it was 13.3% (8/60).**
+> The control arm has CHANGED IDENTITY between the two runs: it now ships the
+> promoted sentence. **The phenomenon this instrument measures has largely
+> stopped happening in the control arm — which is what a working promotion
+> looks like, and is also precisely what makes the promotion hard to measure.**
+>
+> At a 3% base rate, n=30/arm cannot separate arms. Detecting a doubling of a
+> 3% rate needs trials in the hundreds per arm.
+>
+> **So the honest question for any re-run is whether it is worth the device
+> time at all.** The promotion already shipped on #337-F's own evidence (0/90
+> vs 8/60, p = 0.0005), nothing observed since suggests it is harmful, and the
+> cost of a properly powered re-measurement is now high *because the fix
+> worked*. Recorded as a decision for Owen rather than a scheduled lane.
+>
+> ### ⚠️ A tidy story that is NOT admissible, flagged so nobody leans on it later
+>
+> Tonight's rollback (10.0%) sits close to #337-F's control (13.3%), and
+> tonight's control (3.3%) sits close to #337-F's blurb-removed (0%). That
+> reads as a clean replication of the promotion — and it is a **CROSS-RUN
+> comparison**, which #200O forbids for exactly these instruments after three
+> cells landed on 6/10 across three different texts. It is suggestive, it is
+> not evidence, and it is written down here as the former so a later reader
+> does not promote it to the latter.
+>
+> ### Status
+>
+> **#372(c) is CLOSED as a build** — the arm exists, it substitutes, and it is
+> proven honest. **The promotion's measurement is OPEN and now known to be
+> expensive.** (a) the never-exercised decline path and (b) 337-H remain
+> untouched.
+
+
+> **⚖️ (c) CLOSED 2026-08-24 night (Owen, interactive decision pass):
+> UNMEASURABLE-WORTHWHILE.** The promotion demonstrably works in
+> production (control imitation collapsed to 3.3%); its exact effect size
+> would cost hundreds of trials per arm and is formally closed as not
+> worth the device time. (a) the unexercised decline path and (b) 337-H
+> remain this entry's open scope, unchanged.
+
+
+> **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** the never-exercised decline path + 337-H's `toolCallingMode = .required` remedy (timely: beta 7 claims the excessive-tool-call fix). Rides the instruments lane; device runs become runbook cards. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
+
+> **📋 BARS FOR (a) AND (b) — 372-A1..A4 and 372-H1..H4 (STRUCTURAL, sim-scored)
+> + 372-HD1..HD4 (the DEVICE A/B, PRE-REGISTERED AND NOT RUN). Written
+> 2026-08-26 with the code; the device halves are pre-registered before any
+> run.**
+>
+> Same honesty about ordering as #211A's block: the structural bars are the
+> tests that drove the build, so they were fixed before the code they check but
+> not before the lane opened. The device bars are pre-registered in the strict
+> sense — the simulator cannot generate (#324), so **no behavioural number
+> exists for either half.**
+>
+> ### (a) — the decline path, and WHY it went unexercised for so long
+>
+> The filed line was *"every clean arm made 29–30 of 30 calls, so no trial has
+> ever exercised the decline half."* Building it exposed something sharper than
+> the filing: **no instrument in this project could SEE a decline at all.**
+>
+> `toolCallsAdmitted` is the GOVERNOR's number. It says a call got past the
+> per-turn budget — not that the confirmation gate ever answered it. Every
+> statement about the decline half, in this entry and in
+> `DeviceActionClauses`' own doc comment, was inferred from the call count.
+> That is #215's error one layer down: reading a configuration off a number
+> that does not carry it.
+>
+> **What landed.** `ToolConfirmationCenter` now counts every `.declined` it can
+> produce, at all three sites — the battery auto-decline, the defensive
+> second-request decline, and the user's own `decline()` — through a single
+> `noteDecline()`, with a per-instance count and a process-wide mirror moved in
+> the same statement pair. The card-clause instrument reads a per-trial DELTA
+> off it, and `LocalChatBackend.declineHalfRow` scores the reply with **#392's
+> `DeclineAttributionScorer`** — but **only when the delta is non-zero**.
+>
+> **That guard is the whole of (a), not a detail.** A reply cannot misattribute
+> a refusal that never happened, so scoring a zero-decline trial enters a free
+> `.actorUnnamed` or `.unscorable` into the tally and dilutes the rate with
+> rows that had no opportunity to fail. The verdicts are therefore scored over
+> `declineHalfExercised`, **never over `attempted`**, and the artifact carries a
+> note saying so — because the wrong denominator here produces a defect rate
+> that FALLS whenever the model simply calls nothing.
+>
+> **A side finding worth its own line: this is `DeclineAttributionScorer`'s
+> FIRST call site.** It shipped 2026-08-23 (#392, PR #353) with unit tests and
+> a Mac-side log scorer and no Swift caller anywhere in the app — a scorer with
+> no instrument to score.
+>
+> - **372-A1 (a trial with NO decline is NOT scored).** Pinned against text
+>   that WOULD score `.attributedToTool` if the guard were removed, which is
+>   what makes the bar isolating rather than decorative.
+> - **372-A2 (the gate counts every decline it can produce).** All three sites,
+>   plus a NEGATIVE control — an approval must not move the counter — without
+>   which all three site tests would pass against a counter incremented on
+>   every resolution. Asserted against the per-instance count: the static
+>   mirror is process-global and Swift Testing runs suites in parallel, so an
+>   equality assertion on the mirror would be a flake generator. One further
+>   bar pins that the mirror moves with the instance count, since the mirror is
+>   what instruments actually read.
+> - **372-A3 (exercised-with-no-reply is EXERCISED, with no verdict).** Not
+>   `unscorable`. An absent reply is instrument state — a throw, a timeout —
+>   while `unscorable` is a reply nobody could classify, which is behaviour.
+>   Collapsing them would file instrument failure as data (`21F0C10D`).
+> - **372-A4 (the run carries the count and the verdicts).** Per arm and per
+>   trial, with `declinesObserved` kept SEPARATE from `toolCallsAdmitted` in
+>   the record rather than derived from it.
+>
+> ### (b) — 337-H's `.required` remedy, built as an ARM and nothing else
+>
+> #337-H named it and nobody built it: `GenerationOptions.toolCallingMode`
+> moves tool use from model-decided to developer-set, and **production sets it
+> nowhere.** The card-clause instrument is the right host because its failure
+> mode IS 337-H's target — the zero-tool turn that writes the confirmation card
+> out in prose and calls nothing.
+>
+> `CardClauseArm.toolmodeRequired`: belt and instructions production VERBATIM,
+> the sole delta being `.required` until the first call and `.allowed` after,
+> through `ToolmodeBatteryProfile`. **The demote exit is mandatory, not
+> stylistic** — a static `.required` loops until a tool throws (#200E, and
+> Apple's own doc comment) — which is also why the arm is the one session here
+> built through a DynamicProfile: options passed to `respond()` are fixed for
+> the whole request, so re-supplying them is how a demote exit silently stops
+> existing.
+>
+> **Owen's night-batch direction is structural, not a note:** no production
+> default moves, the device A/B decides.
+>
+> A second registry entry, **`card-clause-remedy`**, runs `control` +
+> `toolmode-required` ONLY. The full sweep is now 7 arms × 3 prompts = 210
+> trials, and the five prose arms buy this contrast nothing while inserting
+> ~90 trials of thermal drift between the two arms being compared. The remedy
+> sits LAST in the seven-arm run (worst slot, conservative for a positive) and
+> SECOND in the two-arm run (adjacent to its control) — the two placements
+> answer different questions.
+>
+> - **372-H1 (EXACTLY ONE arm forces the mode).** Swept over every case, so an
+>   arm that inherited the forced mode would turn its own prose result into a
+>   bundle of two treatments.
+> - **372-H2 (the remedy changes NEITHER descriptions NOR instructions).** Its
+>   whole claim is that it needs no words; an arm that also moved a sentence
+>   could not make it.
+> - **372-H3 (PRODUCTION STILL SETS NO TOOL-CALLING MODE).** Both tiers. This
+>   is the pin that goes red if a later lane promotes the remedy by editing
+>   `chatGenerationOptions` instead of by measuring it.
+> - **372-H4 (the manipulation is VISIBLE in the artifact).** The remedy's
+>   treatment is invisible in every existing column — belt identical,
+>   instructions byte-identical, zero descriptions swapped — so without a
+>   `toolCallingForced` row it would be indistinguishable from the control, and
+>   from a broken arm.
+>
+> ### 🔴 A DEFECT THIS LANE FOUND IN THE MANIPULATION BAND ITSELF
+>
+> The `correct` column of the manipulation check was
+> `arm == .control ? 1 : (swapped > 0 ? 1 : 0)`. **Every arm whose treatment is
+> an INSTRUCTION swap therefore scored 0** — `blurb-stripped` and
+> `blurb-rollback` both applied cleanly on 2026-08-21 and both were recorded in
+> the artifact as treatments that had FAILED TO APPLY. Nobody was misled, and
+> only because the reader went to the `instructionsChars` /
+> `rewordedSentencePresent` metrics instead. **The column built to catch a
+> silent no-op was itself silently wrong, and the evidence that saved the
+> reading came from somewhere else.**
+>
+> #372(b) is what made it urgent rather than tidy: the remedy arm swaps no
+> description AND changes no instruction byte, so under the old expression it
+> would have been permanently indistinguishable from a broken arm. It is now
+> `cardClauseManipulationApplied`, per-arm and unit-pinned;
+> `toolsAndBlurbStripped` requires BOTH halves, deliberately. `blurbReworded`
+> still returns false, and that is **372-C1's finding rather than a
+> regression** — post-promotion that arm is identity with control and the
+> column should say so.
+>
+> ### 372-HD1..HD4 — THE DEVICE A/B, PRE-REGISTERED, NOT RUN
+>
+> Instrument `card-clause-remedy`, `control` vs `toolmode-required`,
+> **n ≥ 40 per arm** (`--trials 20` over the three action prompts). The
+> four-bucket discipline is 340-H5′'s, and the denominators matter here for the
+> reason 340-H5′-C records.
+>
+> - **372-HD1 (PRIMARY — `trialsWithToolCalls` over TRIALS must rise,
+>   significantly).** One number, one denominator, **no union**. The remedy's
+>   entire claim is that it produces the call the prose arms were trying to
+>   persuade the model into; a bar on the imitation rate alone could be met by
+>   an arm that went silent.
+> - **372-HD2 (GUARD — `armedImitations` over TRIALS must not RISE).** The
+>   asymmetry is deliberate and is 340-H5′-B's: a forced call that still
+>   narrates a card in prose is a worse outcome than a missing call, because
+>   the user cannot tell the narrated card from the real one. If imitations
+>   rise, the remedy fails whatever it does for calls.
+> - **372-HD3 (REPORT the decline half, and it is (a) and (b) meeting).**
+>   `declineHalfExercised` per arm, with the four verdicts over THAT
+>   denominator. **A specific prediction, written before the run:** the remedy
+>   arm should exercise the decline half MORE often than control, because
+>   forcing the call is what puts a trial in front of the gate. If it does not,
+>   either the mode is not applying — check `toolCallingForced` — or the
+>   governor is cutting the trial first, and `cutTrials` says which.
+> - **372-HD4 (n ≥ 40 per arm; manipulation row read FIRST; run conditions
+>   recorded).** `toolCallingForced == 1` on the remedy and `0` on control
+>   before any behavioural number is read. Local clock time and the device's
+>   iOS build go in the record — since #398 a rate without its runtime is
+>   ambiguous, and the fleet moved again on 2026-08-24.
+
+> **✅ (a) AND (b) BUILT 2026-08-26 (instruments lane) — SIM-GATED; BOTH DEVICE
+> RUNS ARE OWEN'S AND ARE RUNBOOK CARDS.**
+>
+> **Built vs device-owed, explicitly:** 372-A1..A4 and 372-H1..H4 are **MET**
+> on the simulator, mutation-proven. 372-HD1..HD4 are **PRE-REGISTERED AND
+> UNRUN**. This lane produced instrumentation and **zero** behavioural numbers:
+> nothing here says whether the decline half is ever reached in practice, and
+> nothing here says whether `.required` helps.
+>
+> **(c) is untouched and stays closed** as UNMEASURABLE-WORTHWHILE per Owen's
+> 2026-08-24 ruling. The rollback arm still rides the seven-arm sweep.
+>
+> ### 📇 RUNBOOK CARD — "Required-mode remedy A/B (#372b / 337-H)"
+>
+> **Command** (Mac, phone on the LAN):
+> ```bash
+> DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer \
+>   scripts/mac/run-instrument.sh --device whoGoesThere \
+>   --instrument card-clause-remedy --trials 20 --timeout 3600
+> ```
+> Verbose logging ON. Unattended-eligible: auto-DECLINE, nothing written,
+> nothing to reap. 2 arms × 3 prompts × 20 = **120 trials + 1 discarded
+> warm-up**, n = 60 per arm.
+>
+> **Expected artifact:** one `BatteryRunRecord`, `kind: "card-clause"`,
+> `endedCleanly: true`, `cells == ["control", "toolmode-required"]`, bands
+> `manipulation` (2 rows), `card-clause-summary` (2 rows),
+> `card-clause-trial` (120 rows).
+>
+> **What Claude scores, in this order:** the manipulation row first
+> (`toolCallingForced` 1 on the remedy, 0 on control — an arm that did not
+> apply is a broken arm); then 372-HD1 (Fisher two-tailed on
+> `trialsWithToolCalls`); then 372-HD2, the imitation guard; then 372-HD3, the
+> decline half's count and its four verdicts over `declineHalfExercised`; then
+> the run's clock time and the device's iOS build.
+>
+> ### 📇 RUNBOOK CARD — "Card clause full sweep, seven arms (#337-F/#372)"
+>
+> The seven-arm sweep still exists and is now the EXPENSIVE one — use it only
+> when the prose arms are wanted:
+> ```bash
+> DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer \
+>   scripts/mac/run-instrument.sh --device whoGoesThere \
+>   --instrument card-clause --trials 10 --timeout 5400
+> ```
+> 7 arms × 3 prompts × 10 = **210 trials**. Its remedy arm sits LAST, so a
+> positive there is conservative and a null needs a reversed-order re-run
+> rather than a conclusion — read `card-clause-remedy` for the clean contrast.
+
+> **✅ 372-HD1…HD4 ALL MET — the device A/B RAN 2026-08-27 evening, and the
+> DECLINE HALF IS FINALLY OBSERVABLE.** Device `whoGoesThere`, Debug build
+> **3125** (`main @ c421ba05`), iOS **`Version 27.0 (Build 24A5424a)`**, local
+> clock **20:53–21:00 CDT**, `endedCleanly: true`, n=**60 per arm**. Artifact
+> `~/.talaria-instrument-runs/20260828T015327Z-card-clause-remedy`.
+> ⚠️ **`thermal: serious` at start AND end of BOTH cells** — the device had been
+> running batteries back-to-back for ~40 min. Recorded against every number
+> below; both arms share the state, so the within-run contrast is protected, but
+> an absolute rate from this run carries it.
+>
+> - **372-HD4 — MET, and read FIRST as the bar demands.** `toolCallingForced`
+>   is **0 on control** and **1 on toolmode-required**: the mode applied. n=60
+>   per arm (≥ 40). Runtime and clock recorded above per #398.
+> - **372-HD1 (PRIMARY) — MET.** `trialsWithToolCalls` over TRIALS rose
+>   **54/60 (90.0%) → 60/60 (100.0%)**, one-sided Fisher exact **p = 0.0137**.
+>   One number, one denominator, no union — as written.
+> - **372-HD2 (GUARD) — MET.** `armedImitations` **0 → 0**. No rise, so the
+>   forced call was not bought with imitation. `retryImitations` also 0 → 0,
+>   `claimsCreation` 0, `timeouts` 0, `generationErrors` 0 in both arms.
+> - **372-HD3 (REPORT) — the written-first prediction HOLDS.** The remedy arm
+>   exercises the decline half MORE often: `declineHalfExercised` **54 → 59**
+>   (of 60). The four verdicts over THAT denominator:
+>
+> | | n | user | tool-misattributed | unnamed | unscorable |
+> |---|---|---|---|---|---|
+> | control | 54 | 31 (57%) | **2 (3.7%)** | 0 | 21 (39%) |
+> | toolmode-required | 59 | 45 (76%) | **3 (5.1%)** | 2 | 9 (15%) |
+>
+> **🔑 THE SECONDARY FINDING IS ARGUABLY THE BIGGER ONE: `unscorable` fell
+> 39% → 15%.** The remedy does not merely force the call — it **more than halves
+> the fraction of trials nobody can score**, which is precisely why this entry
+> said the decline half "can now actually be SEEN." Any future decline work gets
+> a usable denominator by running under `.required`.
+>
+> **Tool-misattribution is PRESENT but small here (3.7% / 5.1%)** and does not
+> rise meaningfully under the remedy. Note this is a DIFFERENT surface from
+> #392's calendar-only finding and must not be pooled with it.
+>
+> **Scope:** production default is untouched — `.required` shipped as an ARM
+> only, pinned. Nothing here promotes it; HD1–HD4 were about whether it does
+> what it claims, and it does.
+
+> **✅ CLOSED 2026-08-31 (sweep 12, second pass).** All three halves the header
+> named are addressed: **(a)** the decline path is exercised at last (the gate
+> counts all three decline sites, so #392's scorer finally has a caller);
+> **(b)** 337-H's `toolCallingMode = .required` is BUILT — and shipped
+> deliberately as a **pinned ARM only**, production default untouched;
+> **(c)** the rollback arm ran, **372-C1 MET on device**. The device A/B ran
+> 2026-08-27 with **372-HD1..HD4 ALL MET** (tool calls 90% → 100%, p = 0.0137;
+> unscorable 39% → 15%).
+>
+> **What this deliberately does NOT do, in the entry's own words:** nothing here
+> promotes `.required`. HD1–HD4 asked whether it does what it claims, and it
+> does — promotion remains a separate decision nobody has made.
+>
+> **Held back from the first pass of this sweep in error**, on the same
+> mistake as #339.
