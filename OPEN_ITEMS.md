@@ -294,6 +294,22 @@ Logged 2026-06-27.
 
 ---
 
+> **✅ 2026-08-31 — BOTH LEGS MET ON DEVICE; #33 CLOSES.** Build **3147**, Mac
+> Mini profile (the connectors are inert on the Windows host, which is why the
+> profile is the precondition), driven through iPhone Mirroring.
+> - **READ:** `list my notes` returned a genuine *"Most recent notes:"* list of
+>   **10 real notes** with real titles and previews — connector data, not a
+>   fabrication. (Contents deliberately not transcribed.)
+> - **WRITE:** `create a note titled TALARIA RUNBOOK TEST with the body hello
+>   from the runbook` → after a skill load and 5 tool calls (~65 s):
+>   **"✅ Note created successfully!"** with `Title / Body / Folder: Notes /
+>   ID: x-coredata://…ICNote/p997` and *"The note is now in your Apple Notes
+>   'Notes' folder."*
+>
+> Both legs work from chat, which is the whole bar. **🧹 A real note titled
+> `TALARIA RUNBOOK TEST` now exists in Owen's Apple Notes and needs deleting
+> by hand** — recorded here rather than left for someone to find later.
+
 ## 387. 📝 POST-LAUNCH ONGOING MAINTENANCE — the running list, and the watcher that starts it — **NAMED BY OWEN 2026-08-20 ("start a running list… I think this should be the first entry for after launch ongoing maintenance"), filed the same hour per #268. The list lives at `private/POST-LAUNCH-MAINTENANCE.md` — **gitignored**, see the routing note below. NOT BUILT — mechanism is chosen at launch, not now.**
 
 **Why a list and not a tracker item per task.** `OPEN_ITEMS.md` numbers work
@@ -2715,6 +2731,32 @@ Logged 2026-07-22.
 > field was `None` — a NO-DATA condition rendered as a positive verdict, by the
 > same hand that added an explicit no-data guard to
 > `scripts/mac/score-due-omission.py` earlier the same day.
+> **🛑 2026-08-31 — UNDRIVABLE THROUGH iPHONE MIRRORING; NOT a product
+> verdict.** Build 3147, Mac profile. The path is all there — Sessions drawer →
+> TASKS → NEW TASK → Schedule → **Once → "At a time"** (the absolute-clock
+> option) exists and is reachable, and Name/Prompt accepted input. **The
+> time-value control itself could not be driven:** clicks, typed digits, arrow
+> keys, scrolling and click-drag all failed to move the underlying value, which
+> stayed pinned to a stale default snapshot.
+>
+> Two save attempts were rejected by the host with:
+> ```
+> HOST REJECTED THIS TASK — Requested one-shot time
+> 2026-08-31T21:20:24-05:00 is more than 120s in the past
+> ```
+> **That rejection is most likely CORRECT and is NOT filed as a defect.** The
+> picker held `21:20:24` while the session ran ~33 minutes of real time, so by
+> the save attempts that value genuinely was in the past. The honest reading is
+> a stale picker overtaken by the clock, not a timezone bug — and saying so
+> matters, because the tempting inference ("the host rejected a FUTURE time")
+> would have manufactured a phantom in #249's family.
+>
+> **What IS established: a date/time picker joins Control Center on the list of
+> things iPhone Mirroring cannot drive.** #162 needs a human with a touchscreen,
+> or a seam. **Whether a HUMAN can set that field normally is UNTESTED** — if
+> Owen also finds it unresponsive, that is a real defect and this note becomes
+> its first evidence. Until then the card is human-only, not broken.
+
 ## 163. 🧩 156b Skills lane — **SHIPPED, on `main`** (`Talaria/Features/Skills/`, reachable at `ContentView.swift:250`); **device checklist still owed** — header corrected 2026-08-01
 
 Dispatch `dispatch/FABLE-T27-156B-skills-browser.md` executed 2026-07-22 on the Mac Mini
