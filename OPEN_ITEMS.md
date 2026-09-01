@@ -3058,6 +3058,18 @@ Both axes resolve independently, matching upstream's per-axis resolution — a j
 > unpinnable from the phone. Recorded as a cheap chat-plane lane, independent of
 > Phase 3. Detail: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §1.5 S43.
 
+> **🔄 HEADER PARTLY FALSIFIED — corrected 2026-08-31 (build-planning
+> verification, Owen's *"prove it"*).** The header's first clause — *"presents
+> `model_snapshot` as if it were the job's model"* — **was FIXED 2026-07-22**:
+> `CronJob.modelBinding` returns a `CronModelBinding(pinned:snapshot:)`
+> (`Talaria/Models/CronJob.swift:166-172`), wired into `TaskDetailScreen`, so
+> the two values are distinguished rather than conflated.
+>
+> **Only the SECOND half still stands:** the phone cannot pin a model for a
+> job. That half is upstream-blocked, not app work. **So this entry is not the
+> app-side build its header advertises** — anyone scheduling it off the header
+> would find the bug already gone.
+
 ## 173. 🐛 Silent degradation — the app presents confident replies when the host cannot actually see attachments
 
 **Found 2026-07-23, out of the #142 wire-capture session.** During the window when image-only
@@ -3319,6 +3331,23 @@ Logged 2026-07-23.
 > > after the fact to match what shipped is the redefinition this project
 > > forbids, so the rewrite is dated, visible, and reasoned.
 
+
+> **🔄 LARGELY OVERTAKEN — recorded 2026-08-31 (build-planning verification).**
+> The attachment-capability work since this filing shipped real, discriminating
+> copy: `Talaria/Services/Support/AttachmentCapabilityCopy.swift` gives the
+> on-device and Private Cloud paths captions that state what each tier can
+> actually see, and #390/#408 built the sighted-turn and degrade paths.
+>
+> **One path is still technically as filed, and it is a RULING not an
+> oversight:** the Hermes-host caption was built, shipped, and then
+> deliberately WITHDRAWN by Owen the same day because it could not
+> discriminate what a given host could see. So the original symptom survives
+> for that path *by decision*.
+>
+> **Consequence for planning: this is not a ready build.** What remains is the
+> question Owen already answered once — whether to claim anything about a
+> host's attachment capability when the app cannot measure it. Re-opening it
+> means re-opening that ruling, not writing code.
 
 ## 180. 🎨 UMBRELLA — the app hides its own degradation: one design default, and a register that is no longer four instances long
 
