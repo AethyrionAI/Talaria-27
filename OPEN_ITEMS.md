@@ -2830,10 +2830,10 @@ Logged 2026-07-22.
 >
 > | sub-item | state as of 2026-08-31 |
 > |---|---|
-> | **166a** privacy manifests missing | 🔴 **OPEN — and the entry calls it the highest-probability rejection.** No `PrivacyInfo.xcprivacy` for app or share-extension targets. |
+> | **166a** privacy manifests missing | 🔴 **OPEN — and the entry calls it the highest-probability rejection.** No `PrivacyInfo.xcprivacy` for app or share-extension targets. **⟵ FALSE — see the 2026-09-01 block:** the manifests shipped 2026-07-22 (`6d1515ec`); what was true is that they were INCOMPLETE, closed 2026-09-01. |
 > | **166b** the global ATS exception | ✅ **DONE — and it is the reason this refresh was needed.** `NSAllowsArbitraryLoads` was removed by PR #138 (`d3c962d`, 2026-07-22) and replaced with the CIDR-keyed `NSExceptionDomains` entry, adopted only after the four-arm experiment. Shipping in `project.yml` since. |
 > | **166c** Tailscale-only host is unreviewable | 🔴 OPEN — Owen-side, and structural: a reviewer needs a reachable URL. |
-> | **166d** `ITSAppUsesNonExemptEncryption` unset | 🔴 OPEN — one Info.plist key. |
+> | **166d** `ITSAppUsesNonExemptEncryption` unset | 🔴 OPEN — one Info.plist key. **⟵ FALSE — see the 2026-09-01 block:** shipped 2026-07-22 (`d3c962dc`, `project.yml:398`); DONE, nothing to build. |
 > | **166e** portal capability pre-flight | 🔴 OPEN — Owen-side. |
 > | **166f** adopt the runbook skeleton | 🔴 OPEN — structural/organisational. |
 >
@@ -2916,6 +2916,96 @@ Logged 2026-07-22.
 >   not the source (the #218 lesson applied to plists). [Mac]
 > - **166-GATE:** `lane-gate.sh` PASS (units + XCUITest + Release), count
 >   moved. [Mac]
+
+> **✅ 2026-09-01 — 166a-COMPLETENESS LANE LANDED. All four bars MET.**
+> PR **#401**, squashed as **`562267f6`**. **166 STAYS OPEN** — 166c/166e/166f
+> are Owen-side; 166a's remaining half is the App Privacy questionnaire.
+>
+> **166a-H (the drift tripwire) — MET, and the RED was the WATCHED one.**
+> `TalariaTests/PrivacyManifestCompletenessTests.swift` re-derives per-target
+> required-reason API use from the SOURCES — per-target source sets **parsed
+> out of `project.yml`** (the same list XcodeGen compiles from), not restated
+> — then asserts each target's manifest covers what its sources touch. On the
+> untouched tree it named **exactly the three predicted categories**, as four
+> (target, category) pairs, each with its call site:
+> ```
+> Talaria: UNDECLARED NSPrivacyAccessedAPICategoryDiskSpace
+>     used by: Talaria/Services/Live/DeviceTools/DeviceReadTools.swift
+> Talaria: UNDECLARED NSPrivacyAccessedAPICategoryFileTimestamp
+>     used by: TalariaShare/ShareInboxCore.swift
+> Talaria: UNDECLARED NSPrivacyAccessedAPICategorySystemBootTime
+>     used by: Talaria/Services/Live/LiveVoiceSessionService.swift
+> TalariaShare: UNDECLARED NSPrivacyAccessedAPICategoryFileTimestamp
+>     used by: TalariaShare/ShareInboxCore.swift
+> ```
+> **TalariaWidgets produced no failure — "expected unchanged" was DECIDED by
+> the instrument rather than assumed from the brief**, which is the whole
+> point of writing the tripwire before the fix.
+> **MUTATION (the arm that proves the instrument, not the fix):**
+> SystemBootTime deleted from the app manifest ⇒ RED again naming that
+> category and ONLY that category (`Test run with 1 test in 1 suite failed`,
+> `used by: …/LiveVoiceSessionService.swift`); reverted ⇒ GREEN restored,
+> 6 tests / 2 suites, diff byte-identical to pre-mutation.
+>
+> **166a-G (declare IFF used) — MET.** The three gaps closed with the measured
+> reasons and nothing else was added: FileTimestamp **C617.1**
+> (`ShareInboxCore.swift:226,305`, app-group container timestamps — owed by
+> the app target AND TalariaShare because that file compiles into both),
+> SystemBootTime **35F9.1** (`LiveVoiceSessionService.swift:1281,1346,1373`),
+> DiskSpace **85F4.1** (`DeviceReadTools.swift:60-65`, displayed by the storage
+> read tool). `plutil -lint` OK on all three files. The IFF's REVERSE arm is
+> enforced too (`manifestsDeclareNothingUnused`).
+>
+> **⚠️ AND THAT REVERSE ARM SURFACED A FOURTH FINDING THE GAP TABLE DID NOT
+> HAVE.** `TalariaShare`'s manifest has declared **UserDefaults** since
+> 2026-07-22, but the extension is **purely file-based** — it stages into the
+> app-group CONTAINER (`FileManager.containerURL`) and the string
+> `UserDefaults` appears **nowhere** in `TalariaShare/` (nor does
+> `@AppStorage`). It is an over-declaration inherited from the manifest's
+> original authoring. **Left in place** — this lane's scope was closing gaps,
+> and its instruction was to keep existing UserDefaults declarations — but
+> recorded as a **named exemption in the test** rather than tolerated
+> silently, so no NEW over-declaration can hide behind it. A strict reading
+> of 166a-G would delete it; that is **a decision, not a build**, and it is
+> now on the record instead of in nobody's head.
+>
+> **166a-I (built product, not source) — MET.** #218's lesson applied to
+> plists: `Bundle.main` in an app-hosted unit test IS the built host app, so
+> `builtAppBundleCarriesThePrivacyManifest` and
+> `builtInfoPlistDeclaresExemptEncryption` read the shipping bundle.
+> Both `.appex` bundles verified by `plutil` against the built Debug product:
+> `<app>/PrivacyInfo.xcprivacy` (4 categories),
+> `PlugIns/TalariaShare.appex/PrivacyInfo.xcprivacy` (UserDefaults +
+> FileTimestamp/C617.1), `PlugIns/TalariaWidgets.appex/PrivacyInfo.xcprivacy`
+> (UserDefaults only) — all three `NSPrivacyTracking false`, empty tracking
+> domains, zero collected data types; built Info.plist
+> `ITSAppUsesNonExemptEncryption` = `false`.
+>
+> **166-GATE — MET.** `GATE: PASS on 24A5423a` — Swift Testing **2789**,
+> XCUITest **15/15**, Release build clean, `project.pbxproj` no uncommitted
+> drift. Count MOVED (the 6 new tests are named individually in the RED and
+> GREEN runs, which is stronger than a delta).
+>
+> **🎲 One gate run FAILED first, and the flake protocol is what settled it —
+> plus it harvested the #219 tripwire's FIRST natural red.** The pre-rebase
+> gate came back `GATE: FAIL (3)` on
+> `TalariaUITests.testConnectedRelaunchSkipsTheConnectEntry`
+> (`AppTemplateUITests.swift:540`), Swift Testing and Release green. A
+> structural alibi was available (this diff is two plists and a test file) and
+> was deliberately NOT used: identical bytes were re-run on a quiet box
+> (load average had been 37) and passed — `GATE: PASS`, 15/15. **The
+> `.xcresult` from the failing run carries the XFLAKE activities #219 armed
+> for exactly this, and they say something new:**
+> ```
+> XFLAKE pre  hittable=false frame=(24.0, 509.0, 372.0, 56.0)
+>             window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+> XFLAKE post wizardUp=true composerIn5s=false wizardUpAfter=true
+> ```
+> **The element was NOT HITTABLE at a perfectly valid on-screen frame** — so
+> the tap never landed, and the wizard was still up afterwards. That is a
+> hit-test/settling failure, not the 15 s `waitForComposer` budget expiring
+> on a slow box, which is what the prior occurrences assumed. Artifact
+> preserved for the #219 lane. Filed there as well.
 
 ## 170. ⚠️ Task detail presents `model_snapshot` as if it were the job's model — and the phone cannot pin a model at all (device-found 2026-07-22). **LEAD 2026-08-01: 0.19.0 may have made the second half solvable.**
 
@@ -10658,6 +10748,31 @@ just the log.
 > orchestrator harvested its worktree — its only code product, the
 > 2-line instrumentation, is committed with the 7-green-loaded-runs
 > evidence standing as its verification.)
+
+> **🎯 2026-09-01 — THE ARMED TRIPWIRE FIRED, AND IT CHANGES THE WORKING
+> HYPOTHESIS.** #166a's lane gate hit this red naturally
+> (`GATE: FAIL (3)`, `AppTemplateUITests.swift:540`, Swift Testing and
+> Release green, box load average 37 with a second lane building). Per this
+> entry's own instruction the xcresult was harvested rather than re-rolled:
+> ```
+> XFLAKE pre  hittable=false frame=(24.0, 509.0, 372.0, 56.0)
+>             window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+> XFLAKE post wizardUp=true composerIn5s=false wizardUpAfter=true
+> ```
+> **The button EXISTS at a valid on-screen frame — well inside both the
+> window and the scroll view — and is `hittable=false` at the moment of the
+> tap.** So the tap never landed and the wizard was still up afterwards.
+> **That is a hit-testing / settling failure, NOT the 15 s
+> `waitForComposer` budget running out**, which is what every prior
+> occurrence assumed (see the 2026-08-27 block and the #219-family notes
+> reasoning from "a slow box"). A longer wait would not have helped; the
+> fix direction is waiting on `isHittable` before tapping, or re-tapping.
+> **Control ran, alibi refused:** identical bytes re-run on a quiet box
+> passed `GATE: PASS` 15/15, matching the documented
+> isolation-passes/suite-fails signature. Artifact preserved at
+> `~/.talaria-instrument-runs/20260901-xflake-natural-red/` (xcresult +
+> the gate log); the diagnosis this entry was
+> waiting for can resume from it. STILL WATCH — one sample.
 
 ## 211A. offer-instead-of-act on READ paths, where no confirmation gate excuses it — **✅ INSTRUMENT BUILT + MERGED 2026-08-26 (instruments lane): `offer-read`, three arms x four read prompts, cells + scorer, bars 211A-B1..B7 met on the simulator. The DEVICE run is Owen's and is a runbook card; 211A-D1..D4 are pre-registered and UNRUN, so this entry still carries ZERO behavioural numbers.**
 
