@@ -8669,6 +8669,30 @@ on every row).
 armed words-only turns cost), #333 (the runner that made the measurement one command),
 `~/.talaria-instrument-runs/20260812T200237Z-long-context-probe/` (the full artifact).
 
+> **✅ 2026-08-27/28 — THE DEVICE RE-BASELINE RAN AND CONFIRMS 334's OWN
+> CORRECTION. Filed 2026-08-31; the result existed for four days inside #339
+> and never reached this entry.** `long-context-probe` ran as a member of the
+> #339 pre-OTA subset (build **3125**, artifacts
+> `~/.talaria-instrument-runs/20260828T01*`, log
+> `preota-20260828T012151Z.log`):
+>
+> | member | n | result |
+> |---|---|---|
+> | `long-context-probe` | **34 probes** | **30 at 10/10, 4 at 0/10** — the 22 → 34 re-baseline **CONFIRMED** |
+>
+> **This is the closing measurement for the 08-25 relabel.** PR #377 corrected
+> three `expected:` labels on Owen's ARMED-IS-SAFE ruling and added the E1/E2
+> rows, moving the band count 22 → 34 — and predicted the six cells that read
+> 0/5 on 08-12 would now read ~5/5 **with zero behaviour change**. The device
+> run bears that out: 30 of 34 bands at 10/10. **The four 0/10 bands are the
+> remaining signal** and are what any follow-up should name, rather than
+> re-running the whole probe.
+>
+> *Filed late for the #124 reason, and it is the same reason: a multi-member
+> run gets recorded where it RAN (#339) and filed per-member afterwards — the
+> members that got filed give no signal about the one that did not. #339's own
+> text even says this finding "belongs to #334/#206."*
+
 ## 293. 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane — **FILED 2026-08-07 night from the repo-wide adversarial audit. Each is STATIC with the auditor's own confidence stated; NONE verified beyond a code read. Verify before fixing.**
 
 > **2026-08-10 (corrected same day):** the re-land lane (d) was briefly routed
@@ -14134,6 +14158,28 @@ NOT a catcher here by design: these claims follow a refusal, not a tool run).
 > > — cutting in the dangerous direction, and it had been latent since the check
 > > was written. Emphasis is now stripped before matching, so the check reads
 > > what a human reads.
+
+> **✅ 2026-08-27/28 — 409-D RAN ON DEVICE. Filed 2026-08-31; the result sat in
+> #339 for four days and never reached this entry.** `refusal-words` ran as a
+> member of the #339 pre-OTA subset (build **3125**, same artifacts as #334's
+> row above):
+>
+> | member | n | result |
+> |---|---|---|
+> | `refusal-words` | **60** | 62/62 probes correct; **3 of 48 armed replies still claim completion** |
+>
+> **409-D's verdict: MOSTLY FIXED, NOT FIXED.** The do-not-claim clause shipped
+> 2026-08-25 (PR #376) against a pre-fix rate of **6/6 false completion claims**
+> on the same-tool-repeat path. Post-clause the armed rate is **3/48 ≈ 6.3%** —
+> a large drop, and **not zero on a bar whose whole subject is a FALSE claim of
+> completion.** The scorer's probes are 62/62, so the instrument is sound and
+> the residue is model behaviour, not measurement.
+>
+> **What this does NOT settle,** in #339's own words: the question *"is only
+> answerable from the reply text"*, so a residual 3/48 is a rate on prose, not
+> a proof that the clause is ignored. Whether 6.3% is acceptable, or wants a
+> second wording pass, is Owen's call — **the entry should not be closed as
+> "#409 verified" on this number**, which #339 warns about explicitly.
 
 ## 413. 🐛 THE ASSISTANT'S FIRST UTTERANCE IS CAPTURED AS THE USER SPEAKING — voice session, realtime engine, FIRST response only; the second response is clean — **FILED 2026-08-26 per #268, from Owen's device pass ("the first utterance of a response is captured as a me speaking. The second response doesn't have this issue. I tried 3 times and all 3 happened the same way"). MEASURED 3/3 on BOTH the Noisy and Normal presets — preset-INDEPENDENT by his own A/B, so tuning is not the lever. Mechanism deliberately NOT guessed; candidates + the discriminating probe below.**
 
