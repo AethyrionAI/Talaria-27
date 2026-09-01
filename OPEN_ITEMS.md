@@ -141,7 +141,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#415** 🔴 the MIC STAYED ON after a Control Center voice launch (2/2, cleared by force-quit; privacy-surface real) — Owen's 3108 pass. **Log collect HAPPENED and the mechanism is NAMED: #302's ordering surviving #302's fix (App Lock arms ~1.2 s AFTER a warm CC tap clears the gate); the #303 engine-pin and #198 teardown-miss candidates are FALSIFIED.** ✅ **FIX BUILT 2026-08-26 night — 415-A/B/C MET (RED-first witness 8 tests/21 issues, three isolating mutations): a mid-flight cover now stops capture and PARKS the session, resuming once on unlock via a cover watch on the gate's new `waitUntilLocked()`, and `LiveVoiceSessionService` finally carries the `#302-A` capture instrument. 🔴 OPEN ON 415-D ONLY — Owen's device run holding the cover open.** The naming half is ✅ DONE (415-N, 2026-08-26): both CC controls read "Ask Talaria" / "Talk to Talaria"; host-meaning "Hermes" strings deliberately untouched. **The SHORTCUTS half is ✅ DONE too (415-S, 2026-08-26, Owen's "shortcuts only"): `AskHermesIntent.title` + the `TalariaAppShortcuts` `shortTitle` both read "Ask Talaria", the type name and the registration identity deliberately unmoved (measured: App Shortcuts key off `mangledTypeName`, never the title, so nothing re-registers and nothing orphans). CarPlay stays declined-with-a-trigger and is now GUARDED by a test. ~~🚩 One un-enumerated third site flagged for Owen: `parameterSummary`'s `formatString` still reads "Ask Hermes ${question}".~~** **⟵ ✅ 415-SWEEP DONE 2026-08-27 (Owen's STANDING RULING — "if it says Hermes outward on the phone, replace it with Talaria; exception being the in app connection"): the flagged `parameterSummary` is renamed AND the rule was applied WHOLESALE in one pass — 74 replacements across 37 files, every user-visible "Hermes" in the app/widget/intents targets classified app-meaning vs host-meaning and the whole inventory enumerated in the close-out (three lists + 7 borderline calls with reasoning). Newly swept surfaces no prior lane had inventoried: the **13 `Info.plist` permission usage descriptions** iOS renders in its own system alerts, the two **local-brain system prompts** ("You are Hermes" → Talaria — what the assistant answers when asked its own name), and **README/docs**, where the dispatch's premise was WRONG (#77 was a URL-scheme lane, not a naming lane) and six real app-meaning misses were found. ~100 host-meaning strings deliberately KEPT and newly pinned; fences (hermes:// scheme, CarPlay, control + widget `kind`s, type names) shown structurally. **The MIC FIX (415-A…D) is still what keeps this item red — naming is now fully done.**
 - **#418** 🐛 real speech through the AIRPODS MIC transcribed as CHINESE (assistant: “you sound muffled”) — n=1, build 3137, from the #413 probe session; input route + sample rate currently unlogged (first gap); corroborates #413's garbled-input→CJK reading — **✅ INSTRUMENT BUILT 2026-08-31 (`97e52d41`): route + sample-rate line at session config and every route change; next session attributes the route for free**
 - **#419** 🐛 the assistant-playback elapsed counter reads 0 EVERY TIME (all recorded readings, two archives) — a real barge-in would truncate the assistant item at `audio_end_ms: 0`, wiping the heard portion from server history; zeroing path evidence-pointed at a mid-playback assistant item event, mechanism undetermined until 419-A's one-line instrument exists — **✅ 419-A BUILT 2026-08-31 (`97e52d41`): item-arrival line captures the destroyed elapsed + same-vs-new discrimination; next session names the path**
-- **#420** 🐛 the **"Auto-connect on launch" toggle is INERT** — one writer, ZERO production readers (moved to the Server screen when the Relay page retired; the move kept the UI and dropped the consumer). A control promising an effect it no longer has — #180's family from the opposite direction. Burned ~40% of the #350-D pilot's budget. **⚖️ Owen's call: delete it or wire it — not a repair, a feature decision**
+- **#420** ✅ **CLOSED** — 🐛 the **"Auto-connect on launch" toggle is INERT** — one writer, ZERO production readers (moved to the Server screen when the Relay page retired; the move kept the UI and dropped the consumer). A control promising an effect it no longer has — #180's family from the opposite direction. Burned ~40% of the #350-D pilot's budget. ~~**⚖️ Owen's call: delete it or wire it — not a repair, a feature decision**~~ **⟵ ⚖️ RULED 2026-08-31 (DELETE the toggle, KEEP the persisted key — auto-connect-on-launch is not a behaviour the app intends to have post-#375, so wiring it would have invented a feature to justify a leftover switch) and ✅ BUILT + MERGED 2026-09-01, PR #398 `c48fcae1`: 420-A/B/C/GATE all MET. The test guards the property whose ABSENCE caused this — nothing reads the key — and it was watched RED on the untouched tree, then mutation-isolated (a re-introduced reader reds exactly one of the four pins). Gate 2783 Swift Testing (+6) / 15 XCUITest / Release clean, first run. No device bar was owed: an inert control's deletion changes nothing observable — what it removes is a lie the runbooks kept believing**
 - **#421** 🔴 **"OJAMD's gateway is down" is FALSE** — measured UP and healthy from the Mac (200 on both the CGNAT literal and the MagicDNS name; `/health/detailed` returns a running server's auth error). The PHONE cannot dial it: host-fed screens show `unsupported URL` = **-1002, a MALFORMED-URL error**, not a down host. Two fatal mechanisms in our code — no scheme validation anywhere, and MagicDNS names having no ATS exception (CIDR-keyed to `100.64.0.0/10`). **✅ SETTLED 2026-08-31: the field reads `/ojamd:8642`** — a relative path (scheme=nil, host=nil), rejected with exactly -1002. Mechanism 1 confirmed by measurement. **⚠️ Prepending `http://` is a TRAP — a MagicDNS host is then ATS-blocked; the working value is `http://100.110.102.59:8642`.** Corrects handoffs §23/§24
 - **#422** 🧠 **MEMORY–AGENT INTEGRATION** — succeeds #378. **⚖️ SHAPED + RULED POST-LAUNCH 2026-08-31 (Owen), and it splits in two:** (a) Talaria as a CLIENT of the host's providers — `hindsight`/`honcho` are 2 of the 8 Hermes memory plugins, so ONE delivery route buys all eight — host-tier only; (b) **Talaria's OWN local memory**, which serves the hostless default user and is recorded as a **DELIBERATE LAUNCH GAP** (*"It has no memory between sessions right now"*), not a backlog line. **Storage is solved** — SwiftData + `NLContextualEmbedding` (512-dim, on-device, `hasAssets=true`, probed 08-31); the difficulty is what earns a memory, whether the user can correct it, and two-store disagreement. **Recommended first shape: embedding retrieval over stored turns, NOT extracted facts** — #417 measured this model fabricating when it has nothing (20/40 → 0/40 with something real), so retrieval-of-real-text has the smallest lying surface
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
@@ -13137,7 +13137,7 @@ green-signal-covering-what-it-cannot-see family).
 > names the zeroing path — same-item double-fire vs second-item — instead of
 > leaving it to argument; the fix lane follows that naming.**
 
-## 420. 🐛 THE "AUTO-CONNECT ON LAUNCH" TOGGLE IS INERT — a shipping settings control the user can flip that NOTHING READS — **FOUND 2026-08-31 by the runbook staleness audit (read-only, static), and CONFIRMED by hand at the call sites. Mechanism is not in doubt; the fix is a product call.**
+## 420. ✅ CLOSED — 🐛 THE "AUTO-CONNECT ON LAUNCH" TOGGLE IS INERT — a shipping settings control the user can flip that NOTHING READS — **FOUND 2026-08-31 by the runbook staleness audit (read-only, static), and CONFIRMED by hand at the call sites. Mechanism is not in doubt; the fix is a product call.** **⚖️ RULED the same day (delete it, keep the key) and ✅ BUILT + MERGED 2026-09-01 — PR #398, squash `c48fcae1`: all four bars MET, the absent-reader pin watched RED before any production edit and mutation-isolated to one assertion, gate 2783/15/Release clean. CLOSED; awaiting the next sweep's archive move only.**
 
 **The measurement:** `autoConnectOnLaunch` has exactly one writer and zero
 production readers.
@@ -13214,6 +13214,80 @@ family).
 >   stays green. [offline]
 > - **420-GATE:** `lane-gate.sh` PASS. **The entry CLOSES when this lands**
 >   (per the ruling — the close rides the merge, not the ruling). [Mac]
+
+> **✅ 2026-09-01 — BUILT + MERGED. ALL FOUR BARS MET, NONE MISSED. THIS
+> ENTRY IS CLOSED** (per the ruling's own *"closes when that lands"* — the
+> archive MOVE waits for the next sweep). **PR #398, squash `c48fcae1`.**
+>
+> **420-B — MET, and the RED is the part worth reading.** The pin
+> (`TalariaTests/AutoConnectTogglePinTests.swift`) was written and RUN
+> **before a line of production code moved**, on the untouched tree:
+> ```
+> ✘ Test run with 6 tests in 1 suite failed after 0.382 seconds with 5 issues.
+> ✘ autoConnectOnLaunchIsNamedOnlyByItsModelPlumbingAndDemoSeed()
+>     ↳ offenders → ["Talaria/Features/Settings/ServerSettingsScreen.swift"]
+> ✘ theToggleLabelIsGoneFromEveryShippingSource()      (same offender)
+> ✘ settingsSearchOffersNoAutoConnectRow()             (3 issues)
+>     ↳ matches("auto connect") → [SettingsSearchEntry(title: "Auto-Connect on
+>       Launch", keywords: ["auto connect", "startup"], subsystem: .server)]
+> ✔ theAllowListedSitesStillNameIt()  ✔ thePersistedKeyAndItsPlumbingSurvive()
+> ✔ storedSettingsStillCarryTheKeyAcrossDecode()
+> ```
+> After the deletion: **56 tests / 4 suites passed** (the pin +
+> `ServerSettingsTests` + `SettingsChannelsTests` + `SettingsSearchTests`).
+>
+> **MUTATION — and it isolated ONE pin, which is the claim worth making.**
+> A reader put back into `ServerSettingsScreen.swift` (`private extension
+> UserSettings { var mutationProbeAutoConnect: Bool { autoConnectOnLaunch } }`)
+> produced **exactly one issue** — the reader pin — with both 420-A pins and
+> both 420-C pins still GREEN. So the four bars are four independent
+> assertions, not one assertion wearing four names; reverted, and the
+> diffstat returned byte-identical to pre-mutation.
+>
+> **420-A — MET on two independent instruments.** The toggle's label literal
+> is gone from every shipping source (raw-text scan of `Talaria/`, `Shared/`,
+> `TalariaWidgets/`, `TalariaShare/`), AND the **compiled** index no longer
+> matches `"auto connect"` / `"auto-connect"` — the compiled half is there
+> because a row commented out rather than deleted would satisfy a source scan
+> alone (`NamingSweepTests`' own lesson, borrowed).
+>
+> **420-C — MET, and it never wobbled.** `UserSettings.swift` and
+> `DemoData.swift` are untouched in the diff; the stored property, the
+> `CodingKeys` case and `decodeIfPresent(…) ?? true` are pinned by name, and
+> a behavioural pin decodes `{}` → `true` and round-trips an explicit
+> `false`. All three were green in the RED run, through the mutation, and
+> after the deletion.
+>
+> **420-GATE — MET. `GATE: PASS on 24A5423a`** — Swift Testing **2783**
+> (moved by exactly this lane's +6), XCUITest **15**, Release build clean;
+> the only skips are the known-permanent `CondenserFidelityTests` pair.
+> First run, no re-runs, no flakes.
+>
+> **⚠️ One design cost, recorded because the next reader will hit it.** The
+> reader pin scans RAW TEXT, comments included — deliberately: a
+> comment-stripper is a parser, and a parser is where this pin would be
+> subtly wrong. The price is that prose outside the two allow-listed files
+> cannot SPELL `autoConnectOnLaunch`, so `ServerSettingsScreen.swift`'s
+> header describes the key rather than naming it, and says why in place.
+>
+> **CLOSE-OUT — prose this result falsified, corrected in the merge commit:**
+> `planning/reports/2026-08-31-runbook-audit-visual.md` (the audit that FOUND
+> this; its §350d answered *"is there still an auto-connect toggle?"* with
+> *"yes, but it does nothing"* — a dated supersession note now says the
+> answer is NO and flags the one stale clause in its corrected card wording),
+> and the two 2026-08-05 #252 specs
+> (`…-252-settings-inventory.md` §3, `…-252-settings-channels-design.md`
+> row 02) which both listed the toggle as shipping SERVER surface.
+> **Deliberately NOT corrected, and the distinction matters:**
+> `design/T3_EXTRA_PAGES_PROMPT.md:47` and
+> `design/Settings-Additional.dc.html:84` also show this toggle — but on the
+> **RELAY** page, which #375 retired long before this lane. Already
+> historical; not falsified by this result.
+>
+> **What this entry does NOT claim.** The toggle was inert, so its deletion
+> changes no behaviour the user could have observed — there is nothing here
+> for a device pass to confirm, which is why no device bar was registered
+> and none is owed. **What it removes is a lie the runbooks kept believing.**
 
 ## 421. 🔴 "OJAMD'S GATEWAY IS DOWN" IS FALSE — THE HOST IS UP AND HEALTHY, AND THE PHONE'S OJAMD PROFILE CANNOT DIAL IT — **MEASURED 2026-08-31 from the Mac. Two independent reasons the profile cannot work as configured; which one is live is one screenshot away.**
 
@@ -14036,6 +14110,19 @@ mapping tests via behavior-preserving stubs before the logic landed
 > `hostConfigured` at all, because they were spelling it two different ways
 > — Uplink through a LEGACY settings fallback the chat plane never dials.
 > **350-D's visual half is untouched and still owed.**
+
+> **📍 2026-09-01 — THE OWED FIXTURE HAS ONE FEWER STEP (#420 closed).**
+> Every description of 350-D's owed device fixture above says *"auto-connect
+> OFF, refused `:12399`, full kill + cold launch."* **The auto-connect step
+> is now impossible to perform and was never load-bearing:** #420 measured
+> that toggle INERT — one writer, zero production readers — and Owen ruled
+> it deleted (PR #398, `c48fcae1`, 2026-09-01). The control no longer exists
+> on the Server screen. **The fixture is unchanged in substance** — base URL
+> on the verified-refused `:12399`, force-quit, cold launch, read the drawer
+> footer and the settings strip within ~10 s — and the operator should not go
+> looking for a switch that is gone. The expected reading is untouched:
+> CHECKING (dim pip) on the strip, `LINKED · —` with an amber pip on the
+> footer, red banner only after a measured fail.
 
 ## 358. 🐛 Delivered-but-unrendered turns — three consecutive sessions-plane SSE replies fully streamed to the phone, nothing rendered (the REAL bug #356's morning stage exposed) — **FILED 2026-08-17 evening, out of #356's resume-session evidence pass. SHIPPED the same evening (Owen's pick over 3C/#359): bars 358-A/B/C/E MET (PR #310, merge `2bd98e48`) — the silent-drop failure CLASS at the finish boundary is removed and the `TurnStreamLedger` witness instruments the pipeline; 358-D honest: the 08-16 morning TRIGGER remains UNIDENTIFIED, and if it ever fires again the ledger's one-line witness is built to survive logd quota and name it. WATCH, not open build work. (Header updated 2026-08-18, stale-header sweep.)**
 
