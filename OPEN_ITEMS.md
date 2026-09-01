@@ -149,7 +149,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#418** 🐛 real speech through the AIRPODS MIC transcribed as CHINESE (assistant: “you sound muffled”) — n=1, build 3137, from the #413 probe session; input route + sample rate currently unlogged (first gap); corroborates #413's garbled-input→CJK reading — **✅ INSTRUMENT BUILT 2026-08-31 (`97e52d41`): route + sample-rate line at session config and every route change; next session attributes the route for free**
 - **#419** 🐛 the assistant-playback elapsed counter reads 0 EVERY TIME (all recorded readings, two archives) — a real barge-in would truncate the assistant item at `audio_end_ms: 0`, wiping the heard portion from server history; zeroing path evidence-pointed at a mid-playback assistant item event, mechanism undetermined until 419-A's one-line instrument exists — **✅ 419-A BUILT 2026-08-31 (`97e52d41`): item-arrival line captures the destroyed elapsed + same-vs-new discrimination; next session names the path**
 - **#420** 🐛 the **"Auto-connect on launch" toggle is INERT** — one writer, ZERO production readers (moved to the Server screen when the Relay page retired; the move kept the UI and dropped the consumer). A control promising an effect it no longer has — #180's family from the opposite direction. Burned ~40% of the #350-D pilot's budget. **⚖️ Owen's call: delete it or wire it — not a repair, a feature decision**
-- **#421** 🔴 **"OJAMD's gateway is down" is FALSE** — measured UP and healthy from the Mac (200 on both the CGNAT literal and the MagicDNS name; `/health/detailed` returns a running server's auth error). The PHONE cannot dial it: host-fed screens show `unsupported URL` = **-1002, a MALFORMED-URL error**, not a down host. Two fatal mechanisms in our code — no scheme validation anywhere, and MagicDNS names having no ATS exception (CIDR-keyed to `100.64.0.0/10`). **One screenshot of the profile's Base URL field settles which.** Corrects handoffs §23/§24
+- **#421** 🔴 **"OJAMD's gateway is down" is FALSE** — measured UP and healthy from the Mac (200 on both the CGNAT literal and the MagicDNS name; `/health/detailed` returns a running server's auth error). The PHONE cannot dial it: host-fed screens show `unsupported URL` = **-1002, a MALFORMED-URL error**, not a down host. Two fatal mechanisms in our code — no scheme validation anywhere, and MagicDNS names having no ATS exception (CIDR-keyed to `100.64.0.0/10`). **✅ SETTLED 2026-08-31: the field reads `/ojamd:8642`** — a relative path (scheme=nil, host=nil), rejected with exactly -1002. Mechanism 1 confirmed by measurement. **⚠️ Prepending `http://` is a TRAP — a MagicDNS host is then ATS-blocked; the working value is `http://100.110.102.59:8642`.** Corrects handoffs §23/§24
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it**. **MEASURED 2026-08-11; clipping RULED OUT.** ~~Mechanism UNKNOWN~~ ~~⟵ INVESTIGATED 2026-08-25, candidates ranked~~ **⟵ ✅ MECHANISM MEASURED 2026-08-25 (measurement lane, unit repro): `openSession`'s wholesale replace + `mapStoredMessage`'s role refusal and empty usage fields zero BOTH totals inputs in ONE event, and the 9→7 row drop is the same event. Candidate ① CONFIRMED; candidate ③ (the `.voiceHermes` predicate split) is REAL but mutation-proven NOT the cause; the entry's "receipts render normally" claim is FALSIFIED — no reopened row carries `usage` or `turnDuration`, and the quoted numbers are the card's LAST TURN block via `SessionUsageIndex`. Shipped: 16 pins in `SessionTotalsAfterReopenTests`, a verbose-gated `/usage` instrument (NOT `#if DEBUG`), 3 seam breadcrumbs at `.notice`, and 330-G's six-step device script.** 330-A/B/E DISCHARGED. **⟵ ✅ FIXED 2026-08-25 (fix lane, `330-receipts-sidecar`): the `TurnReceiptSidecar` — session-id-keyed, replayed at open, `AgentAttachmentSidecar`'s pattern plus a priming tier — restores `usage`/`turnDuration`/`servingModel`/`isContextPriming` across the replace, and `mapStoredMessage` re-maps the STORED primer (a `user` row host-side) into the priming notice, collapsing its ack; that also closes a compounding defect where every reopen fed the primer back into the journal the next transplant is composed from. 330-C CONVERGED (four sites, one `isAgentAuthored` predicate — hygiene, M2 already proved it is not the cause). 330-D MET with its token source NAMED: `postPrimingTurn` returns nil whenever the priming run misses the 20 s `runsSyncBudget`, so the run id is kept and re-read off the interactive path onto the journal hop. 5 of 16 pins flipped RED-first (9 expectations), all rewritten; 16 → 34 tests; 3 isolating mutations.** **330-C/330-D DISCHARGED. ✅ 330-G MET ON DEVICE 2026-08-31 (build 3147, verbose tell passed, totals PRESENT + priming row + receipts intact across the reopen) — #330 CLOSES, and #312 (f) flips with it. Sweep-ready.**
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
@@ -16187,6 +16187,41 @@ app accept a scheme-less or non-CGNAT address at all, given it can never work?
 Today it accepts silently, renders it back as typed, and reports the
 consequence as *the host* being unreachable — which sends the user to debug a
 healthy machine. That is #180's family (honest degradation) on the input side.
+
+> **✅ 2026-08-31 — CONFIRMED BY OWEN + MEASUREMENT. Mechanism 1; mechanism 2
+> is not needed.** Owen read the field: the OJAMD profile's base URL is
+> **`/ojamd:8642`** — no scheme, and a **leading slash**. Parsed on the
+> shipping toolchain:
+> ```
+> /ojamd:8642/v1/models         -> scheme=nil   host=nil            path=/ojamd:8642/v1/models
+> ojamd:8642/v1/models          -> scheme=ojamd host=nil            path=8642/v1/models
+> http://ojamd:8642/v1/models   -> scheme=http  host=ojamd          path=/v1/models
+> http://100.110.102.59:8642/…  -> scheme=http  host=100.110.102.59 path=/v1/models
+> ```
+> **Row 1 is a RELATIVE path — no scheme, no host** — which URLSession rejects
+> with exactly `NSURLErrorUnsupportedURL` (-1002), the observed error. The
+> hypothesis is now a measurement.
+>
+> **⚠️ THE OBVIOUS FIX IS A TRAP, and this is the part worth keeping.** Merely
+> prepending `http://` yields row 3 — a perfectly VALID URL whose host is a
+> MagicDNS name, which sits outside `100.64.0.0/10` and is therefore
+> **ATS-blocked app-wide** (-1022, #166b). That trades a -1002 for a -1022 and
+> looks identical to the user. **The only value that works is the CGNAT
+> literal: `http://100.110.102.59:8642`.**
+>
+> **The defect is confirmed as ours, not a typo's fault:** the app ACCEPTED a
+> string that can never resolve, persisted it, rendered it back verbatim
+> (`displayAddress` falls through to the raw string when it cannot parse a
+> host — deliberately, "shown as typed rather than mangled"), and then reported
+> the consequence as **the host** being unreachable — against a host that was
+> up and healthy the whole time. A user following that message debugs the wrong
+> machine, which is what happened here for days.
+>
+> **⚖️ OWEN'S CALL — the guard, not the field.** Fixing the field is one edit.
+> The question is whether the app should reject-or-normalize a base URL that
+> provably cannot work: no scheme, or a host outside `100.64.0.0/10`. Both are
+> statically decidable at entry, and the Connect Host ladder already has an
+> honest place to say so. NOT built — a decision, not a repair.
 
 **Related:** #414 (the other OJAMD-vs-phone puzzle — a DIFFERENT cause: a
 deliberately keyless probe), #166b (the CIDR-keyed ATS exception and its
