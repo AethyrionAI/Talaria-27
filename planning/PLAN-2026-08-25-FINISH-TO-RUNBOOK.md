@@ -145,6 +145,27 @@ running and Lane B queues first):**
 Morning deliverables: merged lanes, a fresh staged OTA, the runbook
 republished with the new cards, handoff updated.
 
+## STATE AT THE 09-01 BOARD-PASS CLOSE (supersedes below)
+
+main `55bc9334` · **60 live / 370 archived** (72 at the night's start) · 0 open
+PRs · phone Debug 3147, Mac Mini profile · nothing running.
+
+Sweeps 12+13 archived twelve entries; five decisions ruled interactively;
+**#422 opened and shaped** (memory splits host-client vs Talaria's own; both
+post-launch, the latter a deliberate LAUNCH GAP). **#421 settled:** OJAMD was
+never down — the profile's base URL is `/ojamd:8642`, a relative path rejected
+at -1002; the working value is `http://100.110.102.59:8642`, and Owen ruled NO
+validator (a range guard would lock out PiVPN/WireGuard self-hosters).
+
+**Build list: `handoffs/BUILD-LIST-2026-09-01.md`** — ready are #166a+#166d
+(the only submission blocker), #420, #182, #219; #269-B is the substantial lane
+and needs no publication.
+
+**The night's methodological lesson, which cost three wrong lists:** a runbook
+card in COMPLETED is NOT a closeable entry, and an entry header is not its
+current state — read the newest dated blocks, and verify against code before
+scheduling. Owen caught it three times. Full story: handoff §27.
+
 ## STATE AT THE 08-31 **LATE** CLOSE — the screen-driving session (supersedes below)
 
 main `053cc94f` · 73 live entries · 0 open PRs · runbook **29 open / 35 done** ·
