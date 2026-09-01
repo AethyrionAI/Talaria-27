@@ -978,7 +978,27 @@ real), **#372(c)** (tonight's lesson on base rates and power).
 > **✅ The reproduction bar is MET, decisively:** 5 misattributions against a
 > bar of ≥1. Specimen, verbatim from the artifact:
 > *"Looks like **the calendar didn't create the event**. Would you like me to
-> try again?"* — the calendar never saw it; the user declined the card.
+> try again?"* — the calendar never saw it.
+>
+> **🔬 WHO DECLINED, and why the answer does not weaken the finding (corrected
+> 2026-09-01 — Owen: *"I didn't decline anything, I was hands off"*, and he is
+> right; the first write-up of this block said "the user declined the card",
+> which was simply wrong about a run that is unattended by design).** The
+> decline came from the instrument: §05 runs are `confirmationMode:
+> .autoDecline`, and `InstrumentConductor` sets
+> `confirmationCenter.autoDeclineForBattery` for the run.
+>
+> **The substitution is sound where it matters.** That flag short-circuits the
+> CARD UI but resolves to **`return .declined`**
+> (`ToolConfirmationCenter.swift:235-239`) — *the same `Decision.declined` a
+> real tap produces* — so the action tool hands the model the identical
+> "user declined" result either way. #392's defect is about what the MODEL does
+> with that result, not about the card, so a synthetic decline exercises
+> exactly the path under test.
+>
+> **What it does NOT exercise, stated so nobody over-claims:** the card's own
+> rendering and the human tap. A defect living in the UI rather than in the
+> model's reading of the tool result would be invisible to this instrument.
 >
 > **✅ The calendar-only contrast is now STATISTICALLY SOLID**, which is what
 > the extra power actually bought: calendar 5/25 vs **remind 0/32**
