@@ -62,7 +62,6 @@ enum SettingsSearchIndex {
             SettingsSearchEntry("Backend Profiles", ["switch backend", "active host", "profile"], .server),
             SettingsSearchEntry("Add Profile", ["new backend", "add host"], .server),
             SettingsSearchEntry("Approvals", ["approval mode", "auto-approve", "dangerous commands"], .server),
-            SettingsSearchEntry("Auto-Connect on Launch", ["auto connect", "startup"], .server),
             SettingsSearchEntry("Plugin Link", ["talaria plugin", "link status"], .server),
             SettingsSearchEntry("Disconnect Host", ["unpair", "disconnect", "forget host"], .uplink),
 

@@ -91,7 +91,10 @@ PAIRED`, ellipsis Menu + identical contextMenu. Actions: Edit; Pair/Re-Pair;
 Refresh Provisioning (paired only); Forget Pairing (paired only, destructive);
 Route Sensors Here (when not destination); Delete (when not active and not sensor
 destination). Then: provisioning message; **Add Profile** (paywall gate);
-**Auto-connect on launch** Toggle (`settings.autoConnectOnLaunch`); delete error.
+~~**Auto-connect on launch** Toggle (`settings.autoConnectOnLaunch`)~~ **— DELETED
+2026-08-31 (#420, Owen's ruling): the control had one writer and zero production
+readers, so it promised an effect it could not deliver. The persisted key stays for
+decode compatibility only; the SERVER page ships no such toggle.**; delete error.
 Alerts (all `.alert` per #193): "Switch backend?", "Forget this pairing?", "Delete this
 profile?". Sheets: ProfileEditorSheet (Name / Gateway URL / Relay URL / Note / API Key
 + validation + Add/Save), ConnectedPaywallSheet.

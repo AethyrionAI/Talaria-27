@@ -7,8 +7,16 @@ import SwiftUI
 // real probes only, "—" until probed), and per-profile paired state. Tap a
 // card to activate (confirm sheet; non-destructive by construction — M-6),
 // add/edit/delete profiles, pair each through the existing QR flow (M-12).
-// Replaces the retired Relay sub-page (M-13); the auto-connect toggle moved
-// here with it.
+// Replaces the retired Relay sub-page (M-13). The auto-connect-on-launch
+// toggle moved here with that retirement and was DELETED 2026-08-31 (#420,
+// Owen's ruling): it had one writer and ZERO production readers, so it
+// promised a launch behaviour the app stopped having when the relay went
+// (#375) — a control asserting an effect it cannot deliver, #180's family
+// from the control side. Its persisted key survives in `UserSettings` for
+// decode compatibility ONLY, and `AutoConnectTogglePinTests` pins that no
+// shipping source outside the model plumbing and the demo seed names that
+// key again — this file included, which is why it is described here rather
+// than spelled.
 
 /// One probe's outcome. Honest states only: `unknown` renders as "—".
 enum ServerProbeResult: Equatable {
@@ -120,7 +128,6 @@ struct ServerSettingsScreen: View {
                     talariaLinkPanel
                     hostApprovalPanel
                     addProfileButton
-                    autoConnectPanel
                     if let deleteErrorMessage {
                         errorNotice(deleteErrorMessage)
                     }
@@ -616,31 +623,6 @@ struct ServerSettingsScreen: View {
         let (state, message) = HostApprovalModeState.from(await link.approvalMode(setting: mode))
         hostApprovalMode = state
         hostApprovalMessage = message
-    }
-
-    // MARK: Auto-connect (relocated from the retired Relay sub-page)
-
-    private var autoConnectPanel: some View {
-        HStack {
-            Text("Auto-connect on launch")
-                .font(Design.Typography.callout)
-                .foregroundStyle(Design.Colors.foreground)
-            Spacer()
-            Toggle("", isOn: Binding(
-                get: { settingsStore.settings.autoConnectOnLaunch },
-                set: { settingsStore.settings.autoConnectOnLaunch = $0 }
-            ))
-            .labelsHidden()
-            .tint(Design.Brand.accentText)
-        }
-        .padding(.horizontal, Design.Spacing.md)
-        .padding(.vertical, Design.Spacing.sm)
-        .hudPanel(
-            cornerRadius: Design.CornerRadius.lg,
-            borderColor: Design.Colors.accentTint(0.12),
-            fill: Design.Colors.background.opacity(0.5),
-            innerGlow: false
-        )
     }
 
     // MARK: Reachability probes (real data only — M-12)
