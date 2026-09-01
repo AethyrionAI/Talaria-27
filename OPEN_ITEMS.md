@@ -143,7 +143,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#419** 🐛 the assistant-playback elapsed counter reads 0 EVERY TIME (all recorded readings, two archives) — a real barge-in would truncate the assistant item at `audio_end_ms: 0`, wiping the heard portion from server history; zeroing path evidence-pointed at a mid-playback assistant item event, mechanism undetermined until 419-A's one-line instrument exists — **✅ 419-A BUILT 2026-08-31 (`97e52d41`): item-arrival line captures the destroyed elapsed + same-vs-new discrimination; next session names the path**
 - **#420** 🐛 the **"Auto-connect on launch" toggle is INERT** — one writer, ZERO production readers (moved to the Server screen when the Relay page retired; the move kept the UI and dropped the consumer). A control promising an effect it no longer has — #180's family from the opposite direction. Burned ~40% of the #350-D pilot's budget. **⚖️ Owen's call: delete it or wire it — not a repair, a feature decision**
 - **#421** 🔴 **"OJAMD's gateway is down" is FALSE** — measured UP and healthy from the Mac (200 on both the CGNAT literal and the MagicDNS name; `/health/detailed` returns a running server's auth error). The PHONE cannot dial it: host-fed screens show `unsupported URL` = **-1002, a MALFORMED-URL error**, not a down host. Two fatal mechanisms in our code — no scheme validation anywhere, and MagicDNS names having no ATS exception (CIDR-keyed to `100.64.0.0/10`). **✅ SETTLED 2026-08-31: the field reads `/ojamd:8642`** — a relative path (scheme=nil, host=nil), rejected with exactly -1002. Mechanism 1 confirmed by measurement. **⚠️ Prepending `http://` is a TRAP — a MagicDNS host is then ATS-blocked; the working value is `http://100.110.102.59:8642`.** Corrects handoffs §23/§24
-- **#422** 🧠 **MEMORY–AGENT INTEGRATION** — named by Owen 2026-08-31 at #378's close; **NO SCOPE YET, his thoughts come first.** Succeeds #378 (which delivered its dev panel and closed). Known-true going in: the phone has no path to the host's memory files; there are TWO stores (file backend + a shared Honcho) that can disagree; the talaria plugin is a delivery route that needs no new client dependency
+- **#422** 🧠 **MEMORY–AGENT INTEGRATION** — succeeds #378. **⚖️ SHAPED + RULED POST-LAUNCH 2026-08-31 (Owen), and it splits in two:** (a) Talaria as a CLIENT of the host's providers — `hindsight`/`honcho` are 2 of the 8 Hermes memory plugins, so ONE delivery route buys all eight — host-tier only; (b) **Talaria's OWN local memory**, which serves the hostless default user and is recorded as a **DELIBERATE LAUNCH GAP** (*"It has no memory between sessions right now"*), not a backlog line. **Storage is solved** — SwiftData + `NLContextualEmbedding` (512-dim, on-device, `hasAssets=true`, probed 08-31); the difficulty is what earns a memory, whether the user can correct it, and two-store disagreement. **Recommended first shape: embedding retrieval over stored turns, NOT extracted facts** — #417 measured this model fabricating when it has nothing (20/40 → 0/40 with something real), so retrieval-of-real-text has the smallest lying surface
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
 - **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. ~~Mechanism deliberately not guessed~~ **⟵ INVESTIGATED 2026-08-25: the mechanism was published in archived #206 (2026-07-30) and this entry never cited it — "ends with an OFFER ⇒ armed" predicts 8/8 rows; length falsified three ways; a RETRACTED rationale still lives in the router's code comment (doc debt). ~~The open question is Owen's PRODUCT call: should a words-only turn after an offer route armed?~~ ⟵ **⚖️ RULED 2026-08-25: ARMED IS SAFE — the rows were mislabelled, not the router.** App half landed the same day (PR #377): three `expected:` labels corrected, **E1/E2 device rows added (band count 22 → 34 — a RE-BASELINE for #339's subset)**, the no-op suffix pinned (the "short" 551 row was never shortened — `suffix(560)` of a 551-char string), the retracted rationale rewritten on the latency basis, and the production diff comment-only. **⏳ OPEN on the next `long-context-probe` DEVICE run** (sim cannot generate, #324).****
@@ -13254,6 +13254,83 @@ and which store is authoritative when they disagree. **Owen routes.**
 #379 (Projects introspection, PARKED post-launch), #159 (the correction that
 established the two-store reality), #269/#308 (the plugin arc, if delivery
 routes through it), #180 (asserting what cannot be measured).
+
+> **🧭 SHAPED 2026-08-31 (Owen, in conversation). His opening idea and the
+> correction it produced are both recorded, because the correction is the
+> useful part.**
+>
+> **Owen's first framing:** *"tie it into my honcho and hindsight"* — Talaria as
+> a client of the memory providers his host already runs. **Both are real
+> Hermes memory plugins** (`~/.hermes/hermes-agent/plugins/memory/` ships
+> **eight**: `byterover`, `hindsight`, `holographic`, `honcho`, `mem0`,
+> `openviking`, `retaindb`, `supermemory`), so the idea maps onto an existing
+> plugin set rather than inventing one.
+>
+> **The correction, accepted by Owen (*"your point is better"*):** that shape
+> only serves users who HAVE a host, and the launch pivot says judge against
+> the hostless default user. **Talaria has NO memory of its own today** —
+> there is no `MemoryStore` and no memory model in the tree; `AgentMemorySection`
+> is a READER of the host's files (#378) and nothing more. **So this splits
+> into two different products:**
+>
+> - **(a) CLIENT OF THE HOST'S PROVIDERS** — modest work, needs a delivery
+>   route, **host-tier only**. Cheap in one specific way worth remembering:
+>   because the providers are Hermes PLUGINS, the host tier gets memory the
+>   moment a delivery route exists — one route, not eight integrations.
+> - **(b) TALARIA'S OWN LOCAL MEMORY** — bigger, and the one that serves the
+>   default user. Can later FEED (a) when a host is attached.
+>
+> **⚖️ BOTH ARE POST-LAUNCH (Owen). But (b) is recorded as a DELIBERATE LAUNCH
+> GAP, not a backlog line:** *"It has no memory between sessions right now."* A
+> local assistant without cross-session memory is a materially different product
+> from one with it, and that is a decision to have made on purpose rather than
+> discovered in a review.
+>
+> ### The client-side options — the storage half is SOLVED, which is why it is
+> ### not where the difficulty is
+>
+> Already in the tree: **SwiftData** (`SwiftDataLocalSessionStore`, two `@Model`
+> types) and **FoundationModels** with `@Generable` structured output.
+> **Probed on the shipping toolchain 2026-08-31** (measured, not assumed):
+> ```
+> NLContextualEmbedding(.english) : AVAILABLE  dim=512 revision=1 hasAssets=true
+> NLEmbedding.sentenceEmbedding   : AVAILABLE  dim=512
+> ```
+> On-device transformer embeddings, no dependency, no entitlement, no network.
+>
+> | shape | build cost | fails by |
+> |---|---|---|
+> | **1. Rolling digest** — model summarizes each session; inject the digests | trivial | **dilution** — everything blurs to mush after ~50 sessions |
+> | **2. Extracted facts** — `@Generable` subject/predicate/confidence/source into SwiftData | moderate | **extraction quality** — the real risk |
+> | **3. Embedding retrieval over turns** — embed turns with `NLContextualEmbedding`, cosine top-k. **No vector DB**: brute-force over ~20k vectors is milliseconds | moderate | retrieving the lexically-related-but-irrelevant |
+> | **4. Hybrid (2 + 3)** — facts answer *"who is Shelley"*, episodes answer *"what did we decide"* | largest | both of the above |
+>
+> ### 🎯 RECOMMENDED FIRST SHAPE: **3, not 2** — and the reason is this project's own evidence
+>
+> Sessions are already persisted, so there is **no new capture path**; there is
+> **no extraction step, so there is nothing to get wrong**; and retrieval of
+> REAL STORED TEXT cannot fabricate the way an extracted "fact" can.
+> **#417 measured this model inventing content when it has nothing to say
+> (20/40), and measured the fix: give it something real and fabrication goes to
+> 0/40.** A memory system that surfaces a WRONG memory is worse than no memory,
+> because it launders a fabrication into something that looks retrieved. Shape 3
+> has the smallest lying surface. Facts are the better product eventually; they
+> are also where the measured failure mode lives.
+>
+> ### The three hard questions, none of them technical
+> 1. **What earns a memory?** A permissive rule floods the store and dilution
+>    kills shape 1 and 3 alike.
+> 2. **Can the user see and correct it?** Part of Honcho's value is that memory
+>    is INSPECTABLE. A silent local store that quietly gets the user wrong is a
+>    trust problem, not a feature — and #378 already established that a surface
+>    which cannot label its own staleness should not render (#180's family).
+> 3. **What happens when BOTH exist?** Local memory plus a host's Honcho is
+>    #422's two-store disagreement problem moved inside one device. #159's
+>    correction — that the `.md` files may be stale when the provider is Honcho
+>    or Mem0 — is the same hazard one layer down.
+>
+> **Nothing is built and no bars are pre-registered** — this is shape, not a
+> lane. A lane opens post-launch with bars written first.
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
