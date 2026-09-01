@@ -8529,6 +8529,155 @@ distinguish LIVE from the other two.
 >   test. [offline]
 > - **269-B-J (gate):** `lane-gate.sh` PASS, count moved. [Mac]
 
+> **✅ 269-B APP HALF — BUILT 2026-09-01 overnight. Bars 269-B-F/G/H/I MET,
+> RED-first with recorded output and two mutation arms that each isolated
+> exactly the pin they name. 🔴 269-B-J is MISSED — `lane-gate.sh` never
+> printed `GATE: PASS`, and that is recorded as a falsification, not
+> redefined into a pass. B-A/B/D/E and the N ≥ 10 half of B-C are UNTOUCHED
+> and stay open, awaiting a live host and the 🔐 per-experiment go. #269
+> STAYS OPEN.**
+>
+> **PR https://github.com/AethyrionAI/Talaria-27/pull/400 — OPEN, NOT MERGED.**
+> The standing overnight rule is merge-on-green; the gate was not green, so
+> the merge is Owen's call rather than this lane's. Branch
+> `claude/t27-269b-app-half` (commits `43ee3282` code + `6c263128` tracker).
+> No squash SHA to record yet — the block below is what the merge decision
+> should be read against.
+>
+> **What shipped.** Four new files —
+> `Talaria/Models/TalariaPluginSetupPrompt.swift` (`TalariaPluginInstallSource`
+> + the first-contact prompt), `Talaria/Stores/PluginSetupStore.swift` (the
+> consent gate, three injected seams, the verdict),
+> `Talaria/Features/Chat/PluginSetupCard.swift` (consent card, progress row,
+> result row), `TalariaTests/PluginSetupConsentTests.swift` (20 tests) — and
+> four touched: `TalariaLinkObservation.swift` (the completion vocabulary,
+> EXTENDED onto `TalariaLinkDisplayState`, never forked), `ChatScreen.swift`,
+> `ServerSettingsScreen.swift`, `AppContainer.swift`.
+>
+> **Where consent landed, and the pattern it follows.** In CHAT, at the tail
+> of the transcript, as a third card in the family `ToolConfirmationCard`
+> (#29) and `HostApprovalCard` (#304) already established — titled ask, two
+> plain buttons, a notice row that takes the card's place when it settles.
+> That is #251's sentence honoured literally: *"consent surfaces in chat where
+> the user lives; the app probes to verify."* The ENTRY is on the Server
+> screen, gated by `PluginSetupStore.offersSetup(for:)` on a MEASURED
+> `.notLive` and nothing else — a live host is not nagged, and an unmeasured
+> one gets no offer invented out of an absence of measurement.
+>
+> - **269-B-F MET (consent before send, wired).** Candidate B pinned verbatim
+>   in `PluginSetupStore.Consent`; a separate pin holds that the ASK carries no
+>   restart guidance (the 08-25 ruling put that in the completion state on
+>   purpose). `confirm()` is the only door — it guards on `.awaitingConsent`
+>   and ASSEMBLES the prompt inside itself from the source the ask carried, so
+>   no built string exists for another path to send. **Mutation:** drop the
+>   phase guard ⇒ `confirmIsTheOnlyDoorAndOnlyFromTheAsk` RED (4 issues) and
+>   **nothing else moved**.
+> - **269-B-G MET (verdict only from the probe).** `verdict(agentReply:
+>   observation:deviceToken:)` composes #269-A's own
+>   `TalariaLinkDisplayState.compose` — the same two facts the PLUGIN LINK row
+>   reads, so the two surfaces cannot disagree. `agentReply` is accepted **and
+>   deliberately unread**: a signature that never took it could not be mutated
+>   into reading it, and a pin that cannot go RED under the mutation it names
+>   is not a pin. Four success-claiming replies against a 503 still render NOT
+>   LIVE; three failure-claiming replies against a 401 still render LIVE.
+>   **Mutation:** a naive prose scan ⇒ `noProseCanFlipTheSurfaceToLive` (3),
+>   `noProseCanSuppressALiveProbe` (3), `theSettledPhaseCarriesTheProbesVerdict`
+>   (1) RED.
+> - **269-B-H MET (honest not-live copy + the restart pointer).**
+>   `TalariaPluginSetupCompletion` EXTENDS #269-A-C's closed set — all five
+>   display states `resolve` onto it, and the one case that is about the PHONE
+>   (`promptNotSent`) is pinned unreachable from any observation. The not-live
+>   copy names the observation (*"the plugin did not answer"*), says out loud
+>   that the cause is not knowable (*"Talaria cannot tell from here whether it
+>   is missing, switched off, or waiting on a restart"*), defers WHY to the
+>   agent's own message, and points at the host's shipped control (*"use
+>   Restart Gateway on the host — the Gateway popover's power button, or the
+>   Command Palette entry"*). Pinned: exactly ONE state names that control, no
+>   state offers an in-app restart, no state asserts one of the three
+>   indistinguishable causes, only `.live` reads as success.
+> - **269-B-I MET (the prompt is a pinned constant).** Parameterized on
+>   `TalariaPluginInstallSource`, asserted on the actual string for every ruled
+>   constraint: narrate first (*"before you do it"*), `hermes plugins install
+>   <source> --ref <ref>` + `hermes plugins enable talaria`, **"Do not restart
+>   the gateway"** verbatim (08-25) with the Restart Gateway pointer for the
+>   USER, **"Do not retry silently … do not report a success you did not
+>   observe"** (#180), and *"Talaria probes this host itself … it will not take
+>   your word for it."* Also pinned pure: same source ⇒ same bytes.
+>
+> **Default install source, RESOLVED rather than remembered:**
+> `https://github.com/AethyrionAI/talaria-plugin.git`, read read-only from the
+> deployed checkout's own git remote (`~/.hermes/plugins/talaria/.git/config`)
+> — nothing under `~/.hermes` was modified. Ref defaults to `main`, NOT a
+> pinned sha: the app cannot know which sha is good and a frozen one rots into
+> a stale install, so the parameter exists for a caller that does know. The
+> constant carries a comment tying it to the 269-B publication moment — **the
+> repo is still private, and #308 is the ruling that flips it.**
+>
+> **RED-first, recorded.** The 20 tests ran against compiling STUBS before any
+> implementation: **20 tests, 18 failed, 58 issues.** Two passed vacuously
+> against the stubs (`theAskCarriesNoRestartGuidance`,
+> `decliningSendsNothingAndClaimsNothing`) — recorded rather than papered over.
+> GREEN after implementation: `Test run with 20 tests in 1 suite passed` ·
+> `** TEST SUCCEEDED **`.
+>
+> **🔴 269-B-J — THE GATE DID NOT GO GREEN, AND THE CONTROL RAN INSTEAD OF THE
+> ARGUMENT.** Swift Testing and the count bar are unambiguous: **2803 tests in
+> 239 suites PASSED**, twice, against a base of **2783 in 238** — exactly the
+> +20/+1 this lane adds, so the count MOVED and it is not a stale `.xctest`.
+> The XCUITest half failed BOTH branch runs on
+> `TalariaUITests.testConnectedRelaunchSkipsTheConnectEntry`
+> (`AppTemplateUITests.swift:540`), so "it passes on identical bytes" does NOT
+> hold and this could not be called a flake on that basis. **A structural alibi
+> was available and deliberately not used** (this diff adds a chat card that
+> renders only when its store leaves `.idle`, a Server-screen view that renders
+> only on `.notLive`, and three closure assignments — the Connect Host wizard
+> runs none of it), so the base control ran:
+>
+> | arm — same box, same simulator | Swift Testing | that test |
+> |---|---|---|
+> | branch `43ee3282`, full gate, run 1 | 2803/2803 ✅ | **FAILED** |
+> | branch `43ee3282`, full gate, run 2 (sim recycled, box quiet) | 2803/2803 ✅ | **FAILED** |
+> | **base `4a59b963` = `origin/main`, NO lane changes, full gate** | 2783/2783 ✅ | **FAILED, same line** |
+> | branch `43ee3282`, `-only-testing:TalariaUITests` (isolated bundle) | — | **15/15 PASSED**, `** TEST SUCCEEDED **` |
+> | branch `43ee3282`, Release build | — | `** BUILD SUCCEEDED **` |
+>
+> **Unmodified `main` reproduces it, and the branch's own XCUITest bundle
+> passes 15/15 in isolation** — the isolation-passes / suite-fails shape #219
+> already records, now with a base row under it. And #219's XFLAKE tripwire — armed
+> 2026-08-27 precisely so the next natural red would self-document — FIRED and
+> named the mechanism in all three runs: `XFLAKE pre hittable=false` at frame
+> `(24.0, 509.0, 372.0, 56.0)`, then `post wizardUp=true composerIn5s=false`.
+> The two PASSING instances in the same logs read `hittable=true` at the
+> **identical frame**. So the button exists, is laid out identically, and is
+> simply not hit-testable at tap time — an idle/hit-test race, not layout and
+> not this diff. Artifacts: `~/.talaria-instrument-runs/20260901-xflake-269b/`
+> (three suite logs, branch ×2 + base ×1; the run-1 `.xcresult` is PARTIAL —
+> `xcodebuild` hung ~9 min writing a 318 MB bundle and was killed, so it has no
+> `Info.plist` and `xcresulttool` cannot open it. The XFLAKE lines in the logs
+> carry the finding regardless).
+>
+> **So 269-B-J is MISSED as written** — `lane-gate.sh` did not print `GATE:
+> PASS`. It is recorded as MISSED rather than redefined, per this project's own
+> rule that a missed bar is a falsification. What it is NOT is evidence against
+> this lane's code, and the base row is why.
+>
+> **⚠️ AND THE TALLY IS WORSE THAN #219's RECORDED RATE.** That entry measured
+> ~4 fails in 10 full-suite runs; tonight is **3 for 3** across two trees. The
+> earlier hours of this session ran two concurrent lane gates on this box.
+> Whatever tonight's condition is, it is a property of the machine and it is
+> currently near-deterministic — worth knowing before the next lane reads a red
+> here as its own.
+>
+> **Close-out corrections landed in the same PR (THE CLOSE-OUT RULE).** The
+> dispatch brief had the agent restarting itself in TWO places — §2's vision
+> prose (*"…and restart myself — I'll be back in about twenty seconds"*) and
+> §5's 269-B-A (*"installs + enables + restarts"*). Both are falsified by the
+> 2026-08-25 ruling and would have taught the next reader to build the one step
+> it forbids. Dated supersession notes now sit at both sites; **269-B-A is
+> AMENDED, not redefined** — the agent installs + enables and STOPS, the user
+> restarts from the host's own affordance, and its evidence and 🔐 gate stand
+> unchanged.
+
 ## 263. 🐛 Plugin transport: discovery-pass module reloads SPLIT the hub singleton (tool gated against a live phone), and the enqueue wake misses the parked drain (every query rides a full 25s poll cycle racing the 25s timeout) — **FILED 2026-08-06 late night from live forensics during the 260-E pass; absorbs 2A-B's owed transport instrumentation**
 
 Two related defects, one module-lifecycle root, both observed live tonight:
@@ -10775,6 +10924,50 @@ just the log.
 > the gate log); the diagnosis this entry was
 > waiting for can resume from it. STILL WATCH — one sample.
 
+> **🎯 THE TRIPWIRE FIRED — 2026-09-01 overnight, during #269-B's gate. It
+> WORKED, and it names the mechanism.** Three full-suite gate runs on this box
+> (branch ×2, then unmodified `origin/main` `4a59b963` as the control) ALL
+> failed `testConnectedRelaunchSkipsTheConnectEntry` at
+> `AppTemplateUITests.swift:540`, and every one printed:
+> ```
+> XFLAKE pre  hittable=false frame=(24.0, 509.0, 372.0, 56.0) window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+> XFLAKE post wizardUp=true composerIn5s=false wizardUpAfter=true
+> ```
+> The PASSING instances captured in the same logs read **`hittable=true` at the
+> IDENTICAL frame**, then `wizardUp=false composerIn5s=true`. **So the
+> discriminator is `isHittable`, not geometry and not the diff:** START
+> CHATTING exists, is laid out identically, and is simply not hit-testable when
+> the tap fires — the tap is swallowed and the wizard never dismisses. That is
+> an idle / hit-test race, which is a far narrower target than "the runner dies
+> mid-bundle" and is the first mechanism-level fact this entry has had.
+> **Two things this changes for whoever picks the lane up:**
+> - **The 2026-08-27 conclusion "not summonable by synthetic load" stands, and
+>   this sharpens why** — load was never the variable; hit-testability at one
+>   instant is. A fix candidate that needs no diagnosis lane: wait on
+>   `isHittable` (not `exists`) before the tap, or tap by coordinate as the
+>   test's own earlier `carryOn` branch already does.
+> - **The rate is not what this entry records.** ~4 fails in 10 full-suite runs
+>   was the 2026-08-27 tally; tonight was **3 for 3** across two trees, after
+>   an evening on which two lane gates ran concurrently on this box. Treat the
+>   rate as machine-condition-dependent, and do not read a red here as a lane's
+>   own without running the base control — #269-B's lane ran it and that is how
+>   this row exists.
+> **Artifacts:** `~/.talaria-instrument-runs/20260901-xflake-269b/` — three
+> suite logs (`suite.log` branch run 1, `suite-run2-branch.log`,
+> `suite-run3-BASE-4a59b963.log`). ⚠️ **The `.xcresult` this entry was waiting
+> for is STILL NOT USABLE, and the reason is new:** `xcodebuild` spent ~9
+> minutes writing a **318 MB** bundle and never finished, so the copy has no
+> `Info.plist` and `xcresulttool` refuses it. A red on this test appears to
+> produce a bundle large enough to hang its own finalization — so the LOGS, not
+> the xcresult, are where the XFLAKE evidence survives. Budget for that next
+> time rather than killing the run and losing both.
+
+> *(Rebase-union note, 2026-09-01: the two blocks above were filed
+> INDEPENDENTLY by two overnight lanes hitting the same signature —
+> four full-suite reds and multiple quiet-box passes in one night, every
+> red reading `hittable=false` at the identical frame. Neither block
+> knew of the other at filing; counts are per-block.)*
+
 > **🧪 2026-09-01 (overnight, orchestrator) — A HEDGE WAS TRIED AND FALSIFIED,
 > and the falsification sharpens the mechanism again.** Tonight's final tally
 > for `testConnectedRelaunchSkipsTheConnectEntry`: **six full-suite reds**
@@ -10810,6 +11003,7 @@ just the log.
 >   under-reports on failed runs — filed as #423.** WATCH stands; the hedge
 >   branch is Owen's morning call (merge as harmless belt-and-braces with
 >   the tracker block, or discard).
+
 
 ## 211A. offer-instead-of-act on READ paths, where no confirmation gate excuses it — **✅ INSTRUMENT BUILT + MERGED 2026-08-26 (instruments lane): `offer-read`, three arms x four read prompts, cells + scorer, bars 211A-B1..B7 met on the simulator. The DEVICE run is Owen's and is a runbook card; 211A-D1..D4 are pre-registered and UNRUN, so this entry still carries ZERO behavioural numbers.**
 
