@@ -145,6 +145,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#419** 🐛 the assistant-playback elapsed counter reads 0 EVERY TIME (all recorded readings, two archives) — a real barge-in would truncate the assistant item at `audio_end_ms: 0`, wiping the heard portion from server history; zeroing path evidence-pointed at a mid-playback assistant item event, mechanism undetermined until 419-A's one-line instrument exists — **✅ 419-A BUILT 2026-08-31 (`97e52d41`): item-arrival line captures the destroyed elapsed + same-vs-new discrimination; next session names the path**
 - **#420** 🐛 the **"Auto-connect on launch" toggle is INERT** — one writer, ZERO production readers (moved to the Server screen when the Relay page retired; the move kept the UI and dropped the consumer). A control promising an effect it no longer has — #180's family from the opposite direction. Burned ~40% of the #350-D pilot's budget. **⚖️ Owen's call: delete it or wire it — not a repair, a feature decision**
 - **#421** 🔴 **"OJAMD's gateway is down" is FALSE** — measured UP and healthy from the Mac (200 on both the CGNAT literal and the MagicDNS name; `/health/detailed` returns a running server's auth error). The PHONE cannot dial it: host-fed screens show `unsupported URL` = **-1002, a MALFORMED-URL error**, not a down host. Two fatal mechanisms in our code — no scheme validation anywhere, and MagicDNS names having no ATS exception (CIDR-keyed to `100.64.0.0/10`). **✅ SETTLED 2026-08-31: the field reads `/ojamd:8642`** — a relative path (scheme=nil, host=nil), rejected with exactly -1002. Mechanism 1 confirmed by measurement. **⚠️ Prepending `http://` is a TRAP — a MagicDNS host is then ATS-blocked; the working value is `http://100.110.102.59:8642`.** Corrects handoffs §23/§24
+- **#422** 🧠 **MEMORY–AGENT INTEGRATION** — named by Owen 2026-08-31 at #378's close; **NO SCOPE YET, his thoughts come first.** Succeeds #378 (which delivered its dev panel and closed). Known-true going in: the phone has no path to the host's memory files; there are TWO stores (file backend + a shared Honcho) that can disagree; the talaria plugin is a delivery route that needs no new client dependency
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
 - **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. ~~Mechanism deliberately not guessed~~ **⟵ INVESTIGATED 2026-08-25: the mechanism was published in archived #206 (2026-07-30) and this entry never cited it — "ends with an OFFER ⇒ armed" predicts 8/8 rows; length falsified three ways; a RETRACTED rationale still lives in the router's code comment (doc debt). ~~The open question is Owen's PRODUCT call: should a words-only turn after an offer route armed?~~ ⟵ **⚖️ RULED 2026-08-25: ARMED IS SAFE — the rows were mislabelled, not the router.** App half landed the same day (PR #377): three `expected:` labels corrected, **E1/E2 device rows added (band count 22 → 34 — a RE-BASELINE for #339's subset)**, the no-op suffix pinned (the "short" 551 row was never shortened — `suffix(560)` of a 551-char string), the retracted rationale rewritten on the latency basis, and the production diff comment-only. **⏳ OPEN on the next `long-context-probe` DEVICE run** (sim cannot generate, #324).****
@@ -7369,6 +7370,17 @@ is NOT), **#215** (why a rate needs its denominator), `DeviceActionTools.swift:2
 > Back-to-back runs into one archive is the normal shape of a chained session, so
 > this trap was going to fire on somebody eventually.
 
+> **⚖️ 340-E RULED 2026-08-31 (Owen, interactive decision pass): NO — THE GUARD
+> STAYS PROSE-ONLY.** #338's guard is about impersonation; validating tool
+> ARGUMENTS is a different job and belongs in the tool layer or the prompt, not
+> bolted onto a guard built for another purpose. **340-E is DISCHARGED.**
+>
+> **What this means for the rest of this entry, stated so the scope is not
+> quietly widened later:** the false-claim half of #340 — *"set for 11"* on a
+> reminder that carries no due date — gets no guard-side catcher. The omission
+> itself (85%, both prose fixes falsified) remains this entry's open work, and
+> it stays a model/prompt/tool problem. **#340 does NOT close with this.**
+
 ## 334. 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips 5/5→0/5 between ctxlen 575 and 4,073; `'Say that again more briefly'` misroutes at BOTH 551 and 4,073 — **MEASURED 2026-08-12 on the iPad (the #333 runner's first scored probe, n=5/band, errors=0). ~~Mechanism UNKNOWN and deliberately not guessed.~~ ⟵ 2026-08-25 (Opus investigation): the mechanism was NEVER unknown — archived #206 named, measured, and published it 2026-07-30, and this entry never cited it. This is a REPLICATION of #206's offer-tail finding, not a mystery. ~~Product question below awaits Owen; bars pre-register when a route is picked.~~ ⟵ ⚖️ RULED + 🟢 APP HALF LANDED 2026-08-25 (PR #377, merge `12217bdb`): ARMED IS SAFE, so **the rows were mislabelled, not the router** — three `expected:` labels corrected, E1/E2 added to the grid (band count **22 → 34**), the no-op suffix pinned, #206's retracted length rationale removed from the router's comment, and NO router behavior change (the production diff is comment-only). ⏳ **STAYS OPEN:** E1 and E2 are DEVICE rows — the simulator cannot generate (#324) — so this entry closes on the next `long-context-probe` device run, which rides the runbook.**
 
 > **🔬 2026-08-25 — MECHANISM INVESTIGATION (Opus agent, read-only; full
@@ -11813,6 +11825,23 @@ NOT a catcher here by design: these claims follow a refusal, not a tool run).
 > second wording pass, is Owen's call — **the entry should not be closed as
 > "#409 verified" on this number**, which #339 warns about explicitly.
 
+> **⚖️ RULED 2026-08-31 (Owen, interactive decision pass): 6.3% IS ACCEPTED —
+> CLOSED.** 409-D measured **3 of 48 armed replies still claiming completion**,
+> against a pre-clause **6/6**. The instrument is sound (62/62 probes correct),
+> so the residue is model behaviour, not measurement.
+>
+> **Recorded honestly rather than as "verified":** this entry does NOT close
+> because the false-claim rate reached zero. It closes because a prose clause
+> cannot reach zero by construction, the measured improvement is large, and the
+> two escalations were weighed and declined — another wording pass (diminishing
+> returns, needs another device run to score) and a structural detector
+> (suppress or annotate a completion claim that follows a refusal — much bigger
+> work, and nobody has argued the 6.3% is causing harm).
+>
+> **If the shape ever costs something real, the structural option is the one to
+> reach for**, and #339's `refusal-words` member is the instrument that would
+> measure it.
+
 ## 413. 🐛 THE ASSISTANT'S FIRST UTTERANCE IS CAPTURED AS THE USER SPEAKING — voice session, realtime engine, FIRST response only; the second response is clean — **FILED 2026-08-26 per #268, from Owen's device pass ("the first utterance of a response is captured as a me speaking. The second response doesn't have this issue. I tried 3 times and all 3 happened the same way"). MEASURED 3/3 on BOTH the Noisy and Normal presets — preset-INDEPENDENT by his own A/B, so tuning is not the lever. Mechanism deliberately NOT guessed; candidates + the discriminating probe below.**
 
 **The observation:** in a live voice session, the opening of the assistant's
@@ -12001,6 +12030,21 @@ observation is consistent with that but proves nothing).
 > `/health` answers unauthenticated on :8642** — same signal, no auth-reject
 > line. Alternatively: accept and let this entry document the line's meaning.
 > **Recommend: WATCH → decision, no code owed until ruled.**
+
+> **⚖️ RULED 2026-08-31 (Owen, interactive decision pass): ACCEPT AND DOCUMENT
+> — CLOSED. No code.** The probe is working exactly as #247 B2 designed it: a
+> deliberately keyless liveness check of the host being switched AWAY from,
+> which asks "are you alive?" without dialing that host's credential. A 401 is
+> the ANSWER, not a failure.
+>
+> **What this entry is now FOR:** so the next person who greps a Hermes log and
+> finds hundreds of *"API server rejected invalid API key"* lines does not spend
+> an evening hunting a credential bug. **That is not hypothetical — this filing
+> IS that evening**, and the cost is the reason the record is worth keeping.
+>
+> **Not done, deliberately:** repointing the probe at `/health`. It would remove
+> the noise, but it needed a live probe proving `/health` answers
+> unauthenticated on `:8642`, and the noise is cheaper than the change.
 
 ## 415. 🔴 THE MIC STAYED ON after a Control Center voice launch — 2/2 reproducible, cleared by force-quit — and the control said "Talk to HERMES" (**renamed — see 415-N**) — **FILED 2026-08-26 night per #268, from Owen's third runbook pass (BUILD 3108, verbatim: "Control center > Talk to Hermes (should be Talaria, right?) and the mic stayed on. Tried again, same result. Force quit, tried again, did NOT happen."). Mechanism NOT guessed; the SAME-DAY LOG COLLECT is the discriminating evidence and it decays in hours.** **→ ✅ COLLECT HAPPENED AND THE MECHANISM IS NAMED (2026-08-26, `whoGoesThere-415.logarchive`): this is #302 recurring through an ordering its bars cannot see — `AppLockGate` is sampled ONCE at start, and a Control Center tap on a WARM process clears it ~1.2 s BEFORE App Lock arms, so the cover comes down on top of an in-flight start. Mic hot 27.4 s / 13.4 s, most of it behind `cover=locked`. Engine was REALTIME both times and teardown RAN IN FULL — the #303 and #198 candidates are FALSIFIED. The force-quit run is a DEGENERATE control (cold ⇒ gate already armed ⇒ start parked ⇒ revoked unused). Fix bars 415-A…D proposed below; #302 carries a dated supersession. ~~FIX NOT BUILT.~~** **⟵ ✅ 415-N DONE 2026-08-26: the NAMING half (fact 2) SHIPPED — both Control Center controls read "Ask Talaria" / "Talk to Talaria", host-meaning "Hermes" strings deliberately untouched and now pinned.** **⟵ ✅ THE MIC FIX IS BUILT 2026-08-26 night (same day): 415-A/B/C MET — a session covered mid-flight now STOPS CAPTURE and PARKS, resuming exactly once on unlock, via a cover watch on the gate's new `waitUntilLocked()`; the realtime engine gained the `#302-A` capture instrument. 415-A was witnessed RED on the unmodified tree first (8 tests, 21 issues) and each mutation isolates. 🔴 STILL OPEN ON 415-D ONLY — the device run that HOLDS the cover open; its card is written in the result block, and until Owen runs it this item stays red.**
 
@@ -13339,6 +13383,23 @@ same disease, other direction), #375 (the relay retirement that plausibly
 orphaned the reader), #416 (the green-signal-covering-what-it-cannot-see
 family).
 
+> **⚖️ RULED 2026-08-31 (Owen, interactive decision pass): DELETE THE TOGGLE.**
+> The control comes out; the persisted `autoConnectOnLaunch` key stays for
+> decode compatibility (`UserSettings.swift:493` defaults it `true`, and
+> removing the key would break older stored settings for no benefit).
+>
+> **The reasoning this records:** auto-connect-on-launch is not a behaviour the
+> app intends to have post-#375, so wiring it would have been inventing a
+> feature to justify a leftover switch. Deleting it stops the app promising an
+> effect it cannot deliver — #180's family, on the control side.
+>
+> **🔨 BUILD OWED (small):** remove the toggle from `ServerSettingsScreen.swift`
+> (~`:623-632`) and its search-index entry (`SettingsSearchIndex.swift:65`,
+> "Auto-Connect on Launch"); leave the model/Codable plumbing alone. A test
+> should pin that no production code reads `autoConnectOnLaunch` — that is the
+> property whose absence caused this, and it is the one worth guarding.
+> **This entry closes when that lands, not before.**
+
 ## 421. 🔴 "OJAMD'S GATEWAY IS DOWN" IS FALSE — THE HOST IS UP AND HEALTHY, AND THE PHONE'S OJAMD PROFILE CANNOT DIAL IT — **MEASURED 2026-08-31 from the Mac. Two independent reasons the profile cannot work as configured; which one is live is one screenshot away.**
 
 **The belief this corrects:** handoffs §23 and §24 both record *"OJAMD's gateway
@@ -13459,6 +13520,40 @@ healthy machine. That is #180's family (honest degradation) on the input side.
 deliberately keyless probe), #166b (the CIDR-keyed ATS exception and its
 four-arm proof), #180, #350 (asserted-vs-measured surfaces), #420 (a control
 whose effect is absent — same family, other direction).
+
+## 422. 🧠 MEMORY–AGENT INTEGRATION — what Talaria does with what the agent remembers — **NAMED BY OWEN 2026-08-31 at #378's close ("Open a new item for memory agent integration. Lets discuss this; i have thoughts"). FILED THE DAY IT WAS NAMED per #268. NO SCOPE YET — Owen's thoughts come first, and nothing here should be read as a design.**
+
+**Why this exists as its own number rather than as #378 reopened:** #378 was
+the *introspection* lane and it delivered exactly what it claimed — a
+read-only DEVELOPER panel over a local memories directory, honest on a device
+(it says UNREACHABLE, never an empty list). Closing it was right. **But the
+question Owen raised is larger than the panel**, and re-opening a lane that met
+its bars to hold a different question is how entries become unreadable.
+
+**What is already TRUE and should not be re-derived when scope is written:**
+- **The phone has no path to `~/.hermes/memories/*.md`.** That is why #378's
+  panel reports UNREACHABLE on device and would do so *"on every device,
+  forever, under that scope"* — a structural fact, not a bug.
+- **There are at least TWO stores and they can disagree.** Owen runs the file
+  backend AND a shared **Honcho** instance (#159's correction). If a profile's
+  `memory.provider` is Honcho or Mem0, the `.md` files are one layer and **may
+  be stale** — so any surface that renders them unlabelled would be asserting
+  something it cannot measure (#180's family).
+- **A delivery route exists in principle:** the talaria plugin already speaks a
+  plane the phone speaks, and could expose memory without adding a client-side
+  dependency. Ruled scope for #378 excluded new dependencies; that ruling was
+  about #378 and does not bind this entry.
+- **Honcho was deferred there, not refused:** *"later if ever wanted."*
+
+**Deliberately NOT decided here:** whether this is a read surface, a write
+surface, or an agent-behaviour question (what the agent remembers ABOUT the
+user, and whether the user can correct it); whether it is user-facing at all;
+and which store is authoritative when they disagree. **Owen routes.**
+
+**Related:** #378 (the introspection lane this succeeds — CLOSED, delivered),
+#379 (Projects introspection, PARKED post-launch), #159 (the correction that
+established the two-store reality), #269/#308 (the plugin arc, if delivery
+routes through it), #180 (asserting what cannot be measured).
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
@@ -15162,6 +15257,19 @@ scope: **wholesale, or a permanent dual path?**
 > `DIRECTORY NOT FOUND`, which is honest but is not the loaded arm. **Every
 > input that decides which arm renders is unit-pinned; that one 10-second dev
 > look is not, and it is a runbook card rather than a claim.**
+> **⚖️ RULED 2026-08-31 (Owen, interactive decision pass): CLOSED — THE LANE
+> DELIVERED WHAT IT CLAIMED.** 378-E is met: the read-only developer panel
+> (`AgentMemorySection.swift`, Developer channel) shipped 2026-08-26 and is
+> honest on a device, reporting **UNREACHABLE** rather than an empty list —
+> which was the point, since an empty list reads as "no memories" instead of
+> "cannot see them". **No user-facing panel was ever claimed by this lane.**
+>
+> **The open thread is NOT this entry's:** whether users should ever see the
+> agent's memory needs a delivery route the ruled scope deliberately excluded,
+> and Owen has thoughts on the wider shape. **Re-homed to #422 (memory agent
+> integration)** rather than left here as an indefinite placeholder — a lane
+> that met its bars should not stay open because a DIFFERENT question exists.
+
 ## 379. 🧭 156e — the PROJECTS introspection surface — **FILED 2026-08-18 night, re-homed from #156's close (Projects exist in hermes-agent — #159's correction). Post-launch candidate; Owen routes.** **⟵ HEADER CORRECTED 2026-08-23: RULED — Owen PARKED this post-launch on 2026-08-18 ~22:40. Not an open routing question; do not re-raise it before launch.**
 
 > **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): PARKED
