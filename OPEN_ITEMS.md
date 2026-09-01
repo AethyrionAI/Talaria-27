@@ -961,6 +961,54 @@ real), **#372(c)** (tonight's lesson on base rates and power).
 > treatment exists by Owen's ruling, so there is no urgency — but the next run of
 > this instrument should be the bigger one, not another 30.
 
+> **🟡 2026-09-01 03:09Z — THE `--trials 50` RE-RUN. THE DEFECT IS EMPHATICALLY
+> REPRODUCED AND THE CALENDAR-ONLY ASYMMETRY IS NOW SIGNIFICANT — BUT 392-A's
+> n≥30 IS STILL MISSED ON THE CALENDAR ARM, AND THAT IS RECORDED AS A MISS, NOT
+> ROUNDED UP.** Build **3147**, device `24A5430a`, `endedCleanly: true`,
+> 200 trials (50 × 4 surfaces), artifact
+> `~/.talaria-instrument-runs/20260901T030906Z-decline/`.
+>
+> | surface | n | scorable | → tool | → user | unnamed | misattribution |
+> |---|---|---|---|---|---|---|
+> | **calendar** | 50 | **25** | **5** | 12 | 8 | **20.0%** |
+> | remind | 50 | **32** | 0 | 32 | 0 | **0%** |
+> | alarm | 50 | 26 | 0 | 26 | 0 | **0%** |
+> | haiku | 50 | **1** | 0 | 1 | 0 | 0% |
+>
+> **✅ The reproduction bar is MET, decisively:** 5 misattributions against a
+> bar of ≥1. Specimen, verbatim from the artifact:
+> *"Looks like **the calendar didn't create the event**. Would you like me to
+> try again?"* — the calendar never saw it; the user declined the card.
+>
+> **✅ The calendar-only contrast is now STATISTICALLY SOLID**, which is what
+> the extra power actually bought: calendar 5/25 vs **remind 0/32**
+> (p = 0.0127), vs alarm 0/26 (p = 0.0226), vs the two pooled 0/58
+> (**p = 0.0018**). And **remind's arm now clears n≥30 on its own** (32), so its
+> zero is properly powered rather than merely small. The asymmetry IS the
+> finding, and it is no longer resting on 2 events.
+>
+> **🛑 392-A REMAINS MISSED.** The bar is n≥30 **scorable** per arm; the
+> calendar arm returned **25** at 50 trials (50% conversion — 60% last run, so
+> the earlier estimate was optimistic). Alarm is 26. **A missed bar is a
+> falsification, not a redefinition** — the honest statement is that the
+> asymmetry reached significance *anyway*, so further trials would refine the
+> RATE rather than decide the FINDING. **~60 trials would clear it** at the
+> observed conversion.
+>
+> **⚠️ Three caveats, stated rather than buried:**
+> - **The rate is 20% here vs 11.1% (2/18) on 08-27.** Do NOT read that as
+>   worsening — the intervals overlap heavily and n is small on both.
+> - **`haiku` returned 1 scorable of 50** (49 unscorable). That surface is
+>   effectively not measuring anything and should be explained before it is
+>   quoted; it is not evidence of good behaviour there.
+> - **No per-trial thermal is stamped in this artifact**, so unlike the 08-27
+>   run this one carries no thermal reading — recorded as absent rather than
+>   assumed nominal (#215's discipline).
+>
+> **Device runtime: `Version 27.0 (Build 24A5430a)`** — a NEW build, and #398-A's
+> timeline gains a fifth row (`24A5424a` was the 08-27 measurement). Read free
+> off the artifact's own `osVersion`, exactly as #398-A prescribes.
+
 ## 45. 🔧 CarPlay voice mode — scaffold on main, gated on Apple's voice-conversational entitlement
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
@@ -13737,6 +13785,23 @@ configuration the system never enters), **#388** (the beta5 surface sweep).
 > 08-11→08-15 · `24A5418b` 08-17→08-24 · **`24A5424a` 08-24→present**. The
 > genuine no-twin gaps are now two: one week on `24A5418b`, and everything from
 > 08-24 onward.
+
+> **📏 2026-09-01 — THE TIMELINE GAINS A FIFTH ROW, read free off an artifact's
+> own `osVersion` exactly as 398-A prescribes.** #392's `--trials 50` decline
+> run records the device at **`Version 27.0 (Build 24A5430a)`** — newer than the
+> `24A5424a` measured 2026-08-27, so the phone took another OS update in the
+> intervening days.
+>
+> `24A5390f` 07-20→08-11 · `24A5408d` 08-11→08-15 · `24A5418b` 08-17→08-24 ·
+> `24A5424a` 08-24→08-31 · **`24A5430a` from 2026-08-31/09-01**.
+>
+> **The sim/device gap widens again:** the newest runtime we hold is
+> `24A5423a` and our SDK is `24A5422a`, so the device is now **two revisions
+> ahead** of any local twin. **The #324 adoption freeze still does NOT bite** —
+> it triggers only when the SDK is NEWER than a target runtime, and ours is the
+> oldest of the three — but every simulator rate is now measured two revisions
+> away from what Owen runs, and any rate quoted from here should carry its
+> build.
 
 ## 408. 🐛 A GUARDRAIL-DECLINED IMAGE TURN HAS NO ROUTE — on-device `.guardrailViolation` on a sighted turn dead-ends at Retry, and post-#390 there is no way to opt an image DOWN to the OCR path — **FILED 2026-08-25 per #268, from Owen's first on-device vision turn (build 3022, device screenshot). ~~DESIGN ELECTION OWED; measure-informed bars pre-register here when a route is picked.~~** **⟵ ⚖️ RULED route (a) AUTO-DEGRADE ONCE 2026-08-25 (Owen, AskUserQuestion, n=4 in hand) and ✅ BUILT + GATED the same night (branch `408-guardrail-image-degrade`, PR #378, squash `b03fabfb`) — 408-A..E ALL MET, RED-first, and mutation-proven in both directions. BOTH turn paths are armed (`send` and `streamTurn` — the image door's only two call sites). **STAYS OPEN on the DEVICE half, which is a behavioural claim no simulator can make (#324):** nothing here shows the declined laundromat photo now completes on the phone — only Owen's runbook re-send can, and that card is written into the result block.**
 
