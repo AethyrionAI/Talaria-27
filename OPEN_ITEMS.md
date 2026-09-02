@@ -11157,6 +11157,81 @@ once per device session.
 > - **198B-B-B (a positive control so an empty log cannot pass):** the card names one line the app's OWN off-main path emits during those transitions (from `AudioSessionOffMain` / the memo services — the lane reads the code and names the exact marker) and requires it to be PRESENT; absence = the run did not exercise the path, verdict INVALID rather than PASS. [offline]
 > - **198B-B-C:** the runbook card is rewritten to the same bar; the entry's result block states 198B-A stays OWED on device (unchanged) — this lane fixes the instrument, not the finding. [offline]
 
+> **✅ RESULT 2026-09-01 (night) — 198B-B-A/B/C MET, DOCUMENT-ONLY. 198B-A ITSELF
+> STAYS OWED ON DEVICE — this lane fixed the INSTRUMENT, not the finding.**
+>
+> **Emitter count, re-confirmed:** `grep -rn "AVAudioSession_iOS.mm" --include='*.swift' .`
+> returns exactly four hits, all comments/doc-comments naming the historical
+> observation — `TalkSessionRules.swift:22`, `VoiceMemoPlayer.swift:60`,
+> `VoiceMemoRecorder.swift:62`, `VoiceMemoAttachmentTests.swift:238`. **Zero
+> emitters.** The 08-31 audit's finding stands unchanged; this lane did not
+> discover anything new here, it re-verified the premise before cutting the fix.
+>
+> **198B-B-A — the bar is re-cut.** `dispatch/DEVICE-PASS-RUNNING-LIST.md`'s
+> §A1b/A2 fault-log row now carries a runnable PASS/FAIL/INVALID card keyed on
+> the bare filename `AVAudioSession_iOS.mm` at `messageType == fault`, across
+> the full record→play→stop→discard window, with every line number seen
+> recorded (so a renumber is visible, not silently absorbed). The old
+> line-numbered spelling is struck (`~~…:978~~`) with a dated note, not
+> deleted; the raw original finding is kept below it for the record, labeled
+> as evidence rather than as the bar.
+>
+> **198B-B-B — the positive control.** No single existing line covers all
+> three transitions cleanly, so the honest answer is a partial one, stated on
+> the card: `Self.logger.verbose("Voice memo recording started")` —
+> `Talaria/Services/Live/VoiceMemoRecorder.swift:148` (sibling:
+> `"Voice memo recording stopped (<N>s)"` at `:170`) — is the marker used,
+> required PRESENT or the verdict is INVALID rather than PASS. It carries two
+> preconditions now written into the card's Setup: **Developer → Verbose
+> Logging must be ON** (`Logger.verbose(_:)` no-ops silently when the flag is
+> off — off by default — `TalariaLog.swift:44-48,66-70`), and the read must be
+> a **corded live session** — the line is `.debug`-level, which
+> `TalariaLog.swift`'s own doc comment (`:76-79`) says `log collect` does not
+> persist, so the hand-launched + archive route cannot see it. **The control
+> only proves the RECORD leg ran off-main** — `VoiceMemoPlayer` logs nothing
+> on a successful play/stop (its only `Logger` calls are the two `.error()`
+> failure paths, `:112` and `:119`), and `discard()`/`finishRecorder()` are
+> silent on success. Proposed (NOT built this lane — source work, needs its
+> own go): one always-on `.notice` inside `AudioSessionOffMain.run`/
+> `setActive` (`Talaria/Services/Support/TalkSessionRules.swift:150-171`, the
+> single choke point all three transitions already funnel through) —
+> `TalariaLog.logger.notice("AudioSessionOffMain: setActive(\(active)) off-main (#198B)")`
+> — un-gated and `.notice`-level, so it would survive `log collect` and cover
+> record/play/discard from one site instead of three.
+>
+> **198B-B-C — the runbook card, full text (for the orchestrator to
+> republish; the HTML source is not in this repo).**
+>
+> > **Precondition:** build ≥ #198B's fix (PR #371, `02c45440`, build 3022+).
+> > Developer → Verbose Logging: ON. Corded session, read at
+> > `oslogSeverity: ["all"]` (never `["default"]`).
+> >
+> > **Steps:** record a short voice memo → stop → play it back → stop
+> > playback → discard. One continuous session.
+> >
+> > **Claude scores two predicates:** (1) zero lines matching
+> > `eventMessage CONTAINS "AVAudioSession_iOS.mm"` at `messageType == fault`
+> > across the window — record every line number seen regardless of severity;
+> > (2) `subsystem BEGINSWITH "org.aethyrion.talaria"` AND
+> > `eventMessage CONTAINS "Voice memo recording started"` present at least
+> > once (positive control — confirms the record leg's off-main path actually
+> > ran and Verbose Logging was on).
+> >
+> > **PASS** = predicate (1) zero AND predicate (2) present.
+> > **FAIL** = any fault-severity `AVAudioSession_iOS.mm` line, regardless of
+> > (2) — reopens #198B.
+> > **INVALID (not PASS)** = predicate (2) absent — Verbose Logging was off or
+> > the record leg didn't run; redo the pass.
+>
+> **Gate:** document-only change (dispatch doc + this tracker file); per
+> Owen's merge-on-green ruling for docs-only lanes, no app gate is owed.
+> `python3 scripts/oi-invariants.py` run unpiped, exit 0 (see this file's own
+> commit history for the run).
+>
+> **198B-A remains OWED on device** — unchanged by this lane. The next corded
+> sitting runs the re-cut card above against build 3022+ with Verbose Logging
+> ON, and that verdict — not this one — closes #198B.
+
 ## 198A. ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 
 **Two real phone calls, corded whoGoesThere, PID 14087, 2026-08-01.**
