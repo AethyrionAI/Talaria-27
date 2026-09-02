@@ -61,12 +61,13 @@ final class VoiceMemoRecorder {
     /// for the ordering rule; off-main via `AudioSessionOffMain` because the
     /// sync spelling was the `AVAudioSession_iOS.mm:978` main-thread fault.
     @ObservationIgnored var deactivateAudioSession: () async -> Void = {
-        try? await AudioSessionOffMain.setActive(false, options: .notifyOthersOnDeactivation)
+        // One line on purpose — see `VoiceMemoPlayer`'s twin for why.
+        try? await AudioSessionOffMain.setActive(false, options: .notifyOthersOnDeactivation, reason: "memo-record-stop")
     }
 
     /// #198B: the activation half, seamed — see `VoiceMemoPlayer`'s twin.
     @ObservationIgnored var activateForRecording: () async throws -> Void = {
-        try await AudioSessionOffMain.run { session in
+        try await AudioSessionOffMain.run(activating: true, reason: "memo-record-start") { session in
             try session.setCategory(.playAndRecord, mode: .default, options: [.duckOthers])
             try session.setActive(true, options: .notifyOthersOnDeactivation)
         }

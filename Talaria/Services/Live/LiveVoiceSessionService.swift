@@ -302,7 +302,12 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             let prepared = try await prepareWebRTC()
             #endif
 
-            let data = try requireData(await voiceTransport.talkSessionCreate(tuning: voiceTuningProvider()))
+            // #396-Q: name the preset this session is minted with, always-on.
+            // Read ONCE and reused for both the log and the wire, so the line
+            // can never describe a different pick than the one that shipped.
+            let tuning = voiceTuningProvider()
+            Self.logger.notice("\(Self.sessionTuningLogDetail(preset: tuning, engine: "realtime", hostTunings: self.readinessInfo.tunings), privacy: .public)")
+            let data = try requireData(await voiceTransport.talkSessionCreate(tuning: tuning))
             let response = try Self.decoder.decode(TalkSessionResponse.self, from: data)
             voiceSessionID = response.voiceSession.id
             // #139: the user dismissed while this request was in flight. Do not
@@ -390,7 +395,11 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         #else
         let wasCapturing = false
         #endif
-        try? await AudioSessionOffMain.setActive(false, options: .notifyOthersOnDeactivation)
+        try? await AudioSessionOffMain.setActive(
+            false,
+            options: .notifyOthersOnDeactivation,
+            reason: "realtime-session-end"
+        )
         Self.logger.notice(
             "capture chain COLD — was=\(wasCapturing, privacy: .public) audioTrack=released session=deactivated (#302-A)")
         await endRemoteSession()
@@ -722,7 +731,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     /// call when the session is already correctly configured.
     private func reassertAudioSessionForCarAudioIfNeeded() async {
         do {
-            try await AudioSessionOffMain.run { audioSession in
+            try await AudioSessionOffMain.run(activating: true, reason: "realtime-carplay-reassert") { audioSession in
                 let routeHasCarAudio = audioSession.currentRoute.outputs.contains { $0.portType == .carAudio }
                     || audioSession.currentRoute.inputs.contains { $0.portType == .carAudio }
                 guard routeHasCarAudio else { return }
@@ -772,7 +781,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     /// override keep their relative order inside the closure, and callers
     /// await, so nothing downstream starts before activation completes.
     private func configureAudioSession() async throws {
-        try await AudioSessionOffMain.run { audioSession in
+        try await AudioSessionOffMain.run(activating: true, reason: "realtime-session-start") { audioSession in
             try audioSession.setCategory(
                 .playAndRecord,
                 mode: .voiceChat,
@@ -1350,6 +1359,37 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             return "[" + ports.map { "\($0.portType) \"\($0.portName)\"" }.joined(separator: ", ") + "]"
         }
         return "in=\(list(inputs)) out=\(list(outputs)) sampleRate=\(Int(sampleRateHz))Hz"
+    }
+
+    /// **#396-Q — the tuning preset the app actually minted with.** Pure,
+    /// pinned by `VoiceInstrumentLogLineTests`.
+    ///
+    /// #413's 2026-08-26 device pass measured a per-session phantom rate while
+    /// Owen switched between the Noisy and Normal presets, and the archive
+    /// cannot attribute those sessions to a preset — the pick reached the
+    /// plugin as a request field and left no trace in the phone's own record.
+    ///
+    /// **`values=host` is not a placeholder.** 396-P's ruled design resolves
+    /// the vetted `server_vad` numbers HOST-side; the app composes no
+    /// `turn_detection` block and sends only a NAME, so the line states where
+    /// the values live rather than inventing a threshold it never sent.
+    ///
+    /// `hostTunings` is the readiness probe's advertised list: nil means the
+    /// host's plugin predates tuning and IGNORES the field, so the pick does
+    /// not bind. The line says that outright — the same honesty the picker's
+    /// own footnote carries.
+    nonisolated static func sessionTuningLogDetail(
+        preset: String,
+        engine: String,
+        hostTunings: [String]?
+    ) -> String {
+        let accepts: String
+        if let hostTunings {
+            accepts = hostTunings.isEmpty ? "[none]" : "[" + hostTunings.joined(separator: ",") + "]"
+        } else {
+            accepts = "unknown (host predates tuning)"
+        }
+        return "#396 tuning preset=\(preset) engine=\(engine) values=host hostAccepts=\(accepts)"
     }
 
     /// #419-B: `// harness-visible` — the same value the `audio.stopped after Nms`

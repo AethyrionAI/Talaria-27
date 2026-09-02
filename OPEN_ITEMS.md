@@ -115,6 +115,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#56** 🔧 Wave 2 Issue E (GitHub #6) — "Ask Hermes" App Intent — MERGED (PR #11), core device-verified 2026-07-11 …
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#392** 🔴 **A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT** — *"your calendar didn't accept the request"* when the user declined the card. The calendar never saw it; `performCreate` returned *"The user declined"* and the model reported EventKit refused. **MEASURED 2/30 on device 2026-08-21, CALENDAR-ONLY (remind/alarm 0/20)** — which is the finding, not a detail: a fix aimed at declines in general would target the wrong surface. #180's family, #340's shape. Spawned from #199A's re-run rather than keeping that entry open under a changed meaning; bars 392-A..D pre-registered, and 392-A demands n>=30/arm after #372(c) proved tonight what a low base rate costs
+- **#396** 🔉 VOICE IS TOO SENSITIVE on both engines (Owen, 2026-08-22) — four faults characterised separately per engine; **396-B (host knobs re-configured) + the ruled COARSE PICKER shipped** (app PR #361, plugin `e669549`, both hosts on 0.8.0), local half deliberately unbound behind the fault-2 author measurement. **⟵ 2026-09-02: 396-Q instrument MERGED (PR #416, squash SHA filled at merge) — the app now logs the preset it mints with (`#396 tuning preset=… engine=realtime values=host`), always-on, so the next archive attributes rate to preset; the app sends a NAME only, values stay host-side.** Still open: the LOCAL half, 396-D's live before/after quote, and #413's preset attribution once a tuned archive lands
 - **#387** 📝 POST-LAUNCH ONGOING MAINTENANCE — the running list (`private/POST-LAUNCH-MAINTENANCE.md`, gitignored), for obligations that begin at launch and never complete. **NAMED BY OWEN 2026-08-20. Entry 1: watch Apple's PCC pages, because #386's policy QUOTES them and a quote is a snapshot of a page we do not control. NOT BUILT — mechanism chosen at launch**
 - **#74** 🔧 Wave 5 — CarPlay voice upgrade: auto-start, observation tracking, routing (GitHub #19) — **🛑 BLOCKED BY THE iOS 27.0 SIM RUNTIME ACROSS TWO CONSECUTIVE BETAS. Attempted 2026-08-10 on beta4 (24A5390f) and RE-ATTEMPTED 2026-08-11 on beta5 (24A5408d): CarPlay takes the ✓ but no window and no external surface is ever created, while a 26.5 control in the SAME healthy Simulator.app process at the SAME moment brings its window up and writes an 800×480 surface.** App-side config verified correct (entitlement in the sim binary's `__TEXT,__entitlements`, not the ad-hoc signature); **74-A…E NOT RUN** (apparatus never came up — nothing observed-and-failed); **74-F MET** twice. **Pre-flight before any future re-stage: toggle CarPlay on a 27.x sim and WAIT ≥60 s — the control itself takes ~35 s, and "instantly" was wrong.** #45's grant filing stays sequenced behind the pass (Owen re-affirmed 2026-08-10), now knowingly across two beta cycles
 - **#127** 🔧 Monetization scaffold — MERGED DORMANT + gate walk DEVICE VERIFIED 2026-07-17 (fail-open live-confirmed on …
@@ -160,7 +161,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#236** 🔧 MessageIdentityUITests flaked AGAIN — the #195 family's second variant: reply rendered a hair past the 20s …
 - **#220** 🔍 ENGINE-AMBIGUITY AUDIT of past voice verdicts. **#128's mystery SOLVED from source 2026-08-01 (and this …
 - **#398** 🚨 the device is on a runtime we cannot reproduce — **premise MOVED 2026-08-24 (#401): the beta 6 Xcode EXISTS now (27A5252f, iOS-beta-7 SDK/runtime 24A5422a/24A5423a)**; **⟵ same day PM: FLEET ALIGNED — Owen upgraded the phone to beta 7**, first alignment since beta 5; 398-A..C unchanged and 398-B now lands on the runtime where Apple fixed FM excessive tool calling; **⟵ ✅ RAN 2026-08-26 — 398-A + 398-C MET (device runtime timeline measured; gate names its runtime), 398-B DEVICE-OWED (card written). Header provenance corrected: the build string is `logd.0.log`'s, stamped 08-17 not 08-22, so the skew was SEVEN DAYS — and the device ran `24A5390f`/`24A5408d`, both of which we hold, for most of the measurement era. STAYS OPEN on 398-B**
-- **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity — **un-parked and ✅ BUILT + MERGED 2026-08-25 (PR #371, squash `02c45440`)** — awaited off-main transitions + guards + the #397 generation close; 198B-B/C/D met, both prescribed mutations isolating, gate 2547(+4)/14/Release; **only 198B-A remains** (zero fault lines on device — the runbook card targets build 3022)
+- **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity — **un-parked and ✅ BUILT + MERGED 2026-08-25 (PR #371, squash `02c45440`)** — awaited off-main transitions + guards + the #397 generation close; 198B-B/C/D met, both prescribed mutations isolating, gate 2547(+4)/14/Release; **only 198B-A remains** (zero fault lines on device — the runbook card targets build 3022) ⟵ **2026-09-01 the bar was re-cut twice: 198B-BAR (PR #408) replaced the `:978` line-number grep that read PASS while measuring nothing, and 198B-M (2026-09-02, PR #416, squash SHA filled at merge) replaced its verbose `.debug` record-leg-only positive control with an ALWAYS-ON `.notice` at `AudioSessionOffMain`'s choke point (`setActive(<bool>) off-main (#198B) reason=<leg>`) — four attributable legs, `log collect`-visible, so the hand-launched route can score this card too. 198B-A itself STAYS OWED on device; the build floor moved to the 198B-M build**
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
 - **#211A** offer-instead-of-act on READ paths, where no confirmation gate excuses it — **✅ instrument BUILT + MERGED 2026-08-26** (`offer-read`: production-routed vs #211's pinned `readMotion` rollback vs a read-tool-free CEILING that doubles as the scorer's positive control; four buckets, never a union; armed-routed denominator per #215). **Device run OWED** — 211A-D1..D4 pre-registered, D1 is a GATE: if the ceiling arm does not offer, the run is uninterpretable
@@ -749,6 +750,122 @@ native pipeline), **#1** (voice transcripts).
 > - **396-Q-A:** at realtime session configuration the app emits ONE always-on `.notice` naming the preset requested (quiet/normal/noisy or the raw values) and the engine — pinned by a pure formatter test in the `VoiceInstrumentLogLineTests` pattern, RED-first, mutation-proven. [offline]
 > - **396-Q-B:** the runbook's voice cards gain "quote the preset line" in their Record lists, so the next archive attributes rate to preset for free. [offline]
 > - **396-Q-GATE:** lane-gate PASS. [Mac]
+
+> **✅ RESULT 2026-09-02 (the 2026-09-01 night lane, run into the small hours)
+> — 396-Q-A/B/GATE ALL MET.** Shipped with 198B-M in one PR; the gate line
+> below covers both.
+>
+> **396-Q-A — the marker, verbatim:**
+>
+> ```
+> #396 tuning preset=noisy engine=realtime values=host hostAccepts=[quiet,normal,noisy]
+> ```
+>
+> Formatter `LiveVoiceSessionService.sessionTuningLogDetail(preset:engine:hostTunings:)`
+> — `nonisolated static`, pure — at
+> `Talaria/Services/Live/LiveVoiceSessionService.swift:1381-1393`, beside the
+> #418/#419 pair. Emitted ONCE per realtime mint at
+> **`LiveVoiceSessionService.swift:309`**, `.notice`, `privacy: .public`,
+> un-gated.
+>
+> **`values=host` is the honest half, and the brief was right to insist on
+> it.** The app composes no `turn_detection` block — 396-P's ruled design
+> resolves the vetted `server_vad` numbers HOST-side and the app sends only a
+> NAME (`talkSessionCreate(tuning:)`). So the line names where the values live
+> instead of printing a threshold the phone never sent. A line quoting
+> `threshold=0.75` from the app would be this project's own
+> marker-its-component-cannot-emit scar, inverted into a number it cannot
+> vouch for.
+>
+> **`hostAccepts` closes the second attribution hole.** The pick only binds if
+> the host's plugin advertises `tunings` (396-P-E); a host that predates it
+> ignores the field entirely, and a session logged `preset=noisy` on such a
+> host ran on the host default. `hostAccepts=unknown (host predates tuning)`
+> says so on the line, so a future archive cannot read an unbound pick as a
+> bound one. That is the same honesty the picker's own footnote carries — and
+> it is the reason the formatter takes three arguments rather than the two the
+> bar's example named.
+>
+> **One implementation detail worth pinning in prose:** the provider is read
+> ONCE into a local and that same value feeds both the log and the wire
+> (`:308-310`), so the line can never describe a different pick than the one
+> that shipped. Reading `voiceTuningProvider()` twice would have been the
+> obvious spelling and a latent lie.
+>
+> **RED-first:** three pins written against a stub returning `"#396 tuning"` —
+> part of the **13-issue** RED recorded in #198B's block above
+> (`Expectation failed: line.contains("preset=noisy")`,
+> `…("engine=realtime")`, `…("values=host")`,
+> `…("hostAccepts=[quiet,normal,noisy]")`). GREEN after: **14/14**.
+>
+> **MUTATION (the bar's own: drop `preset`).**
+> `"#396 tuning engine=\(engine) values=host hostAccepts=\(accepts)"` ⇒
+> **2 issues, both 396-Q's** — `line.contains("preset=noisy")` at `:206` and
+> `line.contains("preset=normal")` at `:220`. The three 198B-M pins stayed
+> GREEN, so this mutation ISOLATES too. Restored.
+>
+> **396-Q-B — the Record line, for the orchestrator to add to the runbook's
+> voice cards** (they are republished, not in this repo — so the exact text
+> lives here):
+>
+> > **Record:** quote the **`#396 tuning preset=`** line for the session —
+> > the whole line, e.g.
+> > `#396 tuning preset=noisy engine=realtime values=host hostAccepts=[quiet,normal,noisy]`.
+> > One is emitted per realtime session start; it is `.notice` and un-gated,
+> > so `sudo log collect --device-udid <UDID>` sees it as well as a corded
+> > read. Predicate:
+> > `subsystem BEGINSWITH "org.aethyrion.talaria" AND eventMessage CONTAINS "#396 tuning preset="`.
+> > **If `hostAccepts=unknown` the host's plugin predates tuning and the pick
+> > did NOT bind** — that session is not attributable to a preset and must not
+> > be scored as one. If the line is absent, the build predates 396-Q or the
+> > session was NATIVE, not realtime (the native engine binds no preset and
+> > emits none).
+>
+> **GATE (both lanes — 198B-M and 396-Q shipped together):**
+> `TALARIA_SIM_NAME=CC-lane-3 scripts/mac/lane-gate.sh` — **GATE: PASS on
+> 24A5423a**, **2840** Swift Testing tests / **15** XCUITest / Release build
+> clean, no Swift compile errors in Release. No new Swift files, so no
+> `xcodegen generate` was owed.
+>
+> **THREE runs, and the count moved between them for two different reasons
+> — both stated, because a bare "+6" would be ambiguous here.**
+>
+> | run | tree | verdict | Swift Testing |
+> |---|---|---|---|
+> | 1 | pre-rebase | **FAIL (4 checks)** — real, see below | 2838 / 2 issues |
+> | 2 | pre-rebase, pin repaired | PASS | **2838** = baseline **2832 + 6 exact** |
+> | 3 | rebased onto `aec772ab` | PASS | **2840** — main itself gained 2 while this lane ran |
+>
+> So the lane's own contribution is **+6 exact** (the three 198B-M pins and
+> the three 396-Q pins), measured on run 2 against the stated 2832 baseline;
+> run 3's 2840 is that same +6 on a baseline that had moved to 2834 under
+> four commits that merged mid-lane. Re-gated after the rebase because those
+> commits touched COMPILED inputs (`LocalChatBackend+IntentRouting.swift`,
+> `DeviceToolBeltTests.swift`, the privacy-manifest tests) — a docs-only
+> move would not have owed it.
+>
+> **Run 1's failure was real, not a flake** — the #399 structural-pin
+> regression written up in #198B's block above; 2 issues, both
+> `deactivationIsSpelledOnlyInsideTheInjectableSeam`. The known #219
+> XCUITest flake did **not** appear in any of the three runs.
+>
+> **The rebase was checked for #424's hazard** (an invariants checker that
+> passed nine times over a tracker missing an entry): entry headers were
+> counted and set-diffed before and after — 63 on `origin/main`, 63 after,
+> **empty difference**, no entry dropped. `python3 scripts/oi-invariants.py`
+> run unpiped, exit 0, before and after.
+>
+> **XCUITest count verified by hand rather than taken from the script:** 30
+> `Test Case '-[` lines = 15 started + 15 passed, **0 failed**, over 14
+> distinct names — `TalariaUITestsLaunchTests.testLaunch` legitimately runs
+> twice (it is parameterised per launch configuration), which is why 15
+> executions and 14 names are both correct and neither is a miscount.
+>
+> **What is still open on #396** is unchanged by this lane: the LOCAL half
+> (parked behind the fault-2 author measurement), 396-D's live before/after
+> quote, and #413's per-session preset attribution — which is now
+> *possible* for the first time, on the next tuned archive, and that was the
+> whole point.
 
 ## 392. 🔴 A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT — *"your calendar didn't accept the request"* when the user declined the card — **MEASURED 2/30 ON DEVICE 2026-08-21 (#199A's re-run), CALENDAR-ONLY. Spawned rather than kept inside #199A, whose own claim is refuted. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built + merged 2026-08-23 (PR #353) with NO treatment elected, per Owen's route; the n≥30 device run is what remains.**
 
@@ -11780,6 +11897,117 @@ once per device session.
 > - **198B-M-A:** `AudioSessionOffMain`'s single choke point (`TalkSessionRules.swift` ~:150-171, the `run`/`setActive` path all three memo transitions funnel through) emits ONE always-on `.notice` naming the transition — `AudioSessionOffMain: setActive(<bool>) off-main (#198B)` or equivalent — pinned by a pure formatter test in the `VoiceInstrumentLogLineTests` pattern. RED-first; mutation (drop the field) re-reddens. [offline]
 > - **198B-M-B:** the device card's positive control is re-pointed at that line (present ⇒ the path ran; absent ⇒ INVALID); the `.debug` record-leg line is demoted to optional. [offline]
 > - **198B-M-GATE:** lane-gate PASS. 198B-A itself stays OWED on device. [Mac]
+
+> **✅ RESULT 2026-09-02 (the 2026-09-01 night lane, run into the small hours)
+> — 198B-M-A/B/GATE ALL MET. 198B-A ITSELF STILL STANDS OWED ON DEVICE: this
+> lane, like the 198B-BAR lane before it, fixed the INSTRUMENT and not the
+> finding.**
+>
+> **198B-M-A — the marker, verbatim:**
+>
+> ```
+> AudioSessionOffMain: setActive(true) off-main (#198B) reason=memo-record-start
+> ```
+>
+> Formatter `AudioSessionOffMain.setActiveLogDetail(active:reason:)` —
+> `nonisolated static`, pure, no I/O — at
+> `Talaria/Services/Support/TalkSessionRules.swift:174-176`, in the #418/#419
+> shape (`VoiceInstrumentLogLineTests`). Emitted at
+> **`TalkSessionRules.swift:208`**, inside `AudioSessionOffMain.run`, at
+> `.notice`, `privacy: .public`, **un-gated by Verbose Logging** — the whole
+> point, since `Logger.verbose(_:)` writes at `.debug` and `log collect` does
+> not persist that (`TalariaLog.swift:76-79`).
+>
+> **The choke point is TWO entry points, not one, and the 09-01 bar text did
+> not know that.** The bar says *"the `run`/`setActive` path all three memo
+> transitions funnel through"* — true, but they arrive by different doors:
+> the DEACTIVATIONS call `AudioSessionOffMain.setActive(false, …)` while the
+> ACTIVATIONS ride `AudioSessionOffMain.run { setCategory; setActive(true) }`,
+> because #198B seamed category+activation into one ordered hop. `run`'s
+> closure is **opaque** — the direction cannot be read out of it — so `run`
+> gained an `activating: Bool?` parameter by which a compound caller declares
+> the transition it performs, and `setActive` now delegates through it. One
+> emitter, one formatter, both doors. `activating: nil` (the default) emits
+> nothing, which is what the route-read hop at
+> `LiveVoiceSessionService.swift:699` wants.
+>
+> **Emitted on ENTRY, not on success — a deliberate choice.** A control that
+> vanished when the transition threw would score the single most interesting
+> run INVALID instead of surfacing it, and the claim the line makes ("this
+> ran off-main") is true of the attempt. Recorded here because it is exactly
+> the kind of decision a later reader would otherwise assume was an oversight.
+>
+> **Call sites, all reasons explicit** (`reason:` has no default on
+> `setActive`, so a new call site cannot be silently unnamed):
+>
+> | reason | site |
+> |---|---|
+> | `memo-record-start` | `VoiceMemoRecorder.swift:73` |
+> | `memo-record-stop` | `VoiceMemoRecorder.swift:64` |
+> | `memo-playback-start` | `VoiceMemoPlayer.swift:75` |
+> | `memo-playback-stop` | `VoiceMemoPlayer.swift:62` |
+> | `realtime-session-start` | `LiveVoiceSessionService.swift:784` |
+> | `realtime-session-end` | `LiveVoiceSessionService.swift:398` |
+> | `realtime-carplay-reassert` | `LiveVoiceSessionService.swift:734` |
+> | `native-pipeline-stop` | `NativeVoicePipelineService.swift:399` |
+>
+> The four memo reasons are what the device card scores; the other four are
+> free coverage the same choke point buys, and the card says to ignore them.
+>
+> **RED-first, and the RED is recorded rather than asserted.** Six pins were
+> written against a stub formatter returning `"AudioSessionOffMain: off-main"`
+> and the suite reported **`Test run with 14 tests in 1 suite failed after
+> 0.018 seconds with 13 issues`** — every new expectation named, e.g.
+> `Expectation failed: line.contains("setActive(true)")`. Real formatter ⇒
+> **`Test run with 14 tests in 1 suite passed`**; the suite's count MOVED 8 → 14
+> (three pins here, three for #396-Q).
+>
+> **MUTATION (the bar's own: drop the `active` field).**
+> `"AudioSessionOffMain: setActive off-main (#198B) reason=\(reason)"` ⇒
+> **2 issues, both 198B-M's** — `line.contains("setActive(true)")` at
+> `:146` and `off.contains("setActive(false)")` at `:161`. The three #396-Q
+> pins stayed GREEN, so the mutation ISOLATES. Restored.
+>
+> **198B-M-B — the device card is re-pointed** (`dispatch/DEVICE-PASS-RUNNING-LIST.md`,
+> the §A1b/A2 `198B-A` card the 198B-BAR lane re-cut). Predicate 2 is now
+> `eventMessage CONTAINS "AudioSessionOffMain: setActive("`, with a table of
+> the four memo `reason=` values and an instruction to **record which appeared**
+> — all four ⇒ every leg ran off-main; some ⇒ the fault-absence result covers
+> only those legs, and the verdict says so instead of generalising. The old
+> `"Voice memo recording started"` `.debug` line is **demoted to optional**
+> ("its absence is **not** an INVALID"), Verbose Logging drops from *required*
+> to *optional*, and the card now accepts the **hand-launched
+> `log collect`** route as well as the corded one, which the `.debug` control
+> could never support. The Setup build floor moved to the 198B-M build with a
+> dated note: a build between 3022 and this one carries the FIX but not the
+> CONTROL and can therefore only ever score INVALID.
+>
+> **🔴 THE GATE CAUGHT A REAL REGRESSION ON THE FIRST RUN, and it is worth
+> writing down because it is #399's pin working exactly as designed.**
+> Adding a `reason:` argument, this lane reformatted the two memo
+> deactivation calls across four lines — which **split the literal
+> `VoiceMemoAttachmentTests.deactivationIsSpelledOnlyInsideTheInjectableSeam`
+> greps for**, so its per-file count went 1 → 0 and the gate came back
+> `GATE: FAIL (4 checks)` / *"Test run with 2838 tests in 244 suites failed
+> … with 2 issues"* — `Expectation failed: direct == 1`, once per memo
+> service. Nothing about the behaviour changed; a purely cosmetic reformat
+> was enough. **Both deactivation calls are now single-line with a comment
+> saying why.** And the first repair reintroduced the same fault from the
+> other side: the explanatory comment QUOTED the literal, taking the count
+> 1 → 2, because the pin reads the whole file and cannot tell code from
+> prose. That is the identical trap #198B's own 2026-08-25 block recorded
+> ("two COMMENT spellings, reworded") — met again, by the lane that had
+> just read the note. **A source-reading pin constrains the formatting and
+> the comments of the file it guards, and that constraint is invisible at
+> the call site until it fires.**
+>
+> **198B-M-GATE:** see the shared gate line in #396's result block below —
+> one gate covers both lanes (they shipped in one PR).
+>
+> **What this does NOT do.** It does not close #198B. The fault-absence bar
+> still needs a corded or collected device session; all this lane changed is
+> that an empty log can no longer pass it, and that play and discard are now
+> visible to the check at all.
 
 ## 198A. ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 

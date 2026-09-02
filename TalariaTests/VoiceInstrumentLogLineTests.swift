@@ -121,4 +121,122 @@ struct VoiceInstrumentLogLineTests {
         )
         #expect(line.contains("in=[none]"))
     }
+
+    // MARK: - #198B-M audio-session transition (the memo path's positive control)
+
+    /// **Why this line exists.** #198B-A's device bar is an ABSENCE bar — zero
+    /// `AVAudioSession_iOS.mm` fault lines across a memo record→play→discard
+    /// session — and an absence bar with no positive control passes on an
+    /// empty log. The 198B-BAR lane (PR #408) could only find ONE app-emitted
+    /// marker on that path: a `.debug` line, verbose-gated, on the RECORD leg
+    /// alone, which `log collect` does not persist. So the control could not
+    /// see play or discard at all.
+    ///
+    /// This line is emitted from `AudioSessionOffMain` — the single off-main
+    /// choke point every memo transition funnels through — at `.notice`,
+    /// un-gated. Present ⇒ the path ran; absent ⇒ the run did not exercise it
+    /// and the verdict is INVALID rather than PASS.
+
+    @Test("an activation names its direction, its reason, and the item")
+    func activationNamesDirectionReasonAndItem() {
+        let line = AudioSessionOffMain.setActiveLogDetail(
+            active: true,
+            reason: "memo-playback-start"
+        )
+        #expect(line.contains("setActive(true)"))
+        #expect(line.contains("reason=memo-playback-start"))
+        #expect(line.contains("off-main"))
+        #expect(line.contains("#198B"))
+    }
+
+    /// The control has to separate the two halves of a transition: a
+    /// stop-then-start emits BOTH, and a line that could not say which is
+    /// which would re-open the ordering question 198B-B closed.
+    @Test("a deactivation is distinguishable from an activation")
+    func deactivationIsDistinguishableFromActivation() {
+        let off = AudioSessionOffMain.setActiveLogDetail(
+            active: false,
+            reason: "memo-playback-stop"
+        )
+        #expect(off.contains("setActive(false)"))
+        #expect(!off.contains("setActive(true)"))
+        #expect(off.contains("reason=memo-playback-stop"))
+    }
+
+    /// The reason is what lets one predicate attribute a line to the RECORD,
+    /// the PLAY or the DISCARD leg — without it the control proves only that
+    /// *something* touched the session.
+    @Test("each leg's reason rides its own line verbatim")
+    func eachLegsReasonRidesItsOwnLine() {
+        let record = AudioSessionOffMain.setActiveLogDetail(
+            active: true,
+            reason: "memo-record-start"
+        )
+        let discard = AudioSessionOffMain.setActiveLogDetail(
+            active: false,
+            reason: "memo-record-stop"
+        )
+        #expect(record.contains("reason=memo-record-start"))
+        #expect(!record.contains("reason=memo-record-stop"))
+        #expect(discard.contains("reason=memo-record-stop"))
+    }
+
+    // MARK: - #396-Q the tuning preset the app mints with
+
+    /// **Why this line exists.** #413's 2026-08-26 device pass measured a
+    /// per-session phantom rate while Owen switched between the Noisy and
+    /// Normal voice-tuning presets — and the archive cannot attribute those
+    /// sessions to a preset, because the app never logged the tuning it minted
+    /// with. The pick reaches the plugin as a request field and vanishes from
+    /// the phone's own record.
+    ///
+    /// **The app sends a NAME, not numbers.** Vetted `server_vad` values are
+    /// resolved HOST-side (396-P's ruled design — the app never composes
+    /// `turn_detection`), so the line says `values=host` rather than inventing
+    /// a threshold the app did not send.
+
+    @Test("the tuning line names the preset, the engine, and where the values live")
+    func tuningLineNamesPresetEngineAndValueOwner() {
+        let line = LiveVoiceSessionService.sessionTuningLogDetail(
+            preset: "noisy",
+            engine: "realtime",
+            hostTunings: ["quiet", "normal", "noisy"]
+        )
+        #expect(line.contains("#396"))
+        #expect(line.contains("preset=noisy"))
+        #expect(line.contains("engine=realtime"))
+        #expect(line.contains("values=host"))
+    }
+
+    /// `.normal` is the default, so it is exactly the case an absent line
+    /// would be confused with — it must be logged like any other pick.
+    @Test("the default pick is logged too, so absence stays unambiguous")
+    func theDefaultPickIsLoggedToo() {
+        let line = LiveVoiceSessionService.sessionTuningLogDetail(
+            preset: "normal",
+            engine: "realtime",
+            hostTunings: ["quiet", "normal", "noisy"]
+        )
+        #expect(line.contains("preset=normal"))
+    }
+
+    /// A host whose plugin predates tuning ignores the field, so the pick
+    /// does NOT bind. The line has to say the difference rather than imply
+    /// effect — the same honesty the picker's own footnote carries.
+    @Test("a host that predates tuning is stated, never implied to have bound")
+    func aHostThatPredatesTuningIsStated() {
+        let unknown = LiveVoiceSessionService.sessionTuningLogDetail(
+            preset: "noisy",
+            engine: "realtime",
+            hostTunings: nil
+        )
+        let bound = LiveVoiceSessionService.sessionTuningLogDetail(
+            preset: "noisy",
+            engine: "realtime",
+            hostTunings: ["quiet", "normal", "noisy"]
+        )
+        #expect(unknown.contains("hostAccepts=unknown"))
+        #expect(bound.contains("hostAccepts=[quiet,normal,noisy]"))
+        #expect(!bound.contains("unknown"))
+    }
 }
