@@ -2497,7 +2497,105 @@ two real phone calls the first time.
 **Then:** one call per engine, engine named in the log each time. Cheap once the
 line exists — the expensive part is Shelley's time, and this is two more calls.
 
-### The `AVAudioSession` hang-risk FAULT — found in the same log, unrelated to A1
+### The `AVAudioSession` hang-risk FAULT — found in the same log, unrelated to A1 · #198B-A · **RE-CUT 2026-09-01 (198B-BAR lane) — see the runnable card below**
+
+> **🔴 2026-08-31 audit finding, folded in here 2026-09-01: this row's own
+> grep target is an ABSENCE bar on a string we do not control, and it fails
+> SILENTLY GREEN.** ~~Grep the log for the literal spelling
+> `AVAudioSession_iOS.mm:978`.~~ `:978` is a LINE NUMBER inside Apple's own
+> `AVAudioSession_iOS.mm`, zero emitters in our source (confirmed again this
+> lane — the four hits in the tree are all comments/doc-comments naming the
+> historical observation, never a `log`/`Logger` call), and the device has
+> since moved OS builds (`24A5424a` as of 2026-08-27, this row's own log was
+> read on an EARLIER build). If Apple renumbers or rewords the fault, the grep
+> returns zero and the card reads **PASS** while testing nothing — the
+> project's usual scar (a marker its component cannot emit) inverted into a
+> check that always *succeeds*. Full analysis:
+> `planning/reports/2026-08-31-runbook-audit-logscored.md` (card `198ba`).
+> **The fix #198B shipped (PR #371, `02c45440`, build 3022) is untouched by
+> this — only the verification step was broken.** The original raw log this
+> row quotes is kept below for the record; it is evidence, not the bar.
+>
+> **Re-cut bar, runnable now:**
+
+- [ ] **Setup.**
+  1. Build ≥ the #198B fix (PR #371, `02c45440` — build **3022** or later
+     staged from it). An older build measures the pre-fix code, not the
+     defect this card checks for.
+  2. Settings → Developer → **Verbose Logging: ON.** Required for the
+     positive-control marker below — it is off by default and the marker
+     no-ops silently when it is (`TalariaLog.verbose(_:)`,
+     `Talaria/Core/TalariaLog.swift:44-48`).
+  3. **Corded** session (Xcode bridge `GetConsoleOutput`), read at
+     `oslogSeverity: ["all"]` — never `["default"]`, which is what hid this
+     fault for weeks the first time (recorded twice already in this file, at
+     §A1b/A2's original block above and §V1's log-route note). If reading a
+     hand-launched pass instead, pull with
+     `sudo log collect --device-udid <UDID>` then `log show --archive … --info --debug`
+     — but see the positive-control caveat below before trusting that route
+     for this card specifically.
+
+- [ ] **Steps.** Voice Memo composer: **record** a short memo → **stop** →
+  **play** it back → **stop** playback → **discard** the memo. One
+  continuous session; note the start/end wall-clock times for the window.
+
+**What Claude scores from the log — two predicates, both required:**
+
+1. **THE BAR ITSELF (fault absence).** Zero lines matching
+   `eventMessage CONTAINS "AVAudioSession_iOS.mm"` at `messageType == fault`
+   anywhere in the session window (record start → discard). Archive-route
+   predicate:
+   `log show --archive <path> --predicate 'eventMessage CONTAINS "AVAudioSession_iOS.mm" AND messageType == fault'`.
+   Corded route: grep the full `oslogSeverity: ["all"]` dump for
+   `AVAudioSession_iOS.mm` and check each hit's severity by eye (the
+   `pattern:` argument is unreliable — see the Xcode-bridge gotcha in
+   CLAUDE.md). **Record every `AVAudioSession_iOS.mm:<N>` line number seen,
+   fault or not** — a renumber is now visible instead of silently absorbed by
+   a stale `:978`.
+2. **POSITIVE CONTROL (required — an empty log must not read as PASS).**
+   `subsystem BEGINSWITH "org.aethyrion.talaria"` (two app subsystems exist —
+   this catches both) AND `eventMessage CONTAINS "Voice memo recording started"`
+   — the exact static text logged at `Talaria/Services/Live/VoiceMemoRecorder.swift:148`
+   via `Self.logger.verbose(...)`. Must appear **at least once** in the
+   window. Its sibling `"Voice memo recording stopped (<N>s)"`
+   (`VoiceMemoRecorder.swift:170`) is a free second confirmation of the same
+   leg.
+   - **Known gap, not fixed by this lane:** this control confirms only the
+     **RECORD** leg ran through the off-main path. `VoiceMemoPlayer` emits no
+     line on a successful play/stop — its only `Logger` calls are the two
+     `.error()` failure paths at `VoiceMemoPlayer.swift:112` and `:119` — and
+     `discard()`/`finishRecorder()` are silent on success too. A PASS below
+     is the best verdict this instrument can give; it does not by itself
+     prove the play/discard legs were off-main on THIS run (though #198B's
+     source fix, read at HEAD, routes all three through the same
+     `AudioSessionOffMain` seam — see `TalkSessionRules.swift:150-171`,
+     `VoiceMemoPlayer.swift:61-76`, `VoiceMemoRecorder.swift:63-74`).
+   - **Proposed fix for full coverage (NOT built in this lane — source work,
+     needs its own go):** one always-on `.notice` line inside
+     `AudioSessionOffMain.run`/`setActive` themselves
+     (`Talaria/Services/Support/TalkSessionRules.swift:150-171`) — the single
+     choke point every memo transition (record activate/deactivate, playback
+     activate/deactivate, discard's deactivate) already funnels through —
+     e.g. `TalariaLog.logger.notice("AudioSessionOffMain: setActive(\(active)) off-main (#198B)")`.
+     Un-gated by Verbose Logging and `.notice`-level so it survives
+     `log collect` on the hand-launched route, unlike the `.verbose()`
+     lines used above.
+
+**PASS** = zero fault-severity `AVAudioSession_iOS.mm` lines in the window
+**AND** the positive-control marker (predicate 2) is present.
+
+**FAIL** = any fault-severity `AVAudioSession_iOS.mm` line in the window,
+regardless of whether the positive control is present — the finding stands
+either way, and this reopens #198B rather than closing it.
+
+**INVALID (not PASS)** = the positive-control marker is absent. That means
+either Verbose Logging was left off or the record leg never actually ran —
+the run proves nothing about the fault either way and must be redone with
+Verbose Logging confirmed ON before recording starts.
+
+**Verdict goes to `OPEN_ITEMS.md` #198B.**
+
+*(original row text follows, kept for the record — the raw finding, not the bar)*
 
 ```
 17:55:51.682 [AVAudioSession Hang Risk] AVAudioSession_iOS.mm:978
