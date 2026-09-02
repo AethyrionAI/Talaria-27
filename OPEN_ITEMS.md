@@ -3872,6 +3872,13 @@ Logged 2026-07-23.
 > prose-failure instance, the health-permission card, the `lastErrorMessage`
 > gate, and #139's residual copy.
 
+> **📋 2026-09-01 — 180-CONVENTION LANE OPENED (Owen's election, subagent + merge-on-green authority).** The 08-25 close-out left four members outstanding; three are buildable now and one is HELD. Verified at HEAD: `SkillsScreen.swift:76,103`, `TasksScreen.swift:85,109`, `InsightsScreen.swift:89,118` still read raw `store.lastErrorMessage`, and `ConnectHostCopy` is referenced only by Connect Host files. Bars pre-registered before code:
+> - **180-C-A (the three host-fed screens join the convention):** Skills/Tasks/Insights render host failures through the Connect Host honest-degradation vocabulary (the same closed set or its shared successor — the lane reads the 08-25 ruling for the convention's definition), never a raw `lastErrorMessage` string. Structural pin: no direct render of `lastErrorMessage` on those screens outside the mapper. RED-first; a mutation that bypasses the mapper re-reddens it. [offline]
+> - **180-C-B (the #241-inherited prose-failure instance carries the degraded marker):** per this entry's own description of that instance; the lane names the site in its result. [offline]
+> - **180-C-C (#139's residual copy corrected):** per this entry's own description. [offline]
+> - **180-C-D (HELD, explicitly out of scope):** the health-permission card waits on Owen's `PermissionStatus` ruling — untouched by this lane, and the result says so. [—]
+> - **180-C-GATE:** `lane-gate.sh` PASS, count moved. Every string added is closed-vocabulary and pinned. [Mac]
+
 ## 182. 🎲 Second flaky UI test — `testMockPairingViaSettingsEntryPoint` launch timeout — **⟵ THE TEST WAS RENAMED 2026-08-25 (#309 Lane B): it is `testConnectingAHostViaSettingsEntryPointLandsBackInChat` now, and it drives the Connect Host wizard rather than the deleted pairing screen. ⚠️ COUNTER 1 → 2: it flaked twice during that lane's own gate runs, together with its two sibling journeys, at the CONTINUE tap — a synthesized tap landing without invoking the action. PROVEN a flake rather than a regression by re-running the gate's exact invocation over identical bytes (14/14). Hedged with #164's fix shape — a bounded re-tap loop on the condition, not a longer timeout.**
 
 **Observed 2026-07-24 during the Bundle B lane (PR #144).** Flaked once mid-session with a launch
@@ -7524,6 +7531,13 @@ is NOT), **#215** (why a rate needs its denominator), `DeviceActionTools.swift:2
 > reminder that carries no due date — gets no guard-side catcher. The omission
 > itself (85%, both prose fixes falsified) remains this entry's open work, and
 > it stays a model/prompt/tool problem. **#340 does NOT close with this.**
+
+> **📋 2026-09-01 — 340-PROMOTE LANE OPENED (Owen's election, subagent + merge-on-green authority).** The board pass found this entry's own promotion condition — *"Then, and only then, the guide text promotes"* — SATISFIED by 340-H5′-A/B on 08-27 and **never executed**: at HEAD the production `ReminderCreateTool.Arguments.due` guide (`DeviceActionTools.swift:357`) is still the OLD text, the winning text lives only inside `struct ReminderCreateToolBareclock` (`:770`, `#if DEBUG`), and `DeviceToolBelt.swift:64` instantiates the plain tool. A header stale in the claiming-open direction hid it for five days. Bars pre-registered before code:
+> - **340-P-A (the winner ships):** the production `due` guide equals the 340-H5′ winning bareclock text VERBATIM, pinned by a test on the PRODUCTION type. RED-first: the pin is written and watched RED against the old guide before the swap; a revert-mutation re-reddens it. [offline]
+> - **340-P-B (the harness copy leaves):** `ReminderCreateToolBareclock` and the instrument's `armed-bareclock` cell are retired (or the cell re-pointed at production and renamed honestly) — `grep -rn Bareclock Talaria/` returns zero non-comment hits; any cell-enum/count pins updated DELIBERATELY and named in the result. [offline]
+> - **340-P-C (#218 discipline):** the promoted string is compiled in Release — Release build green, nothing left behind `#if DEBUG`. [Mac]
+> - **340-P-D (scope honesty):** this lane does NOT close #340. The ~55% residual omission is model/prompt behaviour with 340-E ruled NO (08-31); the result block re-files it as WATCH-shaped with the next measurement named. [offline]
+> - **340-P-GATE:** `lane-gate.sh` PASS, count reconciled. Header pointer appended in the same commit (the 08-23 header's "what is actually owed" clause is falsified twice over). [Mac]
 
 ## 334. 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips 5/5→0/5 between ctxlen 575 and 4,073; `'Say that again more briefly'` misroutes at BOTH 551 and 4,073 — **MEASURED 2026-08-12 on the iPad (the #333 runner's first scored probe, n=5/band, errors=0). ~~Mechanism UNKNOWN and deliberately not guessed.~~ ⟵ 2026-08-25 (Opus investigation): the mechanism was NEVER unknown — archived #206 named, measured, and published it 2026-07-30, and this entry never cited it. This is a REPLICATION of #206's offer-tail finding, not a mystery. ~~Product question below awaits Owen; bars pre-register when a route is picked.~~ ⟵ ⚖️ RULED + 🟢 APP HALF LANDED 2026-08-25 (PR #377, merge `12217bdb`): ARMED IS SAFE, so **the rows were mislabelled, not the router** — three `expected:` labels corrected, E1/E2 added to the grid (band count **22 → 34**), the no-op suffix pinned, #206's retracted length rationale removed from the router's comment, and NO router behavior change (the production diff is comment-only). ⏳ **STAYS OPEN:** E1 and E2 are DEVICE rows — the simulator cannot generate (#324) — so this entry closes on the next `long-context-probe` device run, which rides the runbook.**
 
@@ -15466,6 +15480,11 @@ scope: **wholesale, or a permanent dual path?**
 > ten minutes of `git log` and one `grep` — before any code, which is the only
 > time it is cheap.
 
+> **📋 2026-09-01 — the last open bullet (the `#200V` warm-up row) OPENED as a script lane (Owen's election). Verified at HEAD: `report_by_cell()` (`scripts/mac/score-due-omission.py:249-291`) has zero `warm` references and prints `cell warmup — 1 TRIALS` like a measured cell. Bars pre-registered before code:**
+> - **373-W-A:** rows tagged as the app's warm-up (`shape="warmup"` / `cell=warmup`, per `LocalChatBackend+Battery.swift:884,908,1743`) are excluded from the per-cell table and reported on one labelled "discarded warm-up" line with their count — never as a cell. Replayed against the #200V artifact, the warm-up row no longer appears as a cell. [offline]
+> - **373-W-B (RED-first):** a scorer self-test with a fixture containing a warm-up row is written first and watched RED; GREEN after; removing the exclusion re-reddens it. [offline]
+> Verification standard: the scorer's own test + the artifact replay; no app gate. Closes the bundle if nothing else is listed open in this entry — the lane checks and says so.
+
 ## 379. 🧭 156e — the PROJECTS introspection surface — **FILED 2026-08-18 night, re-homed from #156's close (Projects exist in hermes-agent — #159's correction). Post-launch candidate; Owen routes.** **⟵ HEADER CORRECTED 2026-08-23: RULED — Owen PARKED this post-launch on 2026-08-18 ~22:40. Not an open routing question; do not re-raise it before launch.**
 
 > **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): PARKED
@@ -15493,3 +15512,10 @@ counter is correct, so every historical PASS count stands.
 passed/failed/total rather than a single number. Belongs beside #300's
 classifier; `scripts/mac/lane-gate-classify-test.sh` is the 1 s harness to
 extend. Not built tonight — filed so the next red is read correctly.
+
+> **📋 2026-09-01 — LANE OPENED (Owen's election; script-only). Bars pre-registered before code — and the VERIFICATION STANDARD is stated here because a script-only change does not earn a 20-minute app gate:**
+> - **423-A (red runs count honestly):** on a red run the gate reports XCUITest passed/failed/total derived from the `Test Case '-[…]' started/passed/failed` ledger — replayed against BOTH 09-01 red logs (`talaria-gate.OvEY5t4EZE`, `.8vQbvPdIOy`) it prints 14/1/15, and against a green log (`talaria-gate.qGBfEfdv9p`) it prints 15. [offline]
+> - **423-B (RED-first on the self-test):** `scripts/mac/lane-gate-classify-test.sh` gains a red-run fixture; run BEFORE the fix it reproduces the fall-through ("2"), i.e. the self-test itself is the watched RED; after the fix it passes in ~1 s. [offline]
+> - **423-C (green runs unchanged):** the green-run count is byte-identical to today's output, so no historical PASS count changes meaning. [offline]
+> Merge on 423-A/B/C; no app gate required — stated deliberately.
+
