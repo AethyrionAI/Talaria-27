@@ -725,6 +725,25 @@ native pipeline), **#1** (voice transcripts).
 > itself pin the OJAMD arm specifically. The **#224 approvals-picker**
 > flip is untouched by #413's evidence and remains open.
 
+> **📎 2026-09-01 — WHAT THE ESCALATION READ OF THE VOICE CLUSTER LEAVES ON
+> THIS ENTRY (synthesis under #138).**
+> - **The local fault-2 discriminator has never fired in any archive.** All
+>   ten archives on the Mac were searched for `fallback endpointer fired`:
+>   zero hits. The only native-engine session in them (`talaria-cards`,
+>   08-31 20:05:12–20:05:23, 11 s, four rows) shows no cut-off at all, so
+>   its silence is not a measurement of fault 2. The LOCAL half stays
+>   parked exactly where the ruling left it; the archives cannot advance it.
+> - **396-Q (gap, filed):** the app never logs the tuning it mints with —
+>   `talkSessionCreate(tuning:)` is silent — so #413's 08-26 sessions
+>   cannot be attributed to Noisy vs Normal from the device log. One
+>   ungated `.notice` at mint (`#396 tuning=<raw> engine=realtime`) closes
+>   it; cheap enough to ride #138's V3 instrument lane.
+> - **Fault 3 is decomposed, and the picker cannot reach it:** it is #138's
+>   ONSET residual (every dirty first utterance lands ≤0.6 s after
+>   `audio.started`); the threshold path is dead (138-E), `interrupt_response:
+>   false` remains the blunt option, and the precise candidate is #138's
+>   proposed onset gate (V5), which is a code change, not tuning.
+
 ## 392. 🔴 A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT — *"your calendar didn't accept the request"* when the user declined the card — **MEASURED 2/30 ON DEVICE 2026-08-21 (#199A's re-run), CALENDAR-ONLY. Spawned rather than kept inside #199A, whose own claim is refuted. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built + merged 2026-08-23 (PR #353) with NO treatment elected, per Owen's route; the n≥30 device run is what remains.**
 
 **The measurement** (`planning/reports/2026-08-21-199a-decline.json`, decline
@@ -2267,6 +2286,186 @@ Logged 2026-07-20 (Session V launch sweep).
 > (#413's own words: "each further incidental AirPods session tightens it,
 > none needs to be scheduled") — so this is a lean, not a closed control,
 > and 138-L itself is not re-run.
+
+> **🔬 2026-09-01 — ESCALATION SYNTHESIS OF THE VOICE CLUSTER (#138 · #413 ·
+> #418 · #419 · #396), scored from every archive on the Mac plus the system
+> rows nobody had read. This block is the cluster's one-page home; the
+> other four entries carry only what is theirs and point here.** Runtime
+> per #398-A: the 08-22 archives ran on `24A5418b`, the 08-26 and 08-30
+> archives on `24A5424a` (device timeline, resolved by date).
+>
+> ### A correction first — this entry's "ROOT CAUSE of the blind guard" is falsified on its own archive
+>
+> The 19:56 block blamed `conversation.item.created` (`:825`) for zeroing the
+> playback tracker mid-utterance. In that very archive `audio.started` is at
+> **31.813**, the "idle" `speech_started` at **33.285**, and the NEXT
+> `response.created` at **36.454** — an assistant item follows its own
+> `response.created`, so **no item arrived in the window**, and the item
+> handler never writes `voiceState`, so it cannot print `state=listening`.
+> The only code that nils the stamp AND sets `.listening` is
+> `finalizeAssistantText` (`:1196`), which runs on
+> `response.output_audio_transcript.done` — an event this entry itself
+> established arrives ahead of playout. Named with the three log lines and
+> fixed under **#419-B** (bars there). 138-J's stated cause is therefore
+> retired (its invariant is harmless and 419-A1 still watches it); **138-K
+> is retired by measurement**: `audio.cleared` lands in the SAME millisecond
+> as an "idle" `speech_started` in three archives (`138e` 20:13:46.510,
+> `whoGoesThere-415` 17:58:40.699, `138-fork` 19:56:33.285) — the server
+> interrupts on its own under `interrupt_response: true`, so repairing the
+> guard changes truncation accuracy and the log line, not audibility.
+>
+> ### The unread archive — `whoGoesThere-415` (08-26) holds #413's sessions
+>
+> #413 was filed from Owen's words with no log reading. The archive
+> collected that night carries **four** realtime starts (all
+> `MicrophoneBuiltIn → Speaker`, confirmed from `corespeechd`'s
+> `CurrentRoute` rows at 17:58:32.8 / 36.5 and `New Record Route:
+> MicrophoneBuiltIn · New Playback Route: Speaker` at 22:17:24.16).
+> Scored per utterance, offset = first `speech_started` after
+> `audio.started`:
+>
+> | archive (build) | start | utt | offset | guard read |
+> |---|---|---|---|---|
+> | 138-fork (24A5418b) | 08-22 19:56 | u1 | clean 2.19 s | |
+> | | | u2 | **+1.47 s** | idle (`state=listening`) |
+> | | 08-22 19:57 | u1 | **+0.25 s** | BARGE-IN |
+> | | | u2 | +2.44 s | BARGE-IN — user-attributable, unresolved |
+> | | | u3 | clean 14.2 s | |
+> | 138e (24A5418b, `server_vad` 0.8) | 08-22 20:13 | u1 | **+0.52 s** | idle |
+> | | | u2 | clean 2.5 s | |
+> | 415 (24A5424a) | 08-26 17:58 | u1 | **+0.58 s** | idle |
+> | | | u2 | clean 2.55 s | |
+> | | | u3 | +0.40 s | BARGE-IN — attribution unknown |
+> | | | u4 | +0.84 s | BARGE-IN — attribution unknown |
+> | | 08-26 18:01 | u1 | **+0.36 s** | BARGE-IN |
+> | | | u2 | clean to end (1.9 s) | |
+> | | 08-26 22:17 | u1 | **+0.27 s** | BARGE-IN |
+> | | | u2 | clean 2.96 s | |
+> | | | u3 | clean to end (10.7 s) | |
+> | | 08-26 22:18 | u1 | **clean 1.84 s** | |
+> | 413-airpods (24A5424a, AirPods) | 08-30 23:19 | u1–u3 | clean 2.16 / 12.15 / 3.77 s | |
+>
+> **Read:** on speakerphone, **5 of 7 first utterances are dirty, and every
+> dirty one lands 0.25–0.58 s after `audio.started`** — the onset of the
+> assistant's audio, never its body. Two clean first utterances (19:56,
+> 22:18) mean "first utterance only" is a strong tendency, not a law; the
+> +1.47 s phantom on a SECOND utterance (after a 4.2 s silence gap, Owen
+> silent by his own report) means it is not first-only either. The
+> `state=` field also separates two populations: offsets ≤0.36 s were
+> caught by the guard (`BARGE-IN`), offsets ≥0.52 s were not — that seam is
+> where transcript-done lands for a short greeting, i.e. #419-B's bug, not
+> two mechanisms.
+>
+> **Also settled from the system rows, before anyone proposes it:** the first
+> playout does NOT restart the audio unit or move the route. One `Starting
+> AURemoteIO` per session (17:58:36.583, at HOT), and **zero**
+> `com.apple.coreaudio`/`avfaudio` rows in 22:17:30–33 around the 22:17:31.178
+> first `audio.started` (same-day archive, rows retained). n=2 sessions.
+>
+> ### What is PROVEN · FALSIFIED · BELIEVED
+>
+> | status | claim | instrument |
+> |---|---|---|
+> | **PROVEN** | self-capture is real, reproducible, and it is the assistant's own audio | 138-A 4/4 + the phantom texts; `speech_started` inside playback windows across 6 sessions |
+> | **PROVEN** | the phantom is ONSET-bound: ≤0.6 s after `audio.started` on every dirty first utterance | the table above |
+> | **PROVEN** | it is one session in a loop, not two engines | no `falling back` line; `speech_started → response.created → audio.started` ×7 |
+> | **PROVEN** | the server interrupts by itself; our guard does not decide audibility | same-ms `audio.cleared` after an "idle" `speech_started`, ×3 archives |
+> | **PROVEN** | the playback counter is zeroed by transcript-done, not by item arrival | #419-B's three lines; falsified-on-own-archive above |
+> | **FALSIFIED** | AEC convergence as the SOLE mechanism (first-only) | 19:56 u2 at +1.47 s; 22:18 clean first utterance |
+> | **FALSIFIED** | the +500 ms speaker override | 138-B built, 2955 tested, phantoms persisted |
+> | **FALSIFIED** | a `server_vad` threshold can reject it | 138-E @0.8: faithful "Good afternoon." at +0.52 s |
+> | **FALSIFIED** | two engines / our cancel path / the transcript as a barge-in instrument | 08-22 blocks above |
+> | **FALSIFIED** | an audio-unit restart or route move at first playout | coreaudio rows, n=2 |
+> | **BELIEVED (n=1)** | the path is ACOUSTIC (speaker → mic), not a software loopback | AirPods 0/3 clean vs 5/7 speakerphone — Fisher one-sided p≈0.375 at n=1; 0.167 / 0.083 / **0.045** at 2 / 3 / 4 clean AirPods sessions |
+> | **BELIEVED** | the residual is level-dependent (speaker at max volume, `forceSpeakerIfNeeded`'s stated purpose) | UNTESTED — card V1 below |
+>
+> **One family or several?** #138 and #413 are ONE fault (onset residual on
+> the speakerphone route; #413 is 138-A's observation re-filed with a
+> device pass). #419 is an app-state bug independent of acoustics. #418 is a
+> DIFFERENT input-quality fault (the AirPods telephony link — measured under
+> #418) that shares only the recognizer's failure mode with the phantom text.
+>
+> **What the CJK signature says about the bytes the server received:** short
+> (`prefix_padding_ms` 300 + a few hundred ms of onset), speech-shaped,
+> low-SNR fragments — not silence (a silent commit transcribes empty, and the
+> app DROPS empty transcripts, so silent phantoms would show in the log and
+> never as a bubble), and not a clean software copy (a clean copy would
+> transcribe faithfully every time; exactly one of ~9 phantom texts did, and
+> it was the +0.52 s one, where an onset residual is strongest).
+> Random-language tokens on sub-second low-SNR audio with `language` unset
+> are the known hallucination mode of this recognizer family, and the SAME
+> mode fired on Owen's real speech over the AirPods link (#418) — two
+> different degradations, one fingerprint.
+>
+> ### Ranked hypotheses, each with its cheapest discriminator
+>
+> 1. **H1 — onset residual through a WORKING canceller, level-dependent.** The
+>    mic hears the assistant only for the first few hundred ms of each
+>    utterance, before the canceller/AGC settles on the new far-end signal;
+>    at max speaker volume the residual clears server VAD. Fits every row.
+>    **Discriminator: the VOLUME arm (card V1)** — speakerphone at ~2 bars
+>    vs max, ≥3 starts each, score onset `speech_started` ≤1.0 s after
+>    `audio.started`. Low ≤1/3 dirty AND max ≥2/3 ⇒ H1. Both ≥2/3 ⇒ not a
+>    speaker-level effect (mic-side AGC or software next). Attended, ~5 min,
+>    no build.
+> 2. **H2 — AEC initial convergence.** Subsumed by H1 for the session's first
+>    utterance; falsified as the sole mechanism (the archive table above). No separate test owed.
+> 3. **H3 — the server's `prefix_padding_ms` shapes the fragment** (not a
+>    cause; decides what the transcriber sees). **Discriminator: 138-M** —
+>    log `input_audio_buffer.speech_stopped` segment length and the offset
+>    from `audio.started` (card V3). Phantoms should read 300–700 ms
+>    segments; a phantom ≥1.5 s would say the whole utterance leaks and H1
+>    is wrong about "onset".
+> 4. **H4 — software loopback.** Disfavoured by AirPods n=1 and by source (no
+>    PCM handling on the realtime path; WebRTC owns both directions).
+>    **Discriminator: the next incidental AirPods session, free** (card V2).
+> 5. **H5–H8** (route override, IO restart, threshold, two engines) —
+>    falsified, table above; do not re-test.
+>
+> ### Cards for Owen's election (runbook shape)
+>
+> - **V1 · 138-N — the VOLUME arm.** *Precondition:* realtime engine, Normal
+>   preset, speakerphone (`#418 route at session start:
+>   in=[MicrophoneBuiltIn …] out=[Speaker …]`), same room, no TV. *Steps:*
+>   3 starts at ~2 bars — say only "hello", stay silent 10 s, end; then 3
+>   starts at max volume, same script. *Claude scores from the log:* per
+>   session, first `audio.started` → any `speech_started`/`BARGE-IN` within
+>   1.0 s; also the `audio.stopped after Nms` values (419-B's device
+>   confirmation rides free). *PASS (H1):* low ≤1/3, max ≥2/3. *FAIL:* both
+>   arms ≥2/3 — level-independent, next arm is the mic side.
+> - **V2 · 413/138-L extension — every incidental AirPods session, free.**
+>   *Scores:* zero `speech_started` inside any playback window; the two
+>   `#418 route` lines (prediction from the 08-30 system rows: the START
+>   line reads `MicrophoneBuiltIn → Speaker`, and a `route after change`
+>   line flips to `BluetoothHFP "Owen's AirPods Pro"` within ~1 s of HOT —
+>   a start line already on BluetoothHFP means a different timeline);
+>   `sampleRate=` answers #418 candidate 1's number. Four clean sessions
+>   take the acoustic reading to p≈0.045.
+> - **V3 · 138-M — the segment instrument (build; headless; no device to
+>   ship).** Ungated `.notice` on `speech_stopped` (segment ms + offset
+>   from `audio.started`), on `committed`, and on
+>   `input_audio_transcription.completed` carrying transcript LENGTH and
+>   script class (Latin/CJK/other) — never the text. Pure formatter,
+>   RED-first, the 418/419 shape. Makes the CJK signature log-scorable.
+> - **V4 · 418-B — pin the transcription `language` host-side** (plugin,
+>   Owen's per-experiment go; see #418). Cheapest change with two payoffs:
+>   #418's real speech, and phantom bubbles becoming faithful English
+>   fragments (or empty → dropped) instead of `嗨`. 396-D binds
+>   (before/after recorded).
+> - **V5 · 138-O — the ONSET GATE (candidate FIX, proposed not built).**
+>   Because every unambiguous phantom lands ≤0.6 s after `audio.started`,
+>   disable the local `RTCAudioTrack` from `audio.started` for a named
+>   ~700 ms and re-enable — an onset gate, not #130's half-duplex. Keeps
+>   real barge-in after 0.7 s; cost is that a barge-in inside the first
+>   0.7 s waits 0.7 s. Bars to pre-register when elected: (a) constant is
+>   named and logged (`#138 onset gate: uplink muted Nms`), (b) barge-in at
+>   +2 s still cuts the assistant (unit + device), (c) ≥3 speakerphone
+>   starts with 0/3 onset phantoms, (d) V1 run first so the gate is not a
+>   patch over a volume tradeoff nobody measured.
+>
+> **The single most valuable next measurement is V1** — five minutes, no
+> build, splits the surviving hypothesis on its one untested prediction,
+> and its log doubles as 419-B's device confirmation.
 
 ---
 
@@ -12857,6 +13056,30 @@ discipline on the memo path — same subsystem, different engine), #303
 > entry now cites this result rather than re-running 138-L separately — see
 > the pointer appended under #138.
 
+> **📊 2026-09-01 — THE 08-26 SESSIONS ARE NOW LOG-SCORED (they were filed
+> from Owen's words only).** `whoGoesThere-415.logarchive`, collected that
+> night, holds **four** realtime starts, all on `MicrophoneBuiltIn →
+> Speaker` (route from `corespeechd`'s `CurrentRoute` rows, not inferred):
+>
+> | start | first utterance | offset after `audio.started` |
+> |---|---|---|
+> | 17:58:32 | **dirty** | +0.58 s (guard read idle — #419-B's blind tail) |
+> | 18:01:27 | **dirty** | +0.36 s (`BARGE-IN`) |
+> | 22:17:24 | **dirty** | +0.27 s (`BARGE-IN`) |
+> | 22:18:30 | **clean** | 1.84 s playback, no `speech_started` inside it |
+>
+> So the log reads **3 of 4**, not 3/3 — consistent with Owen counting
+> three tries, and a clean counter-example for "first utterance only" on
+> the very same route and evening. The second utterance was clean in all
+> three dirty sessions (2.55 / 1.9 / 2.96 s), which is the observation as
+> filed. **The preset per session is NOT attributable from the device log** —
+> the app never logs the tuning it mints with (gap filed under #396). The
+> full cross-archive table, the falsification of "first-only", the onset
+> reading (every dirty first utterance lands 0.25–0.58 s in) and the
+> AirPods p-values against this honest baseline live in **#138's 2026-09-01
+> synthesis**; the mechanism lean (acoustic, n=1) is unchanged, and the
+> proposed cards (V1 volume arm first) are there too.
+
 ## 415. 🔴 THE MIC STAYED ON after a Control Center voice launch — 2/2 reproducible, cleared by force-quit — and the control said "Talk to HERMES" (**renamed — see 415-N**) — **FILED 2026-08-26 night per #268, from Owen's third runbook pass (BUILD 3108, verbatim: "Control center > Talk to Hermes (should be Talaria, right?) and the mic stayed on. Tried again, same result. Force quit, tried again, did NOT happen."). Mechanism NOT guessed; the SAME-DAY LOG COLLECT is the discriminating evidence and it decays in hours.** **→ ✅ COLLECT HAPPENED AND THE MECHANISM IS NAMED (2026-08-26, `whoGoesThere-415.logarchive`): this is #302 recurring through an ordering its bars cannot see — `AppLockGate` is sampled ONCE at start, and a Control Center tap on a WARM process clears it ~1.2 s BEFORE App Lock arms, so the cover comes down on top of an in-flight start. Mic hot 27.4 s / 13.4 s, most of it behind `cover=locked`. Engine was REALTIME both times and teardown RAN IN FULL — the #303 and #198 candidates are FALSIFIED. The force-quit run is a DEGENERATE control (cold ⇒ gate already armed ⇒ start parked ⇒ revoked unused). Fix bars 415-A…D proposed below; #302 carries a dated supersession. ~~FIX NOT BUILT.~~** **⟵ ✅ 415-N DONE 2026-08-26: the NAMING half (fact 2) SHIPPED — both Control Center controls read "Ask Talaria" / "Talk to Talaria", host-meaning "Hermes" strings deliberately untouched and now pinned.** **⟵ ✅ THE MIC FIX IS BUILT 2026-08-26 night (same day): 415-A/B/C MET — a session covered mid-flight now STOPS CAPTURE and PARKS, resuming exactly once on unlock, via a cover watch on the gate's new `waitUntilLocked()`; the realtime engine gained the `#302-A` capture instrument. 415-A was witnessed RED on the unmodified tree first (8 tests, 21 issues) and each mutation isolates. 🔴 STILL OPEN ON 415-D ONLY — the device run that HOLDS the cover open; its card is written in the result block, and until Owen runs it this item stays red.**
 
 **The two facts, separately:**
@@ -14080,6 +14303,57 @@ runs both ways), #396 (voice-quality umbrella, different mechanism), #138.
 > filing: the route/sample-rate instrument is built and the next AirPods
 > session will attribute candidate 1 for free.
 
+> **🔬 2026-09-01 — CANDIDATE 1 IS ANSWERED IN KIND FROM THE ARCHIVE'S OWN
+> SYSTEM ROWS, before the instrument has run once.** The 08-30 session's
+> `audiomxd`/`bluetoothd`/`corespeechd` rows (same-day collect, retained)
+> give the capture route the app could not yet log:
+>
+> ```
+> 23:19:57.878  CurrentRoute: in=[MicrophoneBuiltIn] out=[Speaker]      ← our configureAudioSession
+> 23:20:00.235  Built-In Mic → Built-In Receiver                           ← WebRTC's own session configure
+> 23:20:00.271  Built-In Mic → Speaker                                     ← forceSpeakerIfNeeded (138-C's case)
+> 23:20:00.405  Starting AURemoteIO                                        ← capture HOT, still on the phone mic
+> 23:20:00.406  AirPods ports become routable (…-tsco pmbt/phpb)
+> 23:20:00.410  bluetoothd: Initiating SCO connection … codec 129
+> 23:20:00.944  HFP stream started: Enabling diversity/TxBF
+> 23:20:00.970  Route changed. New device routes = [HeadsetBT~…-tsco~ahfp]
+>               PVMSetCurrentState [PlayAndRecord, VoiceChat, HeadsetBT, …-tsco, ahfp, NO]
+> 23:20:01.046  CurrentRoute: in=[BluetoothHFP "Owen's AirPods Pro"] out=[BluetoothHFP "Owen's AirPods Pro"]
+> 23:20:02.946  HFP LinkQualityReport … Received SCO count = 66, AudioInput: 67
+> 23:20:10.987  RTAID [ use_case=Telephony … node PreDSP { type: pmbt; uid: -tsco } ]
+> ```
+>
+> **So the AirPods mic reached the phone over a TELEPHONY-CLASS link** —
+> the `BluetoothHFP` port, sub-type `ahfp`, on Apple's Tipi `tsco` transport
+> (LC3 encoder/decoder rows at 24 kHz were configured on that link at
+> connect, 23:19:55.047–.061), with the AirPods' own voice processing on
+> (`diversity/TxBF`). That is a ≤12 kHz-bandwidth, compressed, headset-processed
+> input where the speakerphone path is a 48 kHz built-in mic — the "muffled"
+> is structural to the route. **Still owed, and only the instrument can
+> print it:** the `AVAudioSession.sampleRate` the app saw (the VAD stayed at
+> a 48 kHz nominal rate in these rows, so the number may read 48000 or 24000
+> — do not assume the classic 8k/16k). **Prediction for the next AirPods
+> session's `#418` lines, falsifiable:** the `route at session start` line
+> reads `MicrophoneBuiltIn → Speaker` and a `route after change` line flips
+> to `BluetoothHFP "Owen's AirPods Pro"` within ~1 s of HOT — the phone mic
+> is live for ~0.6 s before the AirPods take over (a small window in which
+> a user's first syllable rides the wrong mic; noted, not a bar).
+>
+> Candidate 2 (occlusion/acoustics) is not excluded — it stacks. Candidate 3
+> is REFRAMED: with WebRTC the server never sees a Bluetooth format at all
+> (the uplink is Opus at 48 kHz), so the narrowing happens before WebRTC and
+> the server-side lever is the RECOGNIZER, not the format. Hence
+> **418-B (proposed, plugin, Owen's per-experiment go):** pin
+> `audio.input.transcription.language = "en"` in `voice.py`'s session
+> definition (the provider's transcription block takes `model`, `language`,
+> `prompt` — verify the key on the current docs before deploying; a wrong
+> key on the bootstrap path is a failed mint, 396-B's own hazard). Bars:
+> 396-D's before/after recorded; the next AirPods session transcribes real
+> speech in English; and the #138 side effect is logged either way
+> (phantom bubbles become faithful English fragments of the assistant's own
+> words, or empty and dropped). The cross-entry synthesis is under #138
+> (2026-09-01).
+
 ## 419. 🐛 THE ASSISTANT-PLAYBACK ELAPSED COUNTER READS 0 EVERY TIME — and a real barge-in would send `conversation.item.truncate` with `audio_end_ms: 0`, deleting the ENTIRE heard portion from server-side history — **FILED 2026-08-30 from the #413 archive read. Every recorded reading of this instrument is 0 ms; the zeroing mechanism is deliberately NOT asserted (no log line can currently see it).** **⟵ HEADER CORRECTED 2026-09-01 (hygiene sweep): 419-A1/A2 (the naming instrument) SHIPPED, MERGED 2026-08-31 as `97e52d41` (PR #396) — every assistant `conversation.item.created`/`.added` arrival now logs the event/item relation and, if playback is live, the elapsed ms about to be destroyed. The zeroing MECHANISM is still not asserted; only the instrument that will name it is built.**
 
 **The measurement:** `#138 audio.stopped after Nms` printed **0** on all three
@@ -14164,7 +14438,122 @@ green-signal-covering-what-it-cannot-see family).
 > session. The mechanism itself remains unasserted; only the blindness is
 > fixed.
 
-## 420. ✅ CLOSED — 🐛 THE "AUTO-CONNECT ON LAUNCH" TOGGLE IS INERT — a shipping settings control the user can flip that NOTHING READS — **FOUND 2026-08-31 by the runbook staleness audit (read-only, static), and CONFIRMED by hand at the call sites. Mechanism is not in doubt; the fix is a product call.** **⚖️ RULED the same day (delete it, keep the key) and ✅ BUILT + MERGED 2026-09-01 — PR #398, squash `c48fcae1`: all four bars MET, the absent-reader pin watched RED before any production edit and mutation-isolated to one assertion, gate 2783/15/Release clean. CLOSED; awaiting the next sweep's archive move only.**
+> **🔴 2026-09-01 — THE ZEROING PATH IS NAMED FROM SOURCE + THREE ARCHIVES,
+> AND IT IS NOT THE ONE 419-A1 WATCHES.** (Escalation read of the voice
+> cluster; the log lines below are the ones that would have to change if
+> this were false.)
+>
+> The entry's code read stopped one caller short. `resetAssistantAudioPlaybackTracking`
+> has THREE in-session callers, not one: `endSession` (`:372`), the
+> assistant `item.created/.added` handler (`:887`, the one 419-A1 watches)
+> — **and `finalizeAssistantText` (`:1196`)**, which runs on
+> `response.output_audio_transcript.done` / `response.output_text.done`.
+> Realtime emits transcript-done when TEXT GENERATION completes, which is
+> seconds ahead of audio playout (#138's own 2026-08-22 finding, stated
+> there for the transcript UI and never carried over to the counter). So
+> on every utterance: `audio.started` → tracker stamped → transcript-done
+> → **tracker nil'd, `currentAssistantConversationItemID` nil'd,
+> `voiceState = .listening`** — while the buffer is still draining → `audio.stopped`
+> reads the banked 0. That is every reading this instrument ever produced.
+>
+> **Why item-arrival CANNOT be the agent, from the archives themselves:**
+> - `talaria-138-fork` 19:56: `audio.started` 31.813 → `speech_started …
+>   (state=listening)` 33.285 → `response.created` 36.454. **No assistant
+>   item arrived in that window** (an item follows its `response.created`),
+>   and the item handler never touches `voiceState` — nothing but
+>   `finalizeAssistantText` can print `state=listening` 1.47 s into a
+>   playback. #138's "ROOT CAUSE of the blind guard — `:825`
+>   item.created" paragraph is therefore falsified ON ITS OWN ARCHIVE; a
+>   correction is appended under #138.
+> - `whoGoesThere-415` 17:58:40.699 (+0.58 s) and `talaria-138e`
+>   20:13:46.510 (+0.52 s): same shape, same field.
+> - `talaria-413-airpods`: strictly 1:1:1 turns, no item ever arrived
+>   mid-playback, and all three stops still read 0 — the item path had no
+>   opportunity there at all.
+>
+> **Consequence for 419-A1 as shipped:** it is aimed at a path that is not
+> the cause. Every arrival will print `… — assistant idle` (an item always
+> precedes its own `audio.started`), so the next archive would have shown
+> "not the item handler" and left the zero unexplained. The instrument
+> STAYS (a mid-playback item is still a real hazard worth seeing); it just
+> does not name this.
+>
+> **The real cost is not `audio_end_ms: 0` — it is NO TRUNCATE AT ALL, plus a
+> guard blind to the whole tail of every utterance.** After transcript-done
+> the item id is nil, so `truncateAndCleanUpAssistantState` skips the
+> truncate entirely; and `handleServerVADInterruption`'s guard
+> (`.speaking || stamp != nil`) is false, so a barge-in in the tail logs
+> "assistant not playing" and sends nothing. The server still interrupts
+> on its own (`interrupt_response: true` — `audio.cleared` lands in the
+> SAME millisecond as the "idle" `speech_started`, three archives), so the
+> user hears the cut either way; server history just keeps the full text.
+> **That last fact also retires #138's 138-K premise** ("a guard fix alone
+> turns overlap into constant interruption"): audibility is decided
+> server-side, this fix changes truncation accuracy and the log line.
+>
+> ### 🎯 BARS 419-B1…B6 — pre-registered before any code
+> - **419-B1 (named, not argued).** The mechanism above, with the three log
+>   lines; the fix targets `finalizeAssistantText` and nothing else.
+> - **419-B2 (the counter survives transcript completion).** `audio.started`
+>   → transcript-done → the counter keeps running, and at
+>   `output_audio_buffer.stopped` it reads the real elapsed (≥ the slept
+>   interval). Written RED first.
+> - **419-B3 (a barge-in after transcript completion still truncates).**
+>   `speech_started` after transcript-done, mid-playback, sends
+>   `conversation.item.truncate` for the live item with `audio_end_ms ≥`
+>   elapsed. RED first — today nothing is sent.
+> - **419-B4 (state follows the audio buffer).** transcript-done mid-playback
+>   leaves `.speaking`; `output_audio_buffer.stopped` flips `.listening`.
+>   RED first.
+> - **419-B5 (control — the audio-less path is unchanged).** transcript-done
+>   with NO `audio.started` still lands `.listening`, and a following
+>   `speech_started` sends nothing. Green before and after.
+> - **419-B6 (isolating mutation).** Restoring the unconditional reset in
+>   `finalizeAssistantText` reds B2/B3/B4 and leaves B5 plus the existing
+>   `AppStoresTests` barge-in pins green.
+> - **Scope fence:** no change to the guard, the item-arrival handler
+>   (419-A1 stays), `truncateAndCleanUpAssistantState`, or the counter's
+>   arithmetic. `currentAssistantAudioPlaybackMilliseconds` widens to
+>   `// harness-visible` so B2 reads the same value the `audio.stopped`
+>   line prints.
+
+> **✅ 2026-09-01 — 419-B1…B6 MET. GATE: PASS on 24A5423a (re-run; run 1
+> failed ONLY on the known `testConnectedRelaunchSkipsTheConnectEntry` flake,
+> identical bytes, tree `2865888aa9e12d67`): units 2814/242 suites (count moved
+> +5 — the new suite exactly), XCUITest 15 passed / 0 failed counted from the
+> `Test Case '-[` ledger, Release clean. Main then moved under the lane with
+> compiled inputs (#340-PROMOTE, #180-CONVENTION), so it was rebased and
+> GATED AGAIN: PASS first run, 2832/244 · 15/0 · Release clean, the new suite
+> green inside it. PR + squash SHA filled after merge.**
+>
+> **The fix is one conditional.** `finalizeAssistantText` now drops the live
+> item id, resets the tracker and flips to `.listening` ONLY when no playback
+> is live (`assistantAudioPlaybackStartedAtUptime == nil`); while audio is
+> draining, `output_audio_buffer.stopped/cleared` and
+> `conversation.item.truncated` own all three, exactly as they already did
+> for the pre-transcript-done window. Nothing else changed: the guard, the
+> item-arrival handler (419-A1 stays), `truncateAndCleanUpAssistantState` and
+> the counter arithmetic are untouched; `currentAssistantAudioPlaybackMilliseconds`
+> widened to `// harness-visible`.
+>
+> **RED first, witnessed:** `AssistantPlaybackTrackingTests` (5 tests) ran
+> against today's code — B2's two pins, B3 and B4 red (counter read 0, no
+> truncate sent, state `.listening`), the B5 control green. **419-B6
+> mutation:** restoring the unconditional reset (`if true {`) redded exactly
+> B2/B3/B4 and left B5 plus the four pre-existing `AppStoresTests` realtime
+> barge-in pins green (9 tests in 2 suites, 4 issues); the fix restored →
+> 5/5 and the gate above.
+>
+> **What the device will show now, free, on the next voice session:**
+> `#138 audio.stopped after Nms` reads the wall-clock playback; a
+> `speech_started` in the tail of an utterance prints `#138 BARGE-IN …
+> Xs into playback` and sends a `conversation.item.truncate` carrying the
+> heard milliseconds instead of "assistant not playing" and nothing; and the
+> `#419 … item.added` line stops mislabelling every arrival "first assistant
+> item" (the old finalize nil'd the id, so the instrument could never say
+> "new item (replacing …)"). **What a unit test cannot say:** whether the
+> server's history reads better after a real barge-in is a device row —
+> #138's card V1 records the values while it measures the volume arm. — 🐛 THE "AUTO-CONNECT ON LAUNCH" TOGGLE IS INERT — a shipping settings control the user can flip that NOTHING READS — **FOUND 2026-08-31 by the runbook staleness audit (read-only, static), and CONFIRMED by hand at the call sites. Mechanism is not in doubt; the fix is a product call.** **⚖️ RULED the same day (delete it, keep the key) and ✅ BUILT + MERGED 2026-09-01 — PR #398, squash `c48fcae1`: all four bars MET, the absent-reader pin watched RED before any production edit and mutation-isolated to one assertion, gate 2783/15/Release clean. CLOSED; awaiting the next sweep's archive move only.**
 
 **The measurement:** `autoConnectOnLaunch` has exactly one writer and zero
 production readers.
