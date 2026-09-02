@@ -3221,9 +3221,16 @@ struct DeviceToolBeltTests {
         #expect(offerLong.context.count == plainLong.context.count)
         #expect(offerShort.context.count == 551)
         #expect(offerLong.context.count == 4073)
-        // Labels, per the ruling AND its scope.
+        // Labels. The offer cells expect ARMED per the 2026-08-25 ruling.
         #expect(offerShort.expected && offerLong.expected)
-        #expect(!plainShort.expected && !plainLong.expected)
+        // ⚖️ AND SO DO THE NO-OFFER CELLS, since 2026-09-01 (#334-N) — they
+        // were `false` until the experiment ran and measured them **ARMED
+        // 10/10 in both arms** (`20260828T012656Z`, errors: 0). The RED this
+        // flip produced was witnessed on exactly this line before the label
+        // moved. Their old label was a PREDICTION of the offer hypothesis,
+        // and the hypothesis lost: see
+        // `longContextRoutesAreExplainedByReferentResolutionNotByTheOfferTail`.
+        #expect(plainShort.expected && plainLong.expected)
     }
 
     /// #334-B / E2 — the ANAPHORA control, which the whole finding still
@@ -3232,6 +3239,13 @@ struct DeviceToolBeltTests {
     /// the offered action remain confounded. E2 puts a self-contained
     /// composition request over the same offer tail: ARMED there means the
     /// offer tail alone drives the route; TOOLLESS means anaphora does.
+    ///
+    /// ✅ **RESOLVED 2026-08-28, filed 2026-09-01 (#334-N): TOOLLESS 10/10 at
+    /// both lengths in both arms** (`20260828T012656Z`, errors: 0). Anaphora is
+    /// doing the work; offer-tail salience is not — and paired with
+    /// `E1-nooffer` (ARMED with no offer at all) the offer turns out to be
+    /// neither sufficient nor necessary. Full scoreboard in
+    /// `longContextRoutesAreExplainedByReferentResolutionNotByTheOfferTail`.
     @Test func e2PutsANonAnaphoricWordsOnlyTurnOverTheOfferTail() throws {
         let grid = LocalChatBackend.routerLongContextGrid
         let e2 = grid.filter { $0.id.hasPrefix("E2-") }
@@ -3336,6 +3350,132 @@ struct DeviceToolBeltTests {
         let cappedLong = LocalChatBackend.routerContextTail(longRow.context)
         #expect(cappedLong.count == 801)
         #expect(cappedLong.hasSuffix(Self.dentistOffer))
+    }
+
+    // MARK: - (#334-N) the mechanism, measured — and it is not the offer
+
+    /// 🔬 #334-N (2026-09-01) — **THE MEASURED MECHANISM.** E1 and E2 ran on
+    /// device on 2026-08-28 (`20260828T012656Z-long-context-probe`, build
+    /// 3125, `24A5424a`, n=10/band, `errors: 0` on all 34 bands), and they
+    /// refute BOTH halves of #206's replacement story — *"ctx-a routes ARMED
+    /// when the prior turn ends in an offer to act, largely regardless of what
+    /// the current turn says."*
+    ///
+    /// | row | ends in offer | measured, both arms |
+    /// |---|---|---|
+    /// | `E1-nooffer-short` / `-long` | **no** | **ARMED** 10/10 |
+    /// | `E2-offer-short` / `-long` | **yes** | **TOOLLESS** 10/10 |
+    ///
+    /// The offer is neither NECESSARY (E1-nooffer arms without one) nor
+    /// SUFFICIENT (E2 stays toolless with one). What predicts every row is
+    /// **referent resolution**: armed exactly when the prompt defers its
+    /// subject to the context AND the context's salient referent is a device
+    /// action. Scored against the run's ACTUAL routes over all 28 long-grid
+    /// cells, the referent model missed **0** and the offer model missed
+    /// **8** — the four rows above, once per arm.
+    ///
+    /// Written as a SCOREBOARD rather than four assertions on purpose: it is
+    /// the offer model's failure that carries the finding, so the count of its
+    /// misses and their identity are both pinned. Reintroducing the offer
+    /// story anywhere in the grid moves one of these numbers.
+    @Test func longContextRoutesAreExplainedByReferentResolutionNotByTheOfferTail() {
+        let grid = LocalChatBackend.routerLongContextGrid
+
+        // Model A — the story that shipped from 2026-08-25 to 2026-09-01.
+        func offerModelArms(_ row: LocalChatBackend.RouterContextRow) -> Bool {
+            row.context.hasSuffix(Self.dentistOffer)
+        }
+
+        // Model B, factor 1 — the prompt DEFERS its subject to the context: a
+        // bare accept, or an anaphor naming no subject of its own. The
+        // vocabulary is deliberately the same one
+        // `e2PutsANonAnaphoricWordsOnlyTurnOverTheOfferTail` checks E2
+        // against, so the two tests cannot drift into disagreeing about what
+        // "non-anaphoric" means.
+        func defersToContext(_ row: LocalChatBackend.RouterContextRow) -> Bool {
+            if LocalChatBackend.isShortAffirmative(row.prompt) { return true }
+            let words = row.prompt.lowercased()
+                .split(whereSeparator: { !$0.isLetter }).map(String.init)
+            return !Set(["that", "another", "it"]).isDisjoint(with: words)
+        }
+        // Model B, factor 2 — the context's salient referent is a DEVICE
+        // ACTION. In this grid that is the dentist reminder: present in every
+        // offer context AND in E1's no-offer contexts (which keep the device
+        // noun on purpose), absent from the haiku and French-Revolution rows.
+        func contextNamesADeviceAction(_ row: LocalChatBackend.RouterContextRow) -> Bool {
+            row.context.contains("a reminder to call the dentist tomorrow at 9am")
+        }
+        func referentModelArms(_ row: LocalChatBackend.RouterContextRow) -> Bool {
+            defersToContext(row) && contextNamesADeviceAction(row)
+        }
+
+        #expect(grid.count == 14)
+        // The referent model explains every row, with zero free parameters.
+        let referentMisses = grid.filter { referentModelArms($0) != $0.expected }
+        #expect(referentMisses.isEmpty,
+                "referent model failed on: \(referentMisses.map(\.id))")
+
+        // The offer model does not — and it fails on exactly the four rows the
+        // device run scored the other way. Naming them makes this a recorded
+        // measurement rather than an inequality.
+        let offerMisses = grid.filter { offerModelArms($0) != $0.expected }
+        #expect(Set(offerMisses.map(\.id)) == ["E1-nooffer-short", "E1-nooffer-long",
+                                               "E2-offer-short", "E2-offer-long"])
+
+        // NEITHER FACTOR ALONE is the mechanism — which is the whole reason
+        // E1 and E2 had to be run rather than argued. Without these two the
+        // conjunction would look like an unfalsifiable relabelling of "armed".
+        //   • defer-only: "Write another one" over the haiku context is
+        //     anaphoric and routes TOOLLESS.
+        //   • device-only: E2 over the dentist offer names the action and
+        //     routes TOOLLESS.
+        #expect(grid.contains { defersToContext($0) != $0.expected })
+        #expect(grid.contains { contextNamesADeviceAction($0) != $0.expected })
+    }
+
+    /// #334-N — **WHAT AN OFFLINE TEST CAN AND CANNOT SAY ABOUT THESE ROWS.**
+    ///
+    /// It cannot reproduce the ROUTE. `routeTurn` is a single guided
+    /// generation and the simulator cannot generate on this model (#324,
+    /// re-measured #402). Worse, the obvious offline check —
+    /// `#expect(await routeNeedsDeviceTool(...) == true)` on an E1-nooffer row
+    /// — would be a **guaranteed false green**: the router's catch arm fails
+    /// safe to ARMED, so total generation failure yields exactly the value the
+    /// device measured, and the assertion would keep passing with the router
+    /// deleted. That is run `21F0C10D`'s trap wearing the other sign, and it
+    /// is why nothing here asserts a route.
+    ///
+    /// What IS offline-reproducible is the INPUT — the exact bytes ctx-a hands
+    /// the model. Both no-offer cells carry the device action inside the
+    /// router's window in BOTH arms, which is why their capped and uncapped
+    /// cells agree rather than diverging, and it is the fact the mechanism
+    /// claim rests on.
+    @Test func e1NoOfferRowsPutTheDeviceActionInsideTheRouterWindowInBothArms() throws {
+        let grid = LocalChatBackend.routerLongContextGrid
+        let action = "Setting a reminder to call the dentist tomorrow at 9am is what fixes it."
+        for id in ["E1-nooffer-short", "E1-nooffer-long"] {
+            let row = try #require(grid.first { $0.id == id }, "missing row \(id)")
+            // No offer, keyed on the same suffix the offer rows are keyed on.
+            #expect(!row.context.hasSuffix(Self.dentistOffer))
+            #expect(row.context.hasSuffix(action))
+            for capped in [false, true] {
+                let sent = LocalChatBackend.routerPrompt(
+                    context: row.context, prompt: row.prompt,
+                    variant: .ctxA, applyContextCap: capped
+                )
+                // The envelope ctx-a actually sends...
+                #expect(sent.hasPrefix("Assistant just said: \""))
+                #expect(sent.hasSuffix("Request: Say that again more briefly"))
+                // ...carries the device action whether capped or not: the
+                // 800-char window is far wider than the 551-char closing, so
+                // the referent is never truncated away on either row.
+                #expect(sent.contains(action),
+                        "\(id) capped=\(capped) lost the device action")
+                // ...and never carries an offer, which is what makes these two
+                // rows the falsifying half of the 2×2.
+                #expect(!sent.contains(Self.dentistOffer))
+            }
+        }
     }
 
     // MARK: - (#204) warm within-run re-verification of the promoted clauses
