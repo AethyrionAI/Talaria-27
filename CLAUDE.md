@@ -47,6 +47,18 @@ write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta6**.
 channel — never folded into the answer** (the old "thoughts fold into content" note is
 stale). Token usage rides on `run.completed`, Anthropic-style
 `input_tokens`/`output_tokens`/`total_tokens`.
+**⟵ SUPERSEDED 2026-09-01 (measured on the Mac at 0.21.0, `5fae0d243`, two
+runs — #60's re-probe): the event NAMES above describe 0.19/0.20. On 0.21.0 the
+runs stream emits `tool.started` · `tool.completed` · **`message.delta`**
+(answer chunks, field `delta`) · **`reasoning.available`** (ONE terminal frame,
+field `text` — the `_thinking` channel is gone) · `run.completed` (`output` +
+`usage`; **no `messages[]`**). No `assistant.delta`/`assistant.completed`/
+`run.started`/`message.started`/`done` were seen. The app's runs parser already
+handles both names (`SessionsHermesClient+RunsTransport.swift:290-306`). The
+principle stands — reasoning is a separate channel, never folded into the
+answer — but on 0.21.0 that channel still carries the answer verbatim
+(#60, upstream). Hosts differ: OJAMD measured 0.20.6 the same day. Probe live
+before quoting either list.**
 
 ## Agent-generated files (#21)
 
