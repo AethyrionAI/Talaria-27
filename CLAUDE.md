@@ -284,6 +284,16 @@ a falsified mechanism while the tracker was right.)
   **Always include a nonsense verb as a CONTROL** (`definitely_not_a_verb` ⇒
   `unknown_event_type`): without it, two positives prove nothing because
   nothing showed the discriminator can still say no. Verified on both hosts.
+- **✅ UNCORDED SAME-DAY LOG COLLECT — VERIFIED 2026-09-02.** When the phone is
+  away from every Mac: on-device **sysdiagnose** (Vol+ + Vol− + Side ~1.5 s;
+  snapshot is taken at trigger time, so trigger EARLY — logd evicts app rows in
+  hours) → Settings → Privacy & Security → Analytics & Improvements → Analytics
+  Data → `sysdiagnose_….tar.gz` → **Share → Tailscale → owens-mac-mini**
+  (~400 MB, lands in `~/Downloads`). Extract only the archive with bsdtar's glob
+  (`tar -xzf <tgz> '*/system_logs.logarchive'`) and read it exactly like a
+  `log collect` archive with the two-subsystem predicate. Measured: a 07:29
+  session read back at 08:19 with every `.notice` instrument present. This
+  retires "no cord, no log."
 - **Adjacency in a log is NOT attribution (2026-08-22).** A deploy brief
   listed `INFO talaria-push: watcher up (poll=4s)` as proof the talaria PLUGIN
   had loaded. That string is nowhere in the plugin — it belongs to
