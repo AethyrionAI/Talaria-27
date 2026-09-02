@@ -11,6 +11,15 @@ afternoon, and **not one was caught by reading the tracker**:
   3. Three numbers (#316/#317/#318) were used for six different items. The
      branch AUTO-MERGED CLEAN; nothing conflicted. Found by `uniq -d`.
 
+A fourth surfaced on 2026-09-02, and it is the one this script was blindest to:
+
+  4. An entry — its header, its 9,402 bytes, all of it — was DELETED from
+     OPEN_ITEMS.md by a squash during a tracker rebase. Its index line
+     survived, so the top-of-file map still advertised a live item. This
+     script returned PASS on that commit and on the nine after it. Every check
+     here validated the text it was GIVEN; none had any notion of the entry
+     SET, so an entry that is simply absent violated nothing.
+
 Each is a one-line mechanical check. This script is those checks, in the spirit
 of `oi-kanban.py` (#342): additive, read-only, decides nothing about format.
 
@@ -24,8 +33,9 @@ NO DATA IS NOT A PASS. A check that cannot run says so and exits non-zero,
 rather than printing a clean result it did not earn.
 
 USAGE
-    scripts/oi-invariants.py            # all checks
-    scripts/oi-invariants.py --quiet    # exit code only
+    scripts/oi-invariants.py                        # all checks, baseline HEAD
+    scripts/oi-invariants.py --baseline origin/main # before opening a PR
+    scripts/oi-invariants.py --quiet                # exit code only
 Exit: 0 all passed · 1 a check FAILED · 2 a check could not run
 """
 
@@ -136,6 +146,160 @@ def check_duplicate_numbers() -> tuple[bool, str, list[str]]:
         return False, f"{len(real)} number(s) used by more than one item", real
     note = " (198/199's known legacy double-headings ignored)" if dupes else ""
     return True, f"no duplicate item numbers across {len(set(nums))} items{note}", []
+
+
+# --------------------------------------------------------------------------
+# The entry SET. 2026-09-02.
+# --------------------------------------------------------------------------
+# Deliberately a BROADER header shape than `HEADER` above. `HEADER` polices the
+# canonical form; this one asks only "is this number present anywhere", and a
+# header the canonical pattern cannot see must read as PRESENT-but-malformed
+# (which `check_headers_not_at_line_start` and the counting rules already
+# police) rather than as DROPPED. Broader here fails safe; narrower would
+# manufacture phantom drops out of formatting.
+SET_HEADER = re.compile(r"(?m)^## (\d+[A-Za-z]?)[.:]")
+# A line of the live board's INDEX section: `- **#420** 🔧 …`.
+INDEX_LINE = re.compile(r"(?m)^- \*\*#(\d+[A-Za-z]?)\*\*")
+# Rebound by `--baseline`. HEAD by default; see `_baseline_numbers`.
+BASELINE_REF = "HEAD"
+BASELINE_FALLBACK = "origin/main"
+
+
+def _numeric(item: str) -> tuple[int, str]:
+    """Sort `420`, `216A`, `9` the way a reader expects."""
+    m = re.match(r"(\d+)([A-Za-z]?)", item)
+    return int(m.group(1)), m.group(2)
+
+
+def _tree_numbers() -> tuple[set[str], set[str], set[str]] | None:
+    """(live entries, archived entries, index lines) from the WORKING TREE, or
+    None when the live board cannot be read."""
+    if not LIVE.exists():
+        return None
+    live_text = LIVE.read_text(encoding="utf-8")
+    arch_text = ARCHIVE.read_text(encoding="utf-8") if ARCHIVE.exists() else ""
+    return (set(SET_HEADER.findall(live_text)),
+            set(SET_HEADER.findall(arch_text)),
+            set(INDEX_LINE.findall(live_text)))
+
+
+def _baseline_numbers() -> tuple[set[str] | None, str]:
+    """The entry-number set at a git commit, and the ref it came from.
+
+    WHY `HEAD` BY DEFAULT. It exists in every clone with no network and no
+    remote configured; it is the last state a human reviewed; and it is what an
+    UNCOMMITTED edit is measured against, which is the moment a drop is
+    cheapest to undo. `origin/main` is the fallback only for a checkout where
+    HEAD cannot be read at all.
+
+    WHY A LANE SHOULD PASS `--baseline origin/main` ANYWAY. The drop this check
+    exists for happened inside a SQUASH of a branch: the branch's own
+    HEAD-vs-tree was clean at every step, and only branch-vs-main was not. A
+    default that is always available and a flag that asks the sharper question
+    is the honest split — so the printed summary always names the ref it used,
+    and never lets a reader assume the sharper one was asked.
+
+    An archive that does not exist at the baseline is the pre-split shape and
+    contributes an empty set: git answering None for that ONE path while the
+    live file read fine is a healthy git reporting an absent path, not a broken
+    one — a broken git would have failed the live read first.
+    """
+    for ref in dict.fromkeys((BASELINE_REF, BASELINE_FALLBACK)):
+        live = git("show", f"{ref}:{LIVE.name}")
+        if live is None:
+            continue
+        arch = git("show", f"{ref}:{ARCHIVE.name}")
+        return (set(SET_HEADER.findall(live))
+                | set(SET_HEADER.findall(arch or "")), ref)
+    return None, BASELINE_REF
+
+
+def check_entry_set_against_baseline() -> tuple[bool, str, list[str]]:
+    """An entry may MOVE between the two files. It may never disappear.
+
+    WHY: on 2026-09-02 a squash deleted one entry and its 9,402 bytes from
+    OPEN_ITEMS.md during a tracker rebase — the lane was appending blocks to
+    its neighbours and the union resolution dropped the block between them.
+    The entry was in neither file afterwards. Nine consecutive commits then
+    passed this script, because every check it had reads the text it is given
+    and asks whether that text is self-consistent. It was: an absent entry
+    contradicts nothing.
+
+    The archive-split verifier has exactly this notion and cannot help — it is
+    pinned to a historical commit pair BY DESIGN, so that its proof cannot rot
+    as the tracker evolves, and it never reads the working tree. This is the
+    live complement, not a replacement: same property, opposite time axis.
+
+    A SUPERSET, not equality. Filing new items is the normal case, and a sweep
+    moving thirty entries from the live board to the archive must not read as
+    thirty drops — the union is what is conserved, never either file alone.
+    """
+    if git("rev-parse", "--git-dir") is None:
+        return False, "NO DATA — not a git repo / git unavailable", []
+    tree = _tree_numbers()
+    if tree is None:
+        return False, "NO DATA — OPEN_ITEMS.md not found", []
+    live, arch, _ = tree
+    base, ref = _baseline_numbers()
+    if base is None:
+        return False, (f"NO DATA — cannot read the tracker at `{BASELINE_REF}` "
+                       f"or `{BASELINE_FALLBACK}`"), []
+    dropped = sorted(base - (live | arch), key=_numeric)
+    if dropped:
+        return False, f"{len(dropped)} entr(y/ies) at `{ref}` are now in NEITHER file", [
+            f"#{n} exists at `{ref}` and in neither OPEN_ITEMS.md nor "
+            f"OPEN_ITEMS-ARCHIVE.md — an entry may move between the two files, "
+            f"never vanish; recover its block with "
+            f"`git show {ref}:OPEN_ITEMS.md` (or the archive) and re-file it"
+            for n in dropped]
+    return True, (f"all {len(base)} entries at `{ref}` survive "
+                  f"({len(live)} live + {len(arch)} archived)"), []
+
+
+def check_index_lines_resolve() -> tuple[bool, str, list[str]]:
+    """The live board's INDEX must point at entries that exist.
+
+    WHY: when the 2026-09-02 squash deleted the entry, its index line survived.
+    A reader of the map saw a live item; the item was gone. That half of the
+    defect is decidable from the file ALONE, with no git and no baseline — so
+    it still fires in a fresh clone of the offending commit, where the set
+    check has nothing to compare against. Two independent detectors for one
+    event is the point, not redundancy.
+
+    An index line pointing INTO the archive resolves and is not a finding: two
+    do exactly that today, for items closed after the last regeneration.
+
+    AN ENTRY WITH NO INDEX LINE IS ADVISORY, NOT A FAILURE — and that was
+    measured before it was decided, not assumed. The index announces itself as
+    a regenerated map rather than a guarantee, and two live entries filed after
+    the last regeneration have no line. They also had none at the commit this
+    check's own historical control must PASS on, so failing them would have
+    failed that control for a reason unrelated to the defect. Advisory rows are
+    printed under a PASS, the same shape the open-PR reporter uses.
+    """
+    tree = _tree_numbers()
+    if tree is None:
+        return False, "NO DATA — OPEN_ITEMS.md not found", []
+    live, arch, index = tree
+    orphans = sorted(index - (live | arch), key=_numeric)
+    unlisted = sorted(live - index, key=_numeric)
+    advisory = [
+        f"advisory: #{n} is a live entry with no index line — the index is a "
+        f"regenerated map, so this is drift to fold into the next sweep, not a "
+        f"defect" for n in unlisted]
+    if orphans:
+        rows = [
+            f"#{n} has an index line but no entry in either file — restore the "
+            f"entry, or drop the index line if the item never existed"
+            for n in orphans]
+        return False, (f"{len(orphans)} index line(s) point at an entry that is "
+                       f"in neither file"), rows + advisory
+    if unlisted:
+        return True, (f"all {len(index)} index lines resolve; "
+                      f"{len(unlisted)} live entr(y/ies) not in the index "
+                      f"(advisory)"), advisory
+    return True, (f"all {len(index)} index lines resolve, and every live entry "
+                  f"has one"), []
 
 
 def check_claimed_merge_state() -> tuple[bool, str, list[str]]:
@@ -503,6 +667,8 @@ def check_headers_not_at_line_start() -> tuple[bool, str, list[str]]:
 CHECKS = [
     ("duplicate item numbers", check_duplicate_numbers),
     ("entry headers at a line start", check_headers_not_at_line_start),
+    ("entry set vs the git baseline", check_entry_set_against_baseline),
+    ("index lines resolve to entries", check_index_lines_resolve),
     ("claimed merge state vs git", check_claimed_merge_state),
     ("headers claiming an open PR", check_open_pr_claims),
     ("bar verdicts filed under their own item", check_bar_results_live_under_their_own_item),
@@ -515,7 +681,13 @@ CHECKS = [
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--quiet", action="store_true")
+    ap.add_argument(
+        "--baseline", default=BASELINE_REF, metavar="REF",
+        help="git ref the entry set must be a superset of (default: HEAD). "
+             "Pass origin/main before opening a PR — a squash of a branch is "
+             "where an entry has actually been lost, and HEAD cannot see that.")
     args = ap.parse_args()
+    globals()["BASELINE_REF"] = args.baseline
 
     failed = nodata = 0
     for name, fn in CHECKS:

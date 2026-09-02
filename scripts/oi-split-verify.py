@@ -41,6 +41,14 @@ ends. Do not "restore" the working-tree comparison — it is falsified.
 item ever being lost or renumbered — held at the 2026-08-07 check. Proving
 them going forward would be a different, live script; it is not this one.)
 
+2026-09-02: that live script now EXISTS — `oi-invariants.py`'s entry-set
+check, which asserts the (live ∪ archive) number set against a git baseline
+in the WORKING TREE. It was built because an entry was deleted from both
+files by a squash and stayed lost for nine commits. The division of labour
+is deliberate and neither side should absorb the other: this file proves a
+pinned historical range and cannot rot; that one asks the same question of
+today's tree and must be re-run to mean anything.
+
 Exit 0 = the historical split is proved. Any failure prints the item, exits 1.
 """
 import re

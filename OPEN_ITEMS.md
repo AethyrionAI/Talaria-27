@@ -144,7 +144,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#420** ✅ **CLOSED** — 🐛 the **"Auto-connect on launch" toggle is INERT** — one writer, ZERO production readers (moved to the Server screen when the Relay page retired; the move kept the UI and dropped the consumer). A control promising an effect it no longer has — #180's family from the opposite direction. Burned ~40% of the #350-D pilot's budget. ~~**⚖️ Owen's call: delete it or wire it — not a repair, a feature decision**~~ **⟵ ⚖️ RULED 2026-08-31 (DELETE the toggle, KEEP the persisted key — auto-connect-on-launch is not a behaviour the app intends to have post-#375, so wiring it would have invented a feature to justify a leftover switch) and ✅ BUILT + MERGED 2026-09-01, PR #398 `c48fcae1`: 420-A/B/C/GATE all MET. The test guards the property whose ABSENCE caused this — nothing reads the key — and it was watched RED on the untouched tree, then mutation-isolated (a re-introduced reader reds exactly one of the four pins). Gate 2783 Swift Testing (+6) / 15 XCUITest / Release clean, first run. No device bar was owed: an inert control's deletion changes nothing observable — what it removes is a lie the runbooks kept believing**
 - **#421** 🔴 **"OJAMD's gateway is down" is FALSE** — measured UP and healthy from the Mac (200 on both the CGNAT literal and the MagicDNS name; `/health/detailed` returns a running server's auth error). The PHONE cannot dial it: host-fed screens show `unsupported URL` = **-1002, a MALFORMED-URL error**, not a down host. Two fatal mechanisms in our code — no scheme validation anywhere, and MagicDNS names having no ATS exception (CIDR-keyed to `100.64.0.0/10`). **✅ SETTLED 2026-08-31: the field reads `/ojamd:8642`** — a relative path (scheme=nil, host=nil), rejected with exactly -1002. Mechanism 1 confirmed by measurement. **⚠️ Prepending `http://` is a TRAP — a MagicDNS host is then ATS-blocked; the working value is `http://100.110.102.59:8642`.** Corrects handoffs §23/§24
 - **#422** 🧠 **MEMORY–AGENT INTEGRATION** — succeeds #378. **⚖️ SHAPED + RULED POST-LAUNCH 2026-08-31 (Owen), and it splits in two:** (a) Talaria as a CLIENT of the host's providers — `hindsight`/`honcho` are 2 of the 8 Hermes memory plugins, so ONE delivery route buys all eight — host-tier only; (b) **Talaria's OWN local memory**, which serves the hostless default user and is recorded as a **DELIBERATE LAUNCH GAP** (*"It has no memory between sessions right now"*), not a backlog line. **Storage is solved** — SwiftData + `NLContextualEmbedding` (512-dim, on-device, `hasAssets=true`, probed 08-31); the difficulty is what earns a memory, whether the user can correct it, and two-store disagreement. **Recommended first shape: embedding retrieval over stored turns, NOT extracted facts** — #417 measured this model fabricating when it has nothing (20/40 → 0/40 with something real), so retrieval-of-real-text has the smallest lying surface
-- **#424** 🧰 **the invariants checker cannot see a DROPPED entry** — #420 vanished from both files in squash `02cad7bf` and nine PASS verdicts followed; caught by sweep 14's set-check, restored verbatim. Bars: the entry SET becomes an invariant (move ≠ drop), self-test fixtures, sweep-safe
+- **#424** 🧰 **the invariants checker cannot see a DROPPED entry** — #420 vanished from both files in squash `02cad7bf` and nine PASS verdicts followed; caught by sweep 14's set-check, restored verbatim. **✅ RESULT 2026-09-02: 424-A/B/C ALL MET (one clause of 424-A deviated — an entry with no index line is ADVISORY, because two live entries already lacked one at the commit the bar demands must PASS). Two complementary checks land: the entry SET vs a git baseline (move ≠ drop, `--baseline origin/main` before a PR) and index lines resolving to entries. Historical pair proves it — FAIL naming #420 at the squash while all eight old checks PASS, clean at its parent; 30-entry sweep on the real files passes, and the same sweep with one entry lost fails. CLOSEABLE — the archive move rides the next sweep**
 - **#423** ✅ **lane-gate's XCUITest counter under-reports on FAILED runs — FIXED + MERGED 2026-09-01 (PR #403, squash `6a96b85a`), 423-A/B/C all MET.** The `Executed N tests, with 0 failures` grep fell through to the LaunchTests sub-suite on a red run and printed "2" while all 15 ran; read exactly like #219's runner-death and nearly misdirected the 09-01 overnight diagnosis twice. The count now reads the `Test Case '-[…]'` ledger and prints passed/failed/total when those disagree; green runs are byte-identical (`diff` + `od`-proven), so no historical PASS count changes meaning. **🔴 The filing understated it — replayed against main, the old check did not just print 2, it printed `PASS  XCUITest tests run — 2` on a red run: a positive marker over a bundle with a failed test, green for as long as it existed. It now fails on its own rather than leaning on its three sibling checks.** RED-first in its own commit (4 of 23 self-test checks failing, both real gate logs among them → 24 green). Runner-death is now separable from a red run in both directions. #300's classifier family
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
@@ -17161,4 +17161,109 @@ historical commit pair by design and never reads the working tree.
 - **424-C (no false alarms on the sweep):** sweep 14's own commit (30 entries MOVED, index
   lines removed) passes the new check — a move is not a drop. [offline]
 Verification standard: the self-test + the two historical commits; no app gate.
+
+> ### ✅ RESULT 2026-09-02 — 424-A/B/C ALL MET, with ONE CLAUSE OF 424-A DEVIATED on measured grounds (below). Script-only; PR #415 (a GitHub number, not a tracker item) · squash `TBD-FILL`. **This entry now reads CLOSEABLE — the archive move rides the next sweep.**
+
+**What shipped.** Two checks in `scripts/oi-invariants.py`, deliberately
+complementary rather than redundant, plus 17 fixtures in
+`scripts/oi-invariants-test.py`:
+
+- **`check_entry_set_against_baseline`** — (live ∪ archive) must be a SUPERSET of
+  the entry-number set at a git baseline. Default `HEAD`; `--baseline
+  origin/main` is the sharper question and the one a lane should ask before a
+  PR, *because the drop happened inside a squash of a branch* where HEAD-vs-tree
+  was clean at every step and only branch-vs-main was not. Falls back to
+  `origin/main` when HEAD cannot be read; an unreadable baseline is NO DATA, never
+  an empty set. **A superset, not equality** — filing new items is normal, and a
+  move between the two files is exactly what #261's rules allow in both
+  directions.
+- **`check_index_lines_resolve`** — an index line must point at an entry in one of
+  the two files. Needs no git and no baseline, so it still fires in a fresh clone
+  of the offending commit, where the set check has nothing to compare against.
+
+**The complement is load-bearing in BOTH directions, and it was measured rather
+than argued.** A sweep that loses an entry *and* removes its index line is
+invisible to the index check and caught by the baseline check (the mutation
+control below is exactly that shape); a drop read from a fresh clone is the
+reverse. Neither check subsumes the other, and neither subsumes
+`oi-split-verify.py`, which stays pinned to its historical range by design — a
+dated pointer now sits in that file's own docstring, where its "proving them
+going forward would be a different, live script" forward reference lived.
+
+**424-B — RED first, verbatim.** The fixtures were written against a checker that
+had no such checks:
+
+```
+$ rm -rf scripts/__pycache__ && PYTHONDONTWRITEBYTECODE=1 python3 scripts/oi-invariants-test.py
+Traceback (most recent call last):
+  File ".../scripts/oi-invariants-test.py", line 397, in <module>
+    verdict(oi.check_entry_set_against_baseline), (True, False, 0))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'oi' has no attribute 'check_entry_set_against_baseline'
+EXIT=1
+```
+
+GREEN after: `oi-invariants-test: PASS (54 checks)`, exit 0.
+
+**424-A — the historical pair, verbatim.** Both commits checked out into scratch
+worktrees with the new script copied in, run with `--baseline HEAD^` so the
+comparison reproduces the pre-commit state exactly.
+
+At `02cad7bf` (the squash that dropped the entry) — and note that **all EIGHT
+pre-existing checks PASS here**, which is the blindness itself, measured rather
+than asserted:
+
+```
+  FAIL   entry set vs the git baseline — 1 entr(y/ies) at `HEAD^` are now in NEITHER file
+           #420 exists at `HEAD^` and in neither OPEN_ITEMS.md nor OPEN_ITEMS-ARCHIVE.md — an entry may move between the two files, never vanish; recover its block with `git show HEAD^:OPEN_ITEMS.md` (or the archive) and re-file it
+  FAIL   index lines resolve to entries — 1 index line(s) point at an entry that is in neither file
+           #420 has an index line but no entry in either file — restore the entry, or drop the index line if the item never existed
+           advisory: #324 is a live entry with no index line — the index is a regenerated map, so this is drift to fold into the next sweep, not a defect
+           advisory: #396 is a live entry with no index line — the index is a regenerated map, so this is drift to fold into the next sweep, not a defect
+
+INVARIANTS: FAIL (2 check(s))
+EXIT=1
+```
+
+At `02cad7bf^` (its parent — clean):
+
+```
+  PASS   entry set vs the git baseline — all 429 entries at `HEAD^` survive (61 live + 368 archived)
+  PASS   index lines resolve to entries — all 61 index lines resolve; 2 live entr(y/ies) not in the index (advisory)
+
+INVARIANTS: PASS
+EXIT=0
+```
+
+**424-C — the sweep, on the REAL files, not a fixture.** Thirty live entries
+moved verbatim to the archive with their index lines removed (#387 #396 #392 #45
+#56 #60 #74 #127 #129 #138 #140 #162 #163 #165 #166 #170 #173 #180 #182 #224
+#303 #302 #308 #312 #314 #323 #332 #340 #334 #293): `PASS — all 430 entries at
+HEAD survive (32 live + 398 archived)`, `INVARIANTS: PASS`, exit 0. **Mutation
+control, because a pass nothing could have failed is not evidence:** the same
+sweep with one entry *deleted* from the archive instead of moved (1,207 lines) →
+`FAIL — 1 entr(y/ies) at HEAD are now in NEITHER file`, exit 1. Its index line
+had already been removed by the sweep, so the index check could not see it —
+this is the direction that justifies keeping two checks.
+
+**⚠️ THE DEVIATION, stated plainly because a missed bar is a falsification and
+not a redefinition.** 424-A as written called "an entry without an index line" a
+violation. **It ships as an ADVISORY row under a PASS, not a FAIL** — and the
+reason was measured before it was decided, not reasoned to afterwards. The index
+section describes itself as a regenerated map ("*the items below are the truth,
+this is only a map*"); two live entries filed after the last regeneration
+(#324, #396) have no line; and **they had none at `02cad7bf^` either — the very
+commit 424-A demands must PASS.** Failing them would have failed that control
+for a reason having nothing to do with the defect, so the bar was internally
+inconsistent and the control wins. **Owen's to reverse in one line** if the
+intent was to force the index complete; the rows print on every run either way,
+so the drift is visible rather than silent. A third, related drift is left
+unjudged and unreported for now: two index numbers appear twice (#138, #254),
+and two index lines point into the archive (#118, #270) — the latter correctly
+resolve and are not findings.
+
+**Not built, deliberately.** No WARN label was added to the runner's output. The
+existing protocol is two-state with a report-only precedent (open PRs print rows
+under a PASS), and inventing a third verdict class to say "advisory" would have
+changed what `INVARIANTS: PASS` means for every other check.
 
