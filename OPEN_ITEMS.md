@@ -823,17 +823,37 @@ native pipeline), **#1** (voice transcripts).
 >
 > **GATE (both lanes — 198B-M and 396-Q shipped together):**
 > `TALARIA_SIM_NAME=CC-lane-3 scripts/mac/lane-gate.sh` — **GATE: PASS on
-> 24A5423a**, **2838** Swift Testing tests (baseline 2832, **+6 exact**: the
-> three 198B-M pins and the three 396-Q pins) / **15** XCUITest / Release
-> build clean, no Swift compile errors in Release. No new Swift files, so no
+> 24A5423a**, **2840** Swift Testing tests / **15** XCUITest / Release build
+> clean, no Swift compile errors in Release. No new Swift files, so no
 > `xcodegen generate` was owed.
 >
-> **Two runs, and the first one FAILED for a real reason** — the #399
-> structural-pin regression written up in #198B's block above, not a flake.
-> Run 1: `GATE: FAIL (4 checks)`, 2838 tests / 2 issues, both
-> `deactivationIsSpelledOnlyInsideTheInjectableSeam`. Run 2 after the
-> one-line repair: clean. The known #219 XCUITest flake did **not** appear
-> in either run.
+> **THREE runs, and the count moved between them for two different reasons
+> — both stated, because a bare "+6" would be ambiguous here.**
+>
+> | run | tree | verdict | Swift Testing |
+> |---|---|---|---|
+> | 1 | pre-rebase | **FAIL (4 checks)** — real, see below | 2838 / 2 issues |
+> | 2 | pre-rebase, pin repaired | PASS | **2838** = baseline **2832 + 6 exact** |
+> | 3 | rebased onto `aec772ab` | PASS | **2840** — main itself gained 2 while this lane ran |
+>
+> So the lane's own contribution is **+6 exact** (the three 198B-M pins and
+> the three 396-Q pins), measured on run 2 against the stated 2832 baseline;
+> run 3's 2840 is that same +6 on a baseline that had moved to 2834 under
+> four commits that merged mid-lane. Re-gated after the rebase because those
+> commits touched COMPILED inputs (`LocalChatBackend+IntentRouting.swift`,
+> `DeviceToolBeltTests.swift`, the privacy-manifest tests) — a docs-only
+> move would not have owed it.
+>
+> **Run 1's failure was real, not a flake** — the #399 structural-pin
+> regression written up in #198B's block above; 2 issues, both
+> `deactivationIsSpelledOnlyInsideTheInjectableSeam`. The known #219
+> XCUITest flake did **not** appear in any of the three runs.
+>
+> **The rebase was checked for #424's hazard** (an invariants checker that
+> passed nine times over a tracker missing an entry): entry headers were
+> counted and set-diffed before and after — 63 on `origin/main`, 63 after,
+> **empty difference**, no entry dropped. `python3 scripts/oi-invariants.py`
+> run unpiped, exit 0, before and after.
 >
 > **XCUITest count verified by hand rather than taken from the script:** 30
 > `Test Case '-[` lines = 15 started + 15 passed, **0 failed**, over 14
