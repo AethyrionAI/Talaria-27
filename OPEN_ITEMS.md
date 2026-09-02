@@ -17162,7 +17162,7 @@ historical commit pair by design and never reads the working tree.
   lines removed) passes the new check — a move is not a drop. [offline]
 Verification standard: the self-test + the two historical commits; no app gate.
 
-> ### ✅ RESULT 2026-09-02 — 424-A/B/C ALL MET, with ONE CLAUSE OF 424-A DEVIATED on measured grounds (below). Script-only; PR #415 (a GitHub number, not a tracker item) · squash `TBD-FILL`. **This entry now reads CLOSEABLE — the archive move rides the next sweep.**
+> ### ✅ RESULT 2026-09-02 — 424-A/B/C ALL MET, with ONE CLAUSE OF 424-A DEVIATED on measured grounds (below). Script-only; PR #415 (a GitHub number, not a tracker item) · squash `d15f8141`. **This entry now reads CLOSEABLE — the archive move rides the next sweep.**
 
 **What shipped.** Two checks in `scripts/oi-invariants.py`, deliberately
 complementary rather than redundant, plus 17 fixtures in
@@ -17261,6 +17261,14 @@ so the drift is visible rather than silent. A third, related drift is left
 unjudged and unreported for now: two index numbers appear twice (#138, #254),
 and two index lines point into the archive (#118, #270) — the latter correctly
 resolve and are not findings.
+
+**The lane's own squash, measured by the lane's own check.** Because that is
+precisely how #420 was lost, the entry set was compared across this merge rather
+than assumed: `aec772ab` 430 entries → `d15f8141` 430 entries, dropped **none**,
+added none. The pre-push comparison was identical too (union=430 live=62
+archive=368, the 430-number list byte-identical before and after `git fetch`);
+`origin/main` never moved during the lane, so no rebase occurred and none was
+resolved.
 
 **Not built, deliberately.** No WARN label was added to the runner's output. The
 existing protocol is two-state with a report-only precedent (open PRs print rows
