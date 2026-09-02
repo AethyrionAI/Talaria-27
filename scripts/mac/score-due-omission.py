@@ -30,9 +30,11 @@ USAGE
 from __future__ import annotations
 
 import argparse
+import io
 import re
 import subprocess
 import sys
+from contextlib import redirect_stdout
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -246,6 +248,30 @@ def bucket(call: "Call | None") -> str:
     return "populated-future"
 
 
+# #200V's warm-up tag. The battery emits `battery: BEGIN shape=warmup p=… t=0`
+# for the trial that pays the model's cold start, BEFORE `beginRun`, so the
+# recorder never sees it and the results page is byte-identical to a
+# warm-up-free run. The app chose a literal that is not any cell's rawValue for
+# exactly this reason — `batteryWarmupTag`'s own comment says the tag says
+# `warmup` "so no classifier and no reap line can mistake a discarded warm-up
+# trial for a counted one." This scorer was that classifier, and it did.
+WARMUP_CELL = "warmup"
+
+
+def split_warmup(by_cell: "dict[str, list]") -> "tuple[dict[str, list], list]":
+    """Separate the discarded warm-up rows from the measured cells.
+
+    A separate function, and the warm-up rows are RETURNED rather than dropped,
+    because the count still has to be reported: a reader who sees no mention of
+    a warm-up cannot tell "there was none" from "the scorer ate one", and that
+    ambiguity is the same `empty output reads as a negative` trap this whole
+    script is written against.
+    """
+    warm = by_cell.get(WARMUP_CELL, [])
+    measured = {cell: rows for cell, rows in by_cell.items() if cell != WARMUP_CELL}
+    return measured, warm
+
+
 def report_by_cell(by_cell: "dict[str, list]") -> int:
     """The per-arm view 340-H5 is scored on.
 
@@ -255,19 +281,42 @@ def report_by_cell(by_cell: "dict[str, list]") -> int:
     with an instant that has not already elapsed. Naming that "correct" is how
     the first version of this script scored an 8:46 AM answer to a 2:58 PM ask
     as fine.
+
+    **And the warm-up is not an arm.** #340-H5's archive scored as THREE cells,
+    the third being `cell warmup — 1 TRIALS` at 100% omission, sorted to the
+    bottom of the table where it reads exactly like a very small third arm. The
+    battery discards that trial by construction; a table that prints it invites
+    a reader to count a discarded trial as a measurement. It is now reported on
+    one labelled line, with its count, and in none of the rates.
     """
-    if not by_cell:
-        print("NO DATA — zero `battery: BEGIN shape=` lines matched.")
+    measured, warm = split_warmup(by_cell)
+    warm_line = None
+    if warm:
+        with_call = sum(1 for _, call in warm if call is not None)
+        warm_line = (f"discarded warm-up: {len(warm)} trial(s), {with_call} of them "
+                     "made a call — NOT an arm, and in NONE of the rates below "
+                     "(#200V pays the cold start outside the counts)")
+
+    if not measured:
+        if warm:
+            print(warm_line)
+            print("NO DATA — the only `battery: BEGIN shape=` lines were the")
+            print("discarded warm-up. A warm-up trial is not a measurement.")
+        else:
+            print("NO DATA — zero `battery: BEGIN shape=` lines matched.")
         print("This is NOT a clean run. Check, in order:")
         print("  1. Was Developer -> verbose logging ON for the whole run?")
         print("  2. Does the archive window actually cover the battery?")
         print("  3. Did the battery start at all?")
         return 2
 
+    if warm_line:
+        print(warm_line)
+
     order = ["populated-future", "omitted", "wrong-value", "no-call"]
     exit_code = 0
-    for cell in sorted(by_cell):
-        rows = by_cell[cell]
+    for cell in sorted(measured):
+        rows = measured[cell]
         n = len(rows)
         counts = {name: 0 for name in order}
         for _, call in rows:
@@ -454,12 +503,65 @@ def self_test() -> int:
     assert by_cell["armed"][1][1].past_at_call and not by_cell["armed"][1][1].unreadable
     assert by_cell["armed-bareclock"][1][1].unreadable
 
+    # ---- #200V: the DISCARDED warm-up trial is NOT an arm. ----
+    #
+    # The battery pays the model's cold start up front, outside the counts, and
+    # tags that trial `shape=warmup … t=0` precisely so nothing downstream can
+    # mistake it for a measurement (`batteryWarmupTag`, and the app-side
+    # comment says so in as many words). This scorer did mistake it: the
+    # #340-H5 archive scored as three arms, the third being
+    # `cell warmup — 1 TRIALS` at 100% omission — a discarded trial wearing a
+    # rate, sorted alphabetically to the bottom of the table where it reads
+    # like a result.
+    #
+    # The fixture puts the warm-up in front of the same A/B used above, so the
+    # measured arms' denominators are asserted UNCHANGED by its presence. That
+    # is the half that a naive "drop anything called warmup" fix could still
+    # get wrong.
+    warm_ab = ab.replace(
+        'Timestamp               Ty Process[PID:TID]\n',
+        'Timestamp               Ty Process[PID:TID]\n'
+        '2026-08-21 08:59:00.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=warmup p=remind t=0\n'
+        '2026-08-21 08:59:01.100 Df Talaria 27[1:1] [x] createReminder due raw="" bareClock=no parsed=nil\n',
+        1)
+    warm_cells = attribute(extract(warm_ab), extract_trials(warm_ab))
+
+    # It must be PARSED and PRESENT here: the exclusion has to be a decision
+    # taken at report time, never a regex that quietly fails to match. A fix
+    # that worked by not seeing the row would pass the output assertions below
+    # and would silently drop a real cell the day someone renames a tag.
+    assert "warmup" in warm_cells, sorted(warm_cells)
+    assert len(warm_cells["warmup"]) == 1
+    assert warm_cells["warmup"][0][1] is not None, "the warm-up trial did make a call"
+    assert len(warm_cells["armed"]) == 4 and len(warm_cells["armed-bareclock"]) == 3
+
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        warm_code = report_by_cell(warm_cells)
+    out = buf.getvalue()
+    assert warm_code == 0, warm_code
+    assert "cell warmup" not in out, "a discarded warm-up must never print as a cell"
+    assert "discarded warm-up: 1 trial" in out, out
+    assert "cell armed — 4 TRIALS" in out, out
+    assert "cell armed-bareclock — 3 TRIALS" in out, out
+
+    # And a run that is NOTHING BUT warm-up is NO DATA, not a clean sweep —
+    # the same rule as an empty dict, because a warm-up is not a measurement.
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        warm_only_code = report_by_cell({"warmup": warm_cells["warmup"]})
+    out = buf.getvalue()
+    assert warm_only_code == 2, "a warm-up-only archive must exit 2"
+    assert "cell warmup" not in out, out
+    assert "discarded warm-up: 1 trial" in out, out
+
     print("--- exercising the by-cell no-data guard; the block below is EXPECTED ---")
     assert report_by_cell({}) == 2, "no trials must exit 2, never report clean buckets"
     print("--- end expected block ---")
 
     print("SELF-TEST PASSED — 4 call fixtures, all four classes, the no-data")
-    print("guard, and #340-H4's four buckets attributed across a two-arm A/B.")
+    print("guard, #340-H4's four buckets attributed across a two-arm A/B, and")
+    print("the #200V warm-up trial reported as discarded rather than as an arm.")
     return 0
 
 

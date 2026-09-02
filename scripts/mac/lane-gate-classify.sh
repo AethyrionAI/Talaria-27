@@ -112,6 +112,66 @@ gate_classify_failures() {   # gate_classify_failures <logfile>
     printf 'runner-flake'
 }
 
+# ---------------------------------------------------------------------------
+# THE XCUITEST COUNT.
+#
+# Lives here, beside the classifier, for the same reason the classifier does:
+# it must be testable in a second instead of behind a twenty-minute suite.
+# `lane-gate.sh` calls it; `lane-gate-classify-test.sh` drives it over recorded
+# fixtures.
+#
+# WHAT THIS REPLACES, and why the replacement is not a tidy-up. The count used
+# to be the MAX number on any line reading `Executed N tests, with 0 failures`.
+# On a GREEN run that is right. On a RED run the phrase is not printed for the
+# sub-suite that failed, so the number fell through to whichever sub-suite
+# happened to be clean — on 2026-09-01 the two-test launch suite — and the gate
+# announced "XCUITest tests run — 2" over a bundle of fifteen that had run to
+# completion, 14 passed and 1 failed.
+#
+# That is worse than a wrong number. "2 of a 15-test bundle" is the exact
+# signature of the runner being lost mid-bundle, so the line read as a harness
+# flake and misdirected the overnight diagnosis twice before someone counted
+# the Test Case lines by hand. A counter that is only correct when everything
+# passed is a counter that lies precisely when it is being read hardest.
+#
+# So count the ledger XCTest actually prints, one line per start and one per
+# outcome:
+#
+#   Test Case '-[TalariaUITests.TalariaUITests testChatSendFlow]' started.
+#   Test Case '-[TalariaUITests.TalariaUITests testChatSendFlow]' passed (11.164 seconds).
+#
+# LINES, never unique names: the launch suite runs `testLaunch` twice under two
+# configurations and both are real executions.
+# ---------------------------------------------------------------------------
+
+# The raw tally. Echoes three integers: started, passed, failed.
+gate_xcuitest_ledger() {   # gate_xcuitest_ledger <logfile>
+    local log="$1" started passed failed
+    if [[ ! -s "$log" ]]; then printf '0 0 0'; return; fi
+    started="$(grep -cE "^Test Case '-\[.*\]' started" "$log")"
+    passed="$( grep -cE "^Test Case '-\[.*\]' passed"  "$log")"
+    failed="$( grep -cE "^Test Case '-\[.*\]' failed"  "$log")"
+    printf '%s %s %s' "${started:-0}" "${passed:-0}" "${failed:-0}"
+}
+
+# Echo the count/summary to print after the label. Empty output means "nothing
+# countable in this log", which the caller must treat as a FAIL.
+#
+# A clean bundle prints the bare number and nothing else — byte-identical to
+# what this gate has printed since it was written, so no historical PASS count
+# changes meaning. Anything else prints all three figures, which is what lets a
+# reader tell 14-passed-1-failed apart from 10-reported-of-15-started.
+gate_xcuitest_summary() {   # gate_xcuitest_summary <logfile>
+    local started passed failed
+    read -r started passed failed <<<"$(gate_xcuitest_ledger "$1")"
+    if (( started == 0 )); then return 0; fi
+    if (( failed == 0 && passed == started )); then
+        printf '%s' "$passed"
+        return 0
+    fi
+    printf '%s passed / %s failed / %s ran' "$passed" "$failed" "$started"
+}
+
 # Print the per-test breakdown plus the verdict-specific advice.
 gate_print_failure_advice() {   # gate_print_failure_advice <logfile>
     local log="$1" line name loci verdict

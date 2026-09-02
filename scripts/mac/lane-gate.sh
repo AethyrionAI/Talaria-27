@@ -50,6 +50,16 @@
 # So: success requires the authoritative marker AND a zero exit AND a nonzero
 # count, and any explicit failure marker fails the check outright.
 #
+# ...AND MISTAKE 1 HAD A SECOND HALF THAT TOOK UNTIL 2026-09-01 TO SURFACE.
+# Requiring the count to be > 0 fixed the empty-sub-suite pass, but the phrase
+# it counted — `Executed N tests, with 0 failures` — is printed PER SUB-SUITE,
+# and a sub-suite containing a failure does not print it. So on a red run the
+# MAX fell through to whichever sub-suite was clean and the gate reported
+# "XCUITest tests run — 2" for a bundle of fifteen that had run to completion.
+# The XCUITest count now reads the per-test `Test Case '-[…]'` ledger and
+# prints passed/failed/total whenever those disagree. Green runs print the same
+# bare number they always have.
+#
 # Usage:
 #   scripts/mac/lane-gate.sh              suite + Release build (the gate)
 #   scripts/mac/lane-gate.sh --release    Release build only (fast re-check)
@@ -131,6 +141,11 @@ refute() {   # refute <logfile> <pattern> <label>
 
 # A count that must be greater than zero. `Executed 0 tests, with 0 failures`
 # is why this exists — see the header.
+#
+# The XCUITest count no longer comes through here; it reads the per-test ledger
+# instead (see require_xcuitest_count below). The MAX-over-matching-lines rule
+# is correct for the Swift Testing summary line, which is emitted once for the
+# whole run, and was quietly wrong for a family of per-suite lines.
 require_count() {   # require_count <logfile> <extract-regex> <label>
     local log="$1" pat="$2" label="$3" n
     # MAX, not first: a log legitimately contains an empty sub-suite line
@@ -155,6 +170,42 @@ require_count() {   # require_count <logfile> <extract-regex> <label>
         return 0
     fi
     bad "$label — count is ZERO, which is not a pass"
+    return 1
+}
+
+# The XCUITest count, read from the per-test ledger rather than from the
+# per-suite `Executed N tests, with 0 failures` summaries. The tally itself
+# lives in the classifier library so it can be exercised in a second; the
+# comment there records what it replaces and why that mattered.
+#
+# Marker semantics are unchanged in both directions: no ledger at all is a
+# FAIL (absence is never a count), and a bundle that did not come back all-pass
+# is a FAIL — it just says how many, instead of falling through to a number
+# that happened to be clean.
+require_xcuitest_count() {   # require_xcuitest_count <logfile> <label>
+    local log="$1" label="$2" summary started passed failed
+    if [[ ! -s "$log" ]]; then
+        bad "$label — log is empty or missing ($log)"
+        return 1
+    fi
+    summary="$(gate_xcuitest_summary "$log")"
+    if [[ -z "$summary" ]]; then
+        bad "$label — no per-test ledger found in $log"
+        return 1
+    fi
+    read -r started passed failed <<<"$(gate_xcuitest_ledger "$log")"
+    if (( failed == 0 && passed == started )); then
+        ok "$label — $summary"
+        return 0
+    fi
+    bad "$label — $summary"
+    if (( passed + failed < started )); then
+        echo "        $((started - passed - failed)) test(s) STARTED and never reported an"
+        echo "        outcome. That is the runner being lost or restarted mid-bundle,"
+        echo "        not a product failure — and it is the thing a fall-through count"
+        echo "        used to be mistaken for. Find its live entry with:"
+        echo "            grep -n 'runner dies mid-bundle' OPEN_ITEMS.md"
+    fi
     return 1
 }
 
@@ -333,8 +384,7 @@ if (( RUN_SUITE )); then
     # undercounts. Both counts must be greater than zero.
     require_count "$SUITE_LOG" 'Test run with [0-9]+ tests in [0-9]+ suites passed' \
                   "Swift Testing tests run"
-    require_count "$SUITE_LOG" 'Executed [0-9]+ tests?, with 0 failures' \
-                  "XCUITest tests run"
+    require_xcuitest_count "$SUITE_LOG" "XCUITest tests run"
 
     # SKIPS. A skipped test is not a passing test, and until 2026-08-02 this
     # gate could not see one. Measured then: `CondenserFidelityTests` printed
