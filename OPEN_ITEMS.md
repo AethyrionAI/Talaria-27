@@ -3030,6 +3030,8 @@ Logged 2026-07-22.
 > on a slow box, which is what the prior occurrences assumed. Artifact
 > preserved for the #219 lane. Filed there as well.
 
+> **⚖️ RULED 2026-09-01 night (Owen, AskUserQuestion): DELETE TalariaShare's UserDefaults declaration.** The extension is file-based and uses none; "declare IFF used" is the tripwire's own rule, so the named exemption comes out with it. Small lane opened the same night (bars: the tripwire's exemption is removed FIRST and watched RED against the still-present declaration, then the declaration is removed and the test goes GREEN; gate PASS). The app and widget manifests are untouched.
+
 ## 170. ⚠️ Task detail presents `model_snapshot` as if it were the job's model — and the phone cannot pin a model at all (device-found 2026-07-22). **LEAD 2026-08-01: 0.19.0 may have made the second half solvable.**
 
 > ## ❌ LEAD TESTED 2026-08-02 — **the lock does NOT govern. Do not adopt it.** The second clause of this item STANDS.
@@ -3515,6 +3517,8 @@ Logged 2026-07-23.
 > question Owen already answered once — whether to claim anything about a
 > host's attachment capability when the app cannot measure it. Re-opening it
 > means re-opening that ruling, not writing code.
+
+> **⚖️ RULED 2026-09-01 night (Owen, AskUserQuestion): CLOSE AS WITHDRAWN.** The 08-20 withdrawal stands as the design: the app has no vision signal to discriminate on, so a host attachment-capability caption is not re-attempted. **Reopen trigger, named:** upstream exposes a per-model vision capability (e.g. `supports_vision`) on the catalog the app reads (`GatewayModelCatalog.swift` — zero such fields at HEAD, re-verified 09-01). Archive move rides tonight's sweep.
 
 ## 180. 🎨 UMBRELLA — the app hides its own degradation: one design default, and a register that is no longer four instances long
 
@@ -11494,6 +11498,7 @@ just the log.
 > the exact string `lane-gate.sh` greps for in its failure advice — so this
 > pointer is appended after it rather than editing it.
 
+> **⚖️ RULED 2026-09-01 night (Owen, AskUserQuestion): DISCARD the hedge branch.** `219-hedge-start-chatting` (`7dbb3c0f`) is deleted, never pushed; its falsification evidence stays in the 2026-09-01 blocks above. The real fix waits on the xcresult diagnosis (the overlay/keyboard-remnant hypothesis) from the next natural red. Nothing else changes: WATCH stands.
 
 ## 211A. offer-instead-of-act on READ paths, where no confirmation gate excuses it — **✅ INSTRUMENT BUILT + MERGED 2026-08-26 (instruments lane): `offer-read`, three arms x four read prompts, cells + scorer, bars 211A-B1..B7 met on the simulator. The DEVICE run is Owen's and is a runbook card; 211A-D1..D4 are pre-registered and UNRUN, so this entry still carries ZERO behavioural numbers.**
 
