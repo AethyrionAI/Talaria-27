@@ -59,11 +59,12 @@ final class VoiceMemoPlayer: NSObject, AVAudioPlayerDelegate {
     /// `AudioSessionOffMain`, which is the item's point: the sync spelling
     /// logged the `AVAudioSession_iOS.mm:978` main-thread fault.
     @ObservationIgnored var deactivateAudioSession: () async -> Void = {
-        try? await AudioSessionOffMain.setActive(
-            false,
-            options: .notifyOthersOnDeactivation,
-            reason: "memo-playback-stop"
-        )
+        // ONE LINE ON PURPOSE. #399's structural pin greps this file for the
+        // deactivation spelling and expects exactly one; a multi-line
+        // reformat splits that literal in half and reds the pin — which is
+        // what it did to 198B-M's first draft, correctly. Note the pin also
+        // counts COMMENTS, so this one deliberately does not quote it.
+        try? await AudioSessionOffMain.setActive(false, options: .notifyOthersOnDeactivation, reason: "memo-playback-stop")
     }
 
     /// #198B: the activation half, seamed for the same reason — the ordering
