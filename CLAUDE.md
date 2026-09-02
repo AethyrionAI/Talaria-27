@@ -773,6 +773,13 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
     `SimRuntime.iOS-27-0` resolves to the CHOSEN match, which is **24A5423a
     (iOS beta 7; was 24A5408d until 2026-08-24)** unless someone set an A/B override, so verify with
     `xcrun simctl runtime match list` when it matters.
+  - **⏱ The gate spends ~10 minutes in `simctl diagnose --timeout=600` AFTER the
+    tests finish, and with three sims booted it diagnoses sims the lane never
+    touched (measured 2026-09-01, #334's lane).** That window is pure dead
+    time that looks exactly like a hang — a PID-keyed waiter sees a live
+    process and a log that has stopped moving. Do not kill it; budget it. If
+    the pool is at the 3-sim ceiling, the run is ~10 min longer than the
+    suite, every time.
   - **`xcodebuild` cannot resolve these by NAME — pass the UDID**
     (`-destination 'platform=iOS Simulator,id=<udid>'`). `name=CC-lane-1` fails
     with "Unable to find a device matching the provided destination specifier".
