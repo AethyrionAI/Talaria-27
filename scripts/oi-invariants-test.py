@@ -356,12 +356,166 @@ check("report: no gh is NO DATA, not a pass",
 
 
 # --------------------------------------------------------------------------
+# 8 · the entry SET vs the git baseline — an entry may MOVE, never disappear
+# --------------------------------------------------------------------------
+# POSITIVE CASE is the 2026-09-02 event: a squash deleted one entry and its
+# 9,402 bytes from OPEN_ITEMS.md during a tracker rebase, and this script
+# returned PASS on that commit and on the nine after it. Every check above
+# validates the text it is GIVEN, so an entry that is simply absent was not a
+# violation of anything.
+
+
+def stub_baseline(live: str, archive: str | None = "", refs=("HEAD",)):
+    """A `git` that also serves `git show <ref>:<file>` from crafted text, so a
+    fixture can pose a BASELINE without committing anything.
+
+    `archive=None` means the archive file does not exist at that commit — the
+    real pre-split shape, and the one case where git legitimately answers None
+    for a path while being perfectly healthy.
+    """
+    def _git(*args):
+        if args[:2] == ("rev-parse", "--git-dir"):
+            return ".git\n"
+        if args[:1] == ("show",):
+            ref, _, path = args[1].partition(":")
+            if ref not in refs:
+                return None
+            if path == "OPEN_ITEMS.md":
+                return live
+            if path == "OPEN_ITEMS-ARCHIVE.md":
+                return archive
+        return None
+    oi.git = _git
+
+
+BASE_LIVE = "## 10. one\n\n## 11. two\n"
+BASE_ARCH = "## 12. three\n"
+
+with_tracker(BASE_LIVE, BASE_ARCH)
+stub_baseline(BASE_LIVE, BASE_ARCH)
+check("entry-set: an unchanged tracker passes",
+      verdict(oi.check_entry_set_against_baseline), (True, False, 0))
+
+# POSITIVE CASE — the drop, exactly as it happened: gone from live, and not in
+# the archive either.
+with_tracker("## 10. one\n", BASE_ARCH)
+stub_baseline(BASE_LIVE, BASE_ARCH)
+check("entry-set: an entry dropped from BOTH files is caught",
+      verdict(oi.check_entry_set_against_baseline), (False, False, 1))
+
+# 424-C — sweep 14 moves ~30 entries live -> archive in ONE commit. A move is
+# not a drop, and a check that cannot tell them apart would be turned off the
+# first time a sweep ran.
+with_tracker("## 10. one\n", "## 12. three\n\n## 11. two\n")
+stub_baseline(BASE_LIVE, BASE_ARCH)
+check("entry-set: a live -> archive MOVE is not a drop",
+      verdict(oi.check_entry_set_against_baseline), (True, False, 0))
+
+# ...and the reverse move, which #261's rules explicitly allow: a reopened item
+# moves its block back to the live board.
+with_tracker("## 10. one\n\n## 11. two\n\n## 12. three\n", "")
+stub_baseline(BASE_LIVE, BASE_ARCH)
+check("entry-set: an archive -> live move is not a drop either",
+      verdict(oi.check_entry_set_against_baseline), (True, False, 0))
+
+# A lane filing a NEW item is the normal case: the invariant is a superset, not
+# equality.
+with_tracker(BASE_LIVE + "\n## 13. new\n", BASE_ARCH)
+stub_baseline(BASE_LIVE, BASE_ARCH)
+check("entry-set: filing a new item is not a violation",
+      verdict(oi.check_entry_set_against_baseline), (True, False, 0))
+
+# Several at once are reported one row each — a sweep that loses three entries
+# must not read as one problem.
+with_tracker("## 10. one\n", "")
+stub_baseline(BASE_LIVE, BASE_ARCH)
+check("entry-set: every dropped entry gets its own row",
+      verdict(oi.check_entry_set_against_baseline), (False, False, 2))
+
+# An archive that did not exist at the baseline is the pre-split shape, not an
+# error: git answers None for the path while being entirely healthy.
+with_tracker(BASE_LIVE, "")
+stub_baseline(BASE_LIVE, None)
+check("entry-set: no archive at the baseline is a clean baseline, not NO DATA",
+      verdict(oi.check_entry_set_against_baseline), (True, False, 0))
+
+# The fallback: HEAD unreadable, origin/main answers.
+with_tracker(BASE_LIVE, BASE_ARCH)
+stub_baseline(BASE_LIVE, BASE_ARCH, refs=("origin/main",))
+check("entry-set: falls back to origin/main when HEAD cannot be read",
+      verdict(oi.check_entry_set_against_baseline), (True, False, 0))
+
+# NO DATA IS NOT A PASS — the whole file's posture. A baseline nothing can read
+# must not silently become an empty set, which would pass over any drop at all.
+with_tracker(BASE_LIVE, BASE_ARCH)
+stub_baseline(BASE_LIVE, BASE_ARCH, refs=())
+check("entry-set: an unreadable baseline is NO DATA, not a pass",
+      verdict(oi.check_entry_set_against_baseline), (False, True, 0))
+
+oi.git = lambda *a: None
+check("entry-set: no git is NO DATA, not a pass",
+      verdict(oi.check_entry_set_against_baseline), (False, True, 0))
+
+stub_baseline(BASE_LIVE, BASE_ARCH)
+with_tracker(BASE_LIVE, BASE_ARCH)
+oi.LIVE = oi.Path(os.path.join(_TMP.name, "absent-tracker.md"))
+check("entry-set: a missing tracker is NO DATA, not a pass",
+      verdict(oi.check_entry_set_against_baseline), (False, True, 0))
+
+
+# --------------------------------------------------------------------------
+# 9 · index lines resolve to entries
+# --------------------------------------------------------------------------
+# The index line for the dropped entry SURVIVED the squash, so the top-of-file
+# map advertised a live item that no longer existed. This check needs no
+# baseline at all — it is internally decidable — which is why it catches the
+# same event in a fresh clone, where the drop check has nothing to compare to.
+
+with_tracker("- **#10** a thing\n- **#12** an archived thing\n\n## 10. one\n",
+             "## 12. three\n")
+check("index: every line resolving to an entry passes",
+      verdict(oi.check_index_lines_resolve), (True, False, 0))
+
+# POSITIVE CASE — the surviving index line over a deleted entry.
+with_tracker("- **#10** a thing\n- **#99** a thing that is not here\n\n## 10. one\n")
+check("index: a line pointing at no entry in EITHER file is caught",
+      verdict(oi.check_index_lines_resolve), (False, False, 1))
+
+# A line pointing INTO the archive is correct, not an orphan — two live index
+# lines do exactly this today, and reading them as orphans would make the
+# check's first run a false alarm.
+with_tracker("- **#10** a thing\n- **#118** an archived thing\n\n## 10. one\n",
+             "## 118. archived\n")
+check("index: a line pointing into the archive resolves",
+      verdict(oi.check_index_lines_resolve), (True, False, 0))
+
+# An entry with NO index line is ADVISORY, not a failure. Measured before
+# writing this: the index is a regenerated map and two live entries filed after
+# the last regeneration have no line — including at the commit this lane must
+# PASS on. A FAIL here would fail that historical control for the wrong reason.
+with_tracker("- **#10** a thing\n\n## 10. one\n\n## 11. filed after the regen\n")
+check("index: an entry with no index line is advisory, not a failure",
+      verdict(oi.check_index_lines_resolve), (True, False, 1))
+
+# ...and an orphan still FAILS while advisory rows are present, rather than
+# either one hiding the other.
+with_tracker("- **#99** not here\n\n## 10. one\n")
+check("index: an orphan fails even alongside advisory rows",
+      verdict(oi.check_index_lines_resolve), (False, False, 2))
+
+oi.LIVE = oi.Path(os.path.join(_TMP.name, "absent-tracker.md"))
+check("index: a missing tracker is NO DATA, not a pass",
+      verdict(oi.check_index_lines_resolve), (False, True, 0))
+
+
+# --------------------------------------------------------------------------
 # Structural: every check the script runs has at least one case above.
 # A check added without a fixture is the gap this file exists to close.
 # --------------------------------------------------------------------------
 
 _covered = {
     "check_headers_not_at_line_start",
+    "check_entry_set_against_baseline", "check_index_lines_resolve",
     "check_duplicate_numbers", "check_claimed_merge_state",
     "check_open_pr_claims", "check_bar_results_live_under_their_own_item",
     "check_headers_claiming_not_started",
