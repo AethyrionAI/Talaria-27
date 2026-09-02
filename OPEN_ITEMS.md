@@ -116,7 +116,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#396** 🔉 VOICE IS TOO SENSITIVE on both engines (Owen, 2026-08-22) — four faults characterised separately per engine; **396-B (host knobs re-configured) + the ruled COARSE PICKER shipped** (app PR #361, plugin `e669549`, both hosts on 0.8.0), local half deliberately unbound behind the fault-2 author measurement. **⟵ 2026-09-02: 396-Q instrument MERGED (PR #416, squash `9dca3bad`) — the app now logs the preset it mints with (`#396 tuning preset=… engine=realtime values=host`), always-on, so the next archive attributes rate to preset; the app sends a NAME only, values stay host-side.** Still open: the LOCAL half, 396-D's live before/after quote, and #413's preset attribution once a tuned archive lands
 - **#127** 🔧 Monetization scaffold — MERGED DORMANT + gate walk DEVICE VERIFIED 2026-07-17 (fail-open live-confirmed on …
 - **#129** 🔧 Voice preview mid-session — MERGED (PR #127, merge `175261b`, 2026-07-20); device pass owed. Known accepted …
-- **#138** 🐛 Realtime engine self-barge-in — assistant TTS captured as user speech (OJAMD voice host); slow turn … — **2026-09-01 ESCALATION SYNTHESIS appended (the cluster's one-page home): the phantom is ONSET-bound (5 of 7 speakerphone first utterances dirty, all 0.25–0.58 s after `audio.started`), this entry's "item.created root cause" is falsified on its own archive (it was #419-B's transcript-done reset, now fixed in `02cad7bf`), 138-K retired by measurement (the server clears on its own), hypotheses ranked, cards V1–V5 for Owen's election — V1 (the volume arm) first**  ⟶ **2026-09-02: card V3 (138-M, the SEGMENT INSTRUMENT) SHIPPED — three always-on `#138 segment` lines (`speech_stopped` segment ms + offset, `committed` offset, `transcript` chars + script class, never the text), RED-first and mutation-proven, H3's prediction pre-registered; V1/V2 Record now quotes them (PR #418, `60dd9641`). Still nothing measured — V1 remains the next move**
+- **#138** 🐛 Realtime engine self-barge-in — assistant TTS captured as user speech (OJAMD voice host); slow turn … — **2026-09-01 ESCALATION SYNTHESIS appended (the cluster's one-page home): the phantom is ONSET-bound (5 of 7 speakerphone first utterances dirty, all 0.25–0.58 s after `audio.started`), this entry's "item.created root cause" is falsified on its own archive (it was #419-B's transcript-done reset, now fixed in `02cad7bf`), 138-K retired by measurement (the server clears on its own), hypotheses ranked, cards V1–V5 for Owen's election — V1 (the volume arm) first**  ⟶ **2026-09-02: card V3 (138-M, the SEGMENT INSTRUMENT) SHIPPED — three always-on `#138 segment` lines (`speech_stopped` segment ms + offset, `committed` offset, `transcript` chars + script class, never the text), RED-first and mutation-proven, H3's prediction pre-registered; V1/V2 Record now quotes them (PR #418, `60dd9641`). Still nothing measured — V1 remains the next move**  ⟶ **2026-09-02: card V5 (138-O, THE ONSET GATE) BUILT AND MERGED — the local uplink track is disabled for a named 800 ms from every `audio.started` and restored by a cancellable session-scoped timer, re-armed ONLY by a new playback; barge-in at +2 s untouched and the pre-existing pins byte-unedited; three always-on `#138 onset gate` lines, RED-first and mutation-proven (PR #420, `SQUASH_SHA_PENDING`). ⚠️ "V1 remains the next move" just above is SUPERSEDED — Owen's election folded V1 into **138-O-E**, now the single owed device card (speakerphone, `normal`, 3 starts at ~2 bars AND 3 at max, 0/3 onset phantoms per arm). Still nothing measured: the gate is a mechanism and only the phone can score it**
 - **#140** 🔧 README + GitHub Pages refresh — ~~stale wedge narrative + pre-freemium positioning~~ re-scoped 2026-08-25 (as-filed premise discharged) → **✅ PUBLISHED the same day on Owen's go (PR #373, `47632a01`, verified live): relay claims retired, the vision story public, beta6 line, honest screens meta. Remaining: the P-4 screenshot batch + device rows R15/R16 (runbook-carded)**
 - **#162** 🛠 156a Tasks lane — **SHIPPED, on `main`** (`Talaria/Features/Tasks/`, reachable at `ContentView.swift:246`) …
 - **#163** 🧩 156b Skills lane — **SHIPPED, on `main`** (`Talaria/Features/Skills/`, reachable at …
@@ -2292,6 +2292,177 @@ Logged 2026-07-20 (Session V launch sweep).
 > - **138-O-E (device, rides the next OTA — REPLACES V1 as the runbook card):** speakerphone, `normal` preset, say only "hello", silent 10 s, end — **3 starts at ~2 bars AND 3 starts at max: 0/3 onset phantoms in each arm**, scored from the log (`#138 onset gate` lines present at every `audio.started`; zero `BARGE-IN` inside 0.8 s; the first `audio.stopped after Nms` that is non-zero also closes 419-B). A phantom AFTER the window is a new finding, not this bar's fail. [device — Owen]
 > - **138-O-GATE:** `lane-gate.sh` PASS, count moved; the entry-set check across the rebase. [Mac]
 > Scope fences: no change to the host, the preset, the canceller, or `forceSpeakerIfNeeded`; the gate is app-side only and its window is the one tunable.
+
+> **✅ 2026-09-02 — 138-O RESULT (card V5, THE ONSET GATE): the local uplink
+> track is disabled for a named 800 ms from every `audio.started` and restored
+> by a cancellable, session-scoped timer that only a NEW playback re-arms.
+> RED-first, three mutations, PR #420, squash `SQUASH_SHA_PENDING`. Bars
+> 138-O-A/B/C/D and 138-O-GATE MET; 138-O-E is OWED on device.** Built headless
+> on `CC-lane-3`, sim runtime iOS 27.0 `24A5423a` (#398-A: the phone is
+> `24A5424a` — and here the skew is the POINT rather than a caveat. This lane
+> ships a MECHANISM, not a rate; whether it removes the phantom is not
+> simulator-answerable at all, and 138-O-E is the bar that measures it.)
+>
+> ### 138-O-A — MET. One constant, and three always-on lines
+>
+> `LiveVoiceSessionService.onsetGateWindowMilliseconds = 800` —
+> `Talaria/Services/Live/LiveVoiceSessionService.swift:1431`. The fix's one
+> tunable and its only home. The two lines the bar named, verbatim:
+>
+> ```
+> #138 onset gate: uplink muted 800ms
+> #138 onset gate: uplink restored
+> ```
+>
+> Both were observed emitting live in the green gate's own suite log (6 armings,
+> 4 releases — the two unmatched armings are the pins that end while the window
+> is still open, which is the reading `cancelOnsetGate` deliberately leaves
+> honest).
+>
+> **A THIRD line ships that the bar did not name, and 138-O-E is the reason:**
+>
+> ```
+> #138 onset gate: speech_started suppressed 312ms into the 800ms window
+> ```
+>
+> 138-O-E is an ABSENCE bar — zero `#138 BARGE-IN` inside 0.8 s — and an
+> absence with no positive control passes on an empty log. That is the trap
+> #198B-A was built to close, and the one the V1/V2 cards had to bolt onto
+> #138-M in a later edit. Without this line a clean device run cannot separate
+> *the gate held* from *the server never sent a `speech_started`*, and those two
+> readings take opposite next moves. Additive to the bar, never in place of it.
+>
+> All three are `nonisolated static` pure formatters (`:1518`, `:1525`,
+> `:1533`), emitted `.notice` / `privacy: .public` / **un-gated** — no
+> `#if DEBUG`, no `verboseLogging` (#218), and 138-O-D's structural pin asserts
+> that against the source rather than trusting it. **The window is READ from the
+> constant, not restated:** a pin passes `windowMs: 1234` and requires
+> `uplink muted 1234ms`, so a build with a different window cannot print 800.
+>
+> **Why 800 and not the card's proposed ~700.** The measured trips reach 0.60 s
+> (09-02 08:19: +0.58 and +0.60 s), so 700 ms sits on the edge of the band the
+> fix has to clear; 800 buys 200 ms of margin over the worst reading we hold.
+> The stated cost is unchanged and bounded: a real barge-in inside the first
+> 0.8 s of a reply waits 0.8 s.
+>
+> ### 138-O-B — MET. Re-armed only by a NEW playback
+>
+> `armOnsetGate()` has exactly ONE call site, `output_audio_buffer.started`
+> (`:984`). The pin drives the whole scripted sequence:
+>
+> | t | event | required |
+> |---|---|---|
+> | 0 | `output_audio_buffer.started` | uplink disabled, gate holding |
+> | +0.3 s | `input_audio_buffer.speech_started` | no cancel sent, state stays `.speaking` |
+> | +0.5 s | `output_audio_buffer.cleared` + `output_audio_transcript.done` | window NOT extended |
+> | by +1.1 s | — | uplink restored, gate not holding |
+> | then | `cleared` + `transcript.done` + `handleAudioRouteChange` | still not holding |
+> | then | `output_audio_buffer.started` | re-armed |
+> | +2.0 s | `speech_started` | full cancel / clear / truncate, exactly as before |
+>
+> The release budget is anchored to the ARMING instant, not to "however long the
+> previous step took" — a re-arm at +0.5 s moves the release to +1.3 s and has
+> to be caught however slow the host is.
+>
+> ### 138-O-C — MET, and the pre-existing barge-in pins are BYTE-untouched
+>
+> `git diff --numstat` on both test files reads `233 0` and `56 0`: **pure
+> insertions, zero deletions.** Nothing was rewritten to accommodate the gate,
+> which is the half of this bar a passing suite alone cannot show. The pins are
+> `liveVoiceSessionServiceInterruptsAssistantPlaybackOnSpeechStart` and
+> `liveVoiceSessionServiceDoesNotInterruptWhenAssistantIsNotSpeaking` in
+> `AppStoresTests`, plus #419-B's `bargeInAfterTranscriptDoneStillTruncates` and
+> `audioLessResponseStillFinalizesToListening` in
+> `AssistantPlaybackTrackingTests` — that third suite was pulled into every run
+> of this lane precisely because two of its pins drive `speech_started` 80 ms
+> into playback, i.e. inside the window this fix opens.
+>
+> **And the reason they still pass is the invariant, not an accommodation.** The
+> gate suppresses only what it actually MUTED: `onsetGateIsHolding` means "we
+> disabled an uplink", never "800 ms have not elapsed". A service that never
+> stood up a peer connection has no uplink, so the gate never arms and
+> `speech_started` behaves exactly as before. That is also the production rule —
+> a gate that suppressed barge-in on a window it had not enforced would be
+> claiming a mute that never happened, and would break real barge-in in any
+> state where the mute did not take.
+>
+> **One further app-side change the bar implies and this entry states outright:**
+> a suppressed `speech_started` no longer flips `voiceState` to `.listening`. It
+> used to, unconditionally. Inside the window the assistant IS still speaking,
+> and a state saying otherwise would be #419's defect in a new place — the UI
+> reading "Listening" over live playback.
+>
+> ### 138-O-D — MET. No capture-state lie
+>
+> The mic is not off and the audio session is untouched; one TRACK is disabled.
+> `capture chain HOT`/`COLD` (#302-A/#415) mean *microphone buffers are / are
+> not leaving the device*, and a COLD line at every playback onset would read to
+> an operator as the capture chain collapsing eight times a session.
+>
+> Pinned structurally, because the failure it guards is a line ADDED later by
+> someone who thinks the gate should announce itself in the same vocabulary: the
+> gate's own MARK section is read out of the source and asserted to contain none
+> of `capture chain`, `AudioSessionOffMain`, `configureAudioSession`,
+> `forceSpeakerIfNeeded`, `peerConnection`, `#if DEBUG`, `verboseLogging` — and
+> the file's two capture-chain emissions are counted and required to stay at
+> exactly one each. The behavioural half asserts `connectionState`,
+> `voiceState`, `isMuted` and `audioRouteSummary` are unmoved across an arm and
+> a release.
+>
+> ### RED first, and the count MOVED
+>
+> Against inert stubs (a no-op gate; formatters returning a bare `#138 onset
+> gate`): **`✘ Test run with 162 tests in 2 suites failed after 12.180 seconds
+> with 16 issues`** — all 16 in the eight new pins, every incumbent green
+> throughout. One new pin deliberately passed in RED and had to:
+> `aSpeechStartedAfterTheOnsetWindowStillCancelsTheAssistant` is the control
+> that says barge-in worked before the gate existed.
+> **GREEN: `✔ Test run with 167 tests in 3 suites passed after 13.500 seconds`.**
+>
+> ### Three mutations, each reddening what the bar said it would
+>
+> | mutation | issues | tests reddened | untouched |
+> |---|---|---|---|
+> | (i) re-arm on `output_audio_buffer.cleared` | 4 | **1** — `theOnsetGateIsReArmedOnlyByANewPlaybackNeverByACancel` | 166 |
+> | (ii) window constant `800` → `0` | 7 | 4 — the inside-window pin (3 issues) **plus the three constant-readers** | 163 |
+> | (iii) drop `\(windowMs)ms` from the arming formatter | 3 | 2 — both arming-line pins in `VoiceInstrumentLogLineTests` | 165 |
+>
+> Mutation (i) is the bar's own test and it reds **exactly** its pin. Mutation
+> (ii) reds more than the bar named, and that is correct rather than sloppy:
+> three pins exist specifically to notice a changed window, so a silent 800→0 is
+> the one edit this fix cannot afford to ship unremarked.
+>
+> ### 138-O-GATE — MET, on the second roll
+>
+> `GATE: PASS` on `CC-lane-3`, runtime iOS 27.0 `24A5423a`: **2856 Swift Testing
+> tests / 244 suites** (baseline 2846 → **+10, exactly the new pins — the count
+> MOVED**), **15 XCUITest** (30 `Test Case '-[` lines, 15 passed, 0 failed),
+> Release build green. `xcodegen generate` produced no diff (no files added).
+> Entry set **430 → 430** across both tracker files, checked before and after
+> the rebase (which was a no-op — `origin/main` was already `c0786a7d`).
+>
+> **Roll 1 was RED and it was #219's flake, not this diff:** the suite was
+> identical — 2856 Swift Testing passed, Release green — and the single failure
+> was `TalariaUITests.testConnectedRelaunchSkipsTheConnectEntry`, 14 passed /
+> 1 failed / **15 ran**, with the assertion text *"a successful connect should
+> land straight in chat (#137)"* at `AppTemplateUITests.swift:540`. That is
+> #219's 2026-09-01 mechanism verbatim (per-test-instance un-hittable, runner
+> alive, all 15 run), and it is that entry's declared reopen trigger. One
+> identical-bytes re-roll, per the standing rule; the second was green and no
+> third was taken. **Evidence preserved for #219 rather than discarded** — see
+> the pointer filed under its archived entry.
+>
+> ### What the gate does NOT do
+>
+> It does not touch the host, the preset, the canceller or
+> `forceSpeakerIfNeeded` — the scope fence holds. It measures nothing: whether
+> the phantom is gone is **138-O-E's** question and the simulator cannot answer
+> it. A phantom AFTER the window is a new finding, not this fix failing. One
+> adjacent line changed for correctness and is named here so it is not found
+> later as a surprise: `toggleMute()` now reads `!isMuted && !onsetGateIsHolding`,
+> because an un-mute inside the window would otherwise defeat the gate for the
+> rest of it; the release re-applies `!isMuted`, so the user's pick lands at
+> worst 800 ms later.
 
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
 

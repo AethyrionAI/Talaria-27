@@ -53359,6 +53359,30 @@ just the log.
 > greps has changed. CLAUDE.md's "in the live board" wording is corrected in the
 > same commit.
 
+> **⏪ 2026-09-02 POINTER (#317(a) append-only; filed by 138-O's build lane) —
+> THE REOPEN TRIGGER FIRED, AND ITS EVIDENCE IS PRESERVED RATHER THAN
+> DISCARDED.** Roll 1 of 138-O's gate (`talaria-gate.065CK4RmgX`, `CC-lane-3`,
+> runtime `24A5423a`) red on exactly this test and nothing else:
+> `TalariaUITests.testConnectedRelaunchSkipsTheConnectEntry`, **14 passed /
+> 1 failed / 15 ran**, assertion *"a successful connect should land straight in
+> chat (#137)"* at `AppTemplateUITests.swift:540`. Same-bytes re-roll was green
+> (`talaria-gate.n5TMPdqc69`, 2856 / 15). This is the 2026-09-01 mechanism
+> verbatim — runner alive, all 15 run, one per-instance failure — so the
+> archived diagnosis holds and nothing above is falsified.
+> **What is NEW and perishable: the failing run's xcresult survives at**
+> `~/Library/Developer/Xcode/DerivedData/Talaria-dspoxzqbnxlvzdhawqekaskrnlet/Logs/Test/Test-Talaria-2026.09.02_08-52-58--0500.xcresult`
+> (DerivedData, not a `/var/folders` temp dir, so it outlives the gate's own
+> logs). That is where this entry's owed next step lives: pull the test's
+> `:527` debug activity — `keyboards=`, `springboardAlerts=`, sibling
+> hittability — and test the overlay/keyboard-remnant hypothesis. **NOT done
+> here**: 138-O is a fix lane and chasing this would have been scope creep;
+> recorded so the next reader does not have to reproduce a flake to get the
+> artifact. ⚠️ Purge that DerivedData and the evidence is gone.
+> **One incidental reading for #423** (*the gate's XCUITest counter
+> under-reports on red runs*): on THIS red it did **not** under-report — it
+> printed `14 passed / 1 failed / 15 ran`, and 30 `Test Case '-[` lines confirm
+> 15. One counter-example, not a refutation; filed where #423 can use it.
+
 ## 211A. offer-instead-of-act on READ paths, where no confirmation gate excuses it — **✅ INSTRUMENT BUILT + MERGED 2026-08-26 (instruments lane): `offer-read`, three arms x four read prompts, cells + scorer, bars 211A-B1..B7 met on the simulator. The DEVICE run is Owen's and is a runbook card; 211A-D1..D4 are pre-registered and UNRUN, so this entry still carries ZERO behavioural numbers.**
 
 **FILED 2026-08-01** from the audit's unfiled-lanes list.
