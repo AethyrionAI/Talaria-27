@@ -13,6 +13,20 @@ import Foundation
 /// The state vocabulary the umbrella spent a year looking for is enumerated
 /// below; #180's register names this file as the standard members migrate to.
 ///
+/// **⚠️ 2026-09-01 — THE TITLE LINE ABOVE IS NO LONGER THE WHOLE TRUTH.** These
+/// constants stopped being "the Connect Host surfaces' strings" the moment the
+/// first member migrated: the 180-CONVENTION lane routed the three host-fed
+/// list screens (Skills / Tasks / Insights) onto `NO ANSWER`, `KEY TURNED
+/// DOWN`, `NOT HERMES` and `RUNNING LOCALLY` through
+/// `Talaria/Core/HostFailurePresentation.swift`, which reads them from HERE
+/// rather than re-spelling them. So an edit below now changes words on five
+/// surfaces, not two — and that is the point of the ruling, not a leak from
+/// it. A copy file whose stated scope is narrower than its real one is the
+/// next reader's trap, which is why this note exists rather than a rename.
+/// The reach is pinned by
+/// `HostFailureConventionTests.everyFailureNameComesFromTheConnectHostVocabulary`,
+/// which reads both files and fails if the two spellings ever diverge.
+///
 /// ### The vocabulary
 /// 1. **MEASURED OR NAMED-AS-UNMEASURED.** Every status is something the app
 ///    watched happen (`REACHABLE · 18MS`, `LAST ANSWERED 7:32 AM`) or is

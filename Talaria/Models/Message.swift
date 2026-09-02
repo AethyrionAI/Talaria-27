@@ -96,6 +96,13 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
     /// user prompt it answers. Local-only (a later openSession refetch shows
     /// server order); absent on every normal reply, so old caches decode fine.
     var recoveredForPrompt: String?
+    /// **#180-CONVENTION / #241's inherited instance.** Set when the host's own
+    /// terminal payload carried an `error` flag on a run that nonetheless
+    /// finished with prose. Holds the host's WORDS when it gave any, and
+    /// `SessionsHermesClient.unspecifiedHostError` when the flag was the only
+    /// bit it sent — never a cause this app invented. Nil on every clean reply,
+    /// so old caches decode fine.
+    var hostReportedFailure: String?
     /// Which brain produced this assistant message (#27) —
     /// `ChatBackendRouter.Brain` raw value ("hermes" / "on-device" /
     /// "private-cloud-beta"). Stamped by the router at `.finished` so the
@@ -177,6 +184,7 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         case voiceSessionDuration
         case reasoning, reasoningSummary
         case brain
+        case hostReportedFailure
         case usage, turnDuration, servingModel
         case isContextPriming
     }
@@ -202,6 +210,9 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         reasoningSummary = try container.decodeIfPresent(String.self, forKey: .reasoningSummary)
         // Producing brain (#27); absent in pre-#27 caches.
         brain = try container.decodeIfPresent(String.self, forKey: .brain)
+        // #180-CONVENTION: the host's own flag on a turn that still produced
+        // prose; absent on every clean reply and in every pre-#180 cache.
+        hostReportedFailure = try container.decodeIfPresent(String.self, forKey: .hostReportedFailure)
         // Turn receipt (#46); absent in pre-#46 caches.
         usage = try container.decodeIfPresent(TokenUsage.self, forKey: .usage)
         turnDuration = try container.decodeIfPresent(TimeInterval.self, forKey: .turnDuration)
@@ -233,6 +244,7 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         try container.encodeIfPresent(reasoning, forKey: .reasoning)
         try container.encodeIfPresent(reasoningSummary, forKey: .reasoningSummary)
         try container.encodeIfPresent(brain, forKey: .brain)
+        try container.encodeIfPresent(hostReportedFailure, forKey: .hostReportedFailure)
         try container.encodeIfPresent(usage, forKey: .usage)
         try container.encodeIfPresent(turnDuration, forKey: .turnDuration)
         try container.encodeIfPresent(servingModel, forKey: .servingModel)

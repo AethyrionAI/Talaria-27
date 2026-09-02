@@ -87,24 +87,30 @@ import Foundation
 enum HostFedListPresentation {
     enum EmptyBranchState: Equatable {
         case loading
-        case error(String)
+        /// **#180-CONVENTION (2026-09-01): the CLASSIFICATION, not words.**
+        /// This case used to carry the store's raw `lastErrorMessage`, which
+        /// meant every screen printed whatever string a service error happened
+        /// to hold. Carrying the rung instead makes the shared vocabulary the
+        /// only route from an observed failure to on-screen words —
+        /// structurally, not by convention.
+        case error(HostFailureKind)
         case empty
     }
 
     /// The state to render when the store has no rows to show.
     ///
-    /// The first load's spinner outranks a stale failure message while a
-    /// retry runs; after ANY completed load, a present `errorMessage` is
-    /// rendered — `hasLoaded` no longer suppresses it, because a failure
-    /// after a successful empty load is "the host did not answer," never
-    /// "the host has no rows."
+    /// The first load's spinner outranks a stale failure while a retry runs;
+    /// after ANY completed load, a present `failure` is rendered —
+    /// `hasLoaded` no longer suppresses it, because a failure after a
+    /// successful empty load is "the host did not answer," never "the host has
+    /// no rows."
     static func emptyBranchState(
         isLoading: Bool,
         hasLoaded: Bool,
-        errorMessage: String?
+        failure: HostFailureKind?
     ) -> EmptyBranchState {
         if isLoading, !hasLoaded { return .loading }
-        if let errorMessage { return .error(errorMessage) }
+        if let failure { return .error(failure) }
         return .empty
     }
 }

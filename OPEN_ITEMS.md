@@ -127,7 +127,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#166** 🍎 App Store review-risk register — hermex's actual submission runbook mapped onto Talaria
 - **#170** ⚠️ Task detail presents `model_snapshot` as if it were the job's model — and the phone cannot pin a model at …
 - **#173** 🐛 Silent degradation — the app presents confident replies when the host cannot actually see attachments
-- **#180** 🎨 UMBRELLA — the app hides its own degradation: one design default + a register ("four instances" is the as-filed count). Lane 180-L SHIPPED 2026-08-09 — bars 180-A..F. **⚖️ 08-25: the design question is RULED — Connect Host's state vocabulary adopted as THE standard; members migrate as lanes touch them (309-C6 is migration #1); umbrella stays open as the register**
+- **#180** 🎨 UMBRELLA — the app hides its own degradation: one design default + a register ("four instances" is the as-filed count). Lane 180-L SHIPPED 2026-08-09 — bars 180-A..F. **⚖️ 08-25: the design question is RULED — Connect Host's state vocabulary adopted as THE standard; members migrate as lanes touch them (309-C6 is migration #1); umbrella stays open as the register** ⟵ **✅ 180-CONVENTION LANE MERGED 2026-09-01 (PR #406, `SHASHA`): THREE of the four members the 08-25 close-out left outstanding are migrated — the `lastErrorMessage` gate (all three host-fed screens now render through one shared mapper onto the Connect Host ladder; structural pin watched RED on the untouched tree, mutation-isolated), the #241-inherited prose-failure instance (the STRUCTURAL half — a completed run the host itself flagged now carries a degraded marker instead of a clean reply's confidence; the pure-prose half stays open and is named as such), and #139's residual copy (the unapproved `VOICE · CONNECTING` no longer claims a connect in three states where nothing is connecting). **180-C-D HELD, untouched:** the health-permission card still waits on Owen's `PermissionStatus` ruling — and it is now the ONLY member of the 08-25 list not migrated. Gate PASS post-rebase FIRST RUN — 2827 Swift Testing / 15 XCUITest / Release clean
 - **#182** 🎲 Second flaky UI test — `testMockPairingViaSettingsEntryPoint` launch timeout
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and … **✅ BALLOT APPROVED 2026-08-10, all eight cards as recommended — Phase 0 dispatch owed (bars pre-register in the entry); Phases 1–3 hold** … ~~**→ BARS 224-0A..0G PRE-REGISTERED 2026-08-11; Phase 0 READY TO DISPATCH.**~~ **⟵ corrected 2026-08-24: Phase 0 RAN the same day it was ready — ALL SEVEN BARS MET 2026-08-11, MERGED as `5313499b`; the entry's own ✅ result block records it while this line still said dispatch-ready. What remains is Phases 1–3, HOLDING on ruling 1 (Owen's call, not a lane).** ~~*"ours is always-on Manual"*~~ **⟵ FALSIFIED 2026-08-26: PHASES 1+2 ARE BUILT. Owen elected them ("Smart is a part of hermes… Orchestrate that as a lane"), the hold is discharged, and the app now ships the full Manual · Smart · Off mirror — Privacy → `// Agent Actions`, global on `UserSettings`, `.manual` still the default, Off with the floor that REFUSES. Bars 224-1A..1E / 224-2A..2B/2D MET; what remains on this item is the two DEVICE bars (224-1F, 224-2C — runbook cards, pre-registered and UNRUN) and Phase 3's transcript receipts, still DEFERRED per ruling 7.**
 - **#303** 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins NATIVE even when the brain permits realtime (`init` reads the brain 35 ms before the sticky-default restores it; `startSession`'s re-check guards only the downgrade direction). **MASKED on the host it was found on — cost UNMEASURED**; needs a realtime-configured host. Observed in passing by #254's device run, **not investigated**
@@ -3815,7 +3815,18 @@ realtime->local fallback presenting a label lie).
 > > the init guess; and the header derivation was extracted as a
 > > `nonisolated static func` with three branches, the unknown one reading
 > > **"VOICE · CONNECTING"** — neutral, and deliberately not a third engine
-> > name (#18). **That copy is Owen's to approve.**
+> > name (#18). ~~**That copy is Owen's to approve.**~~
+> > **⟵ SUPERSEDED 2026-09-01 (bar 180-C-C). The approval never came, and the
+> > 2026-08-25 ruling made it unnecessary rather than overdue: the convention
+> > IS the standard now, and its rule 1 decides this string without a separate
+> > sitting.** The word was wrong on its own terms — `CONNECTING` was printed
+> > for `.idle`, `.checking` and `.ready` as well as `.connecting`, i.e. in
+> > three states where nothing is connecting. The unknown-engine branch now
+> > prints the connection state's own measured name
+> > (`TalkConnectionState.displayLabel`), so `VOICE · IDLE` / `VOICE ·
+> > CHECKING` / `VOICE · READY` / `VOICE · CONNECTING`. No new word entered
+> > the vocabulary, and a SELECTED engine's wording is byte-unchanged (#18's
+> > contrast is pinned in the same suite).
 > >
 > > **The finding worth keeping: a bar that assumed a device was needed cost
 > > more than the fix did.** #139 filed this as needing a quoted log line; it
@@ -3890,9 +3901,15 @@ Logged 2026-07-23.
 > forbids), the Talk footer's `RELAY-BOOTSTRAPPED`, the chat banner's two
 > strings, and the Developer screen's relay-origin endpoint row (rule 1: it
 > now prints the ACTIVE PROFILE's gateway host, or "—").
-> **Still outstanding**, unchanged by this lane: the #241-inherited
+> ~~**Still outstanding**, unchanged by this lane: the #241-inherited
 > prose-failure instance, the health-permission card, the `lastErrorMessage`
-> gate, and #139's residual copy.
+> gate, and #139's residual copy.~~
+> **⟵ THREE OF THE FOUR ARE MIGRATED 2026-09-01 (the 180-CONVENTION lane, RESULT
+> block below).** What remains of that list is **the health-permission card**,
+> which is HELD on Owen's `PermissionStatus` ruling and was deliberately not
+> touched — and **the pure-prose half of the #241 instance**, which has no
+> structural tell and is stated as still open rather than folded into the
+> migration.
 
 > **📋 2026-09-01 — 180-CONVENTION LANE OPENED (Owen's election, subagent + merge-on-green authority).** The 08-25 close-out left four members outstanding; three are buildable now and one is HELD. Verified at HEAD: `SkillsScreen.swift:76,103`, `TasksScreen.swift:85,109`, `InsightsScreen.swift:89,118` still read raw `store.lastErrorMessage`, and `ConnectHostCopy` is referenced only by Connect Host files. Bars pre-registered before code:
 > - **180-C-A (the three host-fed screens join the convention):** Skills/Tasks/Insights render host failures through the Connect Host honest-degradation vocabulary (the same closed set or its shared successor — the lane reads the 08-25 ruling for the convention's definition), never a raw `lastErrorMessage` string. Structural pin: no direct render of `lastErrorMessage` on those screens outside the mapper. RED-first; a mutation that bypasses the mapper re-reddens it. [offline]
@@ -3900,6 +3917,129 @@ Logged 2026-07-23.
 > - **180-C-C (#139's residual copy corrected):** per this entry's own description. [offline]
 > - **180-C-D (HELD, explicitly out of scope):** the health-permission card waits on Owen's `PermissionStatus` ruling — untouched by this lane, and the result says so. [—]
 > - **180-C-GATE:** `lane-gate.sh` PASS, count moved. Every string added is closed-vocabulary and pinned. [Mac]
+
+> **📋 RESULT 2026-09-01 — 180-CONVENTION LANE. THREE MEMBERS MIGRATED, ONE
+> HELD. PR #406, squash `SHASHA`. Gate PASS post-rebase, FIRST RUN: 2827
+> Swift Testing in 243 suites / 15 XCUITest / Release clean.**
+>
+> **180-C-A — MET.** The three host-fed screens no longer render a raw
+> `store.lastErrorMessage`. One new seam,
+> `Talaria/Core/HostFailurePresentation.swift`, answers a single question —
+> *given a failure the app observed, which rung of the Connect Host ladder is
+> it?* — and returns that rung's name **from `ConnectHostCopy` itself**, so
+> there is exactly one spelling of each state in the tree. The vocabulary was
+> NOT forked, and that is a test rather than a comment
+> (`everyFailureNameComesFromTheConnectHostVocabulary` reads both files and
+> fails if they diverge).
+>   - **The classification was already sitting in the code, unused.** All three
+>     services (`SkillsService`, `InsightsService`, `CronJobService`) declare
+>     the same five typed cases and the stores collapsed every one of them to
+>     `error.errorDescription` on the way to the screen. `notConfigured →
+>     RUNNING LOCALLY` · `unreachable`/`timeout` → `NO ANSWER` ·
+>     `unauthorized → KEY TURNED DOWN` · `invalidResponse → NOT HERMES`, plus
+>     `.notPlaced` for anything this build cannot place (cron's `notFound` /
+>     `serverRejected`, foreign errors) — **the DEFAULT branch, per rule 5,
+>     never the `else`**.
+>   - **Rule 3 landed as behaviour, not copy.** A hostless install used to read
+>     "Skills Unreachable" with a Retry button; it now reads `RUNNING LOCALLY ·
+>     ON-DEVICE BRAIN · NOTHING TO CONNECT TO`, with no Retry, because there is
+>     nothing to retry against and a button that cannot work is a claim too.
+>   - **RED, on the untouched tree, naming all six sites the brief predicted:**
+>     `Expectation failed: offenders.isEmpty` →
+>     `SkillsScreen.swift:76`, `:103` · `TasksScreen.swift:85`, `:109` ·
+>     `InsightsScreen.swift:89`, `:118`; and its companion
+>     `Expectation failed: text.contains("HostFailurePresentation")` on all
+>     three (a check on the mapper's PRESENCE, so deleting the error surface
+>     cannot satisfy the first pin — the gate's founding sin in miniature).
+>   - **MUTATION:** re-introducing one raw render on `TasksScreen` alone
+>     re-reddens the structural pin and nothing else; restored.
+>
+> **180-C-B — MET on the structural half, and the other half is NAMED rather
+> than quietly claimed.** Site: **`Talaria/Services/Live/SessionsHermesClient+RunsTransport.swift`**
+> — `runsFinalMessage` and its two callers (the `run.completed` frame at the
+> stream seam, and the recovery poll's `completed` arm). The host's own `error`
+> field rides both terminal payloads and the app already parsed it
+> (`hostErrorDetail`, the union-safe reader #296-C1 wrote when the host was
+> caught sending a JSON boolean) — but ONLY the `failed` arm read it. A run
+> the host flagged and answered in prose anyway rendered `.delivered`, with
+> exactly the confidence of a clean reply. `decodeTerminalHostError` +
+> `Message.hostReportedFailure` + `MessageBubble.hostFlaggedStrip` close that:
+> the marker reports **one observation** (the host raised a flag on this turn)
+> and the host's own words beneath it, and never a cause — the flag can be a
+> bare boolean, and a manufactured reason would be worse than the missing
+> marker it replaces.
+>   - **Answered #241's own pre-registered question, and the answer corrects
+>     that entry** (dated block filed there): the `runtime` block it hoped for
+>     does not exist on the runs plane at all (#382), so the discriminator is
+>     the terminal `error` field instead.
+>   - **KNOWINGLY ACCEPTED, stated rather than left to be found:** (i) a prose
+>     failure the host never flagged is still indistinguishable from an answer
+>     — #241's "materially harder" branch, still live in this register; (ii)
+>     the SYNC runs path (`syncTurnViaRuns` — Siri, widgets) returns a String
+>     and has no marker channel, so a flagged completion reaches those callers
+>     unmarked. Neither is fixed and neither is hidden.
+>
+> **180-C-C — MET.** #139's residual copy was an UNAPPROVED string
+> (`VOICE · CONNECTING`, "Owen's to approve", never approved) that was also
+> wrong on its own terms: the unknown-engine branch borrowed the realtime
+> STATUS word, so it printed CONNECTING for `.idle`, `.checking` and `.ready`
+> as well as `.connecting`. The 2026-08-25 ruling settles it without a
+> sitting — rule 1, *measured or named as unmeasured* — and the branch now
+> prints the connection state's own measured name. `VOICE · IDLE` /
+> `VOICE · CHECKING` / `VOICE · READY` / `VOICE · CONNECTING` / `VOICE ·
+> 01:05`. **No new word entered the vocabulary** (it reuses
+> `TalkConnectionState.displayLabel`), and a SELECTED engine's wording is
+> byte-unchanged — pinned in the same suite, because a correction that erased
+> #18's contrast would be the umbrella's own rule with the sign flipped.
+>
+> **180-C-D — HELD, and untouched.** The health-permission card needs Owen's
+> `PermissionStatus` ruling. Nothing in this lane reads, renders or renames it;
+> writing a bar for it before the ruling would pre-empt the decision, which is
+> what the 180-L bars said in 2026-08-09 and is still true.
+>
+> **180-C-GATE — MET, and the runs that did not pass are reported rather than
+> buried.** `TALARIA_SIM_NAME=CC-lane-2 scripts/mac/lane-gate.sh`. **The
+> authoritative run is the POST-REBASE one and it passed FIRST TRY: `GATE: PASS`
+> on 24A5423a — 2827 Swift Testing in 243 suites / 15 XCUITest, every one green
+> / Release build clean.** (`origin/main` had moved under this lane and the move
+> carried COMPILED inputs — another lane's `DeviceActionTools`,
+> `LocalChatBackend+Battery` and two test files — so a re-gate was owed and run;
+> a tracker-markdown-only rebase would not have needed one. 2827 = 2811 on their
+> tree + this lane's 16.)
+>
+> Before the rebase, three runs on BYTE-IDENTICAL sources produced **2825 Swift
+> Testing in 242 suites** (baseline 2809; +16 is exactly this lane's new tests,
+> so the count MOVED) and `GATE: PASS` on the third.
+>   - **Swift Testing was GREEN on all four runs.** Every red was one
+>     XCUITest, and a DIFFERENT one each time: run 1 `testConnectedRelaunchSkipsTheConnectEntry`
+>     (#219's known flake — the pre-declared re-roll), run 2
+>     `testSettingsDeckNavigation` (*"swipe must advance the deck"*, #182's
+>     synthesized-gesture family), runs 3 and 4 none.
+>   - **The identical-bytes matrix is the control, and it was run BEFORE the
+>     explanation was written** (the standing trap: a true structural argument
+>     is not an alibi). Across runs 1–3 **every one of the 15 XCUITests passed at
+>     least twice and no test failed twice** — including run 2's, which had
+>     passed on the same bytes in run 1. Neither red is reproducible and neither
+>     is this diff's.
+>   - **The environment is named because it is measurable, and the confirmation
+>     is the cleanest part of this record:** a concurrent lane drove this Mac to
+>     a 1-minute load average of **138** during run 3's build (72–107 during run
+>     2). Run 4 started at load **3.9** with that lane finished — and passed
+>     first try, all 15. CLAUDE.md already records host load as the cause of this
+>     exact failure shape; this is the documented mechanism happening, and then
+>     being removed, rather than a guess offered in its place.
+>   - **#423 CONFIRMED in passing:** the two RED runs printed `XCUITest tests
+>     run — 2` while 15 ran; the GREEN run printed 15. The under-report is a
+>     red-run artifact, exactly as that entry says — counts above are from
+>     `Test Case '-[` lines in `suite.log`, not the gate's own line.
+>
+> **What this lane FALSIFIED upstream, corrected in the same commit:** the
+> 08-25 close-out's four-item "still outstanding" list (now one item plus a
+> named residual), the 180-L block's "That copy is Owen's to approve", and
+> #241's open technical question. `ConnectHostCopy`'s header gains a dated note
+> that its constants now reach beyond the Connect Host surfaces, because a copy
+> file whose stated scope is narrower than its real one is the next reader's
+> trap.
 
 ## 182. 🎲 Second flaky UI test — `testMockPairingViaSettingsEntryPoint` launch timeout — **⟵ THE TEST WAS RENAMED 2026-08-25 (#309 Lane B): it is `testConnectingAHostViaSettingsEntryPointLandsBackInChat` now, and it drives the Connect Host wizard rather than the deleted pairing screen. ⚠️ COUNTER 1 → 2: it flaked twice during that lane's own gate runs, together with its two sibling journeys, at the CONTINUE tap — a synthesized tap landing without invoking the action. PROVEN a flake rather than a regression by re-running the gate's exact invocation over identical bytes (14/14). Hedged with #164's fix shape — a bounded re-tap loop on the condition, not a longer timeout.**
 
@@ -10110,6 +10250,33 @@ executed-count check both times it appeared today.
 > **historical artifact, not a pending decision** — there is nothing to submit,
 > so the submission gate has nothing to gate. One fewer open question on Owen's
 > plate; the draft stays on disk as the evidence trail.
+>
+> **✅ THE OPEN TECHNICAL QUESTION ABOVE IS ANSWERED — 2026-09-01, #180's
+> 180-CONVENTION lane. The answer is "half", and the half it is matters.**
+>
+> The `runtime` block this entry hoped for is NOT the discriminator, and it
+> cannot be: the app has ridden the RUNS plane exclusively since #382, and
+> `SessionsHermesClient+RunsTransport` says so at its own seam — *"No
+> `.modelResolved`. The runs `run.completed` carries no `runtime` block;
+> inventing one would be a fabricated attribution."* A lane that had written
+> bars against `route_source` would have found that out mid-flight, which is
+> exactly what this paragraph existed to prevent.
+>
+> **What IS machine-readable is the host's own `error` field on a terminal
+> payload, and the app was already parsing it and then discarding it on the
+> one branch that mattered.** `RunStatusSnapshot` reads `error` through
+> `hostErrorDetail` (the union-safe reader #296-C1 wrote when the host was
+> caught sending `"error": true` as a JSON boolean) — but only the `failed`
+> arm consulted it. A run whose status was `completed` and whose payload
+> carried a flag rendered as a clean answer. Two branches, three states,
+> unknown on the affirmative side: #180's thesis on the chat plane.
+> Fixed — `decodeTerminalHostError` + `Message.hostReportedFailure` + the
+> bubble's marker strip.
+>
+> **The other half is unchanged and stays open in #180's register:** a prose
+> failure the host never flagged still arrives indistinguishable from an
+> answer. That is the "materially harder" branch this entry predicted, and it
+> is now the ONLY part of the instance still live — scoped, not discovered.
 
 
 > **🔑 MECHANISM COMPLETED 2026-08-09 — and there is a USER-FACING SWITCH that

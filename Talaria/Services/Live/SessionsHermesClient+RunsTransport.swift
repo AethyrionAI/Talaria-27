@@ -231,6 +231,49 @@ extension SessionsHermesClient {
     /// `1`/`0` bridge to `true`/`false` (harmless: a host that switches the
     /// flag to 1/0 keeps working), while `7` and any object bridge to `nil`
     /// and land in the tolerant tail.
+    /// **#180-CONVENTION / bar 180-C-B — the host's own flag on a run that
+    /// still produced prose.**
+    ///
+    /// #241 closed as RECLASSIFIED: the gateway runs an AGENT, so a turn that
+    /// finishes with the agent saying it could not reach a model genuinely
+    /// completed, and its 200 is defensible. What was left ours is that
+    /// Talaria renders that reply with exactly the confidence of a real one.
+    /// The entry asked whether a machine-readable discriminator exists before
+    /// bars were written; this is the half that does.
+    ///
+    /// The terminal payload — the `run.completed` frame and the run-status
+    /// body alike — carries the same `error` field the poll already reads on
+    /// the `failed` branch, and the COMPLETED branch threw it away: two
+    /// branches (completed ⇒ answer, failed ⇒ error) with the third state,
+    /// *completed and flagged*, landing on the affirmative side.
+    /// `HostFedListPresentation`'s rule 5 exactly, one plane over.
+    ///
+    /// **What this does NOT close, stated rather than left to be found:** a
+    /// prose failure the host never flagged still arrives indistinguishable
+    /// from an answer. That is #241's "materially harder" branch — no
+    /// structural tell — and it stays open in #180's register.
+    ///
+    /// Union-safe via ``hostErrorDetail`` (#296-C1: the host sends a JSON
+    /// boolean here), and tolerant — unparseable JSON, an absent key, `false`,
+    /// or an empty string all read as "nothing went wrong", because
+    /// repainting a clean completion is #296 inverted.
+    nonisolated static func decodeTerminalHostError(_ rawJSON: String) -> String? {
+        guard let data = rawJSON.data(using: .utf8),
+              let payload = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        else { return nil }
+        return normalizedHostError(hostErrorDetail(payload["error"]))
+    }
+
+    /// An empty detail is the host saying nothing, not a failure with no
+    /// words — the same "empty means nothing went wrong" decision `ChatStore`
+    /// already applies to `tool.completed`.
+    nonisolated static func normalizedHostError(_ detail: String?) -> String? {
+        guard let trimmed = detail?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty
+        else { return nil }
+        return trimmed
+    }
+
     nonisolated static func hostErrorDetail(_ value: Any?) -> String? {
         if let text = value as? String { return text }
         if let flag = value as? Bool { return flag ? unspecifiedHostError : nil }
@@ -658,7 +701,12 @@ extension SessionsHermesClient {
                         output: output,
                         assembledContent: assembledContent,
                         assembledReasoning: assembledReasoning,
-                        profileID: hop.profileID
+                        profileID: hop.profileID,
+                        // #180-C-B: the host's own flag on this turn, if it
+                        // raised one. Read from the SAME frame that carries
+                        // the answer, so a flagged completion cannot arrive
+                        // wearing a clean reply's confidence.
+                        hostReportedFailure: Self.decodeTerminalHostError(rawJSON)
                     )
                     continuation.yield(.finished(message, usage, nil))
                     finishedYielded = true
@@ -1206,7 +1254,10 @@ extension SessionsHermesClient {
                 output: output,
                 assembledContent: assembledContent,
                 assembledReasoning: assembledReasoning,
-                profileID: profileID
+                profileID: profileID,
+                // #180-C-B: `snapshot.error` is already union-parsed on the
+                // status body; the `completed` branch used to discard it.
+                hostReportedFailure: Self.normalizedHostError(snapshot.error)
             )
             // #357-G: the status body is the SECOND source of the
             // pending-steer drain (bar text: "run.completed AND the final
@@ -1616,7 +1667,8 @@ extension SessionsHermesClient {
         output: String,
         assembledContent: String,
         assembledReasoning: String,
-        profileID: UUID?
+        profileID: UUID?,
+        hostReportedFailure: String? = nil
     ) -> Message {
         var message = Message(
             sender: .hermes,
@@ -1634,6 +1686,10 @@ extension SessionsHermesClient {
            !Self.reasoningMirrorsAnswer(assembledReasoning, content: message.content) {
             message.reasoning = assembledReasoning
         }
+        // #180-C-B: the degraded marker rides the message so the bubble can
+        // show it and the cache can keep it. The host's WORDS when it gave
+        // any — never a cause this app invented (`runFailureText`'s rule).
+        message.hostReportedFailure = hostReportedFailure
         return message
     }
 
