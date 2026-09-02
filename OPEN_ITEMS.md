@@ -714,6 +714,17 @@ native pipeline), **#1** (voice transcripts).
 > self-match (CLAUDE.md corrected), the parent-kill-takes-child note,
 > bluebubbles config-off with a 7-week fossil state row, and the phone's
 > pre-existing `/v1/models` 401s → **#414**.
+
+> **⟵ 2026-09-01 POINTER (hygiene sweep, #413 cross-reference):** of the
+> two flips this block lists as "Still Owen's," **#413** (filed same day,
+> 2026-08-26, from Owen's device pass) shows him selecting between the
+> Noisy and Normal VOICE-TUNING presets and getting a real, measured,
+> preset-independent effect (3/3 self-capture on BOTH) — evidence the
+> tuning picker itself is live and bound, i.e. the "Voice footnote gone"
+> flip. #413's text never names the host/profile, so this does not by
+> itself pin the OJAMD arm specifically. The **#224 approvals-picker**
+> flip is untouched by #413's evidence and remains open.
+
 ## 392. 🔴 A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT — *"your calendar didn't accept the request"* when the user declined the card — **MEASURED 2/30 ON DEVICE 2026-08-21 (#199A's re-run), CALENDAR-ONLY. Spawned rather than kept inside #199A, whose own claim is refuted. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built + merged 2026-08-23 (PR #353) with NO treatment elected, per Owen's route; the n≥30 device run is what remains.**
 
 **The measurement** (`planning/reports/2026-08-21-199a-decline.json`, decline
@@ -2243,6 +2254,17 @@ Logged 2026-07-20 (Session V launch sweep).
 > a structural call-site pin (`theSpeakerDecisionIsWiredAtBothCallSites`,
 > exactly-3 spellings) landed in `SpeakerRouteOverrideTests`, RED-proven by
 > unwiring a site.**
+
+> **⟵ 2026-09-01 POINTER (hygiene sweep):** 138-L ("do this FIRST" — one
+> session with headphones, to split acoustic from software) is absorbed by
+> **#413**'s 2026-08-30 AirPods session rather than run separately: its
+> log-scored transcript shows zero phantom bubbles and zero
+> `speech_started` inside any playback window — the 138-L table's "loop
+> stops ⇒ genuinely acoustic" row. Same reading as 138-L intended, on a
+> different entry. Still N=1 against the 4/4 speakerphone baseline
+> (#413's own words: "each further incidental AirPods session tightens it,
+> none needs to be scheduled") — so this is a lean, not a closed control,
+> and 138-L itself is not re-run.
 
 ---
 
@@ -9043,6 +9065,14 @@ and a wake-path integration test that fails on a full-cycle delivery.
 > `platform_adapter.py:44`) has now been skipped by FOUR plugin releases
 > (0.2.0 → 0.5.0). Fold it into the next plugin touch.
 
+> **⟵ 2026-09-01 POINTER (hygiene sweep):** the count is stale. The live
+> plugin checkout (`~/.hermes/plugins/talaria`) is at **0.8.0** (`b4e8dfa`,
+> `plugin.yaml`); `git log --oneline -- plugin.yaml` shows three more
+> version bumps since the 0.5.0 counted above — 0.6.0 (`dbf32c9`), 0.7.0
+> (`b87cd6c`), 0.8.0 (`b4e8dfa`) — so the PID-log chore has now been skipped
+> by **SEVEN plugin releases (0.2.0 → 0.8.0)**, not four. Still not folded
+> into any of them.
+
 ## 254. 👁 Control Center "Ask/Talk to Hermes" buttons BIND — **Half 1 CONFIRMED WORKING on build 2034**; Half 2 (the ghost session) is a **connect-window OWNERSHIP RACE**, not a present-tense defect — **NOT REPRODUCIBLE on 2034, ⬇️ WATCH since 2026-08-05; mechanism named and its premise MEASURED (bar 254-F) 2026-08-09; app-side fix landed same day under bars 254-A/B/C — **254-D still OWED; ~~254-E~~ UNRUNNABLE AS WRITTEN on device 2026-08-09 (its airplane-mode pin collapses the connect window to 23 ms), with the native `LIVE` arm verified in its place and labelled as a substitute, not scored as the bar**
 
 > **⚠️ HEADER CORRECTED TWICE, and this item is NOT closed.** The downgrade to
@@ -9399,7 +9429,7 @@ filed; re-open on next sighting with the how-was-it-closed detail.
 > GONE; the bar is runnable on either host. Queued for a device evening /
 > Saturday.
 
-## 249. 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the card is not the hour the user said — **INSTRUMENTED 2026-08-04 night; discriminator run pending; readings pre-registered below BEFORE the evidence** *(header's 9 PM is the as-filed observation — CORRECTED to 8:00 AM in the dated note below)*
+## 249. 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the card is not the hour the user said — **INSTRUMENTED 2026-08-04 night; discriminator run pending; readings pre-registered below BEFORE the evidence** *(header's 9 PM is the as-filed observation — CORRECTED to 8:00 AM in the dated note below)* **⟵ HEADER CORRECTED 2026-09-01 (hygiene sweep): the discriminator RAN that same night (2026-08-04 22:05, reading (b) confirmed) and BOTH guard lanes shipped — 249 built 2026-08-05 evening (bars 249-A..D MET, GATE: PASS) and 249F built + merged 2026-08-06 morning (PR #273, `ca895f2`, bars A/B/C MET). Not pending.**
 
 **FILED 2026-08-04 night from Owen's tonight-list item 4 (corded build of
 `b94fc27`, on-device model):** bare "remind me at 8" → the model asked what
@@ -9662,6 +9692,11 @@ tomorrow with no success claim. Ride-along lesson: `-only-testing`
 with a METHOD path under a Swift Testing struct silently runs 0 tests
 under `TEST SUCCEEDED` — suite-level selectors only; caught by the
 executed-count check both times it appeared today.
+
+> **⟵ 2026-09-01 HEADER POINTER (hygiene sweep):** the header still read
+> "discriminator run pending" — it ran the night it was filed (22:05,
+> reading (b)) and both guard lanes above (249, 249F) were built and
+> merged by 2026-08-06 morning. Not pending.
 
 ## 241. 🔭 **OPEN — TRACK-UPSTREAM (reopened 2026-08-09, and it STAYS live)** — 🐛 HERMES CORE (upstream): gateway sends its OWN self-name as the upstream model id on the nous provider, and reports the resulting non-retryable 404 to the client as HTTP 200 — ~~**✅ CLOSED 2026-08-09 (RECLASSIFIED, Owen's ruling). NOT an upstream bug: half is documented-by-design, half is OURS and moved to #180. The park is DISSOLVED — there was never anything to submit.**~~ **SUPERSEDED THE SAME DAY for half one — see the REOPENED block immediately below, which is the current state.**
 
@@ -10805,7 +10840,7 @@ interruption (another app grabbing audio), narrow #118 so a *system* interruptio
 does not tear down, or delete the branch and say plainly that interruptions end
 sessions. **Do not simply trust it** — it has now been observed never to run.
 
-## 219. 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
+## 219. 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164. **⟵ HEADER CORRECTED 2026-09-01 (hygiene sweep): the 2026-09-01 blocks below establish all 15 XCUITests RAN (the runner did not die) and the mechanism is a per-test-instance `isHittable` race, not a runner death. The phrase "runner dies mid-bundle" is LOAD-BEARING — `lane-gate.sh`'s failure advice greps this exact string, per the entry's own 2026-08-10 note below — so it is kept verbatim on purpose and NOT reworded; read past it to the newest dated blocks for the current mechanism.**
 
 **FILED 2026-08-01.** *(OPEN_ITEMS #219. **Not** GitHub PR #219 — separate
 sequences. The five lanes below use sub-letters precisely to stop minting more
@@ -11038,6 +11073,14 @@ just the log.
 >   under-reports on failed runs — filed as #423.** WATCH stands; the hedge
 >   branch is Owen's morning call (merge as harmless belt-and-braces with
 >   the tracker block, or discard).
+
+> **⟵ 2026-09-01 HEADER POINTER (hygiene sweep):** the header names a
+> "runner dies mid-bundle" mechanism from occurrence 1 (2026-08-01). The
+> blocks dated 2026-09-01 above establish all 15 tests RAN on every red
+> tonight and the mechanism is a per-test-instance `isHittable` race, not
+> the runner dying. The header phrase is kept verbatim on purpose — it is
+> the exact string `lane-gate.sh` greps for in its failure advice — so this
+> pointer is appended after it rather than editing it.
 
 
 ## 211A. offer-instead-of-act on READ paths, where no confirmation gate excuses it — **✅ INSTRUMENT BUILT + MERGED 2026-08-26 (instruments lane): `offer-read`, three arms x four read prompts, cells + scorer, bars 211A-B1..B7 met on the simulator. The DEVICE run is Owen's and is a runbook card; 211A-D1..D4 are pre-registered and UNRUN, so this entry still carries ZERO behavioural numbers.**
@@ -11511,6 +11554,13 @@ test that directly before assuming it needs its own words.
 > The #416 family again: between an edit and the next full gate, an unexecuted
 > test is a green light that saw nothing. Verified green on main before
 > re-gating the instruments lane.
+
+> **⟵ 2026-09-01 POINTER (hygiene sweep):** this entry's own pre-declared
+> closing rule ("stays open until #417's instrument returns … then closes
+> into #417's lineage") is now satisfied — #417 is archived CLOSED as of
+> 2026-08-31 (sweep 12; `OPEN_ITEMS-ARCHIVE.md`, its 417-F fix merged
+> `6e994f41`, PR #397). #211A looks CLOSEABLE by its own stated rule; this
+> is not a close — it awaits Owen's sweep word.
 
 ## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.** **⟵ PREMISE MOVED 2026-08-24 (#401): Apple SHIPPED the beta 6 Xcode (27A5252f) carrying the iOS-beta-7 SDK/runtime (24A5422a / 24A5423a) — the "no beta 6 Xcode" clause is dead, and the sim now LEAPFROGS the device instead of trailing it. Dated block at the foot; bars 398-A..C unchanged.** **⟵ ✅ RAN 2026-08-26 on the aligned fleet — 398-A and 398-C MET (device runtime timeline MEASURED end-to-end from two independent sources; the gate now names its runtime on the preflight AND verdict lines), 398-B DEVICE-OWED (runbook card written; the sim still cannot generate, #324/#402). **THIS HEADER'S OWN PROVENANCE WAS WRONG TWICE and is corrected in the result block: the build string comes from `Extra/logd.0.log`, NOT `callservicesd` BuildVersion, and it is stamped 2026-08-17, NOT the 08-22 collection date — so the skew was a SEVEN-DAY window.** Owen's founding worry measures FALSE: no battery ever ran on a beta-2/beta-3 device build, and the device ran builds we still hold (`24A5390f`, `24A5408d`) for most of the measurement era. **STAYS OPEN on 398-B.**
 
@@ -12094,7 +12144,7 @@ not the wording).
 >   deliberate ("I sent both"), so the contrast is clean at n=3 total
 >   observations of the dark photo.
 
-## 413. 🐛 THE ASSISTANT'S FIRST UTTERANCE IS CAPTURED AS THE USER SPEAKING — voice session, realtime engine, FIRST response only; the second response is clean — **FILED 2026-08-26 per #268, from Owen's device pass ("the first utterance of a response is captured as a me speaking. The second response doesn't have this issue. I tried 3 times and all 3 happened the same way"). MEASURED 3/3 on BOTH the Noisy and Normal presets — preset-INDEPENDENT by his own A/B, so tuning is not the lever. Mechanism deliberately NOT guessed; candidates + the discriminating probe below.**
+## 413. 🐛 THE ASSISTANT'S FIRST UTTERANCE IS CAPTURED AS THE USER SPEAKING — voice session, realtime engine, FIRST response only; the second response is clean — **FILED 2026-08-26 per #268, from Owen's device pass ("the first utterance of a response is captured as a me speaking. The second response doesn't have this issue. I tried 3 times and all 3 happened the same way"). MEASURED 3/3 on BOTH the Noisy and Normal presets — preset-INDEPENDENT by his own A/B, so tuning is not the lever. Mechanism deliberately NOT guessed; candidates + the discriminating probe below.** **⟵ HEADER CORRECTED 2026-09-01 (hygiene sweep): the mechanism is no longer wide open — the 2026-08-30 AirPods probe (below) came back log-scored clean, narrowing the field to LEANING ACOUSTIC (candidates 1/2) at n=1 against the 4/4 speakerphone baseline; candidate 3 (app-side mis-route) is disfavored, not eliminated.**
 
 **The observation:** in a live voice session, the opening of the assistant's
 FIRST spoken reply is transcribed and attributed as USER speech; every
@@ -12224,6 +12274,20 @@ discipline on the memo path — same subsystem, different engine), #303
 > echo residue. And the archive shows every `audio.stopped` printing
 > `after 0ms` against 2–12 s real playbacks — a dead elapsed counter whose
 > consumer is barge-in TRUNCATION — **#419**.
+
+> **⟵ 2026-09-01 HEADER POINTER (hygiene sweep):** the header still reads
+> "Mechanism deliberately NOT guessed." The 2026-08-30 AirPods probe above
+> (log-scored clean, zero phantom bubble, zero `speech_started` inside any
+> playback window) narrows the field to LEANING ACOUSTIC at n=1 (Fisher
+> p≈0.20 against the 4/4 speakerphone baseline) — a lean, not a settled
+> mechanism; still open.
+
+> **⟵ 2026-09-01 POINTER (hygiene sweep, #138 cross-reference):** #138's
+> 138-L control ("one session with headphones connected … loop stops ⇒
+> genuinely acoustic … loop persists ⇒ NOT acoustic at all") is functionally
+> the same experiment as this entry's AirPods probe above, and #138's own
+> entry now cites this result rather than re-running 138-L separately — see
+> the pointer appended under #138.
 
 ## 415. 🔴 THE MIC STAYED ON after a Control Center voice launch — 2/2 reproducible, cleared by force-quit — and the control said "Talk to HERMES" (**renamed — see 415-N**) — **FILED 2026-08-26 night per #268, from Owen's third runbook pass (BUILD 3108, verbatim: "Control center > Talk to Hermes (should be Talaria, right?) and the mic stayed on. Tried again, same result. Force quit, tried again, did NOT happen."). Mechanism NOT guessed; the SAME-DAY LOG COLLECT is the discriminating evidence and it decays in hours.** **→ ✅ COLLECT HAPPENED AND THE MECHANISM IS NAMED (2026-08-26, `whoGoesThere-415.logarchive`): this is #302 recurring through an ordering its bars cannot see — `AppLockGate` is sampled ONCE at start, and a Control Center tap on a WARM process clears it ~1.2 s BEFORE App Lock arms, so the cover comes down on top of an in-flight start. Mic hot 27.4 s / 13.4 s, most of it behind `cover=locked`. Engine was REALTIME both times and teardown RAN IN FULL — the #303 and #198 candidates are FALSIFIED. The force-quit run is a DEGENERATE control (cold ⇒ gate already armed ⇒ start parked ⇒ revoked unused). Fix bars 415-A…D proposed below; #302 carries a dated supersession. ~~FIX NOT BUILT.~~** **⟵ ✅ 415-N DONE 2026-08-26: the NAMING half (fact 2) SHIPPED — both Control Center controls read "Ask Talaria" / "Talk to Talaria", host-meaning "Hermes" strings deliberately untouched and now pinned.** **⟵ ✅ THE MIC FIX IS BUILT 2026-08-26 night (same day): 415-A/B/C MET — a session covered mid-flight now STOPS CAPTURE and PARKS, resuming exactly once on unlock, via a cover watch on the gate's new `waitUntilLocked()`; the realtime engine gained the `#302-A` capture instrument. 415-A was witnessed RED on the unmodified tree first (8 tests, 21 issues) and each mutation isolates. 🔴 STILL OPEN ON 415-D ONLY — the device run that HOLDS the cover open; its card is written in the result block, and until Owen runs it this item stays red.**
 
@@ -13383,7 +13447,7 @@ process is the degenerate control that made run 3 look clean).
    appear at the arming instant. `parked voice session resuming after
    unlock (#415)` marks step 2.
 
-## 418. 🐛 REAL SPEECH THROUGH THE AIRPODS MIC TRANSCRIBED AS CHINESE — the assistant told Owen he sounded MUFFLED — realtime engine, one occurrence — **FILED 2026-08-30 per #268, from the #413 AirPods probe session (build 3137 Release, 23:19). Mechanism deliberately NOT guessed.**
+## 418. 🐛 REAL SPEECH THROUGH THE AIRPODS MIC TRANSCRIBED AS CHINESE — the assistant told Owen he sounded MUFFLED — realtime engine, one occurrence — **FILED 2026-08-30 per #268, from the #413 AirPods probe session (build 3137 Release, 23:19). Mechanism deliberately NOT guessed.** **⟵ HEADER CORRECTED 2026-09-01 (hygiene sweep): 418-A1/A2 (the route + sample-rate instrument) SHIPPED, MERGED 2026-08-31 as `97e52d41` (PR #396) — the first gap (candidate 1, capture profile) now answers itself on the next AirPods session with no further build. Mechanism itself is still open; only the instrument is built.**
 
 **The observation:** during the AirPods session that cleared #413's probe, the
 transcription of Owen's OWN speech came out as Chinese, and the assistant's
@@ -13441,7 +13505,14 @@ runs both ways), #396 (voice-quality umbrella, different mechanism), #138.
 > and sample rate for free — with AirPods in, that line answers candidate 1
 > (capture profile) with no further build.**
 
-## 419. 🐛 THE ASSISTANT-PLAYBACK ELAPSED COUNTER READS 0 EVERY TIME — and a real barge-in would send `conversation.item.truncate` with `audio_end_ms: 0`, deleting the ENTIRE heard portion from server-side history — **FILED 2026-08-30 from the #413 archive read. Every recorded reading of this instrument is 0 ms; the zeroing mechanism is deliberately NOT asserted (no log line can currently see it).**
+> **⟵ 2026-09-01 HEADER POINTER (hygiene sweep):** the header still reads
+> "Mechanism deliberately NOT guessed." That remains literally true — no
+> mechanism is claimed — but bars 418-A1/A2 above shipped and merged
+> 2026-08-31 (`97e52d41`, PR #396), so the entry is no longer frozen at
+> filing: the route/sample-rate instrument is built and the next AirPods
+> session will attribute candidate 1 for free.
+
+## 419. 🐛 THE ASSISTANT-PLAYBACK ELAPSED COUNTER READS 0 EVERY TIME — and a real barge-in would send `conversation.item.truncate` with `audio_end_ms: 0`, deleting the ENTIRE heard portion from server-side history — **FILED 2026-08-30 from the #413 archive read. Every recorded reading of this instrument is 0 ms; the zeroing mechanism is deliberately NOT asserted (no log line can currently see it).** **⟵ HEADER CORRECTED 2026-09-01 (hygiene sweep): 419-A1/A2 (the naming instrument) SHIPPED, MERGED 2026-08-31 as `97e52d41` (PR #396) — every assistant `conversation.item.created`/`.added` arrival now logs the event/item relation and, if playback is live, the elapsed ms about to be destroyed. The zeroing MECHANISM is still not asserted; only the instrument that will name it is built.**
 
 **The measurement:** `#138 audio.stopped after Nms` printed **0** on all three
 stops in tonight's archive — against real playbacks of **2.16 s, 12.15 s and
@@ -13517,6 +13588,13 @@ green-signal-covering-what-it-cannot-see family).
 > the counter, the reset, or truncation. **The next voice session's archive
 > names the zeroing path — same-item double-fire vs second-item — instead of
 > leaving it to argument; the fix lane follows that naming.**
+
+> **⟵ 2026-09-01 HEADER POINTER (hygiene sweep):** the header still reads
+> "deliberately NOT asserted (no log line can currently see it)." Bars
+> 419-A1/A2 above shipped and merged 2026-08-31 (`97e52d41`, PR #396) — a
+> log line now exists and will name the zeroing path on the next voice
+> session. The mechanism itself remains unasserted; only the blindness is
+> fixed.
 
 ## 420. ✅ CLOSED — 🐛 THE "AUTO-CONNECT ON LAUNCH" TOGGLE IS INERT — a shipping settings control the user can flip that NOTHING READS — **FOUND 2026-08-31 by the runbook staleness audit (read-only, static), and CONFIRMED by hand at the call sites. Mechanism is not in doubt; the fix is a product call.** **⚖️ RULED the same day (delete it, keep the key) and ✅ BUILT + MERGED 2026-09-01 — PR #398, squash `c48fcae1`: all four bars MET, the absent-reader pin watched RED before any production edit and mutation-isolated to one assertion, gate 2783/15/Release clean. CLOSED; awaiting the next sweep's archive move only.**
 
@@ -13790,6 +13868,11 @@ healthy machine. That is #180's family (honest degradation) on the input side.
 deliberately keyless probe), #166b (the CIDR-keyed ATS exception and its
 four-arm proof), #180, #350 (asserted-vs-measured surfaces), #420 (a control
 whose effect is absent — same family, other direction).
+
+> **⟵ 2026-09-01 POINTER (hygiene sweep):** the one-field fix
+> (`http://100.110.102.59:8642`) named above is UNCONFIRMED as applied on
+> the phone — nothing in this entry records Owen having made the edit. On
+> Owen's device list.
 
 ## 422. 🧠 MEMORY–AGENT INTEGRATION — what Talaria does with what the agent remembers — **NAMED BY OWEN 2026-08-31 at #378's close ("Open a new item for memory agent integration. Lets discuss this; i have thoughts"). FILED THE DAY IT WAS NAMED per #268. NO SCOPE YET — Owen's thoughts come first, and nothing here should be read as a design.**
 
@@ -14102,7 +14185,19 @@ CC-B5-{,probe-,control-}iPhone-Air on runtime 24A5408d, beta4 24A5390f retained 
 > gets its own entry rather than keeping this one open under a different
 > meaning. Bars pre-register there.
 
-## 344. 🐛 THE GUARD'S IMPERSONATION TIER ONLY SEES THE MARKER IN LABEL POSITION — *"Here's the confirmation card:"* wears the app's own affordance as prose and is NOT caught — **MEASURED 2026-08-15 — THREE TIMES IN FOURTEEN SAME-SHAPE PRODUCTION TURNS (twice while hunting 338-C, a third in #340's approve turn). FILED, NOT FIXED: whether it SHOULD fire is Owen's call, because the honest reading is that the guard did exactly what it is specified to do.**
+> **⟵ 2026-09-01 POINTER (hygiene sweep):** the block immediately above
+> ("✅🔴 2026-08-21 23:00 UTC — RE-RUN WITH A REAL DENOMINATOR AT LAST …")
+> is MISFILED — it is not about the iOS beta5/Xcode beta5 SDK audit this
+> entry (#324) is for; it is the 2026-08-21 n=30 decline re-run that
+> refutes #199A's founding claim, confirms #343's governor `beginTurn()`
+> fix on a second instrument, and closes #232's per-turn budget-reset bar
+> in production. Left in place per the archive/append-only convention —
+> not moved, not deleted. Its true homes: **#199A** (closed, the refutation
+> itself), **#343** (the governor fix it confirms), **#232** (the
+> `beginTurn()`-per-trial bar it closes) — each in `OPEN_ITEMS-ARCHIVE.md`,
+> each now carrying its own pointer back to this block's location.
+
+## 344. 🐛 THE GUARD'S IMPERSONATION TIER ONLY SEES THE MARKER IN LABEL POSITION — *"Here's the confirmation card:"* wears the app's own affordance as prose and is NOT caught — **MEASURED 2026-08-15 — THREE TIMES IN FOURTEEN SAME-SHAPE PRODUCTION TURNS (twice while hunting 338-C, a third in #340's approve turn). FILED, NOT FIXED: whether it SHOULD fire is Owen's call, because the honest reading is that the guard did exactly what it is specified to do.** **⟵ HEADER CORRECTED 2026-09-01 (hygiene sweep): Owen RULED 2026-08-18 ~09:45 — "leave as specified unless you have a good reason not to" — #344 stands as a DOCUMENTED LIMIT, watch-only, no build; this is no longer an open design question.**
 
 **What happened.** Two of the thirteen 338-C turns (2:24 and 2:25 PM, `whoGoesThere`,
 Debug @ `bb42415`, fresh threads, no tool call) came back as:
@@ -14316,6 +14411,12 @@ good reason exists: the entry's own measured recommendation reaches the
 same verdict at 1/20 exposure against 338-A's zero-false-positive bar).
 #344 stands as a DOCUMENTED LIMIT, watch-only: reopen only if the rate
 climbs or the shape appears attached to a completion claim. No build.**
+
+> **⟵ 2026-09-01 HEADER POINTER (hygiene sweep):** the header still framed
+> whether the guard should fire as Owen's open call. It was ruled 2026-08-18
+> ~09:45 (quoted directly above, in this entry's own newest dated block):
+> leave as specified. #344 stands as a documented limit, watch-only, no
+> build — not an open design question.
 
 ## 350. 🐛 "LINKED · ONLINE" is an ASSERTION, not a measurement — the drawer and the settings strip claim a live host against a closed port, across a cold launch — **BUILT 2026-08-18 on Owen's go: bars 350-A..C + the banner rule MET (unit), 350-E MET (GATE: PASS, one contiguous run on an erased pool sim — 2337 units / 14 XCUITest / Release clean); 350-D's visual half owed as Owen's 30-second device fixture re-run post-merge (recorded honestly below). ~~PR open; merge is Owen's review.~~ **MERGED 2026-08-18 as `3d2e2992` (PR #318); the header carried an open-PR claim for four days after the merge — corrected 2026-08-19 by the new `oi-invariants.py` header check written because of exactly this.** OWED: 350-D's visual half, on Friday's device minutes.**
 
