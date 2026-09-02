@@ -2522,18 +2522,24 @@ line exists — the expensive part is Shelley's time, and this is two more calls
   1. Build ≥ the #198B fix (PR #371, `02c45440` — build **3022** or later
      staged from it). An older build measures the pre-fix code, not the
      defect this card checks for.
-  2. Settings → Developer → **Verbose Logging: ON.** Required for the
-     positive-control marker below — it is off by default and the marker
-     no-ops silently when it is (`TalariaLog.verbose(_:)`,
-     `Talaria/Core/TalariaLog.swift:44-48`).
-  3. **Corded** session (Xcode bridge `GetConsoleOutput`), read at
+     **⟵ SUPERSEDED 2026-09-01 (198B-M): the build floor is now the
+     198B-M instrument build** (the marker in predicate 2 below does not
+     exist before it). A build between 3022 and 198B-M carries the FIX but
+     not the CONTROL, so it can only ever score INVALID on this card.
+  2. Settings → Developer → **Verbose Logging: OPTIONAL** since 198B-M.
+     ~~Required for the positive-control marker below.~~ The control is now
+     an **always-on `.notice`** emitted from `AudioSessionOffMain` itself
+     (`Talaria/Services/Support/TalkSessionRules.swift`), un-gated by the
+     verbose flag and at a level `log collect` persists. Leaving Verbose
+     Logging ON still buys the optional record-leg line noted below; it is
+     no longer load-bearing for the verdict.
+  3. **Corded OR hand-launched** — since 198B-M either route can score this
+     card, because the control survives `log collect`. Read at
      `oslogSeverity: ["all"]` — never `["default"]`, which is what hid this
      fault for weeks the first time (recorded twice already in this file, at
-     §A1b/A2's original block above and §V1's log-route note). If reading a
-     hand-launched pass instead, pull with
-     `sudo log collect --device-udid <UDID>` then `log show --archive … --info --debug`
-     — but see the positive-control caveat below before trusting that route
-     for this card specifically.
+     §A1b/A2's original block above and §V1's log-route note). Hand-launched:
+     `sudo log collect --device-udid <UDID>` then
+     `log show --archive … --info --debug`.
 
 - [ ] **Steps.** Voice Memo composer: **record** a short memo → **stop** →
   **play** it back → **stop** playback → **discard** the memo. One
@@ -2553,33 +2559,40 @@ line exists — the expensive part is Shelley's time, and this is two more calls
    fault or not** — a renumber is now visible instead of silently absorbed by
    a stale `:978`.
 2. **POSITIVE CONTROL (required — an empty log must not read as PASS).**
+   **RE-POINTED 2026-09-01 (198B-M) — the proposed fix below was BUILT.**
    `subsystem BEGINSWITH "org.aethyrion.talaria"` (two app subsystems exist —
-   this catches both) AND `eventMessage CONTAINS "Voice memo recording started"`
-   — the exact static text logged at `Talaria/Services/Live/VoiceMemoRecorder.swift:148`
-   via `Self.logger.verbose(...)`. Must appear **at least once** in the
-   window. Its sibling `"Voice memo recording stopped (<N>s)"`
-   (`VoiceMemoRecorder.swift:170`) is a free second confirmation of the same
-   leg.
-   - **Known gap, not fixed by this lane:** this control confirms only the
-     **RECORD** leg ran through the off-main path. `VoiceMemoPlayer` emits no
-     line on a successful play/stop — its only `Logger` calls are the two
-     `.error()` failure paths at `VoiceMemoPlayer.swift:112` and `:119` — and
-     `discard()`/`finishRecorder()` are silent on success too. A PASS below
-     is the best verdict this instrument can give; it does not by itself
-     prove the play/discard legs were off-main on THIS run (though #198B's
-     source fix, read at HEAD, routes all three through the same
-     `AudioSessionOffMain` seam — see `TalkSessionRules.swift:150-171`,
-     `VoiceMemoPlayer.swift:61-76`, `VoiceMemoRecorder.swift:63-74`).
-   - **Proposed fix for full coverage (NOT built in this lane — source work,
-     needs its own go):** one always-on `.notice` line inside
-     `AudioSessionOffMain.run`/`setActive` themselves
-     (`Talaria/Services/Support/TalkSessionRules.swift:150-171`) — the single
-     choke point every memo transition (record activate/deactivate, playback
-     activate/deactivate, discard's deactivate) already funnels through —
-     e.g. `TalariaLog.logger.notice("AudioSessionOffMain: setActive(\(active)) off-main (#198B)")`.
-     Un-gated by Verbose Logging and `.notice`-level so it survives
-     `log collect` on the hand-launched route, unlike the `.verbose()`
-     lines used above.
+   this catches both) AND `eventMessage CONTAINS "AudioSessionOffMain: setActive("`.
+   Must appear **at least once** in the window. The full line reads:
+
+   ```
+   AudioSessionOffMain: setActive(true) off-main (#198B) reason=memo-record-start
+   ```
+
+   Emitted at `.notice`, **un-gated by Verbose Logging**, from
+   `AudioSessionOffMain` itself (`Talaria/Services/Support/TalkSessionRules.swift`)
+   — the single off-main choke point every memo transition funnels through.
+   The `reason=` field attributes each line to a leg, so a full
+   record→play→discard session should show **five** of them:
+
+   | leg | expected line |
+   |---|---|
+   | record start | `setActive(true) … reason=memo-record-start` |
+   | record stop / discard | `setActive(false) … reason=memo-record-stop` |
+   | playback start | `setActive(true) … reason=memo-playback-start` |
+   | playback stop | `setActive(false) … reason=memo-playback-stop` |
+
+   **Record which reasons appeared.** All four ⇒ every leg was exercised and
+   ran off-main. Some but not all ⇒ the fault-absence result only covers the
+   legs that appeared — say so in the verdict rather than generalising.
+   (Realtime/native voice sessions emit the same marker with
+   `reason=realtime-session-*` / `native-pipeline-stop`; ignore those for
+   this card.)
+   - **Optional second confirmation, no longer load-bearing:**
+     `"Voice memo recording started"` / `"Voice memo recording stopped (<N>s)"`
+     (`Talaria/Services/Live/VoiceMemoRecorder.swift`, `Self.logger.verbose(...)`)
+     confirm the RECORD leg only, are `.debug`-level, and require Verbose
+     Logging ON — which is why they were demoted when the choke-point marker
+     landed. Their absence is **not** an INVALID.
 
 **PASS** = zero fault-severity `AVAudioSession_iOS.mm` lines in the window
 **AND** the positive-control marker (predicate 2) is present.
@@ -2588,10 +2601,11 @@ line exists — the expensive part is Shelley's time, and this is two more calls
 regardless of whether the positive control is present — the finding stands
 either way, and this reopens #198B rather than closing it.
 
-**INVALID (not PASS)** = the positive-control marker is absent. That means
-either Verbose Logging was left off or the record leg never actually ran —
-the run proves nothing about the fault either way and must be redone with
-Verbose Logging confirmed ON before recording starts.
+**INVALID (not PASS)** = the positive-control marker is absent. Since 198B-M
+the marker is un-gated, so its absence means one of exactly two things: the
+build predates 198B-M (check Setup 1), or **no memo transition ran at all** —
+the steps were not performed, or the log window missed them. Either way the
+run proves nothing about the fault and must be redone.
 
 **Verdict goes to `OPEN_ITEMS.md` #198B.**
 

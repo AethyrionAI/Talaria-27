@@ -396,7 +396,11 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         speechOutput.stop()
         await capture.stop()
         resetUtteranceState()
-        try? await AudioSessionOffMain.setActive(false, options: .notifyOthersOnDeactivation)
+        try? await AudioSessionOffMain.setActive(
+            false,
+            options: .notifyOthersOnDeactivation,
+            reason: "native-pipeline-stop"
+        )
     }
 
     private func resetUtteranceState() {

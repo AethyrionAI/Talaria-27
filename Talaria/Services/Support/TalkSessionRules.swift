@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import os
 
 // MARK: - Voice-residuals lane decision cores (#118 / #119)
 //
@@ -21,7 +22,10 @@ import Foundation
 //     activate/deactivate on the main thread logs an iOS 27
 //     UI-unresponsiveness warning per call (`AVAudioSession_iOS.mm:978`).
 //     Mechanics only — callers await, so the #106 ownership and ordering
-//     (activation completes before engine start) are unchanged.
+//     (activation completes before engine start) are unchanged. **Since
+//     #198B-M it also carries the instrument**: one always-on `.notice` per
+//     transition, which is the positive control #198B-A's absence bar needs
+//     (see `setActiveLogDetail`).
 
 enum TalkBackgroundRule {
     /// True when a `didEnterBackground` event should revoke the voice session.
@@ -148,23 +152,62 @@ enum AudioInterruptionRule {
 /// under `NonisolatedNonsendingByDefault`, which would put the call right
 /// back on main; a detached task never does.
 enum AudioSessionOffMain {
+    private static let logger = Logger(
+        subsystem: TalariaLog.subsystem,
+        category: "AudioSessionOffMain"
+    )
+
+    /// **#198B-M — the memo path's always-on positive control.** Pure, pinned
+    /// by `VoiceInstrumentLogLineTests`.
+    ///
+    /// #198B-A's device bar is an ABSENCE bar (zero `AVAudioSession_iOS.mm`
+    /// fault lines across a memo record→play→discard session), and an absence
+    /// bar with no positive control reads PASS on an empty log. The only
+    /// app-emitted marker that path had was a `.debug` line, verbose-gated,
+    /// on the RECORD leg alone — invisible to `log collect` and blind to play
+    /// and discard. This line is emitted from the one off-main choke point all
+    /// three transitions funnel through, at `.notice`, un-gated.
+    ///
+    /// `reason` is what makes it attributable: a full session emits four
+    /// distinct legs, so a run that exercised only some of them says so
+    /// instead of generalising.
+    nonisolated static func setActiveLogDetail(active: Bool, reason: String) -> String {
+        "AudioSessionOffMain: setActive(\(active)) off-main (#198B) reason=\(reason)"
+    }
+
     /// Off-main `setActive`. Callers await, so call-site ordering relative to
     /// engine start/stop is exactly what it was when the call was inline.
     static func setActive(
         _ active: Bool,
-        options: AVAudioSession.SetActiveOptions = []
+        options: AVAudioSession.SetActiveOptions = [],
+        reason: String
     ) async throws {
-        try await run { session in
+        try await run(activating: active, reason: reason) { session in
             try session.setActive(active, options: options)
         }
     }
 
     /// Off-main compound configuration (category + activation + overrides in
     /// one hop, preserving their relative order inside the closure).
+    ///
+    /// `activating` is how a COMPOUND caller declares which transition its
+    /// closure performs — the closure is opaque here, so the direction cannot
+    /// be read out of it. `nil` means the hop changes no activation state (a
+    /// route read), and emits nothing.
+    ///
+    /// **The line is emitted on ENTRY, not on success.** A control that
+    /// vanished when the transition threw would score the single most
+    /// interesting run INVALID rather than surfacing it — and the claim the
+    /// line makes ("this ran off-main") is true of the attempt.
     static func run<T: Sendable>(
+        activating: Bool? = nil,
+        reason: String = "unspecified",
         _ body: @escaping @Sendable (AVAudioSession) throws -> T
     ) async throws -> T {
-        try await Task.detached(priority: .userInitiated) {
+        if let activating {
+            logger.notice("\(setActiveLogDetail(active: activating, reason: reason), privacy: .public)")
+        }
+        return try await Task.detached(priority: .userInitiated) {
             try body(AVAudioSession.sharedInstance())
         }.value
     }
