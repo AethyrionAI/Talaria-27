@@ -152,7 +152,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#279** 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — **FIXED AND MERGED 2026-08-09 as `12ed25b`; bars 279-A..E MET (pre-fix user-row count 2 → 1), `GATE: PASS`. Stays open ONLY for 279-F (device, Owen).** …
 - **#270** 🪟 #251 SLICE 2C — desktop face v0: the `plugin.js` pane that answers "is it actually installed?" …
 - **#269** 🗣️ #251 SLICE 2B — the conversational installer: the AGENT installs its own plugin, the user never sees a terminal … **⟵ 2026-09-01: the APP HALF is BUILT + MERGED (PR #400 `582a8b49`, bars F/G/H/I/J met, consent = Owen's ruled Candidate B verbatim). Open: exactly the live-host half (B-A/B/D/E + B-C's N≥10), gated on a 🔐 per-experiment go**
-- **#263** 🐛 Plugin transport: discovery-pass module reloads SPLIT the hub singleton; the enqueue wake misses the … — **(b) FIXED + 263-G MET; (a) AS FILED FALSIFIED — open ONLY as the (a) WATCH** (the header predates both) …
+- **#263** 🐛 Plugin transport: discovery-pass module reloads SPLIT the hub singleton; the enqueue wake misses the … — **(b) FIXED + 263-G MET; (a) AS FILED FALSIFIED — open ONLY as the (a) WATCH** (the header predates both) … **⟵ 2026-09-01: the PID chore (seven releases overdue) is MERGED in the plugin repo — PR #8, squash `d69a5e2`, plugin 0.8.0 → 0.9.0, bars 263-P-A/B met (RED-first, suite 256 → 257). ⛔ DEPLOYED NOWHERE: both hosts stay at 0.8.0 (`b4e8dfa`) until Owen's per-host go (263-P-C)**
 - **#254** 👁 Control Center buttons BIND (confirmed 2034); ghost session = connect-window ownership race — **WATCH (downgraded 2026-08-05, header corrected twice, 2026-08-09); premise MEASURED (254-F), fix landed under 254-A/B/C; **254-D OWED, 254-E UNRUNNABLE AS WRITTEN (device 2026-08-09; native `LIVE` arm passed in its place)** — STAYS OPEN**
 - **#249** 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the …
 - **#241** 🔭 HERMES CORE — **REOPENED 2026-08-09 as TRACK-UPSTREAM. My "by design" call was WRONG: upstream calls it a Bug, 4 independent filings, maintainer-reviewed fix PR #72739 open. Watch it. Half two stays ours in #180. Nothing to submit (filed 4×).**
@@ -9458,6 +9458,80 @@ and a wake-path integration test that fails on a full-cycle delivery.
 > - **263-P-A (the line carries the PID):** the `transport module loaded` log record includes `pid=<os.getpid()>`, pinned by a pytest that captures the record. RED-first; removing the field re-reddens it. [offline, plugin repo]
 > - **263-P-B (the repo stays green):** plugin pytest suite green (216 → 217), `hermes plugins doctor`-equivalent clean if the repo has one, version bumped per the repo's own convention, PR to the PRIVATE plugin repo merged (our repo — not an external submission). [offline]
 > - **263-P-C (deploy is NOT this lane):** both hosts stay at 0.8.0 (`b4e8dfa`) until Owen's per-host go; the deploy rides a runbook desk card, and the result block says so plainly. [—]
+
+> **✅ 2026-09-01 (night) — 263-PID RESULT: 263-P-A and 263-P-B MET, 263-P-C
+> HELD. The chore that outlived seven releases is merged in the plugin repo
+> and DEPLOYED NOWHERE.** Plugin PR
+> [#8](https://github.com/AethyrionAI/talaria-plugin/pull/8), squash
+> **`d69a5e2`** (`d69a5e28fbda5c6befc002ca9669d6d43ba3f9cb`), version
+> **0.8.0 → 0.9.0**. Worked on a fresh clone in a scratch dir; the live
+> install was read once (`git remote get-url`) and never written.
+>
+> **263-P-A MET — RED first, and the RED is the evidence.** The stamp fires
+> at interpreter import, long before any test runs, so the pre-existing
+> `test_module_load_stamp_names_the_hub_instance` could only grep the SOURCE
+> that emits it. The new test CAPTURES the record: it re-executes
+> `transport.py` into a throwaway module object — deliberately never
+> registered in `sys.modules`, because a probe that installs a second
+> `transport` would be manufacturing the very split this item watches for —
+> and reads `caplog`. On pre-fix code:
+> ```
+> E  AssertionError: the module-load stamp must name the process that emitted it —
+>    without it two loads and two processes are indistinguishable (#263 WATCH)
+> E  assert 'pid=74342' in 'transport module loaded module=4312161624 hub=4410001648'
+> INFO talaria:transport.py:306 transport module loaded module=4312161624 hub=4410001648
+> 1 failed, 10 passed
+> ```
+> GREEN after `pid=%s` lands; removing the field again re-reddens it
+> (mutation run with `__pycache__` purged and `PYTHONDONTWRITEBYTECODE=1`,
+> so the `.pyc` staleness trap could not fake the result). **The record's
+> existing text is intact** — `transport module loaded` is still one
+> contiguous grep string with `module=`/`hub=` still following, so anything
+> grepping the old line still matches.
+>
+> **263-P-B MET, with one stale number in the bar corrected.** The bar said
+> "216 → 217"; the measured baseline on `b4e8dfa` is **256**, so the run is
+> **256 → 257** — the `+1` is what the bar meant and the absolute was
+> already out of date when it was written. Green under both `pytest tests/
+> -q` and `python -m pytest tests/ -q`, `python -m compileall -q .` clean,
+> and `hermes plugins doctor . --ci` **OK** at `talaria 0.9.0` (its single
+> `WARN` — `pre_tool_call` not listed in `provides_hooks` — reproduces
+> identically on `b4e8dfa`, so it is pre-existing, not this diff). Verified
+> against the pinned hermes-agent `503d863f` (the README/CI pin) on Python
+> 3.12 in a throwaway uv venv; the operator's hermes venv was untouched. CI
+> passed both matrix legs (3.11, 3.12). **Version convention read from the
+> repo, not assumed:** all eight releases bumped MINOR — including both
+> `fix:` releases — and the repo has never cut a patch, so 0.9.0 is the
+> convention and a patch bump would have been the departure. The
+> `#308` floor tests (`manifest_version: 1`, README ↔ CI hermes-SHA
+> lockstep) still pass untouched; the one existing test edited is
+> `test_plugin_version_reads_the_yaml`, which IS the version lockstep pin.
+>
+> **263-P-C HELD — nothing is deployed. BOTH HOSTS STAY AT 0.8.0
+> (`b4e8dfa`) until Owen's explicit per-host go**, which rides a runbook
+> desk card. Confirmed after the merge: `git -C ~/.hermes/plugins/talaria
+> status --short` empty, HEAD still `b4e8dfa36eb4a1460c4ff9449e8ec7c0cbdcca24`.
+> The pid line therefore does **not** yet appear in any live `agent.log`;
+> the 22:49 breadcrumb stays unresolved until a host runs 0.9.0.
+>
+> **⚠️ One hazard found and recorded, because the next lane will hit it:**
+> `hermes plugins doctor` REGISTERS the plugin, and registration initializes
+> the database — so a doctor run in a default environment reaches
+> `<HERMES_HOME>/talaria/talaria.db`, the operator's real one. The first
+> doctor run here did exactly that: the directory mtime moved while
+> `talaria.db`'s own mtime and SHA-256 did not (checked before and after —
+> an open, not a write), and every later run set
+> `HERMES_HOME=<scratch>`. The `talaria.db.accidental-2026-08-16*` files
+> sitting in that directory say this has bitten before. **Run doctor with an
+> isolated `HERMES_HOME` — it is not a read-only command.**
+>
+> **Scope note:** the 2026-08-18 chore named two sites,
+> `transport.py:307` *and* `platform_adapter.py:44` (`adapter attach
+> hub=%s`). Only the transport stamp is in 263-P-A, so only it moved. The
+> adapter-attach line still carries no pid; it is the cheaper half (one
+> process's two lines are already correlated by the transport stamp above
+> it) and is left for the next plugin touch rather than smuggled in
+> untested.
 
 ## 254. 👁 Control Center "Ask/Talk to Hermes" buttons BIND — **Half 1 CONFIRMED WORKING on build 2034**; Half 2 (the ghost session) is a **connect-window OWNERSHIP RACE**, not a present-tense defect — **NOT REPRODUCIBLE on 2034, ⬇️ WATCH since 2026-08-05; mechanism named and its premise MEASURED (bar 254-F) 2026-08-09; app-side fix landed same day under bars 254-A/B/C — **254-D still OWED; ~~254-E~~ UNRUNNABLE AS WRITTEN on device 2026-08-09 (its airplane-mode pin collapses the connect window to 23 ms), with the native `LIVE` arm verified in its place and labelled as a substitute, not scored as the bar**
 
