@@ -364,4 +364,60 @@ struct VoiceInstrumentLogLineTests {
         #expect(script("").contains("script=empty"))
         #expect(script("").contains("chars=0"))
     }
+
+    // MARK: - #138-O the onset gate (card V5)
+
+    /// **Why these lines exist.** The gate is a SILENT behaviour change on the
+    /// one path #138 is about: it disables the local uplink for the first
+    /// milliseconds of every assistant playback. Without a line per arming, a
+    /// device pass that sees zero `#138 BARGE-IN` cannot tell "the gate held"
+    /// from "the server never sent a `speech_started`" — an absence bar with no
+    /// positive control, which is exactly the trap #198B-A was built to close
+    /// and which V2's Record step already had to add for #138-M.
+    ///
+    /// The window is printed rather than assumed, because the constant is the
+    /// one tunable this fix has (138-O-A) and a log that named no number would
+    /// leave every archive ambiguous about which build produced it.
+
+    @Test("the arming line names the window in milliseconds")
+    func theArmingLineNamesTheWindow() {
+        let line = LiveVoiceSessionService.onsetGateArmedLogDetail(
+            windowMs: LiveVoiceSessionService.onsetGateWindowMilliseconds
+        )
+        #expect(line.contains("800ms"))
+        // The WHOLE shape, because the runbook's Record step and every archive
+        // grep are written against it — a reordered or extra field breaks a
+        // reader that never runs this suite.
+        #expect(line == "#138 onset gate: uplink muted 800ms")
+    }
+
+    /// The constant is the fix's one tunable, so the line must read it rather
+    /// than restate it: a build with a different window has to say so.
+    @Test("the arming line reads the constant, it does not hardcode 800")
+    func theArmingLineReadsTheConstant() {
+        #expect(
+            LiveVoiceSessionService.onsetGateArmedLogDetail(windowMs: 1234)
+                == "#138 onset gate: uplink muted 1234ms"
+        )
+        #expect(LiveVoiceSessionService.onsetGateWindowMilliseconds == 800)
+    }
+
+    /// The release line is the arming line's other half. An archive showing a
+    /// `muted` with no `restored` means the window was still open when the
+    /// session ended — a reading the gate must not be able to fake.
+    @Test("the release line is the arming line's counterpart")
+    func theReleaseLineIsTheArmingLineCounterpart() {
+        #expect(LiveVoiceSessionService.onsetGateRestoredLogLine == "#138 onset gate: uplink restored")
+    }
+
+    /// The suppression line is the positive control for 138-O-E's absence bar:
+    /// it says the gate CAUGHT something, which "no BARGE-IN in the log" alone
+    /// can never distinguish from "nothing arrived".
+    @Test("a suppressed speech_started names its offset and the window it fell inside")
+    func theSuppressionLineNamesOffsetAndWindow() {
+        let line = LiveVoiceSessionService.onsetGateSuppressedLogDetail(offsetMs: 312, windowMs: 800)
+        #expect(line.contains("312ms"))
+        #expect(line.contains("800ms"))
+        #expect(line == "#138 onset gate: speech_started suppressed 312ms into the 800ms window")
+    }
 }

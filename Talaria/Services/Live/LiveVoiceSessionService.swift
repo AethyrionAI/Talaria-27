@@ -6,6 +6,22 @@ import os
 @preconcurrency import WebRTC
 #endif
 
+/// **#138-O — the one thing the onset gate is allowed to touch.**
+///
+/// The gate disables the LOCAL UPLINK TRACK for a named window at the start of
+/// each assistant playback. `RTCAudioTrack` is the only production conformer;
+/// the protocol exists so the gate's state machine can be driven in a unit test
+/// without standing up a peer connection, and so the gate's reach is `isEnabled`
+/// and nothing else — the mic, the audio session and the capture-chain state are
+/// deliberately out of its grasp (138-O-D).
+protocol OnsetGateUplink: AnyObject {
+    var isEnabled: Bool { get set }
+}
+
+#if canImport(WebRTC)
+extension RTCAudioTrack: OnsetGateUplink {}
+#endif
+
 @MainActor
 final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     /// #198: `nonisolated` so the audio-session notification handlers can reach
@@ -156,6 +172,16 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     /// `input_audio_buffer.speech_started`, so the matching `speech_stopped`
     /// can name the segment's LENGTH rather than only its end stamp.
     private var lastSpeechStartedAudioMs: Int?
+    /// #138-O: the uptime at which the onset gate muted the uplink, or nil when
+    /// the gate is not holding. `onsetGateIsHolding` reads it.
+    private var onsetGateArmedAtUptime: TimeInterval?
+    /// #138-O: the pending release. Cancelled — never awaited — by a re-arm or
+    /// by session teardown.
+    private var onsetGateReleaseTask: Task<Void, Never>?
+    /// #138-O: bumped by every arm, cancel and release, so a release that was
+    /// superseded (a new playback) or abandoned (the session ended inside the
+    /// window) cannot re-enable a track it no longer owns.
+    private var onsetGateGeneration = 0
     private var ignoreCurrentAssistantFinalization = false
     private var lastImageItemID: String?
     fileprivate var isEndingSession = false
@@ -303,6 +329,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         currentUserConversationItemID = nil
         assistantTextSource = nil
         resetSegmentInstrumentState()
+        cancelOnsetGate()
 
         do {
             #if canImport(WebRTC)
@@ -388,6 +415,9 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         transcriptItemIDsByConversationItemID = [:]
         resetAssistantAudioPlaybackTracking()
         resetSegmentInstrumentState()
+        // #138-O: abandon any open window BEFORE the track is released, so the
+        // pending release cannot re-enable a track this teardown just dropped.
+        cancelOnsetGate()
         ignoreCurrentAssistantFinalization = false
         lastImageItemID = nil
         disarmFlatlineTripwire()
@@ -427,7 +457,11 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     func toggleMute() async {
         isMuted.toggle()
         #if canImport(WebRTC)
-        audioTrack?.isEnabled = !isMuted
+        // #138-O: while the onset gate holds, the uplink stays down — an
+        // un-mute inside the window would otherwise defeat the gate for the
+        // rest of it. The gate's own release re-applies `!isMuted`, so the
+        // user's pick lands 800 ms later at worst.
+        audioTrack?.isEnabled = !isMuted && !onsetGateIsHolding
         #endif
         // #84: unmuting restarts the flatline window — silence while muted
         // was expected, silence from here on is evidence of a mic problem.
@@ -888,6 +922,16 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             // knowable at `speech_stopped`, which is where the line is emitted.
             lastSpeechStartedAudioMs = payload["audio_start_ms"] as? Int
             noteSpeechEvidence()
+            // #138-O: inside the onset window the uplink is MUTED, so whatever
+            // raised this cannot be the user's live microphone. Drop it whole —
+            // no cancel, and no flip to `.listening`, because the assistant IS
+            // still speaking and the app's state has to keep saying so. The
+            // guard reads "we muted something", not "800 ms have not elapsed":
+            // a session with no uplink to mute never arms and this never fires.
+            if onsetGateIsHolding {
+                Self.logger.notice("\(Self.onsetGateSuppressedLogDetail(offsetMs: self.onsetGateOffsetMilliseconds(), windowMs: Self.onsetGateWindowMilliseconds), privacy: .public)")
+                break
+            }
             handleServerVADInterruption()
             voiceState = .listening
             statusMessage = "Listening"
@@ -934,6 +978,10 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         case "output_audio_buffer.started":
             Self.logger.notice("#138 audio.started — assistant playback begins")
             lastAudioStartedAtUptime = ProcessInfo.processInfo.systemUptime
+            // #138-O: the ONLY site that arms the onset gate. Placed on the
+            // event itself rather than a hop later — the earliest phantom in
+            // the archives trips at +0.36 s, so a deferred mute would miss it.
+            armOnsetGate()
             startAssistantAudioPlaybackTracking()
             voiceState = .speaking
             statusMessage = "Talaria is speaking."
@@ -1352,6 +1400,138 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     private func resetSegmentInstrumentState() {
         lastAudioStartedAtUptime = nil
         lastSpeechStartedAudioMs = nil
+    }
+
+    // MARK: - #138-O the onset gate (card V5)
+
+    /// **THE ONSET GATE — #138's elected fix (Owen, 2026-09-02).**
+    ///
+    /// #138's 2026-09-01 escalation synthesis proved the self-barge-in is
+    /// ONSET-bound: every unambiguous phantom across five archives trips
+    /// 0.25–0.60 s after `audio.started`, on the speakerphone route, and the
+    /// 09-02 08:19 archive read its two at +0.58 and +0.60 s. Owen's ear
+    /// falsified the post-cancel playout-drain candidate the same morning —
+    /// the speaker stops DEAD at a cancel — so what the microphone hears is the
+    /// first few hundred milliseconds of each new utterance, before the
+    /// canceller settles on the new far-end signal.
+    ///
+    /// So: from each `audio.started`, disable the LOCAL UPLINK TRACK for this
+    /// window and re-enable it. The residual never reaches the server, the
+    /// loop never starts.
+    ///
+    /// **800, not 700.** The observed trips reach 0.60 s and 700 ms sits on the
+    /// edge of the measured band; 800 ms buys a 200 ms margin over the worst
+    /// reading we hold. It is the fix's ONE tunable and it is named here so a
+    /// device archive can say which build produced it.
+    ///
+    /// **What this is NOT.** It is not #130's half-duplex: the window is
+    /// per-utterance and 800 ms long, so a real barge-in from 0.8 s onward
+    /// behaves exactly as it did before (138-O-C). The cost is bounded and
+    /// stated: a barge-in inside the first 0.8 s of a reply waits 0.8 s.
+    nonisolated static let onsetGateWindowMilliseconds = 800
+
+    /// The uplink the gate mutes when there is no live `RTCAudioTrack` to
+    /// reach — the seam that lets the state machine be driven in a unit test
+    /// without standing up a peer connection.
+    var onsetGateUplinkOverride: (any OnsetGateUplink)? // harness-visible
+
+    private var onsetGateUplink: (any OnsetGateUplink)? {
+        #if canImport(WebRTC)
+        return onsetGateUplinkOverride ?? audioTrack
+        #else
+        return onsetGateUplinkOverride
+        #endif
+    }
+
+    /// True from the moment the gate disables an uplink until it restores it.
+    ///
+    /// **It says "we muted something", not "800 ms have not elapsed"** — and
+    /// that distinction is the whole of the gate's honesty. With no uplink to
+    /// disable the gate never arms, so a `speech_started` in a session that has
+    /// no track describes audio the server genuinely received over a live
+    /// uplink, and suppressing it would be claiming a mute that never happened.
+    var onsetGateIsHolding: Bool { onsetGateArmedAtUptime != nil } // harness-visible
+
+    /// Arm the window. Called ONLY from `output_audio_buffer.started` — a
+    /// cancel, an `audio.cleared`, a transcript finalization or a route change
+    /// must never re-arm it (138-O-B), because a gate that re-armed on the
+    /// cancel would hold the uplink down across the user's own next turn and
+    /// read to them as a dead microphone.
+    private func armOnsetGate() {
+        guard let uplink = onsetGateUplink else { return }
+        // A new playback supersedes the pending release rather than stacking
+        // on it; the generation bump is what stops the old one from firing.
+        onsetGateReleaseTask?.cancel()
+        onsetGateGeneration &+= 1
+        let generation = onsetGateGeneration
+        let windowMs = Self.onsetGateWindowMilliseconds
+        uplink.isEnabled = false
+        onsetGateArmedAtUptime = ProcessInfo.processInfo.systemUptime
+        Self.logger.notice("\(Self.onsetGateArmedLogDetail(windowMs: windowMs), privacy: .public)")
+        onsetGateReleaseTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(windowMs))
+            guard !Task.isCancelled, let self, self.onsetGateGeneration == generation else { return }
+            self.releaseOnsetGate()
+        }
+    }
+
+    /// Close the window.
+    ///
+    /// **Restores to `!isMuted`, never to `true`.** The user may have muted
+    /// themselves inside the window, and a gate that un-muted them on release
+    /// would open a microphone they had closed.
+    ///
+    /// The uplink is re-resolved here rather than captured at arming time: a
+    /// session that ended inside the window has already released its track, and
+    /// this must not reach for the one it no longer owns.
+    private func releaseOnsetGate() {
+        guard onsetGateArmedAtUptime != nil else { return }
+        onsetGateArmedAtUptime = nil
+        onsetGateReleaseTask = nil
+        onsetGateUplink?.isEnabled = !isMuted
+        Self.logger.notice("\(Self.onsetGateRestoredLogLine, privacy: .public)")
+    }
+
+    /// Abandon the window without touching any track — session teardown and a
+    /// fresh start. The generation bump makes the pending release a no-op even
+    /// if it is already past its `cancel()`. Deliberately silent: an archive
+    /// showing a `muted` line with no `restored` line and then
+    /// `capture-chain COLD` is reading a session that ended mid-window, which
+    /// is the truth.
+    private func cancelOnsetGate() {
+        onsetGateReleaseTask?.cancel()
+        onsetGateReleaseTask = nil
+        onsetGateGeneration &+= 1
+        onsetGateArmedAtUptime = nil
+    }
+
+    /// Milliseconds since the gate armed. Only ever read while it is holding.
+    private func onsetGateOffsetMilliseconds() -> Int {
+        guard let onsetGateArmedAtUptime else { return 0 }
+        let elapsed = max(0, ProcessInfo.processInfo.systemUptime - onsetGateArmedAtUptime)
+        return Int((elapsed * 1000).rounded())
+    }
+
+    /// The arming line. Pure, `.notice`, un-gated, pinned by
+    /// `VoiceInstrumentLogLineTests`. The window is READ from the constant
+    /// rather than restated, so a build with a different window says so.
+    nonisolated static func onsetGateArmedLogDetail(windowMs: Int) -> String {
+        "#138 onset gate: uplink muted \(windowMs)ms"
+    }
+
+    /// The release line — the arming line's counterpart. A `muted` with no
+    /// `restored` after it means the window was still open when the session
+    /// ended, and that reading must stay available.
+    nonisolated static let onsetGateRestoredLogLine = "#138 onset gate: uplink restored"
+
+    /// The suppression line, and it is the positive control 138-O-E's bar
+    /// needs. That bar is an ABSENCE (zero `#138 BARGE-IN` inside 0.8 s), and
+    /// an absence with no positive control passes on an empty log — the trap
+    /// #198B-A was built to close and the one V2's Record step already had to
+    /// add for #138-M. This line is what separates "the gate caught one" from
+    /// "nothing arrived".
+    nonisolated static func onsetGateSuppressedLogDetail(offsetMs: Int, windowMs: Int) -> String {
+        "#138 onset gate: speech_started suppressed \(offsetMs)ms into the \(windowMs)ms window"
     }
 
     // MARK: - #418/#419 log-line formatters (pure — pinned in VoiceInstrumentLogLineTests)

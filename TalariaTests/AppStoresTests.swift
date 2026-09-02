@@ -2671,6 +2671,239 @@ struct AppStoresTests {
         #expect(voiceService.voiceState == .listening)
     }
 
+    // MARK: - #138-O the onset gate (card V5)
+
+    /// **The fix #138 elected on 2026-09-02.** Every unambiguous phantom in five
+    /// archives trips 0.36–0.60 s after `audio.started` on the speakerphone
+    /// route, the speaker is dead at a cancel (Owen's ear, 09-02), and the
+    /// residual is therefore ONSET-only. The gate disables the local uplink
+    /// track for a named 800 ms from each `audio.started` and re-enables it.
+    ///
+    /// **Why the pre-existing barge-in pins above are untouched and still
+    /// green, rather than rewritten.** The gate suppresses only what it
+    /// actually MUTED: with no uplink to disable there is nothing muted, so a
+    /// `speech_started` describes audio the server genuinely received over a
+    /// live uplink and cancelling is correct. Those pins drive a service that
+    /// never stood up a peer connection, so the gate never arms in them — and
+    /// that is the production invariant, not a test accommodation. A gate that
+    /// suppressed barge-in on a window it had not enforced would be claiming a
+    /// mute that never happened.
+    private final class FakeUplink: OnsetGateUplink {
+        var isEnabled = true
+    }
+
+    @MainActor
+    private func makeGatedVoiceService() -> (LiveVoiceSessionService, FakeUplink, MutableBox<[[String: Any]]>) {
+        let sent = MutableBox([[String: Any]]())
+        let service = LiveVoiceSessionService(
+            realtimeEventTransportOverride: { data in
+                guard let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                    return false
+                }
+                sent.value.append(payload)
+                return true
+            }
+        )
+        let uplink = FakeUplink()
+        service.onsetGateUplinkOverride = uplink
+        service.connectionState = .connected
+        return (service, uplink, sent)
+    }
+
+    /// The server's order for one spoken reply, up to and including the event
+    /// that arms the gate.
+    @MainActor
+    private func beginAssistantPlayback(
+        _ service: LiveVoiceSessionService,
+        itemID: String = "item_onset"
+    ) {
+        service.handleDataChannelEvent(["type": "response.created", "response": ["id": "resp_onset"]])
+        service.handleDataChannelEvent([
+            "type": "conversation.item.created",
+            "item": ["id": itemID, "role": "assistant", "type": "message"],
+        ])
+        service.handleDataChannelEvent(["type": "response.output_audio_transcript.delta", "delta": "Hello there."])
+        service.handleDataChannelEvent(["type": "output_audio_buffer.started"])
+    }
+
+    /// 138-O-A, behaviour half: the mute lands on the playback event itself
+    /// (not a hop later — the phantom trips at +0.36 s, so a deferred mute
+    /// would miss the earliest ones) and the window closes on its own.
+    @Test @MainActor
+    func theOnsetGateMutesTheUplinkAtPlaybackStartAndRestoresItAfterTheWindow() async throws {
+        let (service, uplink, _) = makeGatedVoiceService()
+
+        beginAssistantPlayback(service)
+
+        #expect(uplink.isEnabled == false, "the uplink must be muted by the playback event itself")
+        #expect(service.onsetGateIsHolding)
+
+        let restored = await pollUntil { uplink.isEnabled }
+        #expect(restored, "the window must close on its own — a gate that never releases is #130's half-duplex")
+        #expect(service.onsetGateIsHolding == false)
+    }
+
+    /// **138-O-B — re-armed only by a NEW playback.** The 09-02 08:19 archive
+    /// showed the loop: phantom cancels reply, reply 2 starts, phantom cancels
+    /// reply 2. A gate that re-armed on the CANCEL would hold the uplink down
+    /// across the user's own next turn and read as a dead microphone.
+    @Test @MainActor
+    func theOnsetGateIsReArmedOnlyByANewPlaybackNeverByACancel() async throws {
+        let (service, uplink, _) = makeGatedVoiceService()
+        let clock = ContinuousClock()
+
+        beginAssistantPlayback(service)
+        let armedAt = clock.now
+        #expect(uplink.isEnabled == false)
+
+        // +0.5 s — inside the window: the server cancels the reply and the
+        // transcript finalizes. Neither may extend the window or start a new one.
+        try await Task.sleep(until: armedAt + .milliseconds(500), clock: clock)
+        service.handleDataChannelEvent(["type": "output_audio_buffer.cleared"])
+        service.handleDataChannelEvent([
+            "type": "response.output_audio_transcript.done",
+            "transcript": "Hello there.",
+        ])
+
+        // The ORIGINAL schedule still governs: released by +0.8 s. The budget
+        // is anchored to the ARMING instant, not to "however long the previous
+        // step took" — a re-arm at +0.5 s would move the release to +1.3 s and
+        // has to be caught however slow the host is.
+        let budget = max((armedAt + .milliseconds(1_100)) - clock.now, .milliseconds(1))
+        let restored = await pollUntil(timeout: budget) { uplink.isEnabled }
+        #expect(restored, "a cancel inside the window must not extend it")
+        #expect(service.onsetGateIsHolding == false)
+
+        // And with the gate idle, none of the three arms it either.
+        service.handleDataChannelEvent(["type": "output_audio_buffer.cleared"])
+        service.handleDataChannelEvent([
+            "type": "response.output_audio_transcript.done",
+            "transcript": "Hello there.",
+        ])
+        await service.handleAudioRouteChange(.categoryChange)
+        #expect(uplink.isEnabled, "a cancel, a finalization or a route change must never arm the gate")
+        #expect(service.onsetGateIsHolding == false)
+
+        // Only the next playback re-arms it.
+        service.handleDataChannelEvent(["type": "output_audio_buffer.started"])
+        #expect(uplink.isEnabled == false, "the next playback must re-arm the gate")
+        #expect(service.onsetGateIsHolding)
+    }
+
+    /// **138-O-C, the inside arm.** The track is muted, so the server should
+    /// never raise this at all — but the app side is pinned too, because a
+    /// `speech_started` the gate cannot have caused must not be allowed to cut
+    /// the reply, and the state must stay `.speaking` (the assistant is).
+    @Test @MainActor
+    func aSpeechStartedInsideTheOnsetWindowRaisesNoBargeIn() async throws {
+        let (service, uplink, sent) = makeGatedVoiceService()
+
+        beginAssistantPlayback(service, itemID: "item_inside")
+        try await Task.sleep(for: .milliseconds(300))
+
+        #expect(
+            uplink.isEnabled == false,
+            "the window must still be open at +0.3s — otherwise this check did not run"
+        )
+        service.handleDataChannelEvent(["type": "input_audio_buffer.speech_started"])
+
+        #expect(sent.value.isEmpty, "a speech_started inside the muted window must not cancel the assistant")
+        #expect(service.voiceState == .speaking, "the assistant is still speaking — the state must not flip")
+    }
+
+    /// **138-O-C, the after arm.** Real barge-in is the thing this fix must not
+    /// cost. At +2 s the window is long closed and the full cancel/clear/
+    /// truncate sequence must be identical to the pre-gate behaviour.
+    @Test @MainActor
+    func aSpeechStartedAfterTheOnsetWindowStillCancelsTheAssistant() async throws {
+        let (service, uplink, sent) = makeGatedVoiceService()
+        let clock = ContinuousClock()
+
+        beginAssistantPlayback(service, itemID: "item_late")
+        let armedAt = clock.now
+        try await Task.sleep(until: armedAt + .seconds(2), clock: clock)
+
+        #expect(uplink.isEnabled, "the window must be long closed at +2s")
+        service.handleDataChannelEvent(["type": "input_audio_buffer.speech_started"])
+
+        #expect(sent.value.count == 3)
+        #expect(sent.value[0]["type"] as? String == "response.cancel")
+        #expect(sent.value[1]["type"] as? String == "output_audio_buffer.clear")
+        #expect(sent.value[2]["type"] as? String == "conversation.item.truncate")
+        #expect(sent.value[2]["item_id"] as? String == "item_late")
+        #expect(service.voiceState == .listening)
+    }
+
+    private static var onsetGateRepoRoot: URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // TalariaTests/
+            .deletingLastPathComponent()   // repo root
+    }
+
+    /// **138-O-D — no capture-state lie.** The mic is not off and the audio
+    /// session is untouched; one TRACK is disabled. #302/#415's `capture chain
+    /// HOT/COLD` markers mean "microphone buffers are/are not leaving the
+    /// device", and an operator reading a device archive must not find the gate
+    /// impersonating them — a COLD line at every playback onset would read as
+    /// the capture chain collapsing eight times a session.
+    ///
+    /// Structural because the failure it guards is a line ADDED later by
+    /// someone who thinks the gate should announce itself in the same vocabulary.
+    @Test @MainActor
+    func theOnsetGateNeverTouchesTheCaptureChainOrItsMarkers() async throws {
+        let source = try #require(
+            try? String(
+                contentsOf: Self.onsetGateRepoRoot
+                    .appendingPathComponent("Talaria/Services/Live/LiveVoiceSessionService.swift"),
+                encoding: .utf8
+            ),
+            "cannot read LiveVoiceSessionService.swift — this check did not run"
+        )
+        let marker = "// MARK: - #138-O the onset gate (card V5)"
+        let sectionStart = try #require(
+            source.range(of: marker),
+            "the onset gate's section marker is gone — this check did not run"
+        )
+        let rest = String(source[sectionStart.upperBound...])
+        let section = rest.range(of: "// MARK: -").map { String(rest[..<$0.lowerBound]) } ?? rest
+        #expect(section.contains("armOnsetGate"), "the gate is not in its own section — this check did not run")
+
+        for forbidden in [
+            "capture chain",
+            "AudioSessionOffMain",
+            "configureAudioSession",
+            "forceSpeakerIfNeeded",
+            "peerConnection",
+            "#if DEBUG",
+            "verboseLogging",
+        ] {
+            #expect(!section.contains(forbidden), "the onset gate must not reach \(forbidden)")
+        }
+        // The two capture-chain emissions are #302-A's and stay exactly two:
+        // the gate adds none, in its section or anywhere else.
+        #expect(source.components(separatedBy: "capture chain HOT").count - 1 == 1)
+        #expect(source.components(separatedBy: "capture chain COLD").count - 1 == 1)
+
+        // The behavioural half: arming and releasing move no app state.
+        let (service, uplink, _) = makeGatedVoiceService()
+        beginAssistantPlayback(service)
+        #expect(uplink.isEnabled == false)
+        #expect(service.connectionState == .connected)
+        #expect(service.voiceState == .speaking)
+        #expect(service.isMuted == false, "the gate mutes a TRACK, never the app's mic state")
+        #expect(service.audioRouteSummary == nil, "the gate must not disturb the published route")
+
+        let restored = await pollUntil { uplink.isEnabled }
+        #expect(restored)
+        #expect(service.connectionState == .connected)
+        #expect(service.isMuted == false)
+    }
+
+    /// The window is one named constant, and it is the fix's only tunable.
+    @Test func theOnsetGateWindowIsOneNamedConstant() {
+        #expect(LiveVoiceSessionService.onsetGateWindowMilliseconds == 800)
+    }
+
     @Test @MainActor
     func liveVoiceSessionServiceRecoversFromInterruptionsWithoutEndingSession() async throws {
         let voiceService = LiveVoiceSessionService(
