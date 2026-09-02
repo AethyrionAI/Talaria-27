@@ -3245,7 +3245,7 @@ Logged 2026-07-22.
 
 > **✅ 2026-09-02 — THE RULING IS EXECUTED. `TalariaShare` no longer declares
 > UserDefaults, and the tripwire's exemption list is EMPTY.** PR **#413**,
-> squashed as **`SHA-PENDING`**. **166 STAYS OPEN** — 166c/166e/166f are
+> squashed as **`d2bbd8e3`**. **166 STAYS OPEN** — 166c/166e/166f are
 > Owen-side and 166a's remaining half is the App Privacy questionnaire; this
 > closes only the over-declaration the completeness lane recorded and
 > deliberately left standing.
