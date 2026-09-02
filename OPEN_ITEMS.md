@@ -8232,6 +8232,12 @@ armed words-only turns cost), #333 (the runner that made the measurement one com
 > members that got filed give no signal about the one that did not. #339's own
 > text even says this finding "belongs to #334/#206."*
 
+> **📋 2026-09-01 (night) — 334-N ANALYSIS LANE OPENED (Owen's mandate: everything off the board except what he tests).** The board pass found the 08-28 re-baseline artifact (`~/.talaria-instrument-runs/20260828T012656Z-long-context-probe/`) routing `E1-nooffer-short/long` **ARMED 10/10 with no offer tail present**, while the shipped mechanism claim (`LocalChatBackend+IntentRouting.swift:177-181`, "they end in an OFFER to act") predicts TOOLLESS. Bars pre-registered before any edit:
+> - **334-N-A (name the discriminator from the artifact, not from argument):** for every E1-nooffer row, state what the router actually keyed on using the artifact's own fields (prompt, context tail, route decision, reason if logged). A mechanism claim without an artifact field that would differ if it were false is not accepted. [offline]
+> - **334-N-B (doc debt closed):** the router comment and the design's expected-label for those rows are corrected to the MEASURED mechanism, dated (the #206 shape). [offline]
+> - **334-N-C (defect or design?):** if the measured mechanism means rows the design calls TOOLLESS are armed by a real defect, pre-register fix bars IN THIS ENTRY and build RED-first ONLY if the existing offline fixtures (the long-context-probe bands) can witness the RED; otherwise the fix is PROPOSED with a runbook card. Gate only if code changes. [offline/Mac]
+> - **334-N-D (the four 0/10 bands each get a verdict):** every band the 08-27/28 runs left at 0/10 is named with its mechanism; the lane ends by saying whether #334 CLOSES (as a documented mechanism, WATCH-shaped) or converts to exactly one runbook card. [offline]
+
 ## 293. 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane — **FILED 2026-08-07 night from the repo-wide adversarial audit. Each is STATIC with the auditor's own confidence stated; NONE verified beyond a code read. Verify before fixing.**
 
 > **2026-08-10 (corrected same day):** the re-land lane (d) was briefly routed
@@ -9441,6 +9447,11 @@ and a wake-path integration test that fails on a full-cycle delivery.
 > (`b87cd6c`), 0.8.0 (`b4e8dfa`) — so the PID-log chore has now been skipped
 > by **SEVEN plugin releases (0.2.0 → 0.8.0)**, not four. Still not folded
 > into any of them.
+
+> **📋 2026-09-01 (night) — 263-PID LANE OPENED (Owen's mandate).** The one concrete leftover, now SEVEN releases overdue (hygiene sweep `9f537b42`). ⚠️ The Mac's plugin checkout IS the live install (`~/.hermes/plugins/talaria`) — modifying it is a 🔐 live-install change, so the lane works on a FRESH CLONE of the plugin repo and the live install is not touched. Bars pre-registered before code:
+> - **263-P-A (the line carries the PID):** the `transport module loaded` log record includes `pid=<os.getpid()>`, pinned by a pytest that captures the record. RED-first; removing the field re-reddens it. [offline, plugin repo]
+> - **263-P-B (the repo stays green):** plugin pytest suite green (216 → 217), `hermes plugins doctor`-equivalent clean if the repo has one, version bumped per the repo's own convention, PR to the PRIVATE plugin repo merged (our repo — not an external submission). [offline]
+> - **263-P-C (deploy is NOT this lane):** both hosts stay at 0.8.0 (`b4e8dfa`) until Owen's per-host go; the deploy rides a runbook desk card, and the result block says so plainly. [—]
 
 ## 254. 👁 Control Center "Ask/Talk to Hermes" buttons BIND — **Half 1 CONFIRMED WORKING on build 2034**; Half 2 (the ghost session) is a **connect-window OWNERSHIP RACE**, not a present-tense defect — **NOT REPRODUCIBLE on 2034, ⬇️ WATCH since 2026-08-05; mechanism named and its premise MEASURED (bar 254-F) 2026-08-09; app-side fix landed same day under bars 254-A/B/C — **254-D still OWED; ~~254-E~~ UNRUNNABLE AS WRITTEN on device 2026-08-09 (its airplane-mode pin collapses the connect window to 23 ms), with the native `LIVE` arm verified in its place and labelled as a substitute, not scored as the bar**
 
@@ -11134,6 +11145,11 @@ once per device session.
 > bar measures the absence of the fault rather than the absence of one
 > spelling of it. Found by the runbook staleness audit; the fix that #198B
 > shipped is untouched by this — only its verification is.
+
+> **📋 2026-09-01 (night) — 198B-BAR LANE OPENED (Owen's mandate).** The board pass confirmed the 08-31 audit finding: 198B-A as written greps `AVAudioSession_iOS.mm:978` — an Apple-internal string keyed to a LINE NUMBER, zero emitters in our source, on a device OS build that has since moved — so the card would print PASS while testing nothing. Bars pre-registered before any edit:
+> - **198B-B-A (the bar is re-cut to something that can fail):** the device card (in `dispatch/DEVICE-PASS-RUNNING-LIST.md` ~:2503-2511 and the runbook) keys on the bare filename `AVAudioSession_iOS.mm` at `fault` severity within the session window — PASS = zero such lines across the memo play/record/discard transitions, FAIL = any — and the old line-numbered string is struck with a dated note, not deleted. [offline]
+> - **198B-B-B (a positive control so an empty log cannot pass):** the card names one line the app's OWN off-main path emits during those transitions (from `AudioSessionOffMain` / the memo services — the lane reads the code and names the exact marker) and requires it to be PRESENT; absence = the run did not exercise the path, verdict INVALID rather than PASS. [offline]
+> - **198B-B-C:** the runbook card is rewritten to the same bar; the entry's result block states 198B-A stays OWED on device (unchanged) — this lane fixes the instrument, not the finding. [offline]
 
 ## 198A. ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 
