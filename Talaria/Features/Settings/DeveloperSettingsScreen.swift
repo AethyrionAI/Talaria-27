@@ -1057,17 +1057,13 @@ struct DeveloperSettingsScreen: View {
                     instrumentButton("pcc-surface", trials: 3,
                                      label: "PCC surface sweep (#388) (n=3)")
                 }
-                // #340-H5, tappable. The A/B is normally driven by
-                // `run-instrument.sh --cells armed,armed-bareclock`, but that
-                // path needs `xcrun devicectl` and therefore the LAN — so away
-                // from home this button is the only way to run it. Auto-DECLINE
-                // (the due-date instrument's own mode): the argument is logged
-                // before the confirmation gate, so nothing is created.
-                HStack(spacing: Design.Spacing.sm) {
-                    instrumentButton("due-date", trials: 20,
-                                     label: "Due-date A/B (#340-H5) n=20",
-                                     cells: ["armed", "armed-bareclock"])
-                }
+                // #340-H5's tappable A/B is GONE (2026-09-01, #340-PROMOTE): it
+                // pinned `cells: ["armed", "armed-bareclock"]`, and
+                // `armed-bareclock` no longer exists — its guide is what
+                // production now ships. A button naming a retired cell is #420's
+                // inert-control disease, so it is deleted rather than repointed:
+                // `armed` vs `armed` is not an A/B. The plain due-date button
+                // above still runs the instrument on its registry default cells.
                 // #101 bar 101-A1: does production's router ARM a turn whose
                 // answer lives in a past conversation? 10 pinned rows x 2 =
                 // n=20 classifications; no tools, nothing created.
