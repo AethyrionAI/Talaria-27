@@ -248,6 +248,30 @@ def bucket(call: "Call | None") -> str:
     return "populated-future"
 
 
+# #200V's warm-up tag. The battery emits `battery: BEGIN shape=warmup p=… t=0`
+# for the trial that pays the model's cold start, BEFORE `beginRun`, so the
+# recorder never sees it and the results page is byte-identical to a
+# warm-up-free run. The app chose a literal that is not any cell's rawValue for
+# exactly this reason — `batteryWarmupTag`'s own comment says the tag says
+# `warmup` "so no classifier and no reap line can mistake a discarded warm-up
+# trial for a counted one." This scorer was that classifier, and it did.
+WARMUP_CELL = "warmup"
+
+
+def split_warmup(by_cell: "dict[str, list]") -> "tuple[dict[str, list], list]":
+    """Separate the discarded warm-up rows from the measured cells.
+
+    A separate function, and the warm-up rows are RETURNED rather than dropped,
+    because the count still has to be reported: a reader who sees no mention of
+    a warm-up cannot tell "there was none" from "the scorer ate one", and that
+    ambiguity is the same `empty output reads as a negative` trap this whole
+    script is written against.
+    """
+    warm = by_cell.get(WARMUP_CELL, [])
+    measured = {cell: rows for cell, rows in by_cell.items() if cell != WARMUP_CELL}
+    return measured, warm
+
+
 def report_by_cell(by_cell: "dict[str, list]") -> int:
     """The per-arm view 340-H5 is scored on.
 
@@ -257,19 +281,42 @@ def report_by_cell(by_cell: "dict[str, list]") -> int:
     with an instant that has not already elapsed. Naming that "correct" is how
     the first version of this script scored an 8:46 AM answer to a 2:58 PM ask
     as fine.
+
+    **And the warm-up is not an arm.** #340-H5's archive scored as THREE cells,
+    the third being `cell warmup — 1 TRIALS` at 100% omission, sorted to the
+    bottom of the table where it reads exactly like a very small third arm. The
+    battery discards that trial by construction; a table that prints it invites
+    a reader to count a discarded trial as a measurement. It is now reported on
+    one labelled line, with its count, and in none of the rates.
     """
-    if not by_cell:
-        print("NO DATA — zero `battery: BEGIN shape=` lines matched.")
+    measured, warm = split_warmup(by_cell)
+    warm_line = None
+    if warm:
+        with_call = sum(1 for _, call in warm if call is not None)
+        warm_line = (f"discarded warm-up: {len(warm)} trial(s), {with_call} of them "
+                     "made a call — NOT an arm, and in NONE of the rates below "
+                     "(#200V pays the cold start outside the counts)")
+
+    if not measured:
+        if warm:
+            print(warm_line)
+            print("NO DATA — the only `battery: BEGIN shape=` lines were the")
+            print("discarded warm-up. A warm-up trial is not a measurement.")
+        else:
+            print("NO DATA — zero `battery: BEGIN shape=` lines matched.")
         print("This is NOT a clean run. Check, in order:")
         print("  1. Was Developer -> verbose logging ON for the whole run?")
         print("  2. Does the archive window actually cover the battery?")
         print("  3. Did the battery start at all?")
         return 2
 
+    if warm_line:
+        print(warm_line)
+
     order = ["populated-future", "omitted", "wrong-value", "no-call"]
     exit_code = 0
-    for cell in sorted(by_cell):
-        rows = by_cell[cell]
+    for cell in sorted(measured):
+        rows = measured[cell]
         n = len(rows)
         counts = {name: 0 for name in order}
         for _, call in rows:
