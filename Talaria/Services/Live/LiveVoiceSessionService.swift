@@ -1189,16 +1189,29 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             turnID = nil
         }
         currentAssistantItemID = nil
-        currentAssistantConversationItemID = nil
         currentRealtimeResponseID = nil
         assistantTextSource = nil
         ignoreCurrentAssistantFinalization = false
-        resetAssistantAudioPlaybackTracking()
         if latencyMetrics.firstAssistantFinalizedAt == nil {
             latencyMetrics.firstAssistantFinalizedAt = .now
         }
-        voiceState = .listening
-        statusMessage = "Listening"
+        // #419-B: transcript-done is the end of the TEXT, not of the audio.
+        // Realtime emits it when generation completes, seconds ahead of
+        // playout, and until 2026-09-01 this branch treated it as the end of
+        // the utterance: it zeroed the playback tracker, dropped the live item
+        // id, and flipped to `.listening` while the buffer was still draining.
+        // Every `audio.stopped after 0ms` in the project's archives, every
+        // barge-in in the tail of an utterance that sent NO truncate, and every
+        // mid-playback `speech_started … assistant not playing (state=listening)`
+        // line was this. While playback is live the audio-buffer lifecycle
+        // (`output_audio_buffer.stopped/cleared`, `conversation.item.truncated`)
+        // owns all three; only an audio-less response finalizes here.
+        if assistantAudioPlaybackStartedAtUptime == nil {
+            currentAssistantConversationItemID = nil
+            resetAssistantAudioPlaybackTracking()
+            voiceState = .listening
+            statusMessage = "Listening"
+        }
     }
 
     private func createPendingUserTranscriptItem(from payload: [String: Any]) {
@@ -1339,7 +1352,10 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         return "in=\(list(inputs)) out=\(list(outputs)) sampleRate=\(Int(sampleRateHz))Hz"
     }
 
-    private func currentAssistantAudioPlaybackMilliseconds() -> Int {
+    /// #419-B: `// harness-visible` — the same value the `audio.stopped after Nms`
+    /// line prints and the truncate carries, so the pins read the instrument
+    /// rather than a shadow of it.
+    func currentAssistantAudioPlaybackMilliseconds() -> Int { // harness-visible
         guard let startedAt = assistantAudioPlaybackStartedAtUptime else {
             return accumulatedAssistantAudioPlaybackMilliseconds
         }

@@ -14345,7 +14345,40 @@ green-signal-covering-what-it-cannot-see family).
 >   `// harness-visible` so B2 reads the same value the `audio.stopped`
 >   line prints.
 
-## 420. ✅ CLOSED — 🐛 THE "AUTO-CONNECT ON LAUNCH" TOGGLE IS INERT — a shipping settings control the user can flip that NOTHING READS — **FOUND 2026-08-31 by the runbook staleness audit (read-only, static), and CONFIRMED by hand at the call sites. Mechanism is not in doubt; the fix is a product call.** **⚖️ RULED the same day (delete it, keep the key) and ✅ BUILT + MERGED 2026-09-01 — PR #398, squash `c48fcae1`: all four bars MET, the absent-reader pin watched RED before any production edit and mutation-isolated to one assertion, gate 2783/15/Release clean. CLOSED; awaiting the next sweep's archive move only.**
+> **✅ 2026-09-01 — 419-B1…B6 MET. GATE: PASS on 24A5423a (re-run; run 1
+> failed ONLY on the known `testConnectedRelaunchSkipsTheConnectEntry` flake,
+> identical bytes, tree `2865888aa9e12d67`): units 2814/242 suites (count moved
+> +5 — the new suite exactly), XCUITest 15 passed / 0 failed counted from the
+> `Test Case '-[` ledger, Release clean. PR + squash SHA filled after merge.**
+>
+> **The fix is one conditional.** `finalizeAssistantText` now drops the live
+> item id, resets the tracker and flips to `.listening` ONLY when no playback
+> is live (`assistantAudioPlaybackStartedAtUptime == nil`); while audio is
+> draining, `output_audio_buffer.stopped/cleared` and
+> `conversation.item.truncated` own all three, exactly as they already did
+> for the pre-transcript-done window. Nothing else changed: the guard, the
+> item-arrival handler (419-A1 stays), `truncateAndCleanUpAssistantState` and
+> the counter arithmetic are untouched; `currentAssistantAudioPlaybackMilliseconds`
+> widened to `// harness-visible`.
+>
+> **RED first, witnessed:** `AssistantPlaybackTrackingTests` (5 tests) ran
+> against today's code — B2's two pins, B3 and B4 red (counter read 0, no
+> truncate sent, state `.listening`), the B5 control green. **419-B6
+> mutation:** restoring the unconditional reset (`if true {`) redded exactly
+> B2/B3/B4 and left B5 plus the four pre-existing `AppStoresTests` realtime
+> barge-in pins green (9 tests in 2 suites, 4 issues); the fix restored →
+> 5/5 and the gate above.
+>
+> **What the device will show now, free, on the next voice session:**
+> `#138 audio.stopped after Nms` reads the wall-clock playback; a
+> `speech_started` in the tail of an utterance prints `#138 BARGE-IN …
+> Xs into playback` and sends a `conversation.item.truncate` carrying the
+> heard milliseconds instead of "assistant not playing" and nothing; and the
+> `#419 … item.added` line stops mislabelling every arrival "first assistant
+> item" (the old finalize nil'd the id, so the instrument could never say
+> "new item (replacing …)"). **What a unit test cannot say:** whether the
+> server's history reads better after a real barge-in is a device row —
+> #138's card V1 records the values while it measures the volume arm. — 🐛 THE "AUTO-CONNECT ON LAUNCH" TOGGLE IS INERT — a shipping settings control the user can flip that NOTHING READS — **FOUND 2026-08-31 by the runbook staleness audit (read-only, static), and CONFIRMED by hand at the call sites. Mechanism is not in doubt; the fix is a product call.** **⚖️ RULED the same day (delete it, keep the key) and ✅ BUILT + MERGED 2026-09-01 — PR #398, squash `c48fcae1`: all four bars MET, the absent-reader pin watched RED before any production edit and mutation-isolated to one assertion, gate 2783/15/Release clean. CLOSED; awaiting the next sweep's archive move only.**
 
 **The measurement:** `autoConnectOnLaunch` has exactly one writer and zero
 production readers.

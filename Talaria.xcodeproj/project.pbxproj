@@ -255,6 +255,7 @@
 		58A79513D2968FE0A9D5690E /* ThemeTextures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 639E35724ACC2C48AB542489 /* ThemeTextures.swift */; };
 		58EAE21B148EFB6CD6612474 /* Icon-SpringSprout@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C2CA32208388B8F40E1EF71 /* Icon-SpringSprout@3x.png */; };
 		597724CD14E6518CD6A5B575 /* GuardrailImageDegradeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C3EB8490FC0D1812A984D01 /* GuardrailImageDegradeTests.swift */; };
+		5A83F6125EB960D4E6BEBB04 /* AssistantPlaybackTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A23B771985B2D8F8716C8E86 /* AssistantPlaybackTrackingTests.swift */; };
 		5A9C5EBDAC749A48E05CB003 /* Icon-AutumnHarvest@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6086194E5DA00269632F6A09 /* Icon-AutumnHarvest@3x.png */; };
 		5B1BE28C0064375B3F848E75 /* Design.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AA6B0D4D2F75AB7C4862721 /* Design.swift */; };
 		5B4B95A7A82517C71DE5279B /* AppLockGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E89F96377330A24AB8029976 /* AppLockGateTests.swift */; };
@@ -1078,6 +1079,7 @@
 		A0EB2A3321F50892438510AB /* TalariaPlatformInboxService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalariaPlatformInboxService.swift; sourceTree = "<group>"; };
 		A11CBDFA2D8E88B99FE043B4 /* ReactorOrb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReactorOrb.swift; sourceTree = "<group>"; };
 		A153FB314B12F8BFAA4A1800 /* InstrumentRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstrumentRegistryTests.swift; sourceTree = "<group>"; };
+		A23B771985B2D8F8716C8E86 /* AssistantPlaybackTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantPlaybackTrackingTests.swift; sourceTree = "<group>"; };
 		A371A08A4C7ED3E39033A3DB /* IconPreview-WinterFrost.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-WinterFrost.png"; sourceTree = "<group>"; };
 		A3A103D6FF3E893A48AE64C3 /* AppTemplateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTemplateTests.swift; sourceTree = "<group>"; };
 		A3F7E466B63E646BCDDC4B6A /* ConnectHostSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectHostSheets.swift; sourceTree = "<group>"; };
@@ -1455,6 +1457,7 @@
 				9A409B6A1140C0D421B4CBF5 /* ArtifactStreamingTests.swift */,
 				52BA50723B237D05E12279BE /* AskHermesIntentTests.swift */,
 				567192C3B22E4F72ABEE534B /* AskHermesUnreachableHonestyTests.swift */,
+				A23B771985B2D8F8716C8E86 /* AssistantPlaybackTrackingTests.swift */,
 				39CC967A4E389C32A713499A /* AttachmentCapabilityCopyTests.swift */,
 				2EB44A40F5D84F7994A337C1 /* AttachmentDownscaleTests.swift */,
 				036CD989156BAB4FE1A35157 /* AttachmentInliningTests.swift */,
@@ -2959,6 +2962,7 @@
 				37F70526FB6568CDA2B8BC3C /* ArtifactStreamingTests.swift in Sources */,
 				B918873555ADC2DBEDE9BB5E /* AskHermesIntentTests.swift in Sources */,
 				C93A0D288DFF3FA115862495 /* AskHermesUnreachableHonestyTests.swift in Sources */,
+				5A83F6125EB960D4E6BEBB04 /* AssistantPlaybackTrackingTests.swift in Sources */,
 				C38078FBC9883B12EE45104A /* AttachmentCapabilityCopyTests.swift in Sources */,
 				4DD8CA2AE4A58EBB90B35B2D /* AttachmentDownscaleTests.swift in Sources */,
 				4C6B5D44AC6F0ECD63D2A229 /* AttachmentInliningTests.swift in Sources */,
