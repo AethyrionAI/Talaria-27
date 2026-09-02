@@ -112,6 +112,32 @@ gate_classify_failures() {   # gate_classify_failures <logfile>
     printf 'runner-flake'
 }
 
+# ---------------------------------------------------------------------------
+# THE XCUITEST COUNT.
+#
+# Lives here, beside the classifier, for the same reason the classifier does:
+# it must be testable in a second instead of behind a twenty-minute suite.
+# `lane-gate.sh` calls it; `lane-gate-classify-test.sh` drives it over recorded
+# fixtures.
+#
+# THIS IS THE PRE-FIX BEHAVIOUR, EXTRACTED VERBATIM so the self-test can watch
+# it fail. It is the gate's own long-standing grep: take the MAX number on any
+# line reading `Executed N tests, with 0 failures`. A run with a FAILING test
+# does not print that phrase for the suite that failed, so the number falls
+# through to whichever sub-suite happened to be clean.
+# ---------------------------------------------------------------------------
+
+# Echo the count/summary to print after the label. Empty output means "nothing
+# countable in this log", which the caller must treat as a FAIL.
+gate_xcuitest_summary() {   # gate_xcuitest_summary <logfile>
+    local log="$1" n
+    [[ -s "$log" ]] || return 0
+    n="$(grep -oE 'Executed [0-9]+ tests?, with 0 failures' "$log" \
+         | grep -oE '[0-9]+' | sort -rn | head -1)"
+    [[ -n "$n" ]] || return 0
+    printf '%s' "$n"
+}
+
 # Print the per-test breakdown plus the verdict-specific advice.
 gate_print_failure_advice() {   # gate_print_failure_advice <logfile>
     local log="$1" line name loci verdict

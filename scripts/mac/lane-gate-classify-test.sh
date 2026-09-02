@@ -148,6 +148,98 @@ Failing tests:
 
 EOF
 
+# ------------------------------------------------- fixtures 8-11: the ledger
+# The XCUITest bundle exactly as it ran on 2026-09-01, in log order. Two things
+# about this list are load-bearing:
+#
+#   * `testLaunch` appears TWICE. The launch suite runs it under two
+#     configurations and both are real executions, so the ledger counts LINES
+#     and must never deduplicate names.
+#   * the per-suite `Executed` lines are reproduced too, because they are the
+#     whole defect: on a red run only the two-test launch sub-suite still says
+#     "with 0 failures", so a MAX over that phrase reports 2 for a bundle of
+#     fifteen — which reads to a human exactly like the runner dying after two
+#     tests, and misdirected a diagnosis twice on the night this was found.
+XCUI_TESTS=(
+    "MessageIdentityUITests testQueuedChipCancelRemovesHeldMessageWithNothingPosted"
+    "MessageIdentityUITests testTranscriptNeverRendersDuplicateMessageIDs"
+    "TalariaUITests testAppearanceChannelBrowserAppliesThemeOnLand"
+    "TalariaUITests testCapabilitiesSurfaceReachableByChipAndSlashCommand"
+    "TalariaUITests testChatSendFlow"
+    "TalariaUITests testConnectedRelaunchSkipsTheConnectEntry"
+    "TalariaUITests testConnectingAHostViaSettingsEntryPointLandsBackInChat"
+    "TalariaUITests testDisconnectingAHostReturnsToStandaloneChat"
+    "TalariaUITests testFreshInstallNeverPresentsNotificationPermissionDialog"
+    "TalariaUITests testPrivacyAgentActionsControlRendersAndSwitchesMode"
+    "TalariaUITests testSettingsDeckNavigation"
+    "TalariaUITests testSettingsGridPresentsNineSubsystems"
+    "TalariaUITests testStandaloneFirstLaunchLandsInChat"
+    "TalariaUITestsLaunchTests testLaunch"
+    "TalariaUITestsLaunchTests testLaunch"
+)
+
+# emit_ledger <failing-index-or--1> <stop-after-index-or--1>
+#   failing-index   the one test that reports `failed` (-1 = none)
+#   stop-after      after this many outcome lines, stop reporting outcomes at
+#                   all while still printing the `started` lines — the runner
+#                   dying mid-bundle (-1 = report every one)
+emit_ledger() {
+    local fail_at="$1" stop_after="$2" i=0 outcomes=0 suite name
+    for entry in "${XCUI_TESTS[@]}"; do
+        suite="${entry%% *}"; name="${entry##* }"
+        printf "Test Case '-[TalariaUITests.%s %s]' started.\n" "$suite" "$name"
+        if (( stop_after >= 0 && outcomes >= stop_after )); then
+            i=$((i+1)); continue
+        fi
+        if (( i == fail_at )); then
+            printf "Test Case '-[TalariaUITests.%s %s]' failed (42.664 seconds).\n" "$suite" "$name"
+        else
+            printf "Test Case '-[TalariaUITests.%s %s]' passed (11.164 seconds).\n" "$suite" "$name"
+        fi
+        outcomes=$((outcomes+1)); i=$((i+1))
+    done
+}
+
+# Fixture 8 — the RED run. Transcribed from the two 2026-09-01 gate logs
+# (talaria-gate.OvEY5t4EZE and .8vQbvPdIOy); both carry these exact counts.
+{
+    emit_ledger 5 -1
+    printf '\t Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds\n'
+    printf '\t Executed 2 tests, with 0 failures (0 unexpected) in 70.179 (70.184) seconds\n'
+    printf '\t Executed 11 tests, with 1 failure (0 unexpected) in 210.685 (210.695) seconds\n'
+    printf '\t Executed 2 tests, with 0 failures (0 unexpected) in 12.400 (12.402) seconds\n'
+    printf '\t Executed 15 tests, with 1 failure (0 unexpected) in 293.265 (293.286) seconds\n'
+    printf '\t Executed 15 tests, with 1 failure (0 unexpected) in 293.265 (293.287) seconds\n'
+    printf '** TEST FAILED **\n\nFailing tests:\n\tTalariaUITests.testConnectedRelaunchSkipsTheConnectEntry()\n\n'
+} > "$FIXDIR/xcui-red.log"
+
+# Fixture 9 — the GREEN run (talaria-gate.qGBfEfdv9p). The count here must stay
+# byte-identical to what the gate has always printed, or every historical PASS
+# count silently changes meaning.
+{
+    emit_ledger -1 -1
+    printf '\t Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds\n'
+    printf '\t Executed 2 tests, with 0 failures (0 unexpected) in 70.374 (70.385) seconds\n'
+    printf '\t Executed 11 tests, with 0 failures (0 unexpected) in 207.332 (207.342) seconds\n'
+    printf '\t Executed 2 tests, with 0 failures (0 unexpected) in 12.477 (12.479) seconds\n'
+    printf '\t Executed 15 tests, with 0 failures (0 unexpected) in 290.183 (290.208) seconds\n'
+    printf '\t Executed 15 tests, with 0 failures (0 unexpected) in 290.183 (290.212) seconds\n'
+    printf '** TEST SUCCEEDED **\n'
+} > "$FIXDIR/xcui-green.log"
+
+# Fixture 10 — the runner dies after ten outcomes. Every test STARTED; five
+# never reported anything. This is the shape the red-run defect was mistaken
+# for, so the two must be distinguishable in the output.
+{
+    emit_ledger -1 10
+    printf '\t Executed 2 tests, with 0 failures (0 unexpected) in 12.400 (12.402) seconds\n'
+    printf '** TEST FAILED **\n\nFailing tests:\n\tTalariaUITests.testSettingsDeckNavigation()\n\n'
+} > "$FIXDIR/xcui-runner-death.log"
+
+# Fixture 11 — a log with no XCUITest ledger at all (a build that died before
+# the bundle ran). Absence must read as absence, never as a count.
+printf '** TEST BUILD FAILED **\n' > "$FIXDIR/xcui-no-ledger.log"
+
 echo "== classifier self-test =="
 echo
 
@@ -185,6 +277,36 @@ check "mixed run -> assertion" \
       "assertion" "$(gate_classify_failures "$FIXDIR/mixed.log")"
 check "substring collision does not borrow a locus" \
       "unattributed" "$(gate_classify_failures "$FIXDIR/substring.log")"
+echo
+
+echo "-- the XCUITest count must be honest on a RED run, not only on a green one"
+check "red run -> passed/failed/total" \
+      "14 passed / 1 failed / 15 ran" "$(gate_xcuitest_summary "$FIXDIR/xcui-red.log")"
+check "green run -> the same bare number the gate has always printed" \
+      "15" "$(gate_xcuitest_summary "$FIXDIR/xcui-green.log")"
+check "runner death is DISTINGUISHABLE from a red run" \
+      "10 passed / 0 failed / 15 ran" "$(gate_xcuitest_summary "$FIXDIR/xcui-runner-death.log")"
+check "no ledger -> empty, which the caller must fail on" \
+      "" "$(gate_xcuitest_summary "$FIXDIR/xcui-no-ledger.log")"
+check "missing log -> empty, never a count" \
+      "" "$(gate_xcuitest_summary "$FIXDIR/does-not-exist.log")"
+echo
+
+echo "-- the REAL 2026-09-01 gate logs, if they are still on this machine"
+for pair in \
+    "14 passed / 1 failed / 15 ran:OvEY5t4EZE" \
+    "14 passed / 1 failed / 15 ran:8vQbvPdIOy" \
+    "15:qGBfEfdv9p"
+do
+    want="${pair%:*}"; stem="${pair##*:}"
+    reallog="$(ls -d "${TMPDIR:-/tmp}"/talaria-gate."$stem" 2>/dev/null)/suite.log"
+    if [[ -s "$reallog" ]]; then
+        check "real log talaria-gate.$stem -> $want" \
+              "$want" "$(gate_xcuitest_summary "$reallog")"
+    else
+        echo "  SKIP  talaria-gate.$stem is gone — the fixtures above stand in for it"
+    fi
+done
 echo
 
 echo "-- 300-C: no tracker item numbers in text the gate EMITS"
