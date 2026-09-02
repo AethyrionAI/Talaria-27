@@ -144,6 +144,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#420** ✅ **CLOSED** — 🐛 the **"Auto-connect on launch" toggle is INERT** — one writer, ZERO production readers (moved to the Server screen when the Relay page retired; the move kept the UI and dropped the consumer). A control promising an effect it no longer has — #180's family from the opposite direction. Burned ~40% of the #350-D pilot's budget. ~~**⚖️ Owen's call: delete it or wire it — not a repair, a feature decision**~~ **⟵ ⚖️ RULED 2026-08-31 (DELETE the toggle, KEEP the persisted key — auto-connect-on-launch is not a behaviour the app intends to have post-#375, so wiring it would have invented a feature to justify a leftover switch) and ✅ BUILT + MERGED 2026-09-01, PR #398 `c48fcae1`: 420-A/B/C/GATE all MET. The test guards the property whose ABSENCE caused this — nothing reads the key — and it was watched RED on the untouched tree, then mutation-isolated (a re-introduced reader reds exactly one of the four pins). Gate 2783 Swift Testing (+6) / 15 XCUITest / Release clean, first run. No device bar was owed: an inert control's deletion changes nothing observable — what it removes is a lie the runbooks kept believing**
 - **#421** 🔴 **"OJAMD's gateway is down" is FALSE** — measured UP and healthy from the Mac (200 on both the CGNAT literal and the MagicDNS name; `/health/detailed` returns a running server's auth error). The PHONE cannot dial it: host-fed screens show `unsupported URL` = **-1002, a MALFORMED-URL error**, not a down host. Two fatal mechanisms in our code — no scheme validation anywhere, and MagicDNS names having no ATS exception (CIDR-keyed to `100.64.0.0/10`). **✅ SETTLED 2026-08-31: the field reads `/ojamd:8642`** — a relative path (scheme=nil, host=nil), rejected with exactly -1002. Mechanism 1 confirmed by measurement. **⚠️ Prepending `http://` is a TRAP — a MagicDNS host is then ATS-blocked; the working value is `http://100.110.102.59:8642`.** Corrects handoffs §23/§24
 - **#422** 🧠 **MEMORY–AGENT INTEGRATION** — succeeds #378. **⚖️ SHAPED + RULED POST-LAUNCH 2026-08-31 (Owen), and it splits in two:** (a) Talaria as a CLIENT of the host's providers — `hindsight`/`honcho` are 2 of the 8 Hermes memory plugins, so ONE delivery route buys all eight — host-tier only; (b) **Talaria's OWN local memory**, which serves the hostless default user and is recorded as a **DELIBERATE LAUNCH GAP** (*"It has no memory between sessions right now"*), not a backlog line. **Storage is solved** — SwiftData + `NLContextualEmbedding` (512-dim, on-device, `hasAssets=true`, probed 08-31); the difficulty is what earns a memory, whether the user can correct it, and two-store disagreement. **Recommended first shape: embedding retrieval over stored turns, NOT extracted facts** — #417 measured this model fabricating when it has nothing (20/40 → 0/40 with something real), so retrieval-of-real-text has the smallest lying surface
+- **#424** 🧰 **the invariants checker cannot see a DROPPED entry** — #420 vanished from both files in squash `02cad7bf` and nine PASS verdicts followed; caught by sweep 14's set-check, restored verbatim. Bars: the entry SET becomes an invariant (move ≠ drop), self-test fixtures, sweep-safe
 - **#423** ✅ **lane-gate's XCUITest counter under-reports on FAILED runs — FIXED + MERGED 2026-09-01 (PR #403, squash `6a96b85a`), 423-A/B/C all MET.** The `Executed N tests, with 0 failures` grep fell through to the LaunchTests sub-suite on a red run and printed "2" while all 15 ran; read exactly like #219's runner-death and nearly misdirected the 09-01 overnight diagnosis twice. The count now reads the `Test Case '-[…]'` ledger and prints passed/failed/total when those disagree; green runs are byte-identical (`diff` + `od`-proven), so no historical PASS count changes meaning. **🔴 The filing understated it — replayed against main, the old check did not just print 2, it printed `PASS  XCUITest tests run — 2` on a red run: a positive marker over a bundle with a failed test, green for as long as it existed. It now fails on its own rather than leaning on its three sibling checks.** RED-first in its own commit (4 of 23 self-test checks failing, both real gate logs among them → 24 green). Runner-death is now separable from a red run in both directions. #300's classifier family
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
@@ -14980,6 +14981,160 @@ family).
 > for a device pass to confirm, which is why no device bar was registered
 > and none is owed. **What it removes is a lie the runbooks kept believing.**
 
+## 420. ✅ CLOSED — 🐛 THE "AUTO-CONNECT ON LAUNCH" TOGGLE IS INERT — a shipping settings control the user can flip that NOTHING READS — **FOUND 2026-08-31 by the runbook staleness audit (read-only, static), and CONFIRMED by hand at the call sites. Mechanism is not in doubt; the fix is a product call.** **⚖️ RULED the same day (delete it, keep the key) and ✅ BUILT + MERGED 2026-09-01 — PR #398, squash `c48fcae1`: all four bars MET, the absent-reader pin watched RED before any production edit and mutation-isolated to one assertion, gate 2783/15/Release clean. CLOSED; awaiting the next sweep's archive move only.**
+
+**The measurement:** `autoConnectOnLaunch` has exactly one writer and zero
+production readers.
+
+| site | what it does |
+|---|---|
+| `ServerSettingsScreen.swift:623-632` | the toggle's own `get`/`set` — label **"Auto-connect on launch"** |
+| `UserSettings.swift:276, 384, 416, 458, 493` | declaration + `Codable` plumbing + decode default `true` |
+| `DemoData.swift:167` | demo seed |
+| `TalariaTests/AppStoresTests.swift:3021` | one test seed |
+
+**Nothing consults it to decide anything.** Flipping it OFF changes no launch
+behaviour; the value round-trips to disk and is never read back by any
+connect path.
+
+**How it got here, and why that matters more than the toggle:** the control
+was *moved* to the Server screen when the Relay sub-page was retired
+(`ServerSettingsScreen.swift:10-11` says so outright). The move preserved the
+UI and dropped the consumer — the relay retirement (#375) removed whatever
+read it, and the switch stayed. **This is the #180 honest-degradation family
+arriving from the opposite direction: not a surface asserting a fact it
+cannot measure, but a CONTROL promising an effect it no longer has.**
+
+**Cost already paid:** it burned roughly 40% of the #350-D pilot's budget on
+2026-08-31 — the card said "auto-connect OFF" as a precondition, the operator
+could not find it on Uplink (it is on SERVER), and finding it would not have
+helped, because setting it changes nothing. A dead control does not merely
+mislead the user; it silently invalidates every runbook step that names it.
+
+**⚖️ OWEN'S CALL — two honest options, deliberately NOT chosen here:**
+1. **Delete the toggle** (and leave the persisted key for compatibility).
+   Correct if auto-connect-on-launch is not a behaviour we intend to have.
+2. **Wire it** to the launch connect path. Correct if the behaviour is wanted;
+   this is a real feature decision, not a repair, because nothing currently
+   defines what "auto-connect" should do post-#375.
+**Do not "fix" this by making the toggle look disabled** — that keeps the
+promise and hides the emptiness.
+
+**Related:** #180 (honest degradation), #350 (asserted-vs-measured surfaces —
+same disease, other direction), #375 (the relay retirement that plausibly
+orphaned the reader), #416 (the green-signal-covering-what-it-cannot-see
+family).
+
+> **⚖️ RULED 2026-08-31 (Owen, interactive decision pass): DELETE THE TOGGLE.**
+> The control comes out; the persisted `autoConnectOnLaunch` key stays for
+> decode compatibility (`UserSettings.swift:493` defaults it `true`, and
+> removing the key would break older stored settings for no benefit).
+>
+> **The reasoning this records:** auto-connect-on-launch is not a behaviour the
+> app intends to have post-#375, so wiring it would have been inventing a
+> feature to justify a leftover switch. Deleting it stops the app promising an
+> effect it cannot deliver — #180's family, on the control side.
+>
+> **🔨 BUILD OWED (small):** remove the toggle from `ServerSettingsScreen.swift`
+> (~`:623-632`) and its search-index entry (`SettingsSearchIndex.swift:65`,
+> "Auto-Connect on Launch"); leave the model/Codable plumbing alone. A test
+> should pin that no production code reads `autoConnectOnLaunch` — that is the
+> property whose absence caused this, and it is the one worth guarding.
+> **This entry closes when that lands, not before.**
+
+> **📋 2026-09-01 — LANE OPENED (overnight; Owen's election, ruling above).
+> Bars pre-registered before code:**
+> - **420-A (the control is gone):** the "Auto-connect on launch" toggle no
+>   longer renders on the Server screen, and the "Auto-Connect on Launch"
+>   search-index row is deleted. [offline]
+> - **420-B (the absent-reader pin, RED-first for real):** a structural test
+>   asserts `autoConnectOnLaunch` is referenced ONLY by its declaration/
+>   Codable plumbing (`UserSettings.swift`) and the demo seed
+>   (`DemoData.swift`) — no other production file may touch it. This pin is
+>   genuinely RED on tonight's main (the toggle's own `get` is a reader);
+>   the deletion turns it GREEN. That ordering is the watched RED. [offline]
+> - **420-C (compat kept):** the persisted key, its Codable plumbing, and
+>   the decode default `true` survive untouched; existing decode coverage
+>   stays green. [offline]
+> - **420-GATE:** `lane-gate.sh` PASS. **The entry CLOSES when this lands**
+>   (per the ruling — the close rides the merge, not the ruling). [Mac]
+
+> **✅ 2026-09-01 — BUILT + MERGED. ALL FOUR BARS MET, NONE MISSED. THIS
+> ENTRY IS CLOSED** (per the ruling's own *"closes when that lands"* — the
+> archive MOVE waits for the next sweep). **PR #398, squash `c48fcae1`.**
+>
+> **420-B — MET, and the RED is the part worth reading.** The pin
+> (`TalariaTests/AutoConnectTogglePinTests.swift`) was written and RUN
+> **before a line of production code moved**, on the untouched tree:
+> ```
+> ✘ Test run with 6 tests in 1 suite failed after 0.382 seconds with 5 issues.
+> ✘ autoConnectOnLaunchIsNamedOnlyByItsModelPlumbingAndDemoSeed()
+>     ↳ offenders → ["Talaria/Features/Settings/ServerSettingsScreen.swift"]
+> ✘ theToggleLabelIsGoneFromEveryShippingSource()      (same offender)
+> ✘ settingsSearchOffersNoAutoConnectRow()             (3 issues)
+>     ↳ matches("auto connect") → [SettingsSearchEntry(title: "Auto-Connect on
+>       Launch", keywords: ["auto connect", "startup"], subsystem: .server)]
+> ✔ theAllowListedSitesStillNameIt()  ✔ thePersistedKeyAndItsPlumbingSurvive()
+> ✔ storedSettingsStillCarryTheKeyAcrossDecode()
+> ```
+> After the deletion: **56 tests / 4 suites passed** (the pin +
+> `ServerSettingsTests` + `SettingsChannelsTests` + `SettingsSearchTests`).
+>
+> **MUTATION — and it isolated ONE pin, which is the claim worth making.**
+> A reader put back into `ServerSettingsScreen.swift` (`private extension
+> UserSettings { var mutationProbeAutoConnect: Bool { autoConnectOnLaunch } }`)
+> produced **exactly one issue** — the reader pin — with both 420-A pins and
+> both 420-C pins still GREEN. So the four bars are four independent
+> assertions, not one assertion wearing four names; reverted, and the
+> diffstat returned byte-identical to pre-mutation.
+>
+> **420-A — MET on two independent instruments.** The toggle's label literal
+> is gone from every shipping source (raw-text scan of `Talaria/`, `Shared/`,
+> `TalariaWidgets/`, `TalariaShare/`), AND the **compiled** index no longer
+> matches `"auto connect"` / `"auto-connect"` — the compiled half is there
+> because a row commented out rather than deleted would satisfy a source scan
+> alone (`NamingSweepTests`' own lesson, borrowed).
+>
+> **420-C — MET, and it never wobbled.** `UserSettings.swift` and
+> `DemoData.swift` are untouched in the diff; the stored property, the
+> `CodingKeys` case and `decodeIfPresent(…) ?? true` are pinned by name, and
+> a behavioural pin decodes `{}` → `true` and round-trips an explicit
+> `false`. All three were green in the RED run, through the mutation, and
+> after the deletion.
+>
+> **420-GATE — MET. `GATE: PASS on 24A5423a`** — Swift Testing **2783**
+> (moved by exactly this lane's +6), XCUITest **15**, Release build clean;
+> the only skips are the known-permanent `CondenserFidelityTests` pair.
+> First run, no re-runs, no flakes.
+>
+> **⚠️ One design cost, recorded because the next reader will hit it.** The
+> reader pin scans RAW TEXT, comments included — deliberately: a
+> comment-stripper is a parser, and a parser is where this pin would be
+> subtly wrong. The price is that prose outside the two allow-listed files
+> cannot SPELL `autoConnectOnLaunch`, so `ServerSettingsScreen.swift`'s
+> header describes the key rather than naming it, and says why in place.
+>
+> **CLOSE-OUT — prose this result falsified, corrected in the merge commit:**
+> `planning/reports/2026-08-31-runbook-audit-visual.md` (the audit that FOUND
+> this; its §350d answered *"is there still an auto-connect toggle?"* with
+> *"yes, but it does nothing"* — a dated supersession note now says the
+> answer is NO and flags the one stale clause in its corrected card wording),
+> and the two 2026-08-05 #252 specs
+> (`…-252-settings-inventory.md` §3, `…-252-settings-channels-design.md`
+> row 02) which both listed the toggle as shipping SERVER surface.
+> **Deliberately NOT corrected, and the distinction matters:**
+> `design/T3_EXTRA_PAGES_PROMPT.md:47` and
+> `design/Settings-Additional.dc.html:84` also show this toggle — but on the
+> **RELAY** page, which #375 retired long before this lane. Already
+> historical; not falsified by this result.
+>
+> **What this entry does NOT claim.** The toggle was inert, so its deletion
+> changes no behaviour the user could have observed — there is nothing here
+> for a device pass to confirm, which is why no device bar was registered
+> and none is owed. **What it removes is a lie the runbooks kept believing.**
+
+> **🔁 RESTORED 2026-09-02 (orchestrator).** This entry was DELETED from the live board by squash `02cad7bf` (PR #410, the voice-cluster lane) — a rebase/union resolution that dropped the block sitting between the entries it was appending to. Its index line survived; the entry did not; `oi-invariants.py` reported PASS on all six commits in between. Text restored VERBATIM from `02cad7bf^` (9,402 bytes). The checker's blind spot is filed as #424.
+
 ## 421. 🔴 "OJAMD'S GATEWAY IS DOWN" IS FALSE — THE HOST IS UP AND HEALTHY, AND THE PHONE'S OJAMD PROFILE CANNOT DIAL IT — **MEASURED 2026-08-31 from the Mac. Two independent reasons the profile cannot work as configured; which one is live is one screenshot away.**
 
 **The belief this corrects:** handoffs §23 and §24 both record *"OJAMD's gateway
@@ -16977,4 +17132,33 @@ extend. Not built tonight — filed so the next red is read correctly.
 > `lane-gate.sh` now records that this was the unnoticed second half of its own
 > mistake 1. No tracker numbers were added to text the gate prints; the
 > self-test's 300-C check and its pointer-resolution loop both still pass.
+
+## 424. 🧰 THE INVARIANTS CHECKER CANNOT SEE A DROPPED ENTRY — #420 vanished from BOTH tracker files for six commits with `INVARIANTS: PASS` every time — **FILED 2026-09-02 (overnight sweep), the moment the sweep script's own set-check caught it.**
+
+**The event:** squash `02cad7bf` (PR #410) deleted `## 420.` and its 9,402 bytes from
+OPEN_ITEMS.md during a tracker rebase — the lane was appending blocks to #419 and #421,
+and the union resolution dropped the block between them. The index line for #420
+survived, so a reader of the top-of-file index saw a live item that no longer existed.
+`scripts/oi-invariants.py` passed on `02cad7bf` and on every commit after it
+(`2ab3b401`, `8f3ed98e`, `b1981fd0`, `3050ebe5`, `0d7a4aa8`, `970fe9cc`, `9b31cfca`,
+`703d31da`, `94229a97`) — nine PASS verdicts over a tracker missing an entry. It was
+caught by sweep 14's pre-flight (`set(CLOSE) | set(STAY) == set(live headers)` failed on
+`{'420'}`) and restored verbatim from `02cad7bf^`.
+
+**Why the checker is blind:** it validates the text it is given (markers, PR-state
+spelling, header shapes); it has no notion of the entry SET, so an entry that is simply
+absent is not a violation. #261's split-verify has that notion but is pinned to a
+historical commit pair by design and never reads the working tree.
+
+**Bars, pre-registered now:**
+- **424-A (the set is a first-class invariant):** the checker asserts (live ∪ archive)
+  number set ⊇ the set at `HEAD` (or the merge-base) — an entry may MOVE between files,
+  never disappear; an index line without an entry, or an entry without an index line,
+  is a violation. RED-first: run it against `02cad7bf` and it must FAIL naming 420;
+  against `02cad7bf^` it must PASS. [offline]
+- **424-B (self-test):** `scripts/oi-invariants-test.py` gains the dropped-entry fixture
+  and the orphan-index-line fixture; both RED before the fix, GREEN after. [offline]
+- **424-C (no false alarms on the sweep):** sweep 14's own commit (30 entries MOVED, index
+  lines removed) passes the new check — a move is not a drop. [offline]
+Verification standard: the self-test + the two historical commits; no app gate.
 
