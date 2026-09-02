@@ -13992,6 +13992,85 @@ green-signal-covering-what-it-cannot-see family).
 > session. The mechanism itself remains unasserted; only the blindness is
 > fixed.
 
+> **🔴 2026-09-01 — THE ZEROING PATH IS NAMED FROM SOURCE + THREE ARCHIVES,
+> AND IT IS NOT THE ONE 419-A1 WATCHES.** (Escalation read of the voice
+> cluster; the log lines below are the ones that would have to change if
+> this were false.)
+>
+> The entry's code read stopped one caller short. `resetAssistantAudioPlaybackTracking`
+> has THREE in-session callers, not one: `endSession` (`:372`), the
+> assistant `item.created/.added` handler (`:887`, the one 419-A1 watches)
+> — **and `finalizeAssistantText` (`:1196`)**, which runs on
+> `response.output_audio_transcript.done` / `response.output_text.done`.
+> Realtime emits transcript-done when TEXT GENERATION completes, which is
+> seconds ahead of audio playout (#138's own 2026-08-22 finding, stated
+> there for the transcript UI and never carried over to the counter). So
+> on every utterance: `audio.started` → tracker stamped → transcript-done
+> → **tracker nil'd, `currentAssistantConversationItemID` nil'd,
+> `voiceState = .listening`** — while the buffer is still draining → `audio.stopped`
+> reads the banked 0. That is every reading this instrument ever produced.
+>
+> **Why item-arrival CANNOT be the agent, from the archives themselves:**
+> - `talaria-138-fork` 19:56: `audio.started` 31.813 → `speech_started …
+>   (state=listening)` 33.285 → `response.created` 36.454. **No assistant
+>   item arrived in that window** (an item follows its `response.created`),
+>   and the item handler never touches `voiceState` — nothing but
+>   `finalizeAssistantText` can print `state=listening` 1.47 s into a
+>   playback. #138's "ROOT CAUSE of the blind guard — `:825`
+>   item.created" paragraph is therefore falsified ON ITS OWN ARCHIVE; a
+>   correction is appended under #138.
+> - `whoGoesThere-415` 17:58:40.699 (+0.58 s) and `talaria-138e`
+>   20:13:46.510 (+0.52 s): same shape, same field.
+> - `talaria-413-airpods`: strictly 1:1:1 turns, no item ever arrived
+>   mid-playback, and all three stops still read 0 — the item path had no
+>   opportunity there at all.
+>
+> **Consequence for 419-A1 as shipped:** it is aimed at a path that is not
+> the cause. Every arrival will print `… — assistant idle` (an item always
+> precedes its own `audio.started`), so the next archive would have shown
+> "not the item handler" and left the zero unexplained. The instrument
+> STAYS (a mid-playback item is still a real hazard worth seeing); it just
+> does not name this.
+>
+> **The real cost is not `audio_end_ms: 0` — it is NO TRUNCATE AT ALL, plus a
+> guard blind to the whole tail of every utterance.** After transcript-done
+> the item id is nil, so `truncateAndCleanUpAssistantState` skips the
+> truncate entirely; and `handleServerVADInterruption`'s guard
+> (`.speaking || stamp != nil`) is false, so a barge-in in the tail logs
+> "assistant not playing" and sends nothing. The server still interrupts
+> on its own (`interrupt_response: true` — `audio.cleared` lands in the
+> SAME millisecond as the "idle" `speech_started`, three archives), so the
+> user hears the cut either way; server history just keeps the full text.
+> **That last fact also retires #138's 138-K premise** ("a guard fix alone
+> turns overlap into constant interruption"): audibility is decided
+> server-side, this fix changes truncation accuracy and the log line.
+>
+> ### 🎯 BARS 419-B1…B6 — pre-registered before any code
+> - **419-B1 (named, not argued).** The mechanism above, with the three log
+>   lines; the fix targets `finalizeAssistantText` and nothing else.
+> - **419-B2 (the counter survives transcript completion).** `audio.started`
+>   → transcript-done → the counter keeps running, and at
+>   `output_audio_buffer.stopped` it reads the real elapsed (≥ the slept
+>   interval). Written RED first.
+> - **419-B3 (a barge-in after transcript completion still truncates).**
+>   `speech_started` after transcript-done, mid-playback, sends
+>   `conversation.item.truncate` for the live item with `audio_end_ms ≥`
+>   elapsed. RED first — today nothing is sent.
+> - **419-B4 (state follows the audio buffer).** transcript-done mid-playback
+>   leaves `.speaking`; `output_audio_buffer.stopped` flips `.listening`.
+>   RED first.
+> - **419-B5 (control — the audio-less path is unchanged).** transcript-done
+>   with NO `audio.started` still lands `.listening`, and a following
+>   `speech_started` sends nothing. Green before and after.
+> - **419-B6 (isolating mutation).** Restoring the unconditional reset in
+>   `finalizeAssistantText` reds B2/B3/B4 and leaves B5 plus the existing
+>   `AppStoresTests` barge-in pins green.
+> - **Scope fence:** no change to the guard, the item-arrival handler
+>   (419-A1 stays), `truncateAndCleanUpAssistantState`, or the counter's
+>   arithmetic. `currentAssistantAudioPlaybackMilliseconds` widens to
+>   `// harness-visible` so B2 reads the same value the `audio.stopped`
+>   line prints.
+
 ## 420. ✅ CLOSED — 🐛 THE "AUTO-CONNECT ON LAUNCH" TOGGLE IS INERT — a shipping settings control the user can flip that NOTHING READS — **FOUND 2026-08-31 by the runbook staleness audit (read-only, static), and CONFIRMED by hand at the call sites. Mechanism is not in doubt; the fix is a product call.** **⚖️ RULED the same day (delete it, keep the key) and ✅ BUILT + MERGED 2026-09-01 — PR #398, squash `c48fcae1`: all four bars MET, the absent-reader pin watched RED before any production edit and mutation-isolated to one assertion, gate 2783/15/Release clean. CLOSED; awaiting the next sweep's archive move only.**
 
 **The measurement:** `autoConnectOnLaunch` has exactly one writer and zero
