@@ -239,4 +239,129 @@ struct VoiceInstrumentLogLineTests {
         #expect(bound.contains("hostAccepts=[quiet,normal,noisy]"))
         #expect(!bound.contains("unknown"))
     }
+
+    // MARK: - #138-M the segment instrument (card V3)
+
+    /// **Why these three lines exist.** #138's 2026-09-01 escalation synthesis
+    /// left H3 — *the server's `prefix_padding_ms` shapes the fragment the
+    /// transcriber sees* — with no instrument. The archives can say WHEN a
+    /// phantom `speech_started` fired relative to `audio.started`, and they can
+    /// show the bubble it produced, but nothing in the log says how much audio
+    /// the server actually committed. H3 predicts 300–700 ms segments at onset
+    /// offsets ≤0.6 s carrying a cjk/other script class; a phantom segment
+    /// ≥1.5 s would falsify "onset" and take H1's shape with it. None of that
+    /// is scoreable without these lines.
+    ///
+    /// **The transcript's TEXT is never logged**, and that is pinned rather
+    /// than trusted — a device archive is collected wholesale and shared, so
+    /// an instrument that leaks what the user said would be a privacy defect
+    /// shipped in the name of a measurement.
+
+    @Test("a speech_stopped segment names its length and its offset from playback")
+    func speechStoppedNamesSegmentLengthAndOffset() {
+        let line = LiveVoiceSessionService.speechStoppedSegmentLogDetail(
+            audioStartMs: 1200,
+            audioEndMs: 1700,
+            offsetFromPlaybackMs: 520
+        )
+        #expect(line.hasPrefix("#138 segment "))
+        #expect(line.contains("speech_stopped"))
+        #expect(line.contains("segmentMs=500"))
+        #expect(line.contains("offsetFromPlaybackMs=520"))
+        // The WHOLE shape, because the runbook's Record step and every archive
+        // grep are written against it — a reordered or extra field breaks a
+        // reader that never runs this suite.
+        #expect(line == "#138 segment speech_stopped segmentMs=500 offsetFromPlaybackMs=520")
+    }
+
+    /// `none` and `0` are opposite readings — `0` would say the segment landed
+    /// exactly at playback onset, which is the single most incriminating value
+    /// this instrument can print. A session that has played no audio at all
+    /// must never be able to render it.
+    @Test("no playback yet reads none, never zero")
+    func noPlaybackYetReadsNoneNeverZero() {
+        let line = LiveVoiceSessionService.speechStoppedSegmentLogDetail(
+            audioStartMs: 0,
+            audioEndMs: 400,
+            offsetFromPlaybackMs: nil
+        )
+        #expect(line.contains("offsetFromPlaybackMs=none"))
+        #expect(!line.contains("offsetFromPlaybackMs=0"))
+    }
+
+    /// A `speech_stopped` with no preceding `speech_started` (or a server that
+    /// omits the field) has no segment length. Printing `segmentMs=0` there
+    /// would manufacture the very reading H3 is being tested on.
+    @Test("a missing audio_start_ms is stated, never rendered as a zero-length segment")
+    func missingAudioStartIsStatedNotZeroed() {
+        let line = LiveVoiceSessionService.speechStoppedSegmentLogDetail(
+            audioStartMs: nil,
+            audioEndMs: 1700,
+            offsetFromPlaybackMs: 300
+        )
+        #expect(line.contains("segmentMs=unknown"))
+        #expect(!line.contains("segmentMs=0"))
+    }
+
+    /// The commit is what the transcriber is handed, so its offset is the
+    /// second half of the onset reading — and the item id is the only key that
+    /// joins this line to the transcript line that follows it.
+    @Test("a committed buffer carries the offset and the item it commits to")
+    func committedCarriesOffsetAndItem() {
+        let line = LiveVoiceSessionService.bufferCommittedSegmentLogDetail(
+            offsetFromPlaybackMs: 340,
+            itemID: "item_9"
+        )
+        #expect(line.hasPrefix("#138 segment "))
+        #expect(line.contains("committed"))
+        #expect(line.contains("offsetFromPlaybackMs=340"))
+        #expect(line.contains("itemId=item_9"))
+        #expect(line == "#138 segment committed offsetFromPlaybackMs=340 itemId=item_9")
+    }
+
+    /// **The privacy pin.** A CJK transcript is used deliberately: none of its
+    /// characters can appear incidentally in the line's own field names, so a
+    /// leak of even one character is unambiguous.
+    @Test("the transcript line carries length and script class and NEVER the text")
+    func theTranscriptLineNeverCarriesTheText() {
+        let text = "\u{55E8}\u{3002}\u{518D}\u{8003}"  // 嗨。再考
+        let line = LiveVoiceSessionService.transcriptSegmentLogDetail(
+            transcript: text,
+            itemID: "item_9"
+        )
+        #expect(line.hasPrefix("#138 segment "))
+        #expect(line.contains("transcript"))
+        #expect(line.contains("chars=4"))
+        #expect(line.contains("script=cjk"))
+        #expect(line.contains("itemId=item_9"))
+        #expect(!line.contains(text))
+        for character in text {
+            #expect(!line.contains(character), "the transcript leaked into the log line")
+        }
+        #expect(line == "#138 segment transcript chars=4 script=cjk itemId=item_9")
+    }
+
+    /// The CJK signature is the whole point of the class — every recorded
+    /// phantom text so far is a short non-English token — but a class that
+    /// could only say "cjk" would prove nothing. All four arms are pinned,
+    /// including the Cyrillic case that must NOT read as latin.
+    @Test("the script class separates latin, cjk, other and empty")
+    func theScriptClassSeparatesAllFourCases() {
+        func script(_ transcript: String) -> String {
+            LiveVoiceSessionService.transcriptSegmentLogDetail(
+                transcript: transcript,
+                itemID: nil
+            )
+        }
+        #expect(script("Good afternoon.").contains("script=latin"))
+        #expect(script("Echt?").contains("script=latin"))
+        #expect(script("\u{55E8}").contains("script=cjk"))              // 嗨
+        #expect(script("\u{3053}\u{3093}").contains("script=cjk"))      // こん
+        #expect(script("\u{30AB}\u{30CA}").contains("script=cjk"))      // カナ
+        #expect(script("\u{C548}\u{B155}").contains("script=cjk"))      // 안녕
+        #expect(script("\u{041F}\u{0440}\u{0438}").contains("script=other"))  // При
+        #expect(script("   ").contains("script=empty"))
+        #expect(script("").contains("script=empty"))
+        #expect(script("").contains("chars=0"))
+    }
 }

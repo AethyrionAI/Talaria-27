@@ -213,7 +213,7 @@ gate_print_failure_advice() {   # gate_print_failure_advice <logfile>
             echo "          Re-run ONCE and RECORD BOTH runs against the"
             echo "          XCUITest-runner-flake family on the tracker — find its"
             echo "          live entry with:"
-            echo "              grep -n 'runner dies mid-bundle' OPEN_ITEMS.md"
+            echo "              grep -n 'runner dies mid-bundle' OPEN_ITEMS-ARCHIVE.md"
             echo "          (deliberately NOT a hardcoded item number: this script"
             echo "          cannot keep one live, and the number it used to print"
             echo "          had been closed for five days.)"

@@ -742,11 +742,30 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   - **No tracker item numbers in text the gate PRINTS** — a script cannot keep
     one live, and all three it used to print (#164, #183, #93) were closed by the
     time someone followed one. Advice names a **search string**; the self-test
-    executes each pointer against `OPEN_ITEMS.md` and fails if it finds nothing.
-    Consequence: a few tracker headers are now load-bearing text (#219's "runner
-    dies mid-bundle" in the live board; #313's "CondenserFidelityTests" moved to
-    `OPEN_ITEMS-ARCHIVE.md` at the 2026-08-18 sweep and the gate's grep hint was
-    repointed there in the same commit) and say so in place.
+    executes each pointer against **BOTH tracker files, resolving each hint
+    against the file it NAMES** (corrected 2026-09-02, 138-M's lane — see
+    below), and fails if it finds nothing.
+    Consequence: a few tracker headers are now load-bearing text (#313's
+    "CondenserFidelityTests" moved to `OPEN_ITEMS-ARCHIVE.md` at the
+    2026-08-18 sweep and the gate's grep hint was repointed there in the same
+    commit; **#219's "runner dies mid-bundle" made the same move at sweep 14,
+    2026-09-01** — ~~"in the live board"~~ is false from that date) and say so
+    in place.
+  - **🔴 A SWEEP CAN RED THE GATE IN PREFLIGHT, AND ONCE DID (2026-09-02,
+    found by 138-M's lane).** Sweep 14 archived #219, the self-test's two
+    `runner dies mid-bundle` pointers stopped resolving, and **every gate run
+    on `main` failed before reaching a single test** — the FAIL is scored in
+    preflight, so the suite result is irrelevant to the verdict. **When a
+    tracker sweep moves an entry, grep `scripts/mac/` for its load-bearing
+    strings in the same commit and run `lane-gate-classify-test.sh` (~1 s).**
+  - **And the documented repair used to SILENCE the check rather than satisfy
+    it.** Until 2026-09-02 the self-test both extracted and resolved hints
+    against `OPEN_ITEMS.md` alone, so repointing a swept hint at
+    `OPEN_ITEMS-ARCHIVE.md` — #313's prescribed fix — moved it out of the
+    checker's sight: `CondenserFidelityTests` sat unverified on exactly that
+    account from 2026-08-18 to 2026-09-02. The check now resolves each hint
+    against the file the hint names (3 hints, all resolving), and was
+    fail-safe-proven by injecting a pointer that matches neither file.
   - **⚠️ ALWAYS pass `TALARIA_SIM_NAME` when lanes run in parallel — the
     default is a contention trap.** The gate defaults to the shared
     `iPhone 17 Pro Max`, but recent lanes have each been quietly using a

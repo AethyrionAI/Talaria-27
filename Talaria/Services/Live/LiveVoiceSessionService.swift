@@ -145,6 +145,17 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     private var currentAssistantContentIndex = 0
     private var assistantAudioPlaybackStartedAtUptime: TimeInterval?
     private var accumulatedAssistantAudioPlaybackMilliseconds = 0
+    /// #138-M: the uptime of the MOST RECENT `output_audio_buffer.started`,
+    /// never cleared while the session lives. Deliberately separate from
+    /// `assistantAudioPlaybackStartedAtUptime`, which the audio-buffer
+    /// lifecycle nils at `stopped`/`cleared` — a phantom whose `speech_stopped`
+    /// or `committed` lands just AFTER the server's own interrupt would read
+    /// `none` off that one, which is exactly the case #138 exists to measure.
+    private var lastAudioStartedAtUptime: TimeInterval?
+    /// #138-M: the server's `audio_start_ms` from the last
+    /// `input_audio_buffer.speech_started`, so the matching `speech_stopped`
+    /// can name the segment's LENGTH rather than only its end stamp.
+    private var lastSpeechStartedAudioMs: Int?
     private var ignoreCurrentAssistantFinalization = false
     private var lastImageItemID: String?
     fileprivate var isEndingSession = false
@@ -291,6 +302,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         currentAssistantItemID = nil
         currentUserConversationItemID = nil
         assistantTextSource = nil
+        resetSegmentInstrumentState()
 
         do {
             #if canImport(WebRTC)
@@ -375,6 +387,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         currentAssistantContentIndex = 0
         transcriptItemIDsByConversationItemID = [:]
         resetAssistantAudioPlaybackTracking()
+        resetSegmentInstrumentState()
         ignoreCurrentAssistantFinalization = false
         lastImageItemID = nil
         disarmFlatlineTripwire()
@@ -871,11 +884,19 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         let type = payload["type"] as? String ?? ""
         switch type {
         case "input_audio_buffer.speech_started":
+            // #138-M: stashed, not logged — the segment's LENGTH is only
+            // knowable at `speech_stopped`, which is where the line is emitted.
+            lastSpeechStartedAudioMs = payload["audio_start_ms"] as? Int
             noteSpeechEvidence()
             handleServerVADInterruption()
             voiceState = .listening
             statusMessage = "Listening"
+        case "input_audio_buffer.speech_stopped":
+            // #138-M: instrument only — this event drove no app state before
+            // and drives none now.
+            Self.logger.notice("\(Self.speechStoppedSegmentLogDetail(audioStartMs: self.lastSpeechStartedAudioMs, audioEndMs: payload["audio_end_ms"] as? Int, offsetFromPlaybackMs: self.millisecondsSinceLastAudioStarted()), privacy: .public)")
         case "input_audio_buffer.committed":
+            Self.logger.notice("\(Self.bufferCommittedSegmentLogDetail(offsetFromPlaybackMs: self.millisecondsSinceLastAudioStarted(), itemID: payload["item_id"] as? String), privacy: .public)")
             noteSpeechEvidence()
             createPendingUserTranscriptItem(from: payload)
         case "conversation.item.created",  // beta
@@ -912,6 +933,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         // next archive answers it instead of leaving it to argument.
         case "output_audio_buffer.started":
             Self.logger.notice("#138 audio.started — assistant playback begins")
+            lastAudioStartedAtUptime = ProcessInfo.processInfo.systemUptime
             startAssistantAudioPlaybackTracking()
             voiceState = .speaking
             statusMessage = "Talaria is speaking."
@@ -998,6 +1020,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
                 delta: payload["delta"] as? String ?? ""
             )
         case "conversation.item.input_audio_transcription.completed":
+            Self.logger.notice("\(Self.transcriptSegmentLogDetail(transcript: payload["transcript"] as? String ?? "", itemID: payload["item_id"] as? String), privacy: .public)")
             finalizeUserText(
                 itemID: payload["item_id"] as? String,
                 finalText: payload["transcript"] as? String ?? ""
@@ -1314,6 +1337,23 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         accumulatedAssistantAudioPlaybackMilliseconds = 0
     }
 
+    /// #138-M: milliseconds since the most recent `audio.started`, or nil when
+    /// this session has played no assistant audio yet — which the log renders
+    /// as `none`, never as `0`.
+    private func millisecondsSinceLastAudioStarted() -> Int? {
+        guard let lastAudioStartedAtUptime else { return nil }
+        let elapsed = max(0, ProcessInfo.processInfo.systemUptime - lastAudioStartedAtUptime)
+        return Int((elapsed * 1000).rounded())
+    }
+
+    /// #138-M: the segment instrument's own state, cleared with the session so
+    /// a new session's first fragment can never inherit the previous one's
+    /// playback stamp.
+    private func resetSegmentInstrumentState() {
+        lastAudioStartedAtUptime = nil
+        lastSpeechStartedAudioMs = nil
+    }
+
     // MARK: - #418/#419 log-line formatters (pure — pinned in VoiceInstrumentLogLineTests)
 
     /// #419: describes an assistant `conversation.item.created`/`.added`
@@ -1390,6 +1430,138 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             accepts = "unknown (host predates tuning)"
         }
         return "#396 tuning preset=\(preset) engine=\(engine) values=host hostAccepts=\(accepts)"
+    }
+
+    // MARK: - #138-M the segment instrument (card V3)
+
+    /// **Why the three `#138 segment` lines exist.** #138's 2026-09-01
+    /// escalation synthesis proved the phantom is ONSET-bound — every
+    /// unambiguous one lands 0.25–0.58 s after `audio.started` — and left H3
+    /// (*the server's `prefix_padding_ms` shapes the fragment the transcriber
+    /// sees*) with no instrument at all. The archives can say WHEN a phantom
+    /// `speech_started` fired and they can show the bubble it produced, but
+    /// nothing in the log says how much audio the server actually committed.
+    /// H3 predicts 300–700 ms segments at onset offsets ≤0.6 s in a cjk/other
+    /// script; a phantom segment ≥1.5 s falsifies "onset" and takes H1's shape
+    /// with it. These three lines make that scoreable from an archive.
+    ///
+    /// All three are pure, `.notice`, un-gated, and pinned by
+    /// `VoiceInstrumentLogLineTests`.
+
+    /// `none` and `0` are opposite readings of the same field — `0` says the
+    /// segment landed exactly at playback onset, the single most incriminating
+    /// value this instrument can print — so a session that has played no audio
+    /// at all says `none` and can never render the incriminating one by
+    /// accident.
+    private nonisolated static func offsetText(_ offsetFromPlaybackMs: Int?) -> String {
+        offsetFromPlaybackMs.map(String.init) ?? "none"
+    }
+
+    /// #138-M: `input_audio_buffer.speech_stopped`. `segmentMs` is the server's
+    /// own `audio_end_ms - audio_start_ms` — the length of the fragment it is
+    /// about to hand the transcriber. A missing endpoint prints `unknown`
+    /// rather than `0`: manufacturing a zero-length segment would fabricate the
+    /// very reading H3 is being tested on. The difference is printed RAW (never
+    /// clamped) because a negative span would itself be a finding.
+    nonisolated static func speechStoppedSegmentLogDetail(
+        audioStartMs: Int?,
+        audioEndMs: Int?,
+        offsetFromPlaybackMs: Int?
+    ) -> String {
+        let segment: String
+        if let audioStartMs, let audioEndMs {
+            segment = String(audioEndMs - audioStartMs)
+        } else {
+            segment = "unknown"
+        }
+        return "#138 segment speech_stopped segmentMs=\(segment) "
+            + "offsetFromPlaybackMs=\(offsetText(offsetFromPlaybackMs))"
+    }
+
+    /// #138-M: `input_audio_buffer.committed`. The commit is the moment the
+    /// fragment becomes an item, so its offset is the second half of the onset
+    /// reading — and `itemId` is the only key that joins this line to the
+    /// transcript line that follows it.
+    nonisolated static func bufferCommittedSegmentLogDetail(
+        offsetFromPlaybackMs: Int?,
+        itemID: String?
+    ) -> String {
+        "#138 segment committed offsetFromPlaybackMs=\(offsetText(offsetFromPlaybackMs)) "
+            + "itemId=\(itemID ?? "none")"
+    }
+
+    /// #138-M: `conversation.item.input_audio_transcription.completed` —
+    /// **length and script class, NEVER the text.**
+    ///
+    /// A device archive is collected wholesale and shared, so an instrument
+    /// that logged what the user said would be a privacy defect shipped in the
+    /// name of a measurement. The pin in `VoiceInstrumentLogLineTests` asserts
+    /// a CJK transcript reaches the line as neither the string nor any of its
+    /// characters.
+    ///
+    /// The class exists because every recorded phantom text so far is a short
+    /// non-English token (`嗨`, `Echt?`, `Kanada`, `再考`) — the known
+    /// hallucination mode of this recognizer family on sub-second low-SNR
+    /// audio. CJK is tested FIRST because a mixed fragment carrying any Han,
+    /// kana or Hangul is the signature regardless of what else rides with it.
+    ///
+    /// Both fields read the WHITESPACE-TRIMMED transcript, which is the app's
+    /// own definition of empty (`finalizeUserText` trims before deciding
+    /// whether a bubble appears) — so `script=empty` here means exactly "this
+    /// one was dropped, not shown".
+    nonisolated static func transcriptSegmentLogDetail(
+        transcript: String,
+        itemID: String?
+    ) -> String {
+        let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        let script: String
+        if trimmed.isEmpty {
+            script = "empty"
+        } else if trimmed.unicodeScalars.contains(where: isCJKScalar) {
+            script = "cjk"
+        } else if trimmed.unicodeScalars.contains(where: isLatinLetterScalar) {
+            script = "latin"
+        } else {
+            script = "other"
+        }
+        return "#138 segment transcript chars=\(trimmed.count) script=\(script) "
+            + "itemId=\(itemID ?? "none")"
+    }
+
+    /// Han (incl. the common extensions), Hiragana, Katakana, Hangul.
+    private nonisolated static func isCJKScalar(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar.value {
+        case 0x3040...0x30FF,   // Hiragana + Katakana
+             0x31F0...0x31FF,   // Katakana phonetic extensions
+             0x3400...0x4DBF,   // CJK Unified Ideographs Extension A
+             0x4E00...0x9FFF,   // CJK Unified Ideographs
+             0xF900...0xFAFF,   // CJK Compatibility Ideographs
+             0x1100...0x11FF,   // Hangul Jamo
+             0x3130...0x318F,   // Hangul Compatibility Jamo
+             0xA960...0xA97F,   // Hangul Jamo Extended-A
+             0xAC00...0xD7AF,   // Hangul Syllables
+             0xD7B0...0xD7FF,   // Hangul Jamo Extended-B
+             0x20000...0x2A6DF, // CJK Extension B
+             0x2A700...0x2EBEF: // CJK Extensions C-F
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// A Latin LETTER — the alphabetic check matters because the Latin-1 block
+    /// also carries `×` and `÷`, and "5 × 3" is not a latin transcript.
+    private nonisolated static func isLatinLetterScalar(_ scalar: Unicode.Scalar) -> Bool {
+        guard scalar.properties.isAlphabetic else { return false }
+        switch scalar.value {
+        case 0x0041...0x005A,   // A-Z
+             0x0061...0x007A,   // a-z
+             0x00C0...0x024F,   // Latin-1 Supplement + Extended-A/B
+             0x1E00...0x1EFF:   // Latin Extended Additional
+            return true
+        default:
+            return false
+        }
     }
 
     /// #419-B: `// harness-visible` — the same value the `audio.stopped after Nms`
