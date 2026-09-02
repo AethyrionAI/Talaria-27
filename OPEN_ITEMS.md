@@ -3243,6 +3243,104 @@ Logged 2026-07-22.
 
 > **⚖️ RULED 2026-09-01 night (Owen, AskUserQuestion): DELETE TalariaShare's UserDefaults declaration.** The extension is file-based and uses none; "declare IFF used" is the tripwire's own rule, so the named exemption comes out with it. Small lane opened the same night (bars: the tripwire's exemption is removed FIRST and watched RED against the still-present declaration, then the declaration is removed and the test goes GREEN; gate PASS). The app and widget manifests are untouched.
 
+> **✅ 2026-09-02 — THE RULING IS EXECUTED. `TalariaShare` no longer declares
+> UserDefaults, and the tripwire's exemption list is EMPTY.** PR **#413**,
+> squashed as **`SHA-PENDING`**. **166 STAYS OPEN** — 166c/166e/166f are
+> Owen-side and 166a's remaining half is the App Privacy questionnaire; this
+> closes only the over-declaration the completeness lane recorded and
+> deliberately left standing.
+>
+> **The bar WAS the order, and the order held.** The exemption came out of
+> `PrivacyManifestCompletenessTests.swift` FIRST, with the declaration still
+> in the manifest, and the suite went RED on exactly the sentence the reverse
+> arm exists to print:
+> ```
+> ✘ Test manifestsDeclareNothingUnused() recorded an issue at
+>   PrivacyManifestCompletenessTests.swift:377:9: Expectation failed: failures.isEmpty
+> ↳ A manifest declares a required-reason category nothing uses. #166a-G rules out
+>   declaring "to be safe" — either delete the declaration or record it in
+>   knownUnusedDeclarations with a reason:
+>
+>   TalariaShare: declares NSPrivacyAccessedAPICategoryUserDefaults but no compiled source uses it
+> ✘ Test run with 4 tests in 1 suite failed after 0.787 seconds with 1 issue.
+> ```
+> `xcodebuild` exit **65**. The suite's other three tests PASSED in the same
+> run, so the red is attributable to the one arm rather than to a broken
+> `project.yml` parse — which is what the suite's "a check that did not run
+> says so" `#require`s are for.
+>
+> **THE PREMISE, MEASURED RATHER THAN INHERITED.** Before the edit,
+> `grep -rn 'UserDefaults\|AppStorage' TalariaShare/` returned exactly ONE
+> line: line 15 of the manifest — the declaration itself, matching its own
+> string. After the edit the grep is **empty (exit 1)**. `TalariaShare/` is
+> `ShareInboxCore.swift`, `ShareViewController.swift`, `Info.plist`,
+> `TalariaShare.entitlements` and the manifest; the extension stages into the
+> app-group CONTAINER and nothing in it reads defaults.
+>
+> **GREEN, then the MUTATION — which re-created the exact pre-fix bytes.**
+> Declaration deleted ⇒ `✔ Test run with 4 tests in 1 suite passed`, exit 0,
+> `plutil -lint` OK. Re-adding the `NSPrivacyAccessedAPICategoryUserDefaults`
+> dict (CA92.1 + 1C8F.1) restored the file **byte-identical to HEAD**
+> (`git diff --quiet` clean on that path) and reddened the same test with the
+> same sentence — `✘ Test run with 4 tests in 1 suite failed after 0.409
+> seconds with 1 issue`, exit 65. Removing it again ⇒ green, exit 0, diff
+> byte-identical to pre-mutation. **Four runs, one file, verdict following the
+> declaration each time.**
+>
+> **⚠️ THE TEST COUNT DID NOT MOVE, AND THAT IS THE CORRECT RESULT — recorded
+> here so it cannot later read as a stale-bundle tell.** This lane adds no
+> test; it deletes an exemption from one that already existed. The suite is 4
+> tests before and after and the whole run is 2827 both sides. **What moved is
+> the VERDICT**, fail ⇒ pass ⇒ fail ⇒ pass over the same 4 tests — and a stale
+> `.xctest` cannot flip a verdict on unchanged inputs. The "confirm the count
+> MOVED" heuristic guards a lane that ADDED tests; where nothing is added, the
+> RED/GREEN transition is the proof the bundle rebuilt.
+>
+> **166-GATE — MET.** The MERGED tree's gate is the post-rebase one and it
+> passed **FIRST RUN**: `GATE: PASS on 24A5423a` — Swift Testing **2834 in
+> 244 suites**, XCUITest **15** (counted independently off the
+> `Test Case '-[…]'` ledger: 15 started / 15 passed / 0 failed), Release build
+> clean, `project.pbxproj` no uncommitted drift, and
+> `PrivacyManifestCompletenessTests` green inside the full run.
+> `xcodegen generate` produced **no project diff** — correct, since no file was
+> added or removed. **The 2827 ⇒ 2834 delta is NOT this lane's**: main gained
+> seven tests (the #334-N and #419-B work) between the pre-rebase gate and the
+> rebase. This lane's own contribution to the count is zero, by design.
+> **A PRE-REBASE gate run had failed first, and the flake protocol was
+> followed rather than shortcut.** `GATE: FAIL (4)` on
+> `TalariaUITests.testConnectedRelaunchSkipsTheConnectEntry`
+> (`AppTemplateUITests.swift:540`), with Swift Testing 2827 green and Release
+> green in the same run — the #219 flake again, one lane after that tripwire
+> harvested its first natural red. The box was carrying **load average 10–18
+> with three concurrent `xcodebuild`s** from other lanes; the winning runs came
+> at load ~4. A structural alibi ("this diff is one plist entry and a comment")
+> was available and was NOT used as the argument — identical bytes were re-run
+> and passed, twice over (the re-run, then the independent post-rebase run).
+> Note the classifier says "ASSERTION TEXT PRESENT — treat this as a REAL
+> failure. Do NOT re-roll it," and it is right to say so by default: the
+> re-roll here is licensed by #219's named-flake standing, and the passing runs
+> are the evidence rather than the reasoning.
+>
+> **The app and widget manifests are BYTE-UNTOUCHED.** `git diff --name-only`
+> is exactly two paths: `TalariaShare/PrivacyInfo.xcprivacy` and
+> `TalariaTests/PrivacyManifestCompletenessTests.swift`.
+>
+> **What the share extension now declares** — `NSPrivacyTracking false`, empty
+> `NSPrivacyTrackingDomains`, zero `NSPrivacyCollectedDataTypes`, and a single
+> accessed-API entry: `NSPrivacyAccessedAPICategoryFileTimestamp` / **C617.1**,
+> the app-group container timestamps `ShareInboxCore.swift` reads.
+> **⟵ This SUPERSEDES the 166a-I parenthetical in the lane-landed block above**
+> (`PlugIns/TalariaShare.appex/PrivacyInfo.xcprivacy` "(UserDefaults +
+> FileTimestamp/C617.1)"): that was a true measurement of the product built
+> that afternoon, and it is no longer the shape that ships.
+>
+> **The exemption MECHANISM survives, empty.** `knownUnusedDeclarations` is
+> now `[]` rather than deleted, because the reverse arm's own failure message
+> offers it as one of two remedies ("either delete the declaration or record
+> it … with a reason"). An empty named set keeps that remedy honest: the next
+> tolerated over-declaration has to be written down with a justification
+> instead of quietly not-failing.
+
 ## 170. ⚠️ Task detail presents `model_snapshot` as if it were the job's model — and the phone cannot pin a model at all (device-found 2026-07-22). **LEAD 2026-08-01: 0.19.0 may have made the second half solvable.**
 
 > ## ❌ LEAD TESTED 2026-08-02 — **the lock does NOT govern. Do not adopt it.** The second clause of this item STANDS.

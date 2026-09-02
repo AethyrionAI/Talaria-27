@@ -114,21 +114,24 @@ struct PrivacyManifestCompletenessTests {
         "TalariaWidgets": "TalariaWidgets/PrivacyInfo.xcprivacy",
     ]
 
-    /// The one declaration in the tree that this suite knowingly tolerates
-    /// without a matching source use.
+    /// Declarations this suite tolerates without a matching source use.
     ///
-    /// `TalariaShare`'s manifest has declared UserDefaults since 2026-07-22,
-    /// but the extension is purely file-based — it stages into the app-group
-    /// CONTAINER (`FileManager.containerURL`), and `UserDefaults` appears
-    /// nowhere in `TalariaShare/`. It is an over-declaration inherited from
-    /// the manifest's original authoring, left in place deliberately by the
-    /// #166a completeness lane (2026-09-01) rather than removed in a lane
-    /// scoped to closing gaps. It is recorded HERE, as a named exemption, so
-    /// it is a decision on the record instead of a silent tolerance — and so
-    /// that no NEW over-declaration can hide behind it.
-    private static let knownUnusedDeclarations: Set<String> = [
-        "TalariaShare/NSPrivacyAccessedAPICategoryUserDefaults",
-    ]
+    /// **Deliberately EMPTY, and that is the point.** It held exactly one
+    /// entry — `TalariaShare/NSPrivacyAccessedAPICategoryUserDefaults`, an
+    /// over-declaration inherited from the manifests' original authoring on
+    /// 2026-07-22 and left in place by the #166a completeness lane because
+    /// that lane was scoped to closing gaps. Owen RULED it deleted the same
+    /// night (2026-09-01): the extension is purely file-based, it stages into
+    /// the app-group CONTAINER (`FileManager.containerURL`), and neither
+    /// `UserDefaults` nor `@AppStorage` appears anywhere in `TalariaShare/`.
+    /// The declaration went with the exemption, so "declare IFF used" is now
+    /// enforced in both directions with no carve-outs.
+    ///
+    /// The mechanism stays because the failure message points at it: a future
+    /// tolerated declaration belongs HERE, named and reasoned, rather than
+    /// silently accepted. An entry added without a written justification is
+    /// the failure this set exists to make visible.
+    private static let knownUnusedDeclarations: Set<String> = []
 
     // MARK: - Repo access
 
@@ -354,8 +357,9 @@ struct PrivacyManifestCompletenessTests {
     // MARK: - #166a-G — nothing declared "to be safe"
 
     /// Nothing is declared that no source uses. #166a-G is an IFF, and this
-    /// is its reverse arm; the single inherited exception is named in
-    /// ``knownUnusedDeclarations`` rather than tolerated silently.
+    /// is its reverse arm — with no exceptions since 2026-09-01, when Owen's
+    /// ruling deleted `TalariaShare`'s inherited UserDefaults declaration and
+    /// ``knownUnusedDeclarations`` emptied with it.
     @Test
     func manifestsDeclareNothingUnused() throws {
         let sourcePaths = try Self.sourcePathsByTarget()
