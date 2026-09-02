@@ -116,7 +116,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#396** 🔉 VOICE IS TOO SENSITIVE on both engines (Owen, 2026-08-22) — four faults characterised separately per engine; **396-B (host knobs re-configured) + the ruled COARSE PICKER shipped** (app PR #361, plugin `e669549`, both hosts on 0.8.0), local half deliberately unbound behind the fault-2 author measurement. **⟵ 2026-09-02: 396-Q instrument MERGED (PR #416, squash `9dca3bad`) — the app now logs the preset it mints with (`#396 tuning preset=… engine=realtime values=host`), always-on, so the next archive attributes rate to preset; the app sends a NAME only, values stay host-side.** Still open: the LOCAL half, 396-D's live before/after quote, and #413's preset attribution once a tuned archive lands
 - **#127** 🔧 Monetization scaffold — MERGED DORMANT + gate walk DEVICE VERIFIED 2026-07-17 (fail-open live-confirmed on …
 - **#129** 🔧 Voice preview mid-session — MERGED (PR #127, merge `175261b`, 2026-07-20); device pass owed. Known accepted …
-- **#138** 🐛 Realtime engine self-barge-in — assistant TTS captured as user speech (OJAMD voice host); slow turn … — **2026-09-01 ESCALATION SYNTHESIS appended (the cluster's one-page home): the phantom is ONSET-bound (5 of 7 speakerphone first utterances dirty, all 0.25–0.58 s after `audio.started`), this entry's "item.created root cause" is falsified on its own archive (it was #419-B's transcript-done reset, now fixed in `02cad7bf`), 138-K retired by measurement (the server clears on its own), hypotheses ranked, cards V1–V5 for Owen's election — V1 (the volume arm) first**
+- **#138** 🐛 Realtime engine self-barge-in — assistant TTS captured as user speech (OJAMD voice host); slow turn … — **2026-09-01 ESCALATION SYNTHESIS appended (the cluster's one-page home): the phantom is ONSET-bound (5 of 7 speakerphone first utterances dirty, all 0.25–0.58 s after `audio.started`), this entry's "item.created root cause" is falsified on its own archive (it was #419-B's transcript-done reset, now fixed in `02cad7bf`), 138-K retired by measurement (the server clears on its own), hypotheses ranked, cards V1–V5 for Owen's election — V1 (the volume arm) first**  ⟶ **2026-09-02: card V3 (138-M, the SEGMENT INSTRUMENT) SHIPPED — three always-on `#138 segment` lines (`speech_stopped` segment ms + offset, `committed` offset, `transcript` chars + script class, never the text), RED-first and mutation-proven, H3's prediction pre-registered; V1/V2 Record now quotes them. Still nothing measured — V1 remains the next move**
 - **#140** 🔧 README + GitHub Pages refresh — ~~stale wedge narrative + pre-freemium positioning~~ re-scoped 2026-08-25 (as-filed premise discharged) → **✅ PUBLISHED the same day on Owen's go (PR #373, `47632a01`, verified live): relay claims retired, the vision story public, beta6 line, honest screens meta. Remaining: the P-4 screenshot batch + device rows R15/R16 (runbook-carded)**
 - **#162** 🛠 156a Tasks lane — **SHIPPED, on `main`** (`Talaria/Features/Tasks/`, reachable at `ContentView.swift:246`) …
 - **#163** 🧩 156b Skills lane — **SHIPPED, on `main`** (`Talaria/Features/Skills/`, reachable at …
@@ -2045,6 +2045,14 @@ Logged 2026-07-20 (Session V launch sweep).
 >   1.0 s; also the `audio.stopped after Nms` values (419-B's device
 >   confirmation rides free). *PASS (H1):* low ≤1/3, max ≥2/3. *FAIL:* both
 >   arms ≥2/3 — level-independent, next arm is the mic side.
+>   **⟵ RECORD, added 2026-09-02 when 138-M shipped (`grep '#138 segment'`):
+>   quote EVERY `#138 segment` line of the run verbatim — `speech_stopped`
+>   (`segmentMs=` + `offsetFromPlaybackMs=`), `committed`, and `transcript`
+>   (`chars=` + `script=`). They are what scores H3's 300–700 ms prediction
+>   against each arm, and V1's low-volume arm is the first chance to see
+>   whether the segment LENGTH moves with level or only its frequency does.
+>   `offsetFromPlaybackMs=none` means no `audio.started` had fired yet —
+>   never read it as `0`.**
 > - **V2 · 413/138-L extension — every incidental AirPods session, free.**
 >   *Scores:* zero `speech_started` inside any playback window; the two
 >   `#418 route` lines (prediction from the 08-30 system rows: the START
@@ -2053,6 +2061,17 @@ Logged 2026-07-20 (Session V launch sweep).
 >   a start line already on BluetoothHFP means a different timeline);
 >   `sampleRate=` answers #418 candidate 1's number. Four clean sessions
 >   take the acoustic reading to p≈0.045.
+>   **⟵ RECORD, added 2026-09-02 when 138-M shipped (`grep '#138 segment'`):
+>   quote every `#138 segment` line here too. On AirPods this card's whole
+>   claim is an ABSENCE (no phantom), and an absence bar with no positive
+>   control passes on an empty log — the `transcript`/`committed` lines are
+>   that control, because Owen's REAL turns emit them. A clean AirPods
+>   session should therefore show `#138 segment` lines whose
+>   `offsetFromPlaybackMs` is large or `none`, not zero of them; zero means
+>   the session did not exercise the path and the reading is INVALID rather
+>   than clean. The `script=` field also carries #418's own question: Owen's
+>   English over the AirPods link reading `cjk`/`other` is the recognizer
+>   degradation, not a phantom.**
 > - **V3 · 138-M — the segment instrument (build; headless; no device to
 >   ship).** Ungated `.notice` on `speech_stopped` (segment ms + offset
 >   from `audio.started`), on `committed`, and on
@@ -2085,6 +2104,168 @@ Logged 2026-07-20 (Session V launch sweep).
 > - **138-M-A (three always-on `.notice` lines, pure formatters, the 418/419 shape):** on `input_audio_buffer.speech_stopped` — segment length ms and offset from the last `audio.started` (or `none`); on `input_audio_buffer.committed` — the same offset; on `conversation.item.input_audio_transcription.completed` — transcript LENGTH (chars) and SCRIPT CLASS (latin / cjk / other / empty) — **never the text**. Each formatter pinned by `VoiceInstrumentLogLineTests`, RED-first, one mutation per formatter re-reddening exactly its pin. [offline]
 > - **138-M-B (H3's prediction is written before the first read):** phantoms should read 300–700 ms segments at onset offsets ≤0.6 s with script=cjk/other; a phantom segment ≥1.5 s falsifies "onset" (H1 is wrong about the mechanism's shape). Recorded here so the first archive is scored against a prediction, not a story. [offline]
 > - **138-M-GATE:** lane-gate PASS; the V1/V2 runbook cards gain "quote the `#138 segment` lines" in Record. [Mac]
+
+> **✅ 2026-09-02 — 138-M RESULT (card V3, the SEGMENT INSTRUMENT): three
+> always-on `#138 segment` lines are in, RED-first and mutation-proven. PR
+> #PRNUM, squash `SQUASHSHA`. All three bars MET.** Built headless on
+> `CC-lane-3`, sim runtime iOS 27.0 `24A5423a` (#398-A: the phone is
+> `24A5424a` — this is an instrument, not a rate, so the skew does not
+> qualify the result).
+>
+> ### 138-M-A — MET. The three shapes, verbatim and equality-pinned
+>
+> ```
+> #138 segment speech_stopped segmentMs=500 offsetFromPlaybackMs=520
+> #138 segment committed offsetFromPlaybackMs=340 itemId=item_9
+> #138 segment transcript chars=4 script=cjk itemId=item_9
+> ```
+>
+> Each is a `nonisolated static` pure formatter on `LiveVoiceSessionService`
+> (`:1466`, `:1485`, `:1512`), emitted `.notice` / `privacy: .public` /
+> un-gated at `:897`, `:899`, `:1023`. **The whole shape is pinned by
+> equality**, not just its fields — the runbook's Record step and every
+> archive grep are written against it, and a reordered or extra field would
+> break a reader who never runs the suite.
+>
+> **Two readings the shapes refuse to fake, both pinned:**
+> `offsetFromPlaybackMs=none` is never `=0` (zero would say the segment landed
+> exactly at playback onset — the single most incriminating value this
+> instrument can print, so a session that has played no audio cannot render it
+> by accident), and `segmentMs=unknown` is never `=0` (manufacturing a
+> zero-length segment would fabricate the very reading H3 is being tested on).
+>
+> **The transcript's TEXT is never logged, and that is pinned rather than
+> trusted:** the privacy test passes `嗨。再考` and asserts the line contains
+> neither the string nor any one of its characters. A device archive is
+> collected wholesale and shared; an instrument that leaked what Owen said
+> would be a privacy defect shipped in the name of a measurement. A CJK string
+> is used deliberately — none of its characters can appear incidentally in the
+> line's own field names, so a leak of even one character is unambiguous.
+>
+> **RED first, against stubs returning the bare prefix:**
+> `✘ Test run with 20 tests in 1 suite failed after 0.012 seconds with 19 issues.`
+> — all 19 in the six new tests, the 14 incumbent pins green throughout.
+> **GREEN:** `✔ Test run with 20 tests in 1 suite passed after 0.007 seconds.`
+> The count MOVED, 14 → 20, which is the check `test-without-building` can
+> otherwise fake.
+>
+> **One mutation per formatter, each reddening exactly its own pins:**
+>
+> | mutation | issues | tests reddened | untouched |
+> |---|---|---|---|
+> | drop `segmentMs=` from `speechStoppedSegmentLogDetail` | 3 | the 2 that assert a segment length (`segmentMs=500`, `segmentMs=unknown`) + the equality pin | 18 |
+> | drop `offsetFromPlaybackMs=` from `bufferCommittedSegmentLogDetail` | 2 | 1 (`committedCarriesOffsetAndItem`) | 19 |
+> | drop `script=` from `transcriptSegmentLogDetail` | 11 | 2 (the privacy pin's class arm + all four class arms) | 18 |
+>
+> "Nothing else" is bounded, not assumed: `grep -rl SegmentLogDetail` over the
+> whole tree returns exactly the service and its pin file, so no other suite
+> can see these formatters.
+>
+> ### The diff outside the formatters is four lines and two stamps
+>
+> Three `.notice` calls, plus the minimal `input_audio_buffer.speech_stopped`
+> decode — **an event that drove no app state before and drives none now** (it
+> fell to `default: break`). No behaviour change; `git diff` on the service is
+> 100% insertions.
+>
+> **The offset reads a NEW stamp, and the reason is the point of the
+> instrument.** `lastAudioStartedAtUptime` (`:936`) is deliberately separate
+> from `assistantAudioPlaybackStartedAtUptime`, which the audio-buffer
+> lifecycle nils at `stopped`/`cleared` — and this entry's own 09-01 synthesis
+> established that **the server interrupts by itself**, landing `audio.cleared`
+> in the same millisecond as an "idle" `speech_started` in three archives. A
+> phantom's `speech_stopped` or `committed` therefore arrives just AFTER the
+> tracker was nil'd, and reading the old stamp would have printed `none` on
+> exactly the cases #138 exists to measure. Both stamps clear with the session.
+>
+> ### ⚠️ Read the offset correctly — it is the segment's END, not its onset
+>
+> The ≤0.6 s figures in the 09-01 table are measured from `speech_started`.
+> `#138 segment speech_stopped`'s `offsetFromPlaybackMs` is stamped at
+> `speech_stopped`, i.e. after the segment finished, so
+> **onset ≈ `offsetFromPlaybackMs` − `segmentMs`** and that is the number to
+> compare against the table. `committed` is later still. Scoring the raw
+> `speech_stopped` offset against "≤0.6 s" would read every real phantom as
+> falsifying the onset hypothesis it confirms — the same shape as this entry's
+> own falsified "phantom turn" wording, and worth stating before anyone reads
+> the first archive.
+>
+> ### 138-M-B — MET. H3's prediction, written BEFORE the first read
+>
+> **H3 (`prefix_padding_ms` shapes the fragment the transcriber sees).**
+> Scoring a phantom = a `speech_started` inside a playback window, per the
+> 09-01 table's method.
+>
+> | H3 predicts | falsified by |
+> |---|---|
+> | `segmentMs` in **300–700** ms | a phantom at **≥1500 ms** — the whole utterance leaks, and H1 is wrong about "onset" as the mechanism's shape |
+> | derived onset (`offset − segmentMs`) **≤600** ms | onsets spread across the body of the utterance with no clustering at playback start |
+> | `script=` **cjk or other** on phantom items | `script=latin` with a faithful English fragment, which would say the residue is a clean copy and re-open the software-loopback branch (H4) |
+> | `chars` small (single-digit to low teens) | a long faithful transcript — same reading as above |
+>
+> **The 300 ms floor is not free** — it is `prefix_padding_ms`'s own value, so
+> a segment measuring *below* 300 ms would say the server is not padding the
+> way we believe, which is a finding about the config rather than about the
+> echo. And the prediction is deliberately falsifiable in the direction that
+> costs the most: **a ≥1.5 s phantom segment retires H1's shape**, which is
+> currently the only surviving mechanism on this entry.
+>
+> **Real user turns are the positive control** and cost nothing: they emit the
+> same three lines with a large or `none` offset. A session with ZERO
+> `#138 segment` lines did not exercise the path, and its reading is INVALID
+> rather than clean — the absence-bar trap #198B-A was built to close.
+>
+> ### 138-M-GATE — MET
+>
+> `GATE: PASS` on `CC-lane-3`, first run, no re-runs: **2846 Swift Testing
+> tests / 244 suites** (baseline 2840 → +6, exactly the new pins),
+> **15 XCUITest** (30 `Test Case '-[` lines, 15 passed, 0 failed — #219's
+> `testConnectedRelaunchSkipsTheConnectEntry` did not fire), Release build
+> green. `xcodegen generate` produced no diff (no files added). Entry set
+> **430 → 430** across both tracker files, checked before and after the
+> rebase; `scripts/oi-invariants.py` PASS, unpiped, exit 0.
+>
+> The V1 and V2 cards above gained their Record line (`grep '#138 segment'`),
+> which is the rest of this bar.
+>
+> ### 🔴 The gate was RED on `main` before this lane touched anything
+>
+> The first gate invocation failed in **preflight**, on a clean rebase:
+>
+> ```
+>   FAIL  failure-advice classifier SELF-TEST FAILED — the gate's advice cannot be trusted
+>           FAIL  hint finds NOTHING in OPEN_ITEMS.md: runner dies mid-bundle
+>           FAIL  hint finds NOTHING in OPEN_ITEMS.md: runner dies mid-bundle
+>         CLASSIFIER: FAIL (2 of 24 checks)
+> ```
+>
+> **Sweep 14 archived #219 the night before, and the gate greps that phrase in
+> `OPEN_ITEMS.md`.** Every gate run on `main` had been failing before reaching
+> a single test — the verdict is scored in preflight, so the suite result never
+> mattered. Fixed in the same PR: both hints repointed to
+> `OPEN_ITEMS-ARCHIVE.md` (#313's shape), CLAUDE.md's "in the live board"
+> wording corrected, a dated append-only pointer filed under archived #219 per
+> #317(a), and the sweep-reds-the-gate hazard written into CLAUDE.md where the
+> next sweep will meet it.
+>
+> **And the documented repair used to SILENCE the check rather than satisfy
+> it.** `lane-gate-classify-test.sh` both extracted and resolved hints against
+> `OPEN_ITEMS.md` alone — so repointing a swept hint at the archive, which is
+> exactly what #313 prescribed, moved it out of the checker's sight.
+> `CondenserFidelityTests` had been unverified on that account since
+> 2026-08-18; this lane is the first time anything executed it (38 hits). The
+> self-test now resolves each hint against the file it NAMES, and was proven
+> fail-safe by injecting a pointer matching neither file (`FAIL (1 of 26)`,
+> reverted). Ladder: `FAIL (2 of 24)` → widened only `FAIL (1 of 25)` →
+> widened + repointed `PASS (25 checks)`.
+>
+> ### What 138-M does NOT do
+>
+> It measures nothing on its own. **V1 (138-N, the volume arm) is still the
+> single most valuable next measurement** — five minutes, no build — and V3
+> exists to make its log say more than "a phantom happened". Nothing here
+> touches audibility, the onset gate (V5 · 138-O) stays proposed-not-built, and
+> no hypothesis on this entry changes status until an archive is scored.
 
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
 
