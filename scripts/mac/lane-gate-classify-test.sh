@@ -322,24 +322,37 @@ echo
 echo "-- and the pointers that REPLACED them actually resolve"
 # Dropping the item numbers only helps if what took their place finds the item.
 # A grep hint that matches nothing is the same defect wearing a different hat,
-# so every `grep … OPEN_ITEMS.md` the scripts print is executed here.
-TRACKER="$(cd "$HERE/../.." && pwd)/OPEN_ITEMS.md"
+# so every `grep … OPEN_ITEMS*.md` the scripts print is executed here.
+#
+# **BOTH tracker files, since 2026-09-02 (138-M's lane).** The check used to
+# resolve every hint against `OPEN_ITEMS.md` alone, and to EXTRACT only hints
+# naming that file — so the documented fix for a swept item (repoint the hint
+# at `OPEN_ITEMS-ARCHIVE.md`, #313's shape) moved the hint out of the checker's
+# sight instead of satisfying it. `CondenserFidelityTests` had been unverified
+# on exactly that account since 2026-08-18. Resolving each hint against the
+# file it NAMES is the only form of this check that a repoint cannot silence.
+REPO_ROOT="$(cd "$HERE/../.." && pwd)"
+ADVICE_LINES="$(grep -hoE '^[[:space:]]*(echo|printf)[[:space:]].*' \
+    "$HERE/lane-gate.sh" "$HERE/lane-gate-classify.sh")"
 HINTS=0
-while IFS= read -r pat; do
-    [[ -n "$pat" ]] || continue
-    HINTS=$((HINTS+1))
-    if [[ -s "$TRACKER" ]] && grep -q -- "$pat" "$TRACKER"; then
-        PASS=$((PASS+1)); printf '  PASS  hint resolves: grep %s -> %s hit(s)\n' \
-            "$pat" "$(grep -c -- "$pat" "$TRACKER")"
-    else
-        FAIL=$((FAIL+1)); printf '  FAIL  hint finds NOTHING in OPEN_ITEMS.md: %s\n' "$pat"
-    fi
-done < <(
-    grep -hoE '^[[:space:]]*(echo|printf)[[:space:]].*' \
-        "$HERE/lane-gate.sh" "$HERE/lane-gate-classify.sh" \
-    | grep -oE "grep -n '[^']+' OPEN_ITEMS\.md|grep -n [A-Za-z0-9_]+ OPEN_ITEMS\.md" \
-    | sed -E "s/^grep -n '?//; s/'? OPEN_ITEMS\.md$//"
-)
+for tracker_name in OPEN_ITEMS.md OPEN_ITEMS-ARCHIVE.md; do
+    tracker="$REPO_ROOT/$tracker_name"
+    tracker_re="${tracker_name//./\\.}"
+    while IFS= read -r pat; do
+        [[ -n "$pat" ]] || continue
+        HINTS=$((HINTS+1))
+        if [[ -s "$tracker" ]] && grep -q -- "$pat" "$tracker"; then
+            PASS=$((PASS+1)); printf '  PASS  hint resolves: grep %s %s -> %s hit(s)\n' \
+                "$pat" "$tracker_name" "$(grep -c -- "$pat" "$tracker")"
+        else
+            FAIL=$((FAIL+1)); printf '  FAIL  hint finds NOTHING in %s: %s\n' "$tracker_name" "$pat"
+        fi
+    done < <(
+        printf '%s\n' "$ADVICE_LINES" \
+        | grep -oE "grep -n '[^']+' ${tracker_re}|grep -n [A-Za-z0-9_]+ ${tracker_re}" \
+        | sed -E "s/^grep -n '?//; s/'? ${tracker_re}\$//"
+    )
+done
 check "advice emits at least one tracker pointer" "yes" "$( ((HINTS>0)) && echo yes || echo no )"
 echo
 

@@ -204,7 +204,7 @@ require_xcuitest_count() {   # require_xcuitest_count <logfile> <label>
         echo "        outcome. That is the runner being lost or restarted mid-bundle,"
         echo "        not a product failure — and it is the thing a fall-through count"
         echo "        used to be mistaken for. Find its live entry with:"
-        echo "            grep -n 'runner dies mid-bundle' OPEN_ITEMS.md"
+        echo "            grep -n 'runner dies mid-bundle' OPEN_ITEMS-ARCHIVE.md"
     fi
     return 1
 }

@@ -53344,6 +53344,21 @@ just the log.
 
 > **✅ CLOSED 2026-09-02 (sweep 14) on Owen's 09-01 mandate — everything off the live board except what he tests.** Closes as a WATCH — nothing to build. **Reopen trigger:** the next natural red of `testConnectedRelaunchSkipsTheConnectEntry` — pull the `:527` debug activity from its xcresult and test the overlay/keyboard-remnant hypothesis. Mechanism named 09-01 (per-instance un-hittable for the whole window; all 15 tests run); hedge tried, falsified, branch discarded on Owen's ruling. ⚠️ The header phrase "runner dies mid-bundle" is a LOAD-BEARING search string the gate prints — the archived text keeps it. Listed on the Desk Board (https://claude.ai/code/artifact/ed24b2b7-65c3-4375-b135-b0f0f47f9869) §03.
 
+> **⏪ 2026-09-02 POINTER (#317(a) append-only; filed by 138-M's build lane).**
+> Archiving this entry **red the gate in preflight on `main`**. `lane-gate.sh` and
+> `lane-gate-classify.sh` both print `grep -n 'runner dies mid-bundle' OPEN_ITEMS.md`,
+> and `lane-gate-classify-test.sh` executes every such pointer — so from sweep 14
+> (2026-09-01) until this fix, **every** gate invocation scored
+> `failure-advice classifier SELF-TEST FAILED` before running a single test.
+> Both hints are now repointed to `OPEN_ITEMS-ARCHIVE.md` (#313's shape), and the
+> self-test was widened to resolve each hint against the file it NAMES — it had
+> extracted and checked `OPEN_ITEMS.md` hints ONLY, which meant #313's own
+> prescribed repair had been hiding `CondenserFidelityTests` from the checker
+> since 2026-08-18 rather than satisfying it. **The load-bearing phrase itself is
+> untouched** and this entry's bytes above are unedited; only the file the gate
+> greps has changed. CLAUDE.md's "in the live board" wording is corrected in the
+> same commit.
+
 ## 211A. offer-instead-of-act on READ paths, where no confirmation gate excuses it — **✅ INSTRUMENT BUILT + MERGED 2026-08-26 (instruments lane): `offer-read`, three arms x four read prompts, cells + scorer, bars 211A-B1..B7 met on the simulator. The DEVICE run is Owen's and is a runbook card; 211A-D1..D4 are pre-registered and UNRUN, so this entry still carries ZERO behavioural numbers.**
 
 **FILED 2026-08-01** from the audit's unfiled-lanes list.
