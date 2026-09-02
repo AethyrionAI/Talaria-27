@@ -2474,6 +2474,11 @@ Logged 2026-07-20 (Session V launch sweep).
 
 ---
 
+> **📋 2026-09-01 night — 138-M (card V3, the SEGMENT INSTRUMENT) OPENED AS A BUILD LANE — Owen's mandate: everything buildable comes off the board; V3 is the one voice card that needs no device to ship.** Sequenced AFTER the 396-Q/198B-M instrument lane merges (same files). Bars pre-registered before code:
+> - **138-M-A (three always-on `.notice` lines, pure formatters, the 418/419 shape):** on `input_audio_buffer.speech_stopped` — segment length ms and offset from the last `audio.started` (or `none`); on `input_audio_buffer.committed` — the same offset; on `conversation.item.input_audio_transcription.completed` — transcript LENGTH (chars) and SCRIPT CLASS (latin / cjk / other / empty) — **never the text**. Each formatter pinned by `VoiceInstrumentLogLineTests`, RED-first, one mutation per formatter re-reddening exactly its pin. [offline]
+> - **138-M-B (H3's prediction is written before the first read):** phantoms should read 300–700 ms segments at onset offsets ≤0.6 s with script=cjk/other; a phantom segment ≥1.5 s falsifies "onset" (H1 is wrong about the mechanism's shape). Recorded here so the first archive is scored against a prediction, not a story. [offline]
+> - **138-M-GATE:** lane-gate PASS; the V1/V2 runbook cards gain "quote the `#138 segment` lines" in Record. [Mac]
+
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
 
 > **🔬 PREMISE RE-CHECKED 2026-08-25 (Owen's applicability rider on the
