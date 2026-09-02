@@ -163,7 +163,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
 - **#211A** offer-instead-of-act on READ paths, where no confirmation gate excuses it — **✅ instrument BUILT + MERGED 2026-08-26** (`offer-read`: production-routed vs #211's pinned `readMotion` rollback vs a read-tool-free CEILING that doubles as the scorer's positive control; four buckets, never a union; armed-routed denominator per #215). **Device run OWED** — 211A-D1..D4 pre-registered, D1 is a GATE: if the ceiling arm does not offer, the run is uninterpretable
-- **#340** 🔴 the due date is OMITTED by the model — both prose fixes falsified 08-15; **ROUTE (a) APP-SIDE RULED by Owen 2026-08-18 ~22:15 post-refresher** *(this line read "route decision pending Owen's refresher" until 2026-08-21 — the ruling landed in the entry and never reached the board, #317)*. 🟡 **BUILT 2026-08-21 AM: `parseBareClock`/`resolveBareClock` ship in BOTH the tool path and — a defect nobody had noticed — the CARD-EDIT path, where typing a plain `18:00` into the Due field was rejected outright. The GUIDE change is held behind cell `armed-bareclock` (Owen, 2026-08-21) because 340-G's guide arm bought its omission win at a flagged cost in tool calls, so the TOOL path stays inert until 340-H5 runs; the card-edit fix is not inert. Four-bucket scorer re-denominated on TRIALS, not calls — `no-call` was structurally invisible before. Wiring mutation: deleting the `performCreate` line reds 2 tests and leaves all 11 parsing tests GREEN.** 🛑 **340-H5 RAN 2026-08-21 AND IS MISSED — the guide is NOT promoted** (union rose 75%→85%). **But the bar was badly formed and is retired:** a `no-call` trial is neither omitted nor wrong-value, so it LOWERS the union — the control's 5 no-calls depressed its number and the treatment was penalised for calling more reliably. Over CALLS the union FELL; two denominators, opposite verdicts, which is 340-F1's ambiguity committed one level up by the same lane that fixed it. **✅ Route (a) VERIFIED on device though:** 3 bare clocks sent, all `16:30` at 17:08, all resolved to TOMORROW correctly, and `already-past` is 0/37 across both arms where 340-G had every value stale. 🔴 **Still broken: the model sent a time 3/20 — omission is 85% and the founding defect is UNSOLVED.** Bars **340-H5′-A..D** reformulated (`correct`/trials primary, `wrong-value` guard, both denominators reported, n≥40 — tonight was ~2x underpowered). 340-E still owed
+- **#340** 🔴 the due date is OMITTED by the model — both prose fixes falsified 08-15; **ROUTE (a) APP-SIDE RULED by Owen 2026-08-18 ~22:15 post-refresher** *(this line read "route decision pending Owen's refresher" until 2026-08-21 — the ruling landed in the entry and never reached the board, #317)*. 🟡 **BUILT 2026-08-21 AM: `parseBareClock`/`resolveBareClock` ship in BOTH the tool path and — a defect nobody had noticed — the CARD-EDIT path, where typing a plain `18:00` into the Due field was rejected outright. The GUIDE change is held behind cell `armed-bareclock` (Owen, 2026-08-21) because 340-G's guide arm bought its omission win at a flagged cost in tool calls, so the TOOL path stays inert until 340-H5 runs; the card-edit fix is not inert. Four-bucket scorer re-denominated on TRIALS, not calls — `no-call` was structurally invisible before. Wiring mutation: deleting the `performCreate` line reds 2 tests and leaves all 11 parsing tests GREEN.** 🛑 **340-H5 RAN 2026-08-21 AND IS MISSED — the guide is NOT promoted** (union rose 75%→85%). **But the bar was badly formed and is retired:** a `no-call` trial is neither omitted nor wrong-value, so it LOWERS the union — the control's 5 no-calls depressed its number and the treatment was penalised for calling more reliably. Over CALLS the union FELL; two denominators, opposite verdicts, which is 340-F1's ambiguity committed one level up by the same lane that fixed it. **✅ Route (a) VERIFIED on device though:** 3 bare clocks sent, all `16:30` at 17:08, all resolved to TOMORROW correctly, and `already-past` is 0/37 across both arms where 340-G had every value stale. 🔴 **Still broken: the model sent a time 3/20 — omission is 85% and the founding defect is UNSOLVED.** Bars **340-H5′-A..D** reformulated (`correct`/trials primary, `wrong-value` guard, both denominators reported, n≥40 — tonight was ~2x underpowered). ~~340-E still owed~~ **⟵ ✅ 340-H5′-A/B PASSED 2026-08-27** (n=40/arm: union omitted+wrong-value 87.5% → 47.5%, p = 2.54e-04; populated-future 0% → 45%, p = 6.38e-07; `wrong-value` 0/40 both arms, `no-call` fell) · **⚖️ 340-E RULED NO 2026-08-31** (guard stays prose-only — DISCHARGED) · **✅ THE GUIDE IS PROMOTED 2026-09-01 (#340-PROMOTE):** production's `due` @Guide is the bareclock text, pinned on the PRODUCTION type by `PromotedDueGuideTests` reading it back out of `Arguments.generationSchema` (RED-first, revert-mutation RED), and `ReminderCreateToolBareclock` + the `armed-bareclock` cell are retired (cell count pin 33 → 32, moved deliberately). 🔴 **STILL OPEN and this entry does NOT close: the residual omission.** 18/40 correct is a win over 0/40, not a fix — ~55% of trials still carry no due date, 340-E is ruled out as a catcher, and the next measurement is named in the result block (PR #404)
 - **#344** 🐛 impersonation-marker reach — RULED leave-as-specified 08-18; WATCH (rate >~1/20, or the shape on a completion claim)
 - **#358** 🐛 delivered-but-unrendered — failure class removed, TurnStreamLedger armed; WATCH (trigger unidentified)
 - **#359** 🐛 compose fusion — one occurrence, mechanism unknown; WATCH on recurrence (2026-08-18)
@@ -6583,7 +6583,7 @@ sibling lesson — a failure that looked device-specific and was really contenti
 **#313** (the sibling lesson — a red that was a proxy problem, not the defect it named),
 `planning/DEVICE-BACKLOG-TRIAGE-2026-08-11.md` (the plan this run validates).
 
-## 340. 🔴 THE TOOL IS CALLED, THE TIME IS DROPPED, AND THE MODEL CLAIMS THE TIME ANYWAY — a dateless reminder that never fires, reported as *"set for 11"* — **AND #338'S GUARD IS BLIND TO IT BY DESIGN. MEASURED IN PRODUCTION 2026-08-12 9:51 PM, discriminator RESOLVED the same minute. NOT STARTED; bars pre-registered below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep), AND THE FIRST CORRECTION WAS ITSELF WRONG — REPLACED THE SAME DAY. It read *"the route-(a) FIX is genuinely unbuilt"*. **Route (a) was BUILT + MERGED 2026-08-21** (`DeviceActionParsing.parseBareClock`/`resolveBareClock`, wired into BOTH `performCreate` and the card-edit path; 340-H1..H4 met, wiring suite mutation-proven), and **340-H5 RAN on device the same day** — its bar missed and was retired as unfit, replaced by 340-H5′-A..D. What is actually owed is the **device A/B at n≥40/arm** (340-H5′) plus **340-E**, Owen's call. So this header's NOT STARTED is wrong outright, not "accurate about the fix".**
+## 340. 🔴 THE TOOL IS CALLED, THE TIME IS DROPPED, AND THE MODEL CLAIMS THE TIME ANYWAY — a dateless reminder that never fires, reported as *"set for 11"* — **AND #338'S GUARD IS BLIND TO IT BY DESIGN. MEASURED IN PRODUCTION 2026-08-12 9:51 PM, discriminator RESOLVED the same minute. NOT STARTED; bars pre-registered below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep), AND THE FIRST CORRECTION WAS ITSELF WRONG — REPLACED THE SAME DAY. It read *"the route-(a) FIX is genuinely unbuilt"*. **Route (a) was BUILT + MERGED 2026-08-21** (`DeviceActionParsing.parseBareClock`/`resolveBareClock`, wired into BOTH `performCreate` and the card-edit path; 340-H1..H4 met, wiring suite mutation-proven), and **340-H5 RAN on device the same day** — its bar missed and was retired as unfit, replaced by 340-H5′-A..D. What is actually owed is the **device A/B at n≥40/arm** (340-H5′) plus **340-E**, Owen's call. So this header's NOT STARTED is wrong outright, not "accurate about the fix".** **⟵ 📌 POINTER 2026-09-01 (#340-PROMOTE): that "what is actually owed" clause is now FALSIFIED TWICE OVER, and neither falsification reached this header at the time.** 340-H5′-A/B **RAN AND PASSED 2026-08-27** (n = 40/arm, both bars met, both guards held), and **340-E was RULED NO on 2026-08-31** — the guard stays prose-only, DISCHARGED. So from 08-31 this header described as *owed* two things that were finished, while the promotion the A/B had earned by its own pre-registered wording sat **unexecuted for five days**. This lane executed it. **What is owed NOW is neither of those: it is the residual ~55% omission, re-filed WATCH-shaped in the 340-P result block at the end of this entry.** The "NOT STARTED" at the head of this header has been wrong since 2026-08-21 and is deliberately NOT deleted — the correction chain beneath it is the record of how a header goes stale in the claiming-open direction, which is exactly the failure that hid this promotion.
 
 > **🔴 2026-08-23 — A CORRECTION THAT WAS ITSELF WRONG, AND THE CHECK THAT
 > SHOULD HAVE CAUGHT IT EXEMPTED IT FOR SAYING SO.** The 08-23 stale-header
@@ -7582,6 +7582,213 @@ is NOT), **#215** (why a rate needs its denominator), `DeviceActionTools.swift:2
 > - **340-P-C (#218 discipline):** the promoted string is compiled in Release — Release build green, nothing left behind `#if DEBUG`. [Mac]
 > - **340-P-D (scope honesty):** this lane does NOT close #340. The ~55% residual omission is model/prompt behaviour with 340-E ruled NO (08-31); the result block re-files it as WATCH-shaped with the next measurement named. [offline]
 > - **340-P-GATE:** `lane-gate.sh` PASS, count reconciled. Header pointer appended in the same commit (the 08-23 header's "what is actually owed" clause is falsified twice over). [Mac]
+
+> **✅ 2026-09-01 — 340-PROMOTE LANDED. THE 08-27 WINNER IS IN PRODUCTION, AND
+> #340 DOES NOT CLOSE.** All five pre-registered bars **MET**. PR #404.
+>
+> **340-P-A (the winner ships) — MET, RED-first and mutation-proven.**
+> Production's `ReminderCreateTool.Arguments.due` @Guide is now the
+> `armed-bareclock` text, byte-for-byte, and it is pinned by
+> `TalariaTests/PromotedDueGuideTests.swift` on the **production type**.
+>
+> **The RED, watched before the swap** (`-only-testing` on the new suite,
+> unmodified production guide) — two issues, both attributable:
+> ```
+> ✘ productionDueGuideIsTheWinningBareclockText() … Expectation failed: due == Self.winningBareclockGuide
+>   ↳ due → "Due date and time like "2026-07-08T09:00" (local time), or empty for no due date."
+>   ↳ Self.winningBareclockGuide → "Due time. Give just the clock time the user said, like "16:30" or "9am" — …"
+> ✘ … Expectation failed: due != Self.supersededDueGuide
+>   ↳ production still carries the pre-promotion `due` guide
+> ✔ theSchemaCarriesEveryGuideText() passed
+> ```
+> After the swap: **230 tests / 6 suites GREEN** (`PromotedDueGuideTests`,
+> `DeviceToolBeltTests`, `BareClockResolutionTests`, `BareClockWiringTests`,
+> `ActionBatteryCellSelectionTests`, `InstrumentRegistryTests`).
+> **Revert-mutation:** the pre-promotion guide put back → the SAME two issues
+> return, `theSchemaCarriesEveryGuideText()` stays green; restored, green again.
+>
+> **🔴 THE PIN'S FIRST DRAFT WAS A BAD INSTRUMENT, AND IT WENT RED ANYWAY —
+> which is the whole reason it had to be caught by reading the output rather
+> than by reading the verdict.** Draft one did
+> `encodedSchemaJSON.contains(text)`. The schema JSON escapes the embedded
+> quotes in `\"16:30\"`, so a raw Swift literal can NEVER match it: the
+> positive assertion went RED **for the escaping, not for the text**, and the
+> paired negative assertion — *"the superseded guide is gone"* — passed
+> **VACUOUSLY while the superseded guide was sitting in the payload**. A
+> confident RED for the wrong reason plus a green that meant nothing, in one
+> test, on the first run. The tell was the issue COUNT: one, where a genuinely
+> unpromoted production must fail both. The pin now decodes
+> `properties.due.description` and compares with `==`, which has neither
+> failure mode.
+>
+> **⚠️ AND THIS ENTRY'S MOST-REPEATED CLAIM IS FALSE.** Six places in this
+> entry and in `DeviceActionTools.swift` say some form of *"`@Guide` has no
+> runtime accessor, so the text is pinned here by comment and measured by the
+> battery itself."* The macro's **argument** has none; its **effect** does —
+> `@Generable` lowers every `@Guide(description:)` into
+> `Arguments.generationSchema`, which is `Codable`. That is why this promotion
+> could be pinned by a TEST rather than by another comment, and why the pin is
+> strictly stronger than a source grep: it fails both if the text is reverted
+> and if some future refactor stops the text reaching the model at all. The
+> comment on `ReminderCreateToolDateguide` carries the correction upstream.
+>
+> **📌 AND THE LANE-OPENING BLOCK ABOVE HAS A WRONG LINE NUMBER — corrected
+> here rather than silently worked around.** It says the winning text lives at
+> `DeviceActionTools.swift:770`. **`:770` was the `armed-dateguide` cell's
+> guide** — 340-G's arm, the one that bought its win at a flagged cost in tool
+> calls. The 340-H5′ winner was at **`:824`**, inside
+> `struct ReminderCreateToolBareclock` (`:813`). Following the line number
+> instead of the struct name would have promoted the LOSING text under the
+> winner's name, and every downstream artifact would have called it bareclock.
+> The identification was made from the struct, not the offset.
+>
+> **340-P-B (the harness copy leaves) — MET.** `grep -rn Bareclock Talaria/`
+> returns exactly one hit and it is a comment (the promotion note naming what
+> was retired). Deleted, and why each:
+> - **`struct ReminderCreateToolBareclock`** (`DeviceActionTools.swift`) — its
+>   only delta from production was the `due` guide, which production now has.
+> - **`ActionBatteryCell.armedBareclock`** + its 26-line doc comment, and the
+>   `.armedBareclock` arm of the belt-swap factory
+>   (`LocalChatBackend+Battery.swift`) — a cell that swaps production for
+>   production measures nothing. **Not "re-pointed at production under an
+>   honest name": `armed` IS that name and it already exists.**
+> - **`bareClockBatteryCells`** — and it had **ZERO call sites**, before this
+>   lane touched anything. Its own doc said *"The control travels with the
+>   treatment. Pinned."* while the Developer-screen button that ran the A/B
+>   passed `cells: ["armed", "armed-bareclock"]` as **string literals**. A
+>   constant documented as a pin, pinning nothing, for eleven days.
+> - **The Developer screen's "Due-date A/B (#340-H5) n=20" button** — it named
+>   the retired cell by literal, so keeping it would have shipped #420's
+>   inert-control disease into the very screen used to measure. The plain
+>   `due-date` instrument button (registry default cells) is untouched.
+>
+> **Every count/label pin, updated DELIBERATELY rather than discovered red:**
+> - `DeviceToolBeltTests.everyCellCarriesItsExportLabel` — the
+>   `armedBareclock.rawValue == "armed-bareclock"` assertion **removed** (the
+>   text it guarded is now guarded better, on the production type).
+> - the same test's `ActionBatteryCell.allCases.count` — **33 → 32**, with the
+>   comment's own 31 → 32 → 33 chain extended to record the removal. This pin
+>   is documented as catching ADDITIONS; this lane is the first time it moved
+>   in the removing direction, and it was edited before the run, not after a
+>   red.
+> - `ActionBatteryCellSelectionTests.theRefusalTextCarriesTheKnownNames`
+>   asserts `knownNames.count == Cell.allCases.count` — **no edit needed and
+>   that is a finding, not an omission**: `ActionBatteryCellSelection.knownNames`
+>   is *derived* from `CaseIterable`, never retyped, so the resolver's "known:"
+>   vocabulary tracked the removal on its own. Verified green, not assumed.
+> - **`scripts/mac/score-due-omission.py` NOT touched** (another lane owns it).
+>   Its `bareclock` references are the production `bareClock=` log field and
+>   its own self-test fixtures — neither names a cell that must exist.
+>
+> **340-P-C (#218 discipline) — MET.** Release build clean:
+> `xcodebuild -configuration Release -destination 'generic/platform=iOS Simulator'
+> build CODE_SIGNING_ALLOWED=NO` → `** BUILD SUCCEEDED **`. The promoted string
+> is in the production `struct`, outside every `#if DEBUG`; nothing this lane
+> added is Debug-only. Run standalone under Xcode-beta6 **before** the gate, so
+> the #218 check is not merely a by-product of the gate's own Release leg.
+>
+> **340-P-GATE — MET, on the SECOND roll, and the roll is declared.**
+> `GATE: PASS on 24A5423a` — **2811 Swift Testing** (2809 baseline **+2**, this
+> lane's two new tests, so the count moved exactly as much as it should) /
+> **15 XCUITest, 0 failures** / **Release clean**. Sim `CC-lane-1`, runtime
+> iOS 27.0 `24A5423a`.
+>
+> **Run 1 was a FAIL and it was #219, declared before the re-roll rather than
+> after.** One red — `TalariaUITests.testConnectedRelaunchSkipsTheConnectEntry`
+> — the un-hittable-button flake, on a run whose Swift Testing leg was 2811/2811
+> and whose Release leg passed. Re-run on **byte-identical** bytes: that test
+> **passed (42.5 s)**, 15/15, everything else unchanged. Under this lane's
+> pre-declared rule (one re-roll on THAT test only; a second red on the SAME
+> test stops the lane) the red is discharged.
+>
+> **⚠️ THE GATE'S OWN CLASSIFIER DISAGREED, and it should be read before anyone
+> treats its advice as final.** It printed *"ASSERTION TEXT PRESENT — treat this
+> as a REAL failure. Do NOT re-roll it."* That advice is correct in general and
+> wrong for this test: #219's flake is an XCUITest assertion failure, so it
+> presents with assertion text every time. The classifier fails SAFE by design
+> (#300) — it cannot distinguish a known-flaky assertion from a new one, and
+> nothing has taught it #219's signature. The override here rests on evidence
+> the classifier does not have: #219 is measured **6 reds / 2 passes on
+> unmodified `main`** the previous night, and this lane's diff touches no
+> connect path. **Anyone overriding this advice owes that second sentence.**
+>
+> **✅ #423 REPRODUCED EXACTLY, on the failing run.** The gate printed
+> **`XCUITest tests run — 2`** while `suite.log`'s own summary read
+> *"Executed 15 tests, with 1 failure"* and carried 30 `Test Case '-[` lines
+> (15 started + 15 finished). On the PASSING run the same line read
+> **`15`**. So the under-report is specific to red runs, exactly as #423
+> describes — the count was taken by hand from `suite.log` on both runs rather
+> than from the gate's summary line. **Both runs used the PRE-FIX gate:** #423's
+> repair (`6a96b85a`, *"the gate's XCUITest count reads the ledger"*) landed on
+> `main` while this lane was mid-gate and arrived here on the rebase. So this is
+> a LAST SIGHTING of the defect, not a live one — recorded precisely because the
+> fix means nobody will see it again.
+>
+> **Rebase note (and why there is no third gate run).** `origin/main` moved
+> during this lane — `9f537b42`, `6a96b85a`, `2cab3d45` — and those three
+> commits touch **only** `OPEN_ITEMS*.md` and `scripts/mac/*`: no Swift, no
+> `project.yml`, no `project.pbxproj`. The compiled inputs the PASS was measured
+> on are byte-identical to what merges, so the gate was **not** re-run after the
+> rebase. That is a decision, not an omission: re-rolling twenty minutes to
+> re-measure an unchanged binary with a fixed test COUNTER is the cost rule this
+> project already wrote down (*the gate is a verification instrument, not a
+> search tool*). `xcodegen generate` after the rebase produced no diff.
+>
+> ---
+>
+> **🟡 340-P-D — WHAT REMAINS, RE-FILED AS WATCH. #340 IS NOT CLOSED BY THIS.**
+>
+> The promotion moved a real number and did not solve the founding defect. On
+> 08-27's own figures the promoted text produces a correct future due date in
+> **18 of 40 trials**; **~55% of trials still carry no due date at all**, and a
+> reminder with no due date is exactly the artifact this entry was opened over.
+> With **340-E ruled NO (08-31)** there is no guard-side catcher for the false
+> *"set for 11"* claim either, so the residual is model/prompt behaviour with
+> two prose candidates already falsified (340-F: 0 due dates in 14 calls;
+> 340-G: won omission, cost tool calls) and a third now promoted.
+>
+> **The next measurement, named — and the reason it needs naming is that the
+> instrument's meaning changed underneath it.** The `due-date` instrument's
+> **`armed` cell now IS the promoted text.** Every pre-2026-09-01 `armed` number
+> in this entry is a measurement of the OLD guide; every `armed` number from
+> here on measures the new one. They are not comparable, and nothing in the
+> artifact says so.
+> - **A future run should compare a fresh `armed` against 08-27's
+>   `armed-bareclock` column, not against 08-27's `armed` column** — i.e. the
+>   pre-registered expectation is **REPLICATION at ~45% populated-future /
+>   ~47.5% union / 0% wrong-value**, not improvement. A fresh `armed` landing
+>   near 08-27's *control* (0/40) means the promotion did not survive the trip
+>   into production, which is a different and worse finding than "no gain".
+> - **The clock regime must be recorded with it.** 08-27 ran ALREADY-PAST
+>   (21:00 local against a fixed *"at 4:30pm"* prompt). A replication run before
+>   16:30 local is measuring the other branch of `resolveBareClock` and is not a
+>   like-for-like check on the same bucket — 340-G's own instrument flaw,
+>   avoided by stating it rather than by remembering it.
+> - **Cheapest vehicle:** `preota-subset.sh` already runs
+>   `due-date --trials 20 --cells armed` on the phone, so the replication rides
+>   an existing device pass rather than needing a lane. Score with
+>   `score-due-omission.py`, four buckets over TRIALS, `--start`/`--end` scoped
+>   to the run window (#416-G: cell names are not unique across instruments, and
+>   an unscoped score silently pooled #392's `armed` into #340's).
+> - **The 55% itself gets no new prose candidate without a mechanism.** This
+>   entry has spent three texts; the standing lesson is that a guide which reads
+>   well is not evidence. Anything further should start from why the model omits
+>   the field when it is optional, not from a fourth rewrite.
+>
+> **Prose this lane FALSIFIED and corrected upstream, in the same commit**
+> (close-out rule, #317): the header clause above; the index line at the top of
+> this file; `ReminderCreateToolRequiredFields`'s *"same @Guide texts"* (now a
+> TWO-delta struct — schema optionality **and** the pre-#340 guide);
+> `ReminderCreateToolGuidefix`'s already-corrected confound note (it grew a
+> third leg the same way, on the same day, which is the second time a promotion
+> has aged that comment out); `ReminderCreateToolDateguide`'s *"production's
+> `due` guide still offers …or empty for no due date"*; the `armedDateguide`
+> cell doc, which made the same claim and whose `armed` is no longer a control;
+> `dueDateBatteryCells`'s implicit control claim; and the
+> *"`@Guide` has no runtime accessor"* line. **None of the measured DEBUG
+> structs were edited** — each is the artifact of the runs that used it, and
+> editing one would invalidate those numbers; the corrections are comments
+> beside them saying what they now measure.
 
 ## 334. 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips 5/5→0/5 between ctxlen 575 and 4,073; `'Say that again more briefly'` misroutes at BOTH 551 and 4,073 — **MEASURED 2026-08-12 on the iPad (the #333 runner's first scored probe, n=5/band, errors=0). ~~Mechanism UNKNOWN and deliberately not guessed.~~ ⟵ 2026-08-25 (Opus investigation): the mechanism was NEVER unknown — archived #206 named, measured, and published it 2026-07-30, and this entry never cited it. This is a REPLICATION of #206's offer-tail finding, not a mystery. ~~Product question below awaits Owen; bars pre-register when a route is picked.~~ ⟵ ⚖️ RULED + 🟢 APP HALF LANDED 2026-08-25 (PR #377, merge `12217bdb`): ARMED IS SAFE, so **the rows were mislabelled, not the router** — three `expected:` labels corrected, E1/E2 added to the grid (band count **22 → 34**), the no-op suffix pinned, #206's retracted length rationale removed from the router's comment, and NO router behavior change (the production diff is comment-only). ⏳ **STAYS OPEN:** E1 and E2 are DEVICE rows — the simulator cannot generate (#324) — so this entry closes on the next `long-context-probe` device run, which rides the runbook.**
 

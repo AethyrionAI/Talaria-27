@@ -350,11 +350,29 @@ struct ReminderCreateTool: Tool {
     // with ZERO zero-tool stalls vs 17/20 with three. `title` stays
     // required: the schema should demand what the tool cannot default.
     // `ReminderCreateToolRequiredFields` is the pinned rollback.
+    //
+    // #340 PROMOTION (2026-09-01): the `due` @Guide below is route (a)'s
+    // MODEL-FACING half, promoted from the retired `ReminderCreateToolBareclock`
+    // cell on the 340-H5′-A/B device A/B (2026-08-27, n=40/arm, iOS 24A5424a).
+    // The union `omitted + wrong-value` FELL 35/40 → 19/40 (p = 2.54e-04) and
+    // `populated-future` ROSE 0/40 → 18/40 (p = 6.38e-07), with `wrong-value`
+    // 0/40 in BOTH arms and `no-call` falling rather than rising — measured in
+    // the ALREADY-PAST clock regime, where a fix that bought due dates with
+    // stale values would have been caught. Two earlier candidates died first:
+    // 340-F's instructions clause produced ZERO due dates, and 340-G's
+    // `dateguide` bought its win at a flagged cost in tool calls.
+    //
+    // The text asks for strictly LESS than `dateguide` did: only the clock time
+    // the user said. The day arithmetic the model demonstrably dropped is
+    // `DeviceActionParsing.resolveBareClock`'s job, shipped 2026-08-21.
+    // **There is no pinned rollback struct** — the pre-promotion text is
+    // `PromotedDueGuideTests.supersededDueGuide`, which is where a revert would
+    // be caught rather than a place from which one could be run.
     @Generable
     struct Arguments {
         @Guide(description: "What to be reminded about, e.g. \"Call Shelley\".")
         var title: String
-        @Guide(description: "Due date and time like \"2026-07-08T09:00\" (local time), or empty for no due date.")
+        @Guide(description: "Due time. Give just the clock time the user said, like \"16:30\" or \"9am\" — the app works out which day it means. Use a full \"2026-07-08T09:00\" only when the user named a specific date. Leave empty ONLY when the user asked for no due date at all.")
         var due: String?
         @Guide(description: "Reminders list name, or empty for the default list.")
         var list: String?
@@ -643,6 +661,19 @@ extension ReminderCreateTool: CapabilityDescribing {
 /// Everything else is production: same name, same description, same
 /// @Guide texts, same create flow. If the promotion ever needs to come
 /// out, this is what production reverts to.
+///
+/// **⚠️ CORRECTION 2026-09-01 (#340-PROMOTE) — "same @Guide texts" IS NO
+/// LONGER TRUE, and this is the second time a promotion has aged this
+/// struct's comment out from under it (see `ReminderCreateToolGuidefix`,
+/// whose 2026-08-15 correction is the same shape).** #340's promotion moved
+/// production's `due` guide to the bareclock text; the guide below is the
+/// PRE-#340 one, so this struct now carries TWO deltas from production — the
+/// schema optionality it was built to roll back, AND the `due` guide text.
+/// It is left byte-identical on purpose: it is the measured artifact of every
+/// `armed-schemarollback` run, and #200S's rollback was always about the
+/// optionality. **Consequence to know before using it:** running it against
+/// production now measures #200S's schema change and #340's guide change
+/// TOGETHER and cannot separate them.
 struct ReminderCreateToolRequiredFields: Tool {
     let name = "createReminder"
     var description: String = ReminderCreateTool.productionDescription
@@ -696,6 +727,15 @@ struct ReminderCreateToolRequiredFields: Tool {
 /// used it, and editing it would invalidate them. Any future cell that wants to
 /// isolate a @Guide change against PRODUCTION must declare `due`/`list` as
 /// `String?`, or it will move the schema too and reproduce this confound.
+///
+/// **⚠️ SECOND CORRECTION 2026-09-01 (#340-PROMOTE): the confound grew a third
+/// leg.** #340 promoted production's `due` guide to the bareclock text, so this
+/// struct's `due` @Guide is no longer "production's text plus a destall clause"
+/// — it is the PRE-#340 text plus that clause. Against production it now moves
+/// the schema optionality AND two independent guide changes at once. Its honest
+/// control is still `armed-schemarollback`, which drifted in exactly the same
+/// direction on the same day, so the PAIR remains comparable to each other even
+/// though neither is comparable to production any more.
 struct ReminderCreateToolGuidefix: Tool {
     let name = "createReminder"
     /// Production description by default — the @Guide delta is this cell's
@@ -748,9 +788,23 @@ struct ReminderCreateToolGuidefix: Tool {
 /// than a reuse of `ReminderCreateToolGuidefix`, which declares `due`/`list`
 /// non-optional and so moves the schema too (see the correction on it).
 ///
-/// Not a promotion. `@Guide` has no runtime accessor, so the text is pinned here
-/// by comment and measured by the battery; production ships this only on a
+/// Not a promotion. ~~`@Guide` has no runtime accessor, so the text is pinned here
+/// by comment and measured by the battery~~; production ships this only on a
 /// verdict, and the verdict is Owen's.
+///
+/// **⚠️ TWO CORRECTIONS 2026-09-01 (#340-PROMOTE).**
+/// **(1) The paragraph above is stale about production.** Production's `due`
+/// guide no longer "offers *…or empty for no due date* as a co-equal option and
+/// never says to resolve a bare time" — it is the bareclock text as of the
+/// promotion, so this arm is a treatment-vs-treatment contrast now, not
+/// treatment-vs-control. Nothing here is edited: it is the measured artifact of
+/// 340-G.
+/// **(2) "`@Guide` has no runtime accessor" was never quite true, and the whole
+/// entry repeated it.** The macro's *argument* has none; its *effect* does —
+/// `@Generable` lowers every description into `Arguments.generationSchema`,
+/// which is `Codable`. `PromotedDueGuideTests` reads the promoted text back out
+/// of that schema, which is why #340's promotion could be pinned by a test at
+/// all rather than by another comment.
 struct ReminderCreateToolDateguide: Tool {
     let name = "createReminder"
     var description: String = ReminderCreateTool.productionDescription
@@ -768,60 +822,6 @@ struct ReminderCreateToolDateguide: Tool {
         // due, and "in 20 minutes" produced a value 6.5 hours in the past); and
         // demote "empty" from a co-equal option to the narrow case it covers.
         @Guide(description: "Due date and time like \"2026-07-08T09:00\" (local time). If the user gives a time without saying which day, use TODAY's date — or tomorrow's if that time has already passed today. Leave empty ONLY when the user asked for no due date at all.")
-        var due: String?
-        @Guide(description: "Reminders list name, or empty for the default list.")
-        var list: String?
-    }
-
-    func call(arguments: Arguments) async throws -> String {
-        let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        if case .refused(let refusal) = try await relay.started(name, detail: title) { return refusal }
-        defer { Task { await relay.completed(name) } }
-        return await ReminderCreateTool.performCreate(
-            rawTitle: title, rawDue: arguments.due ?? "", rawList: arguments.list ?? "",
-            relay: relay, confirmations: confirmations
-        )
-    }
-}
-
-/// #340 route (a)'s MODEL-FACING half, and it is a CELL rather than a
-/// promotion — deliberately.
-///
-/// The app-side resolution shipped to production: it is deterministic, it is
-/// unit-tested, and it fixes the card-edit path with no dependence on model
-/// behaviour. **This guide text did not**, because the only comparable prior
-/// change moved a number the wrong way as well as the right one: 340-G's
-/// `armed-dateguide` cut omission 19/19 → 11/15 (p = 0.029) **and cut tool
-/// calls 19/20 → 14/20** (p = 0.092, flagged at 340-G4). A guide that buys
-/// due dates by costing calls is not obviously an improvement, and #340 has
-/// already spent two candidates on prose that read well and measured badly.
-/// So it rides here until 340-H5 says otherwise.
-///
-/// **What it asks for is strictly LESS than `dateguide` asked for.** That
-/// arm's second clause — *"or tomorrow's if that time has already passed
-/// today"* — is exactly the sentence the model demonstrably dropped, and it is
-/// now `DeviceActionParsing.resolveBareClock`'s job. This text asks only for
-/// the clock time the user said, and says the app works out the day, so
-/// there is no date arithmetic left in the model's half to get wrong.
-///
-/// Production description, production schema, production create flow: the
-/// ONLY delta is the `due` guide string, which is what makes the cell a
-/// measurement of that string rather than of a bundle.
-///
-/// (No `#if DEBUG` of its own — this file's treatment section is already
-/// inside one, and nesting a second left the outer block unclosed.)
-struct ReminderCreateToolBareclock: Tool {
-    let name = "createReminder"
-    var description: String = ReminderCreateTool.productionDescription
-    var includesSchemaInInstructions: Bool = true
-    let relay: ToolEventRelay
-    let confirmations: ToolConfirmationCenter
-
-    @Generable
-    struct Arguments {
-        @Guide(description: "What to be reminded about, e.g. \"Call Shelley\".")
-        var title: String
-        @Guide(description: "Due time. Give just the clock time the user said, like \"16:30\" or \"9am\" — the app works out which day it means. Use a full \"2026-07-08T09:00\" only when the user named a specific date. Leave empty ONLY when the user asked for no due date at all.")
         var due: String?
         @Guide(description: "Reminders list name, or empty for the default list.")
         var list: String?

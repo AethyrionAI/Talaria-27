@@ -489,6 +489,7 @@
 		C4A55D23DFA1139000F7D015 /* MockInboxService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80EDA325939230DE08CBF841 /* MockInboxService.swift */; };
 		C502C49891BAC9E2FB333B49 /* ToolActivityRail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82A9EFD28E7758CB1A9CBBD0 /* ToolActivityRail.swift */; };
 		C5747AEE695165B5FD297060 /* ConversationListStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42BE7E738FC5E156E3130DE /* ConversationListStateStore.swift */; };
+		C5F55D87BC6D936FA297FE44 /* PromotedDueGuideTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B2B04F57635A759F8956E8 /* PromotedDueGuideTests.swift */; };
 		C6CD91309172B4FADFB06592 /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = C3E2984E6A338E7582E9A01C /* WebRTC */; };
 		C77821A24A5D65B32394136D /* HermesControlsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5B4BC4786992BD264AE00F3 /* HermesControlsTests.swift */; };
 		C78D8850D85EC87A933C0E35 /* LocalChatBackend+Harnesses.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3898F88AB0B7488B69F77EF /* LocalChatBackend+Harnesses.swift */; };
@@ -1247,6 +1248,7 @@
 		E828E5C81481C4CBD167059E /* MarkdownListTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownListTests.swift; sourceTree = "<group>"; };
 		E89F96377330A24AB8029976 /* AppLockGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockGateTests.swift; sourceTree = "<group>"; };
 		E8E28CB0E81CDA7297E66811 /* TalkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkStore.swift; sourceTree = "<group>"; };
+		E9B2B04F57635A759F8956E8 /* PromotedDueGuideTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromotedDueGuideTests.swift; sourceTree = "<group>"; };
 		EACC41B9626733CA7D1E4CED /* DeclineAttributionScorerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeclineAttributionScorerTests.swift; sourceTree = "<group>"; };
 		EAD54E9A9E2AA0D4604C4467 /* MockHermesClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockHermesClient.swift; sourceTree = "<group>"; };
 		EB0056665D4A47D62681F26B /* ConversationSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationSearch.swift; sourceTree = "<group>"; };
@@ -1556,6 +1558,7 @@
 				239665852938D1C25488A8E2 /* PrivateCloudRoutingTests.swift */,
 				D193EE3D4E571801C08AE5D1 /* PrivateRelayIndicatorTests.swift */,
 				0B4944F1499EF1EEF4FC8E93 /* ProfileSwitchAtomicityTests.swift */,
+				E9B2B04F57635A759F8956E8 /* PromotedDueGuideTests.swift */,
 				BED8B67DE2C63EF0FC999D38 /* RealtimeVoiceIndicatorTests.swift */,
 				6BB71CCECAE06823EA97EEDA /* ReasoningChannelTests.swift */,
 				CBFF1B1F3430AE071F4EC0C1 /* RecorderCaptureIntegrityTests.swift */,
@@ -3056,6 +3059,7 @@
 				265A4787A9870DA7441BC100 /* PrivateCloudRoutingTests.swift in Sources */,
 				D09924BC1187CBAF15C35647 /* PrivateRelayIndicatorTests.swift in Sources */,
 				812F1205E4E375A65F1AADD3 /* ProfileSwitchAtomicityTests.swift in Sources */,
+				C5F55D87BC6D936FA297FE44 /* PromotedDueGuideTests.swift in Sources */,
 				3FA62CFB23383532F664D192 /* RealtimeVoiceIndicatorTests.swift in Sources */,
 				542E125ADE6CFAD3AADC94AF /* ReasoningChannelTests.swift in Sources */,
 				E90A685B26E6B40E31C54A9F /* RecorderCaptureIntegrityTests.swift in Sources */,

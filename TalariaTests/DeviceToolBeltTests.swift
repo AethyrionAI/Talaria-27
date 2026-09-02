@@ -1088,17 +1088,23 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedScopedv2.rawValue == "armed-scopedv2")
         // #216: the narrow belt, evaluated where its only known cost cannot occur.
         #expect(LocalChatBackend.ActionBatteryCell.routedScoped.rawValue == "routed-scoped")
-        // #340 route (a): the app-side fix's model-facing half, held behind a
-        // cell rather than promoted (Owen, 2026-08-21) — 340-G's guide arm
-        // bought its omission win at a flagged cost in tool calls.
-        #expect(LocalChatBackend.ActionBatteryCell.armedBareclock.rawValue == "armed-bareclock")
+        // #340 route (a)'s `armed-bareclock` was asserted here from 2026-08-21
+        // until 2026-09-01, when the cell was RETIRED: 340-H5′-A/B met both
+        // bars, the guide it carried was promoted into `ReminderCreateTool`,
+        // and a cell whose only delta is now identity with production measures
+        // nothing. The text itself is pinned by `PromotedDueGuideTests` on the
+        // production type — a stronger home than a rawValue assertion, because
+        // it reads the string out of the generation schema the model is shown.
         // #215 adds `routed-production`, asserted at the top of this test.
         // 31 → 32 with #340's `armed-dateguide`; 32 → 33 with route (a)'s
-        // `armed-bareclock`. This count is a PIN, not a formality: it is what
-        // makes adding a cell without naming its label a failure rather than a
-        // silent widening of the export vocabulary. It did its job on
-        // 2026-08-21 — the gate caught this lane's new case here.
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 33)
+        // `armed-bareclock`; **33 → 32 when that cell retired at the 2026-09-01
+        // promotion.** This count is a PIN, not a formality: it is what makes
+        // adding a cell without naming its label a failure rather than a silent
+        // widening of the export vocabulary — and it works in the removing
+        // direction too, which is why this line moved deliberately rather than
+        // being discovered red. It did its job on 2026-08-21, when the gate
+        // caught that lane's new case here.
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 32)
     }
 
     /// #216: routing is a property of the CELL, and exactly two cells have it.
