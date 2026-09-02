@@ -144,7 +144,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#420** ✅ **CLOSED** — 🐛 the **"Auto-connect on launch" toggle is INERT** — one writer, ZERO production readers (moved to the Server screen when the Relay page retired; the move kept the UI and dropped the consumer). A control promising an effect it no longer has — #180's family from the opposite direction. Burned ~40% of the #350-D pilot's budget. ~~**⚖️ Owen's call: delete it or wire it — not a repair, a feature decision**~~ **⟵ ⚖️ RULED 2026-08-31 (DELETE the toggle, KEEP the persisted key — auto-connect-on-launch is not a behaviour the app intends to have post-#375, so wiring it would have invented a feature to justify a leftover switch) and ✅ BUILT + MERGED 2026-09-01, PR #398 `c48fcae1`: 420-A/B/C/GATE all MET. The test guards the property whose ABSENCE caused this — nothing reads the key — and it was watched RED on the untouched tree, then mutation-isolated (a re-introduced reader reds exactly one of the four pins). Gate 2783 Swift Testing (+6) / 15 XCUITest / Release clean, first run. No device bar was owed: an inert control's deletion changes nothing observable — what it removes is a lie the runbooks kept believing**
 - **#421** 🔴 **"OJAMD's gateway is down" is FALSE** — measured UP and healthy from the Mac (200 on both the CGNAT literal and the MagicDNS name; `/health/detailed` returns a running server's auth error). The PHONE cannot dial it: host-fed screens show `unsupported URL` = **-1002, a MALFORMED-URL error**, not a down host. Two fatal mechanisms in our code — no scheme validation anywhere, and MagicDNS names having no ATS exception (CIDR-keyed to `100.64.0.0/10`). **✅ SETTLED 2026-08-31: the field reads `/ojamd:8642`** — a relative path (scheme=nil, host=nil), rejected with exactly -1002. Mechanism 1 confirmed by measurement. **⚠️ Prepending `http://` is a TRAP — a MagicDNS host is then ATS-blocked; the working value is `http://100.110.102.59:8642`.** Corrects handoffs §23/§24
 - **#422** 🧠 **MEMORY–AGENT INTEGRATION** — succeeds #378. **⚖️ SHAPED + RULED POST-LAUNCH 2026-08-31 (Owen), and it splits in two:** (a) Talaria as a CLIENT of the host's providers — `hindsight`/`honcho` are 2 of the 8 Hermes memory plugins, so ONE delivery route buys all eight — host-tier only; (b) **Talaria's OWN local memory**, which serves the hostless default user and is recorded as a **DELIBERATE LAUNCH GAP** (*"It has no memory between sessions right now"*), not a backlog line. **Storage is solved** — SwiftData + `NLContextualEmbedding` (512-dim, on-device, `hasAssets=true`, probed 08-31); the difficulty is what earns a memory, whether the user can correct it, and two-store disagreement. **Recommended first shape: embedding retrieval over stored turns, NOT extracted facts** — #417 measured this model fabricating when it has nothing (20/40 → 0/40 with something real), so retrieval-of-real-text has the smallest lying surface
-- **#423** 🧰 **lane-gate's XCUITest counter under-reports on FAILED runs** — the `Executed N tests, with 0 failures` grep falls through to the LaunchTests sub-suite on a red run and prints "2" while all 15 ran; reads exactly like #219's runner-death and nearly misdirected the 09-01 overnight diagnosis twice. Green-run counts are unaffected. Fix shape: count Test Case lines; #300's classifier family
+- **#423** ✅ **lane-gate's XCUITest counter under-reports on FAILED runs — FIXED + MERGED 2026-09-01 (PR #403, squash `PENDING-SQUASH`), 423-A/B/C all MET.** The `Executed N tests, with 0 failures` grep fell through to the LaunchTests sub-suite on a red run and printed "2" while all 15 ran; read exactly like #219's runner-death and nearly misdirected the 09-01 overnight diagnosis twice. The count now reads the `Test Case '-[…]'` ledger and prints passed/failed/total when those disagree; green runs are byte-identical (`diff` + `od`-proven), so no historical PASS count changes meaning. **🔴 The filing understated it — replayed against main, the old check did not just print 2, it printed `PASS  XCUITest tests run — 2` on a red run: a positive marker over a bundle with a failed test, green for as long as it existed. It now fails on its own rather than leaning on its three sibling checks.** RED-first in its own commit (4 of 23 self-test checks failing, both real gate logs among them → 24 green). Runner-death is now separable from a red run in both directions. #300's classifier family
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
 - **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. ~~Mechanism deliberately not guessed~~ **⟵ INVESTIGATED 2026-08-25: the mechanism was published in archived #206 (2026-07-30) and this entry never cited it — "ends with an OFFER ⇒ armed" predicts 8/8 rows; length falsified three ways; a RETRACTED rationale still lives in the router's code comment (doc debt). ~~The open question is Owen's PRODUCT call: should a words-only turn after an offer route armed?~~ ⟵ **⚖️ RULED 2026-08-25: ARMED IS SAFE — the rows were mislabelled, not the router.** App half landed the same day (PR #377): three `expected:` labels corrected, **E1/E2 device rows added (band count 22 → 34 — a RE-BASELINE for #339's subset)**, the no-op suffix pinned (the "short" 551 row was never shortened — `suffix(560)` of a 551-char string), the retracted rationale rewritten on the latency basis, and the production diff comment-only. **⏳ OPEN on the next `long-context-probe` DEVICE run** (sim cannot generate, #324).****
@@ -169,7 +169,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#359** 🐛 compose fusion — one occurrence, mechanism unknown; WATCH on recurrence (2026-08-18)
 - **#363** 🔧 outbox hygiene — 0.4.0+ deployed both hosts; WATCH ~2026-08-25 (first natural nonzero sweep)
 - **#368** 🔧 Phase 3 slice 3E — the runs-transport CUTOVER — MERGED 2026-08-19 (`33108d05`); runs is the DEFAULT plane; 3E-H's last two device steps owed Friday
-- **#373** 🧹 instrument/test hygiene bundle — 🟡 **FIVE TAKEN 2026-08-21 PM**, all sharing one shape (a cheap mistake billed only after an expensive run): `--trials`/`--timeout` validated (`--timeout 30m` made bash's `(( ))` evaluate 0 and report a timeout that never happened); a TYPO'D INSTRUMENT NAME no longer burns the full timeout on an inert launch; `devicectl` exit 142 no longer reads as "no device"; #224's five busy-spins → one bounded helper that ASSERTS instead of falling through silently; #335's conductor now claims its run by set difference. **Plus an unlisted finding: the button-name tripwire was blind to `due-date`/`card-clause`/`refusal-words` — a hand-maintained list cannot detect its own omissions.** **⟵ ✅ FOUR MORE DONE + MERGED 2026-08-26 (bundle lane; PR #386, squash `fda2ad8e`), 373-A..E all MET:** `cold-calfix` registered (count pin 49→50, flags derived not copied); the tripwire made SELF-MAINTAINING — it reads the VIEW's source now, and the proof is the sequencing: the new button landed before its registry entry, the derived test caught it, the literal list stayed green through the exact failure it was built for; #342's residual executed as what it really was (see below); #335's conductor hazard PINNED by mutation. **🔴 Two of the four were ALREADY DONE at lane-open — #342's checks shipped 2026-08-15 (its close mis-scoped them three days later), #335's fix 2026-08-21 by this bundle's own earlier pass — so what landed for #342 is `scripts/oi-invariants-test.py`, the fixture harness that checker never had, plus #409's regex narrowing and the discovery that markdown bold could switch the check off entirely.** 🟡 One bullet still open: `score-due-omission.py` scores the #200V warm-up as an arm
+- **#373** 🧹 instrument/test hygiene bundle — 🟡 **FIVE TAKEN 2026-08-21 PM**, all sharing one shape (a cheap mistake billed only after an expensive run): `--trials`/`--timeout` validated (`--timeout 30m` made bash's `(( ))` evaluate 0 and report a timeout that never happened); a TYPO'D INSTRUMENT NAME no longer burns the full timeout on an inert launch; `devicectl` exit 142 no longer reads as "no device"; #224's five busy-spins → one bounded helper that ASSERTS instead of falling through silently; #335's conductor now claims its run by set difference. **Plus an unlisted finding: the button-name tripwire was blind to `due-date`/`card-clause`/`refusal-words` — a hand-maintained list cannot detect its own omissions.** **⟵ ✅ FOUR MORE DONE + MERGED 2026-08-26 (bundle lane; PR #386, squash `fda2ad8e`), 373-A..E all MET:** `cold-calfix` registered (count pin 49→50, flags derived not copied); the tripwire made SELF-MAINTAINING — it reads the VIEW's source now, and the proof is the sequencing: the new button landed before its registry entry, the derived test caught it, the literal list stayed green through the exact failure it was built for; #342's residual executed as what it really was (see below); #335's conductor hazard PINNED by mutation. **🔴 Two of the four were ALREADY DONE at lane-open — #342's checks shipped 2026-08-15 (its close mis-scoped them three days later), #335's fix 2026-08-21 by this bundle's own earlier pass — so what landed for #342 is `scripts/oi-invariants-test.py`, the fixture harness that checker never had, plus #409's regex narrowing and the discovery that markdown bold could switch the check off entirely.** **⟵ ✅ THE LAST BULLET IS DISCHARGED 2026-09-01 (script lane; PR #403, squash `PENDING-SQUASH`), 373-W-A/B both MET — `score-due-omission.py` no longer scores the #200V warm-up as an arm.** It is reported on one labelled `discarded warm-up:` line with its count and enters no rate; a warm-up-only archive exits 2 as NO DATA instead of reading clean. RED-first in the script's own `--self-test` (`AssertionError: a discarded warm-up must never print as a cell`), mutation-pinned, and replayed against the real #200V archive — the `cell warmup — 1 TRIALS` block leaves, both measured arms stay byte-identical at 20 trials each. The test also asserts the row is still PARSED, because a fix that worked by failing to match the tag would pass every output assertion and silently drop a real arm later. **Two findings recorded, neither built:** the #340-H5 archive the 2026-08-23 count correction called "NOT preserved" is on the Desktop (corrected upstream at that block), and the per-CALL view still pools the warm-up's call deliberately, since every earlier #340 measurement is written in that denominator. **⟶ Every bullet this bundle ever listed is now discharged: CLOSEABLE** (archive-move rides Owen's sweep)
 - **#379** 🧭 156e — Projects surface; post-launch candidate
 
 > **2026-08-18 night — archive sweep 4:** the six-slice board audit closed
@@ -7444,6 +7444,28 @@ is NOT), **#215** (why a rate needs its denominator), `DeviceActionTools.swift:2
 > the guide was not promoted, and H5′ replaced the bar** — but no future
 > lane may cite the p = 0.047 row; there is no significant no-call
 > contrast in this run.
+>
+> > **⟵ ONE CLAUSE OF THAT CORRECTION IS FALSIFIED, 2026-09-01 (the script
+> > lane for the warm-up row). THE ARCHIVE IS PRESERVED** —
+> > `~/Desktop/talaria-388-340.logarchive`, collected 2026-08-21 17:19,
+> > minutes after the run. Re-scored today it reproduces the log-derived
+> > numbers this correction was arguing against, unchanged: `armed` 20
+> > trials with **5** no-call, `armed-bareclock` 20 with 0, and **37** calls
+> > in the per-CALL view. **The audit's verdict stands untouched** — the
+> > relay artifact remains the stronger record of what the RUN did, and the
+> > p = 0.047 row stays uncitable — but "the log is gone" can no longer be
+> > the reason, and the two sources genuinely disagree rather than one being
+> > absent.
+> >
+> > **Part of the 36-vs-37 gap now has a mechanical cause.** One of those 37
+> > is the DISCARDED WARM-UP's call: the battery's `shape=warmup … t=0`
+> > trial made one, and the per-CALL view counts every matched line. The
+> > per-CELL table used to print it as a third arm (`cell warmup — 1
+> > TRIALS`, 100% omitted) and no longer does. The per-call denominator is
+> > deliberately NOT re-cut, because every earlier #340 measurement is
+> > written in it. Arithmetic: 15 + 20 attributed + 1 warm-up = 36 against
+> > 37 matched lines, so exactly one further line is attributed to no trial
+> > at all.
 >
 > ### 🔴 What is still broken, stated plainly
 >
@@ -15293,7 +15315,7 @@ scope: **wholesale, or a permanent dual path?**
 > 5. Glance at Settings → Developer: the Runs Transport row reads ON without
 >    anyone having touched it. That is the migration, visible.
 
-## 373. 🧹 Instrument/test hygiene bundle — small knives, one drawer — **FILED 2026-08-18 night per #268, collecting residuals re-homed from #333, #341, #224, #342 and #335 at their closes. 🟡 FIVE TAKEN 2026-08-21 PM; the rest still open and listed below.** **⟵ ⟵ FOUR MORE DONE + MERGED 2026-08-26 (bundle lane; PR #386, squash `fda2ad8e`): `cold-calfix` registered (count pin 49→50), the button-name tripwire made SELF-MAINTAINING (it reads the view's source now, RED-witnessed by the new button landing before its entry while the old literal list stayed green), #342's residual executed as what it really was, and #335's conductor hazard PINNED. Bars 373-A..E all MET. 🔴 TWO OF THE FOUR WERE ALREADY DONE when this lane opened — #342's checks since 2026-08-15, #335's fix since 2026-08-21 — and both were carried on the ballot and in this entry's own list; the premise check that caught it cost ten minutes. 🟡 STAYS OPEN on ONE bullet: `score-due-omission.py` reporting the #200V warm-up trial as an arm.**
+## 373. 🧹 Instrument/test hygiene bundle — small knives, one drawer — **FILED 2026-08-18 night per #268, collecting residuals re-homed from #333, #341, #224, #342 and #335 at their closes. 🟡 FIVE TAKEN 2026-08-21 PM; the rest still open and listed below.** **⟵ ⟵ FOUR MORE DONE + MERGED 2026-08-26 (bundle lane; PR #386, squash `fda2ad8e`): `cold-calfix` registered (count pin 49→50), the button-name tripwire made SELF-MAINTAINING (it reads the view's source now, RED-witnessed by the new button landing before its entry while the old literal list stayed green), #342's residual executed as what it really was, and #335's conductor hazard PINNED. Bars 373-A..E all MET. 🔴 TWO OF THE FOUR WERE ALREADY DONE when this lane opened — #342's checks since 2026-08-15, #335's fix since 2026-08-21 — and both were carried on the ballot and in this entry's own list; the premise check that caught it cost ten minutes. 🟡 STAYS OPEN on ONE bullet: `score-due-omission.py` reporting the #200V warm-up trial as an arm.** **⟵ ✅ THAT LAST BULLET IS DONE + MERGED 2026-09-01 (script lane; PR #403, squash `PENDING-SQUASH`), bars 373-W-A/B both MET — see the RESULT block at the end of this entry. Nothing in this bundle is open: ⟶ CLOSEABLE.**
 
 > **✅ 2026-08-21 PM — five items, chosen because they share one shape: a cheap
 > mistake that only bills you after an expensive run.** That shape cost real
@@ -15586,6 +15608,67 @@ scope: **wholesale, or a permanent dual path?**
 > - **373-W-B (RED-first):** a scorer self-test with a fixture containing a warm-up row is written first and watched RED; GREEN after; removing the exclusion re-reddens it. [offline]
 > Verification standard: the scorer's own test + the artifact replay; no app gate. Closes the bundle if nothing else is listed open in this entry — the lane checks and says so.
 
+> **✅ 2026-09-01 — RESULT: 373-W-A and 373-W-B both MET. PR #402, squash
+> `SQUASH_373_423`. The bundle's last listed bullet is discharged; nothing else
+> in this entry is open. ⟶ CLOSEABLE (archive-move rides Owen's sweep, not this
+> lane).**
+>
+> - **373-W-B — MET, RED first and mutation-pinned.** The test went into the
+>   script's OWN `--self-test`, which is this file's established convention
+>   (`grep -l 'unittest\|pytest' scripts/mac/*.py` finds nothing; the two
+>   sibling scorers use standalone files, this one has always used a `--self-test`
+>   flag). Fixture: the app's `battery: BEGIN shape=warmup p=remind t=0` plus its
+>   call, placed in front of the existing two-arm A/B so the measured arms'
+>   denominators are asserted UNCHANGED by its presence.
+>   **RED, before a line of the fix:**
+>   ```
+>   File ".../score-due-omission.py", line 496, in self_test
+>     assert "cell warmup" not in out, "a discarded warm-up must never print as a cell"
+>   AssertionError: a discarded warm-up must never print as a cell
+>   ```
+>   GREEN after, in under a second. **Mutation:** `split_warmup` replaced by
+>   `return by_cell, []` re-reds it at the identical line; restored, green again.
+>   **One assertion is there for a reason worth keeping:** the test also asserts
+>   the warm-up row is still PARSED and still present in `attribute()`'s output.
+>   A "fix" that worked by failing to match the tag would satisfy every output
+>   assertion and would silently drop a REAL arm the first time a cell name
+>   changed shape — the exclusion has to be a decision taken at report time, and
+>   that is now pinned rather than intended.
+> - **373-W-A — MET, replayed against the real artifact.** The #200V archive is
+>   `~/Desktop/talaria-388-340.logarchive` (the #340-H5 run, collected
+>   2026-08-21 17:19). Before/after diff is exactly the intended change and
+>   nothing else:
+>   ```
+>   +discarded warm-up: 1 trial(s), 1 of them made a call — NOT an arm, and in NONE of the rates below (#200V pays the cold start outside the counts)
+>   -cell warmup — 1 TRIALS (denominator is trials, not calls)
+>   -  omitted           : 1/1  (100.0%)
+>   -  UNION omitted+wrong-value: 1/1  (100.0%)   <- 340-H5's non-decomposable bar
+>   ```
+>   Both measured arms are byte-identical across the fix — `armed` 20 trials
+>   (15 omitted / 5 no-call), `armed-bareclock` 20 trials (17 omitted / 3
+>   populated-future) — so no rate anyone has ever quoted from this script moves.
+>   A warm-up-ONLY archive now exits 2 as NO DATA rather than reading as a clean
+>   sweep, which is the rule this script already applied to empty input.
+>
+> **🔎 TWO FINDINGS THE REPLAY PRODUCED, neither of them the lane's job to fix.**
+>
+> 1. **The archive the 2026-08-23 count correction called "NOT preserved" is on
+>    the Desktop.** Correction filed upstream at that block (see #340-H5's
+>    entry); the audit's VERDICT is untouched, but its stated reason no longer
+>    holds.
+> 2. **The per-CALL view still pools the warm-up's call, and that is deliberate.**
+>    Its 37 is 15 attributed + 20 attributed + the warm-up's, against 37 matched
+>    `createReminder due` lines — so exactly one further line is attributed to no
+>    trial at all (`attribute()` keeps at most one call per trial window). That
+>    report is left alone ON PURPOSE: every earlier #340 measurement is written
+>    in its denominator, and silently re-denominating it would break the
+>    comparability it exists for. Filed as a finding, not built.
+>
+> **Bundle state:** every bullet this entry ever listed is now discharged —
+> #333's four minors, #341's `cells:`, #224's five busy-spins, #342's residual
+> (executed as what it really was), #335's conductor, the tripwire's structural
+> fix, and this. **CLOSEABLE.**
+
 ## 379. 🧭 156e — the PROJECTS introspection surface — **FILED 2026-08-18 night, re-homed from #156's close (Projects exist in hermes-agent — #159's correction). Post-launch candidate; Owen routes.** **⟵ HEADER CORRECTED 2026-08-23: RULED — Owen PARKED this post-launch on 2026-08-18 ~22:40. Not an open routing question; do not re-raise it before launch.**
 
 > **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): PARKED
@@ -15619,4 +15702,69 @@ extend. Not built tonight — filed so the next red is read correctly.
 > - **423-B (RED-first on the self-test):** `scripts/mac/lane-gate-classify-test.sh` gains a red-run fixture; run BEFORE the fix it reproduces the fall-through ("2"), i.e. the self-test itself is the watched RED; after the fix it passes in ~1 s. [offline]
 > - **423-C (green runs unchanged):** the green-run count is byte-identical to today's output, so no historical PASS count changes meaning. [offline]
 > Merge on 423-A/B/C; no app gate required — stated deliberately.
+
+> **✅ 2026-09-01 — RESULT: 423-A, 423-B and 423-C all MET. PR #402, squash
+> `SQUASH_373_423`. FIXED.**
+>
+> - **423-B — MET, and the RED is the deliverable, not a formality.** Done in
+>   two commits so the failure is in the history: the existing count was first
+>   lifted VERBATIM out of `lane-gate.sh`'s `require_count` call site into
+>   `lane-gate-classify.sh` as `gate_xcuitest_summary` — body unchanged, still
+>   the MAX over `Executed N tests, with 0 failures` — purely so the 1 s
+>   self-test could reach it. The new fixtures (the 15-test ledger red, green,
+>   and a runner-death shape where five tests start and never report) then failed
+>   **4 of 23**:
+>   ```
+>   FAIL  red run -> passed/failed/total — expected "14 passed / 1 failed / 15 ran", got "2"
+>   FAIL  runner death is DISTINGUISHABLE from a red run — expected "10 passed / 0 failed / 15 ran", got "2"
+>   FAIL  real log talaria-gate.OvEY5t4EZE -> ... got "2"
+>   FAIL  real log talaria-gate.8vQbvPdIOy -> ... got "2"
+>   ```
+>   After the fix: **CLASSIFIER: PASS (24 checks)**, exit 0, ~1 s, both real red
+>   logs included. (24, not 23 — the hint-resolution loop picked up the new
+>   `grep -n 'runner dies mid-bundle' OPEN_ITEMS.md` pointer and executed it.)
+> - **423-A — MET.** `gate_xcuitest_ledger` tallies the
+>   `Test Case '-[…]' started/passed/failed` lines; `require_xcuitest_count`
+>   reports them. Replayed against the recorded logs with no xcodebuild and no
+>   simulator (the count check extracted from each version of the script and
+>   driven over `suite.log`):
+>   ```
+>   talaria-gate.OvEY5t4EZE   before: PASS  XCUITest tests run — 2
+>                              after: FAIL  XCUITest tests run — 14 passed / 1 failed / 15 ran
+>   talaria-gate.8vQbvPdIOy   before: PASS  XCUITest tests run — 2
+>                              after: FAIL  XCUITest tests run — 14 passed / 1 failed / 15 ran
+>   talaria-gate.qGBfEfdv9p   before: PASS  XCUITest tests run — 15
+>                              after: PASS  XCUITest tests run — 15
+>   ```
+>   Lines are counted, never unique names: the launch suite runs `testLaunch`
+>   twice under two configurations and both are real executions.
+> - **423-C — MET, by diff rather than by argument.** The green replay's output
+>   is byte-identical between the two versions — `diff` clean, and `od -c`
+>   confirms the same bytes including the em dash. No historical PASS count
+>   changes meaning.
+>
+> **🔴 THE FILED SHAPE UNDERSTATED IT, and the replay is what showed that: on a
+> red run the old check did not merely print a wrong number, it PASSED.** The
+> line was `PASS  XCUITest tests run — 2` — a positive marker over a bundle
+> containing a failed test. The gate still failed overall on three sibling
+> checks (nonzero exit, the `** TEST FAILED **` refutation, the missing
+> `** TEST SUCCEEDED **`), so nothing merged that should not have; but the
+> founding rule of this script is that a check passes only on a positive marker
+> of the thing it is checking, and this one was green on a red run for as long
+> as it existed. It now FAILs on its own, without leaning on its siblings.
+>
+> **A second thing the fix buys, worth naming because the confusion ran both
+> ways.** Started-but-never-reported is now separable: a runner lost mid-bundle
+> prints `10 passed / 0 failed / 15 ran` plus an explicit note pointing at the
+> runner-flake family by search string. So the shape this defect was mistaken
+> for can no longer be mistaken for this defect either.
+>
+> **Where it lives:** the tally is in `lane-gate-classify.sh` (with the
+> pre-fix behaviour recorded in its comment), the reporting in `lane-gate.sh`'s
+> `require_xcuitest_count`, the fixtures in `lane-gate-classify-test.sh`.
+> `require_count` survives for the Swift Testing caller, where MAX-over-matching
+> -lines is correct because that line is emitted once per run — the header of
+> `lane-gate.sh` now records that this was the unnoticed second half of its own
+> mistake 1. No tracker numbers were added to text the gate prints; the
+> self-test's 300-C check and its pointer-resolution loop both still pass.
 
