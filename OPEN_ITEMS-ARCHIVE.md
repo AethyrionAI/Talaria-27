@@ -10573,6 +10573,18 @@ max per tool); the grind is a REFUSAL loop, a distinct third mechanism.
 >   battery-measured cut rate MEANS is open**, and #337-D's
 >   `turn-reset`-vs-`leaked` cells are the measurement.
 
+> **➡️ APPENDED 2026-09-01 (hygiene sweep — #261/#317 pointer block, original
+> bytes above untouched).** A block headed "✅🔴 2026-08-21 23:00 UTC —
+> RE-RUN WITH A REAL DENOMINATOR AT LAST" is misfiled inside
+> `OPEN_ITEMS.md` **#324** (the iOS/Xcode beta5 SDK audit), immediately
+> before that file's #344 header. It is actually about THIS entry's
+> governor: it confirms, on a second instrument (the `decline` battery,
+> n=30), that `runDeclineBattery` → `runActionBattery` now calls
+> `beginTurn()` per trial (per #343) so the per-turn budget resets and no
+> longer accumulates across a run — the exact confound #337-D flagged just
+> above. Left in place at #324 per the archive/append-only convention, not
+> moved.
+
 ## 231. 🐛 RELEASE-ONLY: the chat screen scrambles — transcript collapses, identity strip lands on the input bar. Debug is fine, so every check we run was blind to it (#218's family, for UI) — **✅ CLOSED 2026-08-03 night: 231-C's captured-log half met in the corded coda; all four bars now met**
 
 > **✅ 231-C LOG HALF MET — the corded coda's `log collect` archive shows the
@@ -25493,6 +25505,18 @@ shapes Track A), **#300** (the classifier that read a wrong verdict on both logs
 > board audit (ballot: `planning/2026-08-18-close-ballot.md`). RT-A measured, RT-B/F/H met, RT-C/D/E measured-no-verdict by design, and RT-G MET 2026-08-15 2:58 PM (see #338) — the header's 'STILL OWED' and the in-entry RT-G block are both superseded by this dated correction. The calendar-reap under-delete finally has its own number: #370. The headline (the governor confound) is CLAUDE.md law since 08-15.
 > Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
 
+> **➡️ APPENDED 2026-09-01 (hygiene sweep — #261/#317 pointer block, original
+> bytes above untouched).** A block headed "✅🔴 2026-08-21 23:00 UTC —
+> RE-RUN WITH A REAL DENOMINATOR AT LAST" is misfiled inside
+> `OPEN_ITEMS.md` **#324** (the iOS/Xcode beta5 SDK audit), immediately
+> before that file's #344 header. It belongs here: it is a SECOND
+> instrument (the `decline` battery, n=30, on `whoGoesThere`) confirming
+> THIS entry's governor-strangled-battery fix — `toolRelay?.beginTurn()`
+> per trial in `runActionBattery` — with declines reached rising 10/30 →
+> 30/30 once the fix applies. Also refutes #199A's founding claim and
+> closes #232's per-turn budget-reset bar in production. Left in place at
+> #324 per the archive/append-only convention, not moved.
+
 
 ## 342. 📋 KANBAN SUPPORT FOR THE TRACKER — **FILED 2026-08-12 on Owen's request ("add Kanban support… I'd like to investigate that tomorrow"). A READ-ONLY VIEW SHIPPED THE SAME NIGHT; the structural question is deliberately NOT decided, because it is his.**
 
@@ -39516,6 +39540,18 @@ reaching the decline is not a fix).
 > sweep's verify step doing its job.)*
 
 > **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+> **➡️ APPENDED 2026-09-01 (hygiene sweep — #261/#317 pointer block, original
+> bytes above untouched).** A block headed "✅🔴 2026-08-21 23:00 UTC —
+> RE-RUN WITH A REAL DENOMINATOR AT LAST" is misfiled inside
+> `OPEN_ITEMS.md` **#324** (the iOS/Xcode beta5 SDK audit), immediately
+> before that file's #344 header. It is a DUPLICATE of the exact 2026-08-21
+> n=30 decline re-run recorded above (declines reached 10/30 → 30/30,
+> 0/30 blamed a contact, #343's `beginTurn()` fix confirmed on a second
+> instrument, the 2/30 calendar misattributions spawned as #392) — this
+> entry's own record is the complete and correct one; the #324 copy adds
+> nothing new. Left in place at #324 per the archive/append-only
+> convention, not moved.
 
 ## 268. 🗺️ ROADMAP MAP — the four phased plans in this project, what phase each is on, and where its detail lives — **FILED 2026-08-06 late night (Owen: "we had done phase 0, 1, and 2 I believe and 3 was next up. We need to dredge that plan back up because I fear we may have lost the rest of it, if it wasn't filed"). A MAP, not a copy: one line per piece, each pointing at the doc that owns it.**
 
