@@ -14349,7 +14349,10 @@ green-signal-covering-what-it-cannot-see family).
 > failed ONLY on the known `testConnectedRelaunchSkipsTheConnectEntry` flake,
 > identical bytes, tree `2865888aa9e12d67`): units 2814/242 suites (count moved
 > +5 — the new suite exactly), XCUITest 15 passed / 0 failed counted from the
-> `Test Case '-[` ledger, Release clean. PR + squash SHA filled after merge.**
+> `Test Case '-[` ledger, Release clean. Main then moved under the lane with
+> compiled inputs (#340-PROMOTE, #180-CONVENTION), so it was rebased and
+> GATED AGAIN: PASS first run, 2832/244 · 15/0 · Release clean, the new suite
+> green inside it. PR + squash SHA filled after merge.**
 >
 > **The fix is one conditional.** `finalizeAssistantText` now drops the live
 > item id, resets the tracker and flips to `.listening` ONLY when no playback
