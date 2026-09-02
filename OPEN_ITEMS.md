@@ -147,7 +147,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#423** ✅ **lane-gate's XCUITest counter under-reports on FAILED runs — FIXED + MERGED 2026-09-01 (PR #403, squash `6a96b85a`), 423-A/B/C all MET.** The `Executed N tests, with 0 failures` grep fell through to the LaunchTests sub-suite on a red run and printed "2" while all 15 ran; read exactly like #219's runner-death and nearly misdirected the 09-01 overnight diagnosis twice. The count now reads the `Test Case '-[…]'` ledger and prints passed/failed/total when those disagree; green runs are byte-identical (`diff` + `od`-proven), so no historical PASS count changes meaning. **🔴 The filing understated it — replayed against main, the old check did not just print 2, it printed `PASS  XCUITest tests run — 2` on a red run: a positive marker over a bundle with a failed test, green for as long as it existed. It now fails on its own rather than leaning on its three sibling checks.** RED-first in its own commit (4 of 23 self-test checks failing, both real gate logs among them → 24 green). Runner-death is now separable from a red run in both directions. #300's classifier family
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
-- **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. ~~Mechanism deliberately not guessed~~ **⟵ INVESTIGATED 2026-08-25: the mechanism was published in archived #206 (2026-07-30) and this entry never cited it — "ends with an OFFER ⇒ armed" predicts 8/8 rows; length falsified three ways; a RETRACTED rationale still lives in the router's code comment (doc debt). ~~The open question is Owen's PRODUCT call: should a words-only turn after an offer route armed?~~ ⟵ **⚖️ RULED 2026-08-25: ARMED IS SAFE — the rows were mislabelled, not the router.** App half landed the same day (PR #377): three `expected:` labels corrected, **E1/E2 device rows added (band count 22 → 34 — a RE-BASELINE for #339's subset)**, the no-op suffix pinned (the "short" 551 row was never shortened — `suffix(560)` of a 551-char string), the retracted rationale rewritten on the latency basis, and the production diff comment-only. **⏳ OPEN on the next `long-context-probe` DEVICE run** (sim cannot generate, #324).****
+- **#334** ✅ CLOSED — 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. ~~Mechanism deliberately not guessed~~ **⟵ INVESTIGATED 2026-08-25: the mechanism was published in archived #206 (2026-07-30) and this entry never cited it — "ends with an OFFER ⇒ armed" predicts 8/8 rows; length falsified three ways; a RETRACTED rationale still lives in the router's code comment (doc debt). ~~The open question is Owen's PRODUCT call: should a words-only turn after an offer route armed?~~ ⟵ **⚖️ RULED 2026-08-25: ARMED IS SAFE — the rows were mislabelled, not the router.** App half landed the same day (PR #377): three `expected:` labels corrected, **E1/E2 device rows added (band count 22 → 34 — a RE-BASELINE for #339's subset)**, the no-op suffix pinned (the "short" 551 row was never shortened — `suffix(560)` of a 551-char string), the retracted rationale rewritten on the latency basis, and the production diff comment-only. ~~**⏳ OPEN on the next `long-context-probe` DEVICE run** (sim cannot generate, #324).~~ ⟵ **✅ CLOSED 2026-09-01 (334-N): that run (2026-08-28) falsified the OFFER mechanism as well.** E1's no-offer cells route ARMED with no offer present, E2 routes TOOLLESS with one — the offer is neither necessary nor sufficient. Over all 28 long-grid cells **referent resolution** (prompt defers to context ∧ context names a device action) misses **0** where ends-in-an-offer misses **8**. DESIGN not defect (it is #202D working as promoted; E2 proves no degeneracy); two labels corrected RED-first, router comment rewritten, three pins added, **no router behaviour change**, band count unchanged at 34.****
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#279** 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — **FIXED AND MERGED 2026-08-09 as `12ed25b`; bars 279-A..E MET (pre-fix user-row count 2 → 1), `GATE: PASS`. Stays open ONLY for 279-F (device, Owen).** …
 - **#270** 🪟 #251 SLICE 2C — desktop face v0: the `plugin.js` pane that answers "is it actually installed?" …
@@ -8145,7 +8145,7 @@ is NOT), **#215** (why a rate needs its denominator), `DeviceActionTools.swift:2
 > editing one would invalidate those numbers; the corrections are comments
 > beside them saying what they now measure.
 
-## 334. 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips 5/5→0/5 between ctxlen 575 and 4,073; `'Say that again more briefly'` misroutes at BOTH 551 and 4,073 — **MEASURED 2026-08-12 on the iPad (the #333 runner's first scored probe, n=5/band, errors=0). ~~Mechanism UNKNOWN and deliberately not guessed.~~ ⟵ 2026-08-25 (Opus investigation): the mechanism was NEVER unknown — archived #206 named, measured, and published it 2026-07-30, and this entry never cited it. This is a REPLICATION of #206's offer-tail finding, not a mystery. ~~Product question below awaits Owen; bars pre-register when a route is picked.~~ ⟵ ⚖️ RULED + 🟢 APP HALF LANDED 2026-08-25 (PR #377, merge `12217bdb`): ARMED IS SAFE, so **the rows were mislabelled, not the router** — three `expected:` labels corrected, E1/E2 added to the grid (band count **22 → 34**), the no-op suffix pinned, #206's retracted length rationale removed from the router's comment, and NO router behavior change (the production diff is comment-only). ⏳ **STAYS OPEN:** E1 and E2 are DEVICE rows — the simulator cannot generate (#324) — so this entry closes on the next `long-context-probe` device run, which rides the runbook.**
+## 334. ✅ CLOSED — 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips 5/5→0/5 between ctxlen 575 and 4,073; `'Say that again more briefly'` misroutes at BOTH 551 and 4,073 — **MEASURED 2026-08-12 on the iPad (the #333 runner's first scored probe, n=5/band, errors=0). ~~Mechanism UNKNOWN and deliberately not guessed.~~ ⟵ 2026-08-25 (Opus investigation): the mechanism was NEVER unknown — archived #206 named, measured, and published it 2026-07-30, and this entry never cited it. This is a REPLICATION of #206's offer-tail finding, not a mystery. ~~Product question below awaits Owen; bars pre-register when a route is picked.~~ ⟵ ⚖️ RULED + 🟢 APP HALF LANDED 2026-08-25 (PR #377, merge `12217bdb`): ARMED IS SAFE, so **the rows were mislabelled, not the router** — three `expected:` labels corrected, E1/E2 added to the grid (band count **22 → 34**), the no-op suffix pinned, #206's retracted length rationale removed from the router's comment, and NO router behavior change (the production diff is comment-only). ~~⏳ **STAYS OPEN:** E1 and E2 are DEVICE rows — the simulator cannot generate (#324) — so this entry closes on the next `long-context-probe` device run, which rides the runbook.~~ ⟵ ✅ **THAT RUN HAPPENED (2026-08-28) AND IT FALSIFIED THE OFFER MECHANISM TOO — CLOSED 2026-09-01 (334-N).** E1's no-offer cells route **ARMED with no offer present** and E2 routes **TOOLLESS with one**, so the offer is neither necessary nor sufficient; over all 28 long-grid cells the **referent-resolution** model (prompt defers to context ∧ context names a device action) misses **0** where ends-in-an-offer misses **8**. **DESIGN, not defect** — it is the #202D context promotion working as promoted, and E2 proves the band has not degenerated. Two `expected:` labels corrected (`E1-nooffer-short/-long` → ARMED, RED witnessed), the router comment rewritten on the measured mechanism, three pins added, **NO router behaviour change**, band count UNCHANGED at 34. CLOSED; awaiting the next sweep's archive move only.**
 
 > **🔬 2026-08-25 — MECHANISM INVESTIGATION (Opus agent, read-only; full
 > report in the session transcript). Headline: "context ends with an
@@ -8452,6 +8452,168 @@ armed words-only turns cost), #333 (the runner that made the measurement one com
 > - **334-N-B (doc debt closed):** the router comment and the design's expected-label for those rows are corrected to the MEASURED mechanism, dated (the #206 shape). [offline]
 > - **334-N-C (defect or design?):** if the measured mechanism means rows the design calls TOOLLESS are armed by a real defect, pre-register fix bars IN THIS ENTRY and build RED-first ONLY if the existing offline fixtures (the long-context-probe bands) can witness the RED; otherwise the fix is PROPOSED with a runbook card. Gate only if code changes. [offline/Mac]
 > - **334-N-D (the four 0/10 bands each get a verdict):** every band the 08-27/28 runs left at 0/10 is named with its mechanism; the lane ends by saying whether #334 CLOSES (as a documented mechanism, WATCH-shaped) or converts to exactly one runbook card. [offline]
+
+> **✅ RESULT 2026-09-01 (334-N) — BARS A/B/C/D ALL MET. The mechanism this
+> entry has carried since 2026-08-25 is FALSIFIED by the very experiment #206
+> designed to test it, and its replacement is measured rather than argued. NO
+> ROUTER CHANGE; two `expected:` labels corrected. #334 CLOSES. PR #412; gate
+> **PASS on 24A5423a** — 2834 Swift Testing / 244 suites + 15 XCUITest + Release,
+> only the known-permanent `CondenserFidelityTests` skips.**
+>
+> **334-N-A — THE DISCRIMINATOR, AND IT IS NOT THE OFFER.** Read from
+> `20260828T012656Z-long-context-probe/latest.json` (build 3125, device
+> `24A5424a`, n=10/band, **`errors: 0` on all 34 bands** — so no `0/10` is the
+> router's ARMED fail-safe, which is the first thing that had to be ruled out).
+> The artifact stores each band's FULL context in `runRecord.probes[].context`,
+> so the whole factorial is recoverable without re-running anything:
+>
+> | row | prompt | ctxlen | ends in offer | names device action | MEASURED |
+> |---|---|---|---|---|---|
+> | `base-words-nooffer-haiku` | "Write another one" | 575 | ✗ | ✗ | **TOOLLESS** |
+> | `base-words-nooffer-summary` | "Summarize that in one sentence" | 586 | ✗ | ✗ | **TOOLLESS** |
+> | `E1-offer-short` / `-long` | "Say that again more briefly" | 551 / 4,073 | ✓ | ✓ | **ARMED** |
+> | `E1-nooffer-short` / `-long` | "Say that again more briefly" | 551 / 4,073 | **✗** | ✓ | **ARMED** |
+> | `E2-offer-short` / `-long` | "Write a haiku about sledding" | 551 / 4,073 | ✓ | ✓ | **TOOLLESS** |
+>
+> **The offer is NEITHER NECESSARY NOR SUFFICIENT.** #206's sentence — *"ctx-a
+> routes ARMED when the prior turn ends in an offer to act, largely regardless
+> of what the current turn says"* — loses **both** halves: `E1-nooffer` arms
+> with no offer present, `E2` stays toolless with one, at both lengths, in both
+> arms, 10/10 each.
+>
+> **What the router actually keys on: REFERENT RESOLUTION.** ARMED exactly when
+> the prompt defers its subject to the context (a bare accept, or an anaphor —
+> "say THAT again", "write another ONE") **and** the context's salient
+> (tail-most) referent is a device action. Scored against the run's ACTUAL
+> routes over all **28** long-grid cells: **the referent model missed 0; the
+> offer model missed 8** (E1-nooffer ×2 and E2 ×2, once per arm). Neither factor
+> alone works — "Write another one" over the haiku context is anaphoric and
+> routes toolless; E2 names the device action and routes toolless — so the
+> conjunction is not a relabelling of "armed", it is a two-factor claim with
+> both factors independently falsifiable.
+>
+> **The artifact field that would differ if the claim were false**, which the
+> bar demanded by name: **`row=E2-offer-short` and `row=E2-offer-long`.** If
+> offer salience drove the route those two would read `0/10` exactly like
+> E1-nooffer; they read `10/10`. Symmetrically, if the offer were NECESSARY,
+> `row=E1-nooffer-short/-long` would read `10/10`; they read `0/10`. Four cells,
+> two directions, one mechanism left standing.
+>
+> **⚠️ OFFLINE REPRODUCTION IS IMPOSSIBLE — AND THE OBVIOUS ATTEMPT IS A
+> GUARANTEED FALSE GREEN. This is worth more than the reproduction would have
+> been.** The bar asked for the decision to be reproduced in a unit test.
+> `routeTurn` is a single guided generation and the simulator cannot generate on
+> this model (#324, re-measured #402) — so this is **not** a sim/device
+> disagreement to explain away: the sim yields no route at all. Worse,
+> `routeNeedsDeviceTool` **fails safe to ARMED**, so an offline
+> `#expect(routed == armed)` on an E1-nooffer row would pass on *total
+> generation failure* and would keep passing with the router deleted. That is
+> run `21F0C10D`'s trap with the sign flipped, and it is why no such test was
+> written. What IS pinned offline is the genuinely reproducible half: the exact
+> bytes ctx-a hands the model
+> (`e1NoOfferRowsPutTheDeviceActionInsideTheRouterWindowInBothArms`) and the
+> factorial scoreboard above
+> (`longContextRoutesAreExplainedByReferentResolutionNotByTheOfferTail`).
+>
+> **334-N-B — DOC DEBT CLOSED.** `+IntentRouting.swift`'s `routerContextLimit`
+> comment — the "they end in an OFFER to act" paragraph the mandate cited at
+> `:177-181` — is rewritten on the measured mechanism, dated, in #206's
+> close-out shape: the falsified claim is *named as falsified* rather than
+> quietly deleted, since that stale-comment-outliving-its-retraction is the
+> exact failure this entry already suffered once for 26 days. The grid's three
+> argued-label comments in `+Battery.swift` carry the result too (the E1 "LABELS,
+> ARGUED" block, the E2 discriminator block, and the grid header). **Where "the
+> design" lives, stated plainly: there is no separate design doc — the
+> `expected:` labels in `routerLongContextGrid` ARE the design**, and they are
+> corrected in place.
+>
+> **334-N-C — DESIGN, NOT DEFECT. No router change; two labels corrected.** The
+> router is doing exactly what #202D promoted it to do: resolving "Yes please"
+> against an offer and resolving "say that again" against a mentioned reminder
+> are the SAME operation, and Owen's 2026-08-25 ARMED-IS-SAFE ruling covers
+> both. **E2 is the proof it has not degenerated into arming the band** — a
+> genuine composition request over the identical device-flavoured context stays
+> TOOLLESS 10/10 at both lengths, so #202A's words-only bar still holds and
+> #215's belt-armed composition tax is not being paid. The defect was in the
+> LABELS: `E1-nooffer-*` were argued TOOLLESS on *"with no offer on the table
+> there is nothing the turn could be accepting"*, and that argument was **wrong
+> about its own context** — `dentistNoOffer` deliberately keeps the device noun
+> AND its replacement sentence still names the action ("Setting a reminder to
+> call the dentist tomorrow at 9am is what fixes it"), so there is a device
+> referent for "that" to land on. Relabelled `false → true`.
+> - **RED-first, witnessed before the flip:** the label change reddened
+>   `e1IsAFullTwoByTwoVaryingTheOfferIndependentlyOfLength` at
+>   `DeviceToolBeltTests.swift:3226` — *"Expectation failed: !plainShort.expected
+>   && !plainLong.expected"* — with the other three long-context pins green in
+>   the same run, then green after the assertion moved. Targeted suite count
+>   moved **4 → 8**.
+> - **Mutation-proved, both new pins.** (A) Reverting `E1-nooffer-short` to
+>   `false` moves **both** scoreboard assertions at once — the referent model
+>   gains a miss AND the offer model's miss-set falls off its pinned 4.
+>   (B) `routerContextLimit` 800 → 30 truncates the device action out of the
+>   capped arm and reds the bytes pin. Neither mutation can reach the other's
+>   test, so attribution is clean by construction. **⚠️ Recorded because it
+>   nearly produced a false mutation-pass: the first attempt at (B) used
+>   800 → 300 and the test stayed GREEN — the action sentence is only 71
+>   characters, so it still fitted the smaller window.** A mutation that does
+>   not move the assertion proves nothing about the assertion; it has to be
+>   sized against the fact under test.
+>
+> **⚖️ ONE JUDGEMENT IN THIS LANE, FLAGGED FOR OWEN.** The relabel EXTENDS the
+> 2026-08-25 ruling from *"after an OFFER"* to *"after the assistant NAMES a
+> device action"*. The safety argument is identical (a follow-up that defers to
+> that action might be asking for it), the direction is the safe one, and
+> 334-N-B directed the correction — but it is a product call and reversing it
+> costs two characters plus the two assertions that pin it.
+>
+> **334-N-D — THE FOUR 0/10 BANDS, ONE VERDICT LINE EACH. They are TWO rows ×
+> two arms, not four independent signals:**
+> 1. `E1-nooffer-short` · `ctx-a-long` (551) — **ARMED. Label wrong, router
+>    right:** the prompt defers, the context names the reminder.
+> 2. `E1-nooffer-long` · `ctx-a-long` (4,073) — **same mechanism**, and length
+>    is not a factor: E2 is toolless at the same 4,073.
+> 3. `E1-nooffer-short` · `ctx-a-long-capped` (551) — **not independent
+>    evidence.** At 551 the 800-char cap is a NO-OP, so this is band 1 measured
+>    twice — #334-C's finding recurring on the rows E1 added.
+> 4. `E1-nooffer-long` · `ctx-a-long-capped` (801) — **not independent either.**
+>    The tail window keeps the whole 551-char closing, so the router sees the
+>    identical referent. Capped-vs-uncapped agreement on these rows is
+>    construction and never evidence.
+>
+> **🟢 #334 CLOSES** — documented mechanism, corrected at its own home, pinned by
+> three tests, zero behaviour change. **WATCH SHAPE:** the `long-context-probe`
+> member of #339's pre-OTA subset. With these labels a re-run should read
+> **34/34 at 10/10**, and **the band count is UNCHANGED at 34** (no row added or
+> removed) — so this is a scoring correction, NOT a second re-baseline, and a
+> comparison against the 08-28 run is valid on the band set. **REOPEN TRIGGER:**
+> any `long-context-probe` run with a band below 10/10, or Owen ruling that
+> referent-resolved device turns should route TOOLLESS.
+>
+> **The one residual, declared NOT owed.** E1's no-offer arm keeps a
+> *declarative proposal* ("Setting a reminder … is what fixes it"), so the 2×2
+> separates "offer as a QUESTION" from "device action named" but does not
+> separate "device action PROPOSED" from "device action merely MENTIONED" (the
+> clean control would be a past-tense context — "I've set your reminder for
+> 4:30pm" — under an anaphoric prompt). Arming is safe on either answer, it
+> moves no label and no product behaviour, and it would cost a device run — so
+> it is named here rather than built. It is what the reopen trigger would
+> examine if the watch ever fires.
+>
+> **📋 RUNBOOK NOTE — for #339's subset card (the runbook is the orchestrator's
+> artifact; this lane does not touch it). Replaces the 08-25 card's stale
+> expectation, does NOT repeat its re-baseline warning:**
+>
+> > `long-context-probe` **band count is UNCHANGED at 34** — the 08-25
+> > re-baseline is done and the 08-28 run is a valid comparison point. Since
+> > 2026-09-01 (#334-N) two more `expected:` labels are corrected
+> > (`E1-nooffer-short`, `E1-nooffer-long` → ARMED), so **the next run should
+> > read 34/34 at 10/10**. Anything below that is the #334 reopen trigger.
+> > Still score by `row=<id>`, never `probe=` + `ctxchars=`.
+>
+> *(Also confirmed while reading the artifact:
+> the five OTHER duplicate INDEX lines #334's own 08-25 block flagged — #336,
+> #339, #340, #344, #350 — are still present, still awaiting the
+> tracker-hygiene pass.)*
 
 ## 293. 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane — **FILED 2026-08-07 night from the repo-wide adversarial audit. Each is STATIC with the auditor's own confidence stated; NONE verified beyond a code read. Verify before fixing.**
 

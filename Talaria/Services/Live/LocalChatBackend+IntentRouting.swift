@@ -181,18 +181,49 @@ extension LocalChatBackend {
     /// words-only row routed armed only past ~590 chars — is FALSE: the same
     /// prompt routes armed at 551 chars, the length at which other rows route
     /// toolless, and the cap changed no row's score. Length was never the
-    /// mechanism. What those contexts share is that they **end in an OFFER to
-    /// act**, which is the same property that makes bare accepts route
-    /// correctly (#202D, 6/6) seen from its cost side — and Owen ruled on
-    /// 2026-08-25 that ARMED is the product-correct answer there, so they are
-    /// not routing failures at all.
+    /// mechanism.
     ///
-    /// **The tail, not the head:** an offer lands at the END of an assistant
-    /// turn ("…Would you like me to set a reminder?"), which is precisely the
-    /// part the router must see. Note what that implies before reading any
-    /// capped-vs-uncapped comparison: this function PRESERVES the offer by
-    /// design, so the two arms agree on an offer-tail row by construction.
-    /// Their agreement is never evidence about length.
+    /// **⟵ AND THE REPLACEMENT MECHANISM IS ALSO FALSIFIED — MEASURED
+    /// 2026-09-01 (#334-N), from the 2026-08-28 device run
+    /// (`20260828T012656Z-long-context-probe`, build 3125, device
+    /// `24A5424a`, n=10/band, `errors: 0` on every band).** What stood here
+    /// from 2026-08-25 was #206's replacement story: *"what those contexts
+    /// share is that they end in an OFFER to act … largely regardless of what
+    /// the current turn says."* The E1/E2 rows #206 itself declared owed were
+    /// finally run, and they refute **both halves** of that sentence:
+    /// - **The offer is NOT NECESSARY.** `E1-nooffer-short` (551) and
+    ///   `E1-nooffer-long` (4,073) are the offer contexts with only the
+    ///   closing sentence swapped — no question, nothing proposed to accept —
+    ///   and they route **ARMED 10/10 in BOTH arms**.
+    /// - **The offer is NOT SUFFICIENT.** `E2-offer-short` and
+    ///   `E2-offer-long` put a self-contained *"Write a haiku about sledding"*
+    ///   over the identical offer tail at both lengths, and they route
+    ///   **TOOLLESS 10/10 in both arms**. The current turn is decisive, not
+    ///   incidental.
+    ///
+    /// **What the router actually keys on: REFERENT RESOLUTION.** ctx-a
+    /// resolves the current turn's referent against the context and classifies
+    /// the *resolved* request. It routes ARMED exactly when the prompt defers
+    /// its subject to the context (a bare accept, or an anaphor — "say THAT
+    /// again", "write another ONE") **and** the context's salient referent is
+    /// a device action. Either factor alone predicts wrongly; the conjunction
+    /// predicts **14/14 grid rows with zero free parameters**, where
+    /// ends-in-an-offer manages 10/14. This is not a new behaviour and not a
+    /// defect — it is the #202D promotion working as promoted: resolving "Yes
+    /// please" against an offer is the same operation that resolves "say that
+    /// again" against a mentioned reminder, and Owen's 2026-08-25 ARMED-IS-SAFE
+    /// ruling covers both. `E2` is the proof it has not degenerated into
+    /// arming the whole band. Pinned by
+    /// `longContextRoutesAreExplainedByReferentResolutionNotByTheOfferTail`.
+    ///
+    /// **The tail, not the head:** the part of an assistant turn that carries
+    /// the referent — an offer, or the sentence naming the action — lands at
+    /// its END, which is precisely the part the router must see. Note what
+    /// that implies before reading any capped-vs-uncapped comparison: this
+    /// function PRESERVES that tail by design (the 800-char window holds the
+    /// whole 551-char dentist closing on the 4,073-char rows), so the two arms
+    /// agree on those rows by construction. Their agreement is never evidence
+    /// about length.
     ///
     /// 800 sits above the longest ordinary context in the measured grid (586)
     /// so real turns pass through untouched, and far below the 4,073-char row

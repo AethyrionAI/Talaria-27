@@ -3187,6 +3187,18 @@ extension LocalChatBackend {
     /// `long-context-probe` run. **The probe's band count moved 22 → 34**
     /// (14 rows × 2 arms + 6 short accept rows), which is a RE-BASELINE for
     /// #339's subset and not a regression.
+    ///
+    /// **2026-09-01 (#334-N): E1 and E2 RAN, and E1's no-offer pair came back
+    /// the other way.** The 2026-08-28 device run scored 30 of 34 bands at
+    /// 10/10; the four that read 0/10 were `E1-nooffer-{short,long}` in both
+    /// arms, i.e. the two rows whose labels encoded the offer hypothesis.
+    /// **The offer is neither necessary (E1-nooffer arms without one) nor
+    /// sufficient (E2 stays toolless with one)** — the mechanism is referent
+    /// resolution, written up on `routerContextLimit`. Those two labels are
+    /// corrected here. **The band count is UNCHANGED at 34** — no row was
+    /// added or removed — so this is a scoring correction, not a second
+    /// re-baseline; a re-run should now read 34/34 at 10/10 with no behaviour
+    /// change of any kind.
     nonisolated static let routerLongContextGrid: [RouterContextRow] = {
         let longHaiku = """
         Here are three haiku about rain. The first: Silver threads descend, drumming on the windowpane, the garden drinks deep. The second: Grey light through the glass, puddles holding broken sky, a bus hisses past. And the third: After the downpour, every leaf a small mirror, the street smells of earth. I leaned into the sensory details in each one — sound in the first, light in the second, smell in the third — because rain is one of those subjects where the obvious images have been used a great deal, and the specific physical detail is what keeps it from feeling secondhand.
@@ -3258,9 +3270,13 @@ extension LocalChatBackend {
                   id: "base-accept-offer-natural-yes"),
             .init(band: .accept, context: longOffer, prompt: "Sure", expected: true,
                   id: "base-accept-offer-natural-sure"),
-            // The counterparts, unrelabelled: ordinary prose, no offer, so
-            // TOOLLESS stays the right answer. The ruling is scoped to offer
-            // tails; it is not a licence to arm the band.
+            // The counterparts, unrelabelled: TOOLLESS stays the right answer
+            // and measured 10/10 both arms on 2026-08-28. ⚠️ But note WHY,
+            // corrected 2026-09-01 (#334-N): it is not "no offer" — E1's
+            // no-offer rows arm. It is that these two contexts name no DEVICE
+            // ACTION for the anaphor to land on ("another" resolves to a
+            // haiku, "that" to the French Revolution). They are the
+            // device-referent-absent cells of the factorial.
             .init(band: .wordsOnly, context: longHaiku, prompt: "Write another one", expected: false,
                   id: "base-words-nooffer-haiku"),
             .init(band: .wordsOnly, context: longSummary,
@@ -3276,11 +3292,31 @@ extension LocalChatBackend {
             // closing sentence swapped, matched to the byte (551 apiece
             // short, 4,073 apiece long).
             //
-            // LABELS, ARGUED. The two offer cells expect ARMED per the
-            // 2026-08-25 ruling. The two no-offer cells expect TOOLLESS:
-            // with no offer on the table there is nothing the turn could be
-            // accepting, so arming buys nothing and costs #215's belt-armed
-            // composition tax (6/10 grabs on the unrouted arm).
+            // LABELS, ARGUED — AND THE NO-OFFER PAIR WAS ARGUED WRONG.
+            // The two offer cells expect ARMED per the 2026-08-25 ruling.
+            // The two no-offer cells were labelled TOOLLESS on the argument
+            // that "with no offer on the table there is nothing the turn
+            // could be accepting." **They measured ARMED 10/10 in both arms
+            // on 2026-08-28 (`20260828T012656Z`, errors: 0) and are
+            // relabelled ARMED, 2026-09-01 (#334-N).**
+            //
+            // The argument was wrong about its own context, not about the
+            // ruling. `dentistNoOffer` deliberately KEEPS the device noun,
+            // and the sentence that replaced the offer still names the
+            // action ("Setting a reminder to call the dentist tomorrow at
+            // 9am is what fixes it") — so there IS something for "say that
+            // again" to resolve to, and it is a device action. Under the
+            // ruling's own logic that is the safe read; #215's composition
+            // tax is not incurred, because E2 shows a genuine composition
+            // request over the same context still routes toolless.
+            //
+            // ⚠️ Read as an EXPERIMENT, not a regression: these labels were
+            // predictions derived from the offer hypothesis, and the
+            // experiment falsified the hypothesis. A falsified prediction is
+            // a result. The mechanism that replaces it — referent resolution,
+            // not offer salience — is written up on `routerContextLimit` and
+            // pinned by
+            // `longContextRoutesAreExplainedByReferentResolutionNotByTheOfferTail`.
             //
             // The offer cells duplicate two base rows' contexts ON PURPOSE:
             // all four cells then run adjacent under one thermal state
@@ -3292,11 +3328,15 @@ extension LocalChatBackend {
             .init(band: .wordsOnly, context: veryLongOffer,
                   prompt: "Say that again more briefly", expected: true,
                   id: "E1-offer-long"),
+            // ⚖️ RELABELLED false → true 2026-09-01 (#334-N) on the measured
+            // result above. Keep the pair: with the labels corrected they are
+            // no longer a bar the run fails, they are the two rows that make
+            // the offer hypothesis falsifiable at all.
             .init(band: .wordsOnly, context: dentistNoOffer,
-                  prompt: "Say that again more briefly", expected: false,
+                  prompt: "Say that again more briefly", expected: true,
                   id: "E1-nooffer-short"),
             .init(band: .wordsOnly, context: veryLongNoOffer,
-                  prompt: "Say that again more briefly", expected: false,
+                  prompt: "Say that again more briefly", expected: true,
                   id: "E1-nooffer-long"),
 
             // ── #334 E2 — offer-tail salience vs ANAPHORA ────────────────
@@ -3312,6 +3352,16 @@ extension LocalChatBackend {
             // upside. So ARMED here is the falsifying observation — and it is
             // also the discriminator the lane wants: armed ⇒ the offer tail
             // alone drives the route; toolless ⇒ anaphora is doing the work.
+            //
+            // ✅ MEASURED 2026-08-28, and the discriminator FIRED: **TOOLLESS
+            // 10/10 at BOTH lengths in BOTH arms** (`20260828T012656Z`,
+            // errors: 0). So anaphora is doing the work and offer-tail
+            // salience is not — the label was right, and these two rows are
+            // what proves the router has not degenerated into arming the
+            // whole words-only band over a device-flavoured context. Do not
+            // "simplify" this prompt into something that borrows a referring
+            // expression; that would delete the only non-degeneracy control
+            // in the grid.
             .init(band: .wordsOnly, context: longOffer,
                   prompt: "Write a haiku about sledding", expected: false,
                   id: "E2-offer-short"),
