@@ -207,7 +207,22 @@ struct VoiceOverlayScreen: View {
     /// #18's rule is that local voice is never silently substituted for the
     /// Realtime experience, so the unknown state must not read as a THIRD
     /// engine. It is the absence of a claim, not a new claim.
-    /// (Copy owed Owen's approval — dispatch §8.5.)
+    ///
+    /// **#180-C-C (2026-09-01) — #139's residual copy, corrected.** The
+    /// unknown-engine branch used to borrow the realtime STATUS word too, so
+    /// the header read `VOICE · CONNECTING` for `.idle`, `.checking` and
+    /// `.ready` as well as `.connecting`: a claim about an action in flight,
+    /// printed in three states where nothing is in flight. That string
+    /// shipped owed Owen's approval (dispatch §8.5) and never received it;
+    /// the 2026-08-25 ruling supplies the standard instead, and its rule 1
+    /// answers it — *measured, or named as unmeasured.* With no engine
+    /// selected the app has one honest fact, the connection state, so the
+    /// label prints THAT and nothing more. `TalkConnectionState.displayLabel`
+    /// is the existing vocabulary; no new word enters.
+    ///
+    /// A SELECTED engine keeps its own wording untouched: `.native` still
+    /// reads STARTING, `.realtime` still reads CONNECTING, and #18's contrast
+    /// survives the correction.
     nonisolated static func sessionHeaderLabel(
         engine: VoiceEngine?,
         connectionState: TalkConnectionState,
@@ -223,12 +238,18 @@ struct VoiceOverlayScreen: View {
         case nil:
             tag = "VOICE"
         }
-        switch connectionState {
-        case .connected:
+        if connectionState == .connected {
             return "\(tag) · \(formattedDuration(duration))"
+        }
+        guard let engine else {
+            // Nothing has been chosen, so nothing may be claimed beyond the
+            // state itself.
+            return "\(tag) · \(connectionState.displayLabel.uppercased())"
+        }
+        switch connectionState {
         case .idle, .checking, .ready, .connecting:
             return engine == .native ? "\(tag) · STARTING" : "\(tag) · CONNECTING"
-        case .blocked, .failed:
+        case .blocked, .failed, .connected:
             return "\(tag) · \(connectionState.displayLabel.uppercased())"
         }
     }

@@ -239,6 +239,14 @@ struct MessageBubble: View {
                               color: Design.Colors.mutedForeground)
                 }
 
+                // #180-C-B (#241's inherited instance): the host flagged this
+                // turn and answered in prose anyway. Without this the reply
+                // renders with exactly the confidence of a clean one — the
+                // umbrella's whole thesis, on the surface it matters most.
+                if let flag = message.hostReportedFailure {
+                    hostFlaggedStrip(flag)
+                }
+
                 // #4.15: reasoning sits above the answer — where it happened.
                 // While still content-less the live line renders inside the
                 // streaming placeholder instead, so don't double it up here.
@@ -715,6 +723,27 @@ struct MessageBubble: View {
             searchEnd = reasoning.index(before: lineStart)
         }
         return nil
+    }
+
+    /// **#180-C-B** — the degraded marker over a reply the HOST flagged.
+    ///
+    /// It reports one observation (the host raised a flag on this turn) and
+    /// the host's own words beneath it. It never names a cause: the flag can
+    /// be a bare boolean on the wire (#296-C1), and a manufactured reason
+    /// would be worse than the missing marker it replaces.
+    private func hostFlaggedStrip(_ detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            MonoLabel(HostFailurePresentation.hostFlaggedMarker, size: 8,
+                      weight: .medium, tracking: Design.Tracking.mono,
+                      color: Design.Brand.forgeText)
+            Text(detail)
+                .font(Design.Typography.body(11))
+                .foregroundStyle(Design.Colors.secondaryForeground)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, Design.Spacing.xxs)
+        .accessibilityElement(children: .combine)
     }
 
     private func toolActivityPill(_ label: String) -> some View {

@@ -23,6 +23,10 @@ final class InsightsStore {
     /// sessions" from "nothing loaded yet".
     private(set) var hasLoaded = false
     private(set) var lastErrorMessage: String?
+    /// #180-CONVENTION — the same failure, CLASSIFIED onto the Connect Host
+    /// ladder. The screen renders this and never `lastErrorMessage`. Set and
+    /// cleared in lockstep with it, one site each, so the two cannot drift.
+    private(set) var lastFailure: HostFailureKind?
     /// When the on-screen numbers were last actually fetched — rendered as
     /// "as of HH:mm" so a load-time snapshot is never presented as live.
     private(set) var lastRefreshedAt: Date?
@@ -49,10 +53,12 @@ final class InsightsStore {
             hasLoaded = true
             lastRefreshedAt = Date()
             lastErrorMessage = nil
+            lastFailure = nil
         } catch {
             guard generation == loadGeneration else { return }
-            // Existing numbers stay on screen; only the message updates.
+            // Existing numbers stay on screen; only the failure updates.
             lastErrorMessage = Self.message(for: error)
+            lastFailure = HostFailurePresentation.kind(for: error)
         }
     }
 
@@ -68,6 +74,7 @@ final class InsightsStore {
         isTruncated = false
         hasLoaded = false
         lastErrorMessage = nil
+        lastFailure = nil
         lastRefreshedAt = nil
     }
 

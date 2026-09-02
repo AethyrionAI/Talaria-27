@@ -18,6 +18,13 @@ final class SkillsStore {
     /// host has no skills" from "empty because nothing loaded yet".
     private(set) var hasLoaded = false
     private(set) var lastErrorMessage: String?
+    /// #180-CONVENTION — the same failure, CLASSIFIED onto the Connect Host
+    /// ladder. The screens render this and never `lastErrorMessage`: a raw
+    /// service string is whatever words that error happened to carry, and the
+    /// umbrella exists because three screens printed three of them.
+    /// Set and cleared in lockstep with `lastErrorMessage`, one site each, so
+    /// the two cannot drift.
+    private(set) var lastFailure: HostFailureKind?
     /// When the on-screen list was last actually fetched — rendered as
     /// "as of HH:mm" so a load-time snapshot is never presented as live.
     private(set) var lastRefreshedAt: Date?
@@ -41,10 +48,12 @@ final class SkillsStore {
             hasLoaded = true
             lastRefreshedAt = Date()
             lastErrorMessage = nil
+            lastFailure = nil
         } catch {
             guard generation == loadGeneration else { return }
-            // Existing rows stay on screen; only the message updates.
+            // Existing rows stay on screen; only the failure updates.
             lastErrorMessage = Self.message(for: error)
+            lastFailure = HostFailurePresentation.kind(for: error)
         }
     }
 
@@ -57,6 +66,7 @@ final class SkillsStore {
         skills = []
         hasLoaded = false
         lastErrorMessage = nil
+        lastFailure = nil
         lastRefreshedAt = nil
     }
 

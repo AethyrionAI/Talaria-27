@@ -82,10 +82,10 @@ private struct TasksContent: View {
                         switch HostFedListPresentation.emptyBranchState(
                             isLoading: store.isLoading,
                             hasLoaded: store.hasLoaded,
-                            errorMessage: store.lastErrorMessage
+                            failure: store.lastFailure
                         ) {
                         case .loading: loadingState
-                        case .error(let message): errorState(message)
+                        case .error(let failure): errorState(failure)
                         case .empty: emptyState
                         }
                     }
@@ -106,8 +106,8 @@ private struct TasksContent: View {
             VStack(spacing: 0) {
                 header
 
-                if let message = store.lastErrorMessage {
-                    refreshFailedStrip(message)
+                if let failure = store.lastFailure {
+                    refreshFailedStrip(failure)
                         .padding(.top, Design.Spacing.sm)
                 }
 
@@ -166,16 +166,21 @@ private struct TasksContent: View {
     }
 
     /// The non-destructive failure surface: rows stay, the strip explains.
-    private func refreshFailedStrip(_ message: String) -> some View {
-        HStack(alignment: .top, spacing: Design.Spacing.xs) {
-            Image(systemName: "wifi.exclamationmark")
+    /// #180-CONVENTION: the words come from the shared mapper, so the strip
+    /// NAMES the rung that broke (rule 4) and keeps its measured stamp — what
+    /// is on screen is a last fetch, not live (rule 1).
+    private func refreshFailedStrip(_ failure: HostFailureKind) -> some View {
+        let isFailure = HostFailurePresentation.isFailure(failure)
+        let tone = isFailure ? Design.Brand.forge : Design.Brand.accent
+        return HStack(alignment: .top, spacing: Design.Spacing.xs) {
+            Image(systemName: HostFailurePresentation.systemImage(failure))
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Design.Brand.forge)
+                .foregroundStyle(tone)
             VStack(alignment: .leading, spacing: 2) {
-                MonoLabel("REFRESH FAILED — SHOWING LAST FETCH", size: 9,
+                MonoLabel(HostFailurePresentation.stripLabel(failure), size: 9,
                           weight: .medium, tracking: Design.Tracking.mono,
-                          color: Design.Brand.forgeText)
-                Text(message)
+                          color: isFailure ? Design.Brand.forgeText : Design.Brand.accentText)
+                Text(HostFailurePresentation.blurb(failure))
                     .font(Design.Typography.body(12))
                     .foregroundStyle(Design.Colors.secondaryForeground)
                     .fixedSize(horizontal: false, vertical: true)
@@ -184,7 +189,7 @@ private struct TasksContent: View {
         }
         .padding(Design.Spacing.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Brand.forge.opacity(0.4))
+        .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: tone.opacity(0.4))
     }
 
     // MARK: - Empty-list states
@@ -203,26 +208,37 @@ private struct TasksContent: View {
         }
     }
 
-    private func errorState(_ message: String) -> some View {
+    /// #180-CONVENTION: the empty branch names the HOST's state, not the
+    /// screen's. The old title said "<X> Unreachable" for every failure,
+    /// including a key the host turned down and an install with no host at
+    /// all — one word standing in for four discriminations the app had
+    /// already made.
+    private func errorState(_ failure: HostFailureKind) -> some View {
         VStack(spacing: Design.Spacing.md) {
             ContentUnavailableView {
                 Label {
-                    Text("Tasks Unreachable")
+                    Text(HostFailurePresentation.title(failure))
                         .font(Design.Typography.sectionTitle)
                         .foregroundStyle(Design.Colors.foregroundBright)
                 } icon: {
-                    Image(systemName: "wifi.exclamationmark")
-                        .foregroundStyle(Design.Brand.forge)
+                    Image(systemName: HostFailurePresentation.systemImage(failure))
+                        .foregroundStyle(HostFailurePresentation.isFailure(failure)
+                                         ? Design.Brand.forge : Design.Brand.accentText)
                 }
             } description: {
-                Text(message)
+                Text(HostFailurePresentation.blurb(failure))
                     .font(Design.Typography.body(13))
                     .foregroundStyle(Design.Colors.mutedForeground)
             }
-            GhostButton(title: "Retry", systemImage: "arrow.clockwise", height: 44) {
-                Task { await store.refresh() }
+            // Rule 3: no host saved is an ANSWER, not a fault — and there is
+            // nothing to retry against, so the button that cannot work is not
+            // offered.
+            if HostFailurePresentation.isFailure(failure) {
+                GhostButton(title: "Retry", systemImage: "arrow.clockwise", height: 44) {
+                    Task { await store.refresh() }
+                }
+                .frame(maxWidth: 200)
             }
-            .frame(maxWidth: 200)
         }
     }
 
