@@ -744,6 +744,11 @@ native pipeline), **#1** (voice transcripts).
 >   false` remains the blunt option, and the precise candidate is #138's
 >   proposed onset gate (V5), which is a code change, not tuning.
 
+> **📋 2026-09-01 night — 396-Q INSTRUMENT LANE OPENED (from the voice-cluster escalation, same night).** The escalation could not attribute #413's per-session phantom rate to a preset because **the app never logs the tuning it mints a realtime session with** — the picker's choice reaches the plugin as a request field and vanishes from the phone's own record. Bars pre-registered before code:
+> - **396-Q-A:** at realtime session configuration the app emits ONE always-on `.notice` naming the preset requested (quiet/normal/noisy or the raw values) and the engine — pinned by a pure formatter test in the `VoiceInstrumentLogLineTests` pattern, RED-first, mutation-proven. [offline]
+> - **396-Q-B:** the runbook's voice cards gain "quote the preset line" in their Record lists, so the next archive attributes rate to preset for free. [offline]
+> - **396-Q-GATE:** lane-gate PASS. [Mac]
+
 ## 392. 🔴 A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT — *"your calendar didn't accept the request"* when the user declined the card — **MEASURED 2/30 ON DEVICE 2026-08-21 (#199A's re-run), CALENDAR-ONLY. Spawned rather than kept inside #199A, whose own claim is refuted. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built + merged 2026-08-23 (PR #353) with NO treatment elected, per Owen's route; the n≥30 device run is what remains.**
 
 **The measurement** (`planning/reports/2026-08-21-199a-decline.json`, decline
@@ -11504,6 +11509,11 @@ once per device session.
 > **198B-A remains OWED on device** — unchanged by this lane. The next corded
 > sitting runs the re-cut card above against build 3022+ with Verbose Logging
 > ON, and that verdict — not this one — closes #198B.
+
+> **📋 2026-09-01 night — 198B-MARKER LANE OPENED (the positive control the re-cut bar still lacks).** The 198B-BAR lane (PR #408) found the only app-emitted line on the memo path is a verbose-gated `.debug` on the RECORD leg alone, so the bar's INVALID arm cannot see play/discard. Bars pre-registered before code:
+> - **198B-M-A:** `AudioSessionOffMain`'s single choke point (`TalkSessionRules.swift` ~:150-171, the `run`/`setActive` path all three memo transitions funnel through) emits ONE always-on `.notice` naming the transition — `AudioSessionOffMain: setActive(<bool>) off-main (#198B)` or equivalent — pinned by a pure formatter test in the `VoiceInstrumentLogLineTests` pattern. RED-first; mutation (drop the field) re-reddens. [offline]
+> - **198B-M-B:** the device card's positive control is re-pointed at that line (present ⇒ the path ran; absent ⇒ INVALID); the `.debug` record-leg line is demoted to optional. [offline]
+> - **198B-M-GATE:** lane-gate PASS. 198B-A itself stays OWED on device. [Mac]
 
 ## 198A. ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 
