@@ -1,5 +1,4 @@
 import Foundation
-import NaturalLanguage
 import Testing
 @testable import Talaria
 
@@ -43,11 +42,10 @@ private final class Knobs {
 
 /// #422 (bar 422-B): the launch backfill's cursor arithmetic.
 ///
-/// This logic lived inside an `AppContainer` closure until a review found three
-/// ways it was quietly wrong — it advanced the cursor past history the toggle
-/// had refused to index, it walked an order that could shift under the cursor,
-/// and it re-scanned the repair queue once per window. None of them was visible
-/// from outside, and none of them had a test. That is the whole reason this is a
+/// This logic lived inside an `AppContainer` closure until a review found ways it
+/// was quietly wrong — it advanced the cursor past history the toggle had refused
+/// to index, and it walked an order that could shift under the cursor. Neither was
+/// visible from outside, and neither had a test. That is the whole reason this is a
 /// unit: every one of those is an assertion below.
 @Suite("422-B backfill runner")
 @MainActor
@@ -108,8 +106,6 @@ struct MemoryBackfillRunnerTests {
         func remoteSessionStubs() -> [HermesSessionInfo] { [] }
     }
 
-    private func nullEmbedder() -> EmbeddingService { EmbeddingService(acquire: { nil }) }
-
     private func memoryStore() throws -> MemoryStore {
         try #require(MemoryStore.make(inMemoryOnly: true))
     }
@@ -129,42 +125,22 @@ struct MemoryBackfillRunnerTests {
 
     private func makeRunner(_ sessions: FakeSessionStore,
                             _ indexer: MemoryIndexer,
-                            _ knobs: Knobs,
-                            repairLimit: Int = 200) -> MemoryBackfillRunner {
+                            _ knobs: Knobs) -> MemoryBackfillRunner {
         MemoryBackfillRunner(
             sessions: sessions, indexer: indexer,
             isEnabled: { knobs.enabled },
             readCursor: { knobs.cursor },
-            writeCursor: { knobs.write($0) },
-            repairLimit: repairLimit)
+            writeCursor: { knobs.write($0) })
     }
 
     /// A runner whose indexer honours the SAME switch the runner does — the
     /// production wiring, where both closures read one settings key.
     private func makeRunner(_ sessions: FakeSessionStore,
                             store: MemoryStore,
-                            _ knobs: Knobs,
-                            repairLimit: Int = 200) -> MemoryBackfillRunner {
+                            _ knobs: Knobs) -> MemoryBackfillRunner {
         makeRunner(sessions,
-                   MemoryIndexer(store: store, makeEmbedder: nullEmbedder,
-                                 isEnabled: { knobs.indexerEnabled() }),
-                   knobs, repairLimit: repairLimit)
-    }
-
-    /// The runtime's real sentence embedder over a bounded window (422-C: the
-    /// variable is elapsed time, not attempt count), then pinned through the
-    /// `acquire:` seam so no test re-rolls that timing.
-    private func realEmbedder(budget: Duration = .seconds(3)) async throws -> NLEmbedding {
-        let clock = ContinuousClock()
-        let start = clock.now
-        repeat {
-            if let e = NLEmbedding.sentenceEmbedding(for: .english), e.vector(for: "warm") != nil {
-                return e
-            }
-            try await Task.sleep(for: .milliseconds(50))
-        } while clock.now - start < budget
-        return try #require(NLEmbedding.sentenceEmbedding(for: .english),
-                            "no sentence embedder available to drive the repair pass")
+                   MemoryIndexer(store: store, isEnabled: { knobs.indexerEnabled() }),
+                   knobs)
     }
 
     // MARK: - (a) the toggle stops the walk WITHOUT burning the cursor
@@ -230,8 +206,7 @@ struct MemoryBackfillRunnerTests {
         #expect(knobs.written.isEmpty, "nothing was indexed, so nothing may be persisted")
     }
 
-    /// Memory off before the run starts: nothing walks, nothing is persisted,
-    /// and — the part a row count cannot see — no repair pass runs either.
+    /// Memory off before the run starts: nothing walks and nothing is persisted.
     @Test func aRunThatStartsDisabledDoesNothingAtAll() async throws {
         let memory = try memoryStore()
         let sessions = FakeSessionStore()
@@ -244,7 +219,6 @@ struct MemoryBackfillRunnerTests {
 
         #expect(memory.indexCount() == 0)
         #expect(knobs.written.isEmpty, "a refused run must not touch the user's resume point")
-        #expect(runner.repairPasses == 0, "memory off stops the repair pass too")
     }
 
     // MARK: - (b) the order the cursor indexes into
@@ -354,9 +328,8 @@ struct MemoryBackfillRunnerTests {
     /// number belongs in the report where its runtime can be stated with it
     /// (#398-A — a rate without the build it was measured on is ambiguous).
     /// The corpus is the real 422-R turn set, so the text lengths are the ones
-    /// the chunker and embedder will actually meet.
+    /// the chunker will actually meet.
     @Test func backfillTimingProbe() async throws {
-        let real = try await realEmbedder()
         let corpus = try Self.corpusTurns()
         let memory = try memoryStore()
         let sessions = FakeSessionStore()
@@ -374,10 +347,7 @@ struct MemoryBackfillRunnerTests {
         }
 
         let knobs = Knobs()
-        let runner = makeRunner(
-            sessions,
-            MemoryIndexer(store: memory, makeEmbedder: { EmbeddingService(acquire: { real }) }),
-            knobs)
+        let runner = makeRunner(sessions, MemoryIndexer(store: memory), knobs)
 
         let clock = ContinuousClock()
         let start = clock.now
@@ -390,7 +360,6 @@ struct MemoryBackfillRunnerTests {
 
         #expect(knobs.cursor == conversationCount, "the probe must have walked the whole corpus")
         #expect(memory.indexCount() >= conversationCount, "…and indexed it")
-        #expect(memory.emptyVectorRows(limit: 1).isEmpty, "a real embedder must leave nothing stranded")
     }
 
     /// The 422-R corpus's turn texts, read from the repo.
@@ -408,67 +377,6 @@ struct MemoryBackfillRunnerTests {
     }
 
     // MARK: - (c) the repair pass runs ONCE per run
-
-    /// The container's version ran the repair at the tail of every window, and
-    /// because it handed over window-sized arrays the "only at the end" guard was
-    /// true every single time — the store was re-scanned once per conversation.
-    ///
-    /// A `repairLimit` smaller than the stranded row count discriminates the two
-    /// behaviours by ARITHMETIC, not by a self-reported counter: one pass repairs
-    /// exactly `repairLimit` rows, while a per-conversation pass would clear the
-    /// whole queue. The counter is asserted too, but it is the weaker of the two.
-    @Test func theRepairPassRunsOncePerRunAndHonoursItsLimit() async throws {
-        let real = try await realEmbedder()
-        let memory = try memoryStore()
-        let sessions = FakeSessionStore()
-        seed(sessions, count: 4)
-        let knobs = Knobs()
-
-        // Pass 1 — index everything with no embedder: every row lands stranded.
-        await makeRunner(sessions, store: memory, knobs).run()
-        let stranded = memory.emptyVectorRows(limit: 50).count
-        #expect(stranded == memory.indexCount(), "every row must be stranded, or the repair proves nothing")
-        #expect(stranded >= 4)
-
-        // Pass 2 — an embedder exists, but the repair may take only 2 rows.
-        let repairKnobs = Knobs()
-        repairKnobs.cursor = knobs.cursor
-        let repairing = makeRunner(
-            sessions,
-            MemoryIndexer(store: memory, makeEmbedder: { EmbeddingService(acquire: { real }) }),
-            repairKnobs, repairLimit: 2)
-        await repairing.run()
-
-        #expect(repairing.repairPasses == 1, "one run, one repair pass")
-        #expect(repairing.repairedRows == 2, "the pass must stop at its limit, got \(repairing.repairedRows)")
-        #expect(memory.emptyVectorRows(limit: 50).count == stranded - 2,
-                "a repair running once per conversation would have cleared the whole queue")
-    }
-
-    /// The repaired rows are really repaired — read back by a route that never
-    /// touched the objects the pass mutated.
-    @Test func aRepairedRowReadsBackWithABlob() async throws {
-        let real = try await realEmbedder()
-        let memory = try memoryStore()
-        let sessions = FakeSessionStore()
-        seed(sessions, count: 1)
-        let knobs = Knobs()
-
-        await makeRunner(sessions, store: memory, knobs).run()
-        let subject = try #require(memory.emptyVectorRows(limit: 1).first).entryID
-        #expect(memory.vectorByteCount(entryID: subject) == 0)
-
-        let repairKnobs = Knobs()
-        repairKnobs.cursor = knobs.cursor
-        await makeRunner(
-            sessions,
-            MemoryIndexer(store: memory, makeEmbedder: { EmbeddingService(acquire: { real }) }),
-            repairKnobs).run()
-
-        #expect(memory.vectorByteCount(entryID: subject) ?? 0 > 0,
-                "a row stranded without a vector must be repaired once an embedder exists")
-        #expect(memory.emptyVectorRows(limit: 50).isEmpty, "an unlimited pass must clear the queue")
-    }
 
     // MARK: - (d) a cursor that outran its corpus
 
@@ -489,7 +397,7 @@ struct MemoryBackfillRunnerTests {
         await runner.run()
 
         #expect(knobs.cursor == 2, "a cursor past the end must land ON the end, not stay past it")
-        #expect(runner.repairPasses == 1, "the run must still finish — a bad cursor is not a crash")
+        #expect(memory.indexCount() == 0, "the run must still finish — a bad cursor is not a crash")
     }
 
     /// The mirror case: a negative cursor must not index below zero, and must

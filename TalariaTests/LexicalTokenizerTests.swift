@@ -5,8 +5,7 @@ import Foundation
 /// #422 (bar 422-R): the lexical tokenizer behind memory retrieval.
 ///
 /// Owen authorized the stemmer on 2026-09-03 after 422-R measured exact-match tokens as a
-/// limiting factor. It lives on `EmbeddingService` only because `contentTokens` still does;
-/// Task 8b re-homes both when the embedder is deleted, so these tests move with it.
+/// limiting factor.
 ///
 /// The stemmer is NOT a linguist's stemmer and these tests must not be read as claiming it
 /// is. "water" becomes "wat" and "brother" becomes "broth". That is harmless because both
@@ -19,11 +18,11 @@ struct LexicalTokenizerTests {
     /// morphological variant that a user's question and their own stored turn would spell
     /// differently — and an exact-match tokenizer scored 0 on every one.
     @Test func morphologicalVariantsCollapseToTheSameToken() {
-        #expect(EmbeddingService.stem("lives") == EmbeddingService.stem("live"))
-        #expect(EmbeddingService.stem("mowed") == EmbeddingService.stem("mow"))
-        #expect(EmbeddingService.stem("running") == EmbeddingService.stem("run"))
-        #expect(EmbeddingService.stem("appointments") == EmbeddingService.stem("appointment"))
-        #expect(EmbeddingService.stem("usually") == EmbeddingService.stem("usual"))
+        #expect(LexicalTokenizer.stem("lives") == LexicalTokenizer.stem("live"))
+        #expect(LexicalTokenizer.stem("mowed") == LexicalTokenizer.stem("mow"))
+        #expect(LexicalTokenizer.stem("running") == LexicalTokenizer.stem("run"))
+        #expect(LexicalTokenizer.stem("appointments") == LexicalTokenizer.stem("appointment"))
+        #expect(LexicalTokenizer.stem("usually") == LexicalTokenizer.stem("usual"))
     }
 
     /// The guards that keep the stemmer from disagreeing with ITSELF, which is the only way
@@ -36,29 +35,57 @@ struct LexicalTokenizerTests {
     /// - `ss` is not a plural.
     /// - Under the five-character floor a short word is returned untouched.
     @Test func theStemmerSelfConsistencyGuardsHold() {
-        #expect(EmbeddingService.stem("lives") == "live")
-        #expect(EmbeddingService.stem("boxes") == "box")
-        #expect(EmbeddingService.stem("address") == "address")
-        #expect(EmbeddingService.stem("run") == "run")
-        #expect(EmbeddingService.stem("allergies") == "allergy")
+        #expect(LexicalTokenizer.stem("lives") == "live")
+        #expect(LexicalTokenizer.stem("boxes") == "box")
+        #expect(LexicalTokenizer.stem("address") == "address")
+        #expect(LexicalTokenizer.stem("run") == "run")
+        #expect(LexicalTokenizer.stem("allergies") == "allergy")
     }
 
     /// "don't" splits to "don" + "t". The "t" dies on the length filter but "don" is three
     /// characters and would pass, so every apostrophe in the store would donate a shared
-    /// token to unrelated text. "won" and "can" are deliberately NOT fragments — the plain
-    /// no-answer query "who won the world cup in 2018" must keep its verb.
+    /// token to unrelated text. "won" and "can" are deliberately NOT fragments — they are
+    /// ordinary words, and a question like "who won the world cup" must keep its verb.
     @Test func contractionFragmentsAreDroppedButRealWordsSurvive() {
-        #expect(!EmbeddingService.contentTokens("I don't drink coffee after 2pm").contains("don"))
-        #expect(EmbeddingService.contentTokens("I don't drink coffee after 2pm").contains("drink"))
-        #expect(EmbeddingService.contentTokens("who won the world cup").contains("won"))
+        #expect(!LexicalTokenizer.contentTokens("I don't drink coffee after 2pm").contains("don"))
+        #expect(LexicalTokenizer.contentTokens("I don't drink coffee after 2pm").contains("drink"))
+        #expect(LexicalTokenizer.contentTokens("who won the world cup").contains("won"))
     }
 
     /// The end-to-end consequence: a question and a stored turn that share only a
     /// morphological variant now overlap, where they scored a flat zero before.
     @Test func overlapSurvivesAMorphologicalVariant() {
-        let overlap = EmbeddingService.lexicalOverlap(
+        let overlap = LexicalTokenizer.lexicalOverlap(
             query: "how often does the lawn get mowed",
             chunk: "The lawn guy comes every other Friday to mow the front and back.")
         #expect(overlap > 0, "mowed/mow must overlap, got \(overlap)")
+    }
+
+    /// Re-homed from the embedder's own suite when that was deleted with it (2026-09-03).
+    /// The pin survives because `lexicalOverlap` does: normalization is by
+    /// the QUERY's content tokens, and a chunk sharing none of them scores a flat zero.
+    @Test func lexicalOverlapCountsContentWordsOnly() {
+        let o = LexicalTokenizer.lexicalOverlap(query: "who is my dentist", chunk: "My dentist is Dr. Patel on Lamar.")
+        #expect(o == 1.0, "'dentist' is the only content token in the query")
+        #expect(LexicalTokenizer.lexicalOverlap(query: "who is my dentist", chunk: "write a haiku about rain") == 0)
+    }
+
+    /// The stemmer must be IDEMPOTENT — `stem(stem(w)) == stem(w)` — or a plural and its
+    /// singular land one derivation apart. One pass tries `-ing`/`-ed`/`-ly`/`-er` before
+    /// `-s`, so "mornings" stops at "morning" while "morning" itself goes on to "morn";
+    /// eleven such pairs occur in the 422-R corpus alone. Iterating to a fixpoint is the
+    /// fix, and it moved none of the corpus numbers.
+    ///
+    /// RED by stemming a single pass instead of to a fixpoint.
+    @Test func stemmingIsIdempotentSoPluralsMeetTheirSingulars() {
+        for (plural, singular) in [("mornings", "morning"), ("families", "family"),
+                                   ("trackers", "tracker"), ("meetings", "meeting")] {
+            #expect(LexicalTokenizer.stem(plural) == LexicalTokenizer.stem(singular),
+                    "\(plural)/\(singular) → \(LexicalTokenizer.stem(plural))/\(LexicalTokenizer.stem(singular))")
+        }
+        for word in ["mornings", "families", "running", "appointments", "usually", "address"] {
+            let once = LexicalTokenizer.stem(word)
+            #expect(LexicalTokenizer.stem(once) == once, "stem(\(word)) = \(once) must be a fixpoint")
+        }
     }
 }

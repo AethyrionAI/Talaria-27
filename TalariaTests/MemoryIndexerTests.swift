@@ -1,5 +1,4 @@
 import Foundation
-import NaturalLanguage
 import Testing
 @testable import Talaria
 
@@ -27,33 +26,14 @@ struct MemoryIndexerTests {
         Message(sender: sender, content: text, isContextPriming: priming)
     }
 
-    /// A service whose acquisition never yields an embedder: `embed` returns
-    /// nil, rows persist with an empty vector, and the ROW COUNT — which is all
-    /// these exclusion pins assert — is unchanged. Using it keeps the suite off
-    /// the real NaturalLanguage asset lookups, which cost real milliseconds per
-    /// call and answer a question 422-C already owns.
-    private func nullEmbedder() -> EmbeddingService { EmbeddingService(acquire: { nil }) }
-
-    private func indexed(
-        _ messages: [Message],
-        embedder: @escaping () -> EmbeddingService
-    ) throws -> Int {
+    private func indexed(_ messages: [Message]) throws -> Int {
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
-        MemoryIndexer(store: store, makeEmbedder: embedder).index(conversation(messages))
+        MemoryIndexer(store: store).index(conversation(messages))
         return store.indexCount()
     }
 
-    private func indexed(_ messages: [Message]) throws -> Int {
-        try indexed(messages, embedder: nullEmbedder)
-    }
-
-    /// The ONE pin that runs the REAL embedder, deliberately kept: every other
-    /// test here stubs acquisition to nil, so without this the suite would never
-    /// execute the branch where `embed` actually returns a vector and
-    /// `EmbeddingService.encode` writes a non-empty blob.
     @Test func userTurnsAreIndexed() throws {
-        #expect(try indexed([msg(.user, "My dentist is Dr. Patel.")],
-                            embedder: { EmbeddingService() }) == 1)
+        #expect(try indexed([msg(.user, "My dentist is Dr. Patel.")]) == 1)
     }
 
     @Test func voiceUserTurnsAreIndexed() throws {
@@ -157,7 +137,7 @@ struct MemoryIndexerTests {
         let chatStore = ChatStore(hermesClient: SettlingClient(), persistence: scratchPersistence())
         chatStore.localSessions = sessions
         chatStore.isLocalSessionThread = { sessions.hasSession(withID: $0.id) }
-        chatStore.memoryIndexer = MemoryIndexer(store: memory, makeEmbedder: nullEmbedder)
+        chatStore.memoryIndexer = MemoryIndexer(store: memory)
 
         #expect(memory.indexCount() == 0, "nothing is indexed before a turn settles")
 
@@ -192,7 +172,7 @@ struct MemoryIndexerTests {
         let chatStore = ChatStore(hermesClient: SettlingClient(), persistence: persistence)
         chatStore.localSessions = sessions
         chatStore.isLocalSessionThread = { sessions.hasSession(withID: $0.id) }
-        chatStore.memoryIndexer = MemoryIndexer(store: memory, makeEmbedder: nullEmbedder)
+        chatStore.memoryIndexer = MemoryIndexer(store: memory)
         await chatStore.loadConversationIfNeeded()
 
         // #192 flips the brain mid-thread: this turn settles on-device.
@@ -207,46 +187,40 @@ struct MemoryIndexerTests {
 
     // MARK: - Per-settle reconcile
 
-    /// `embed` calls made since `baseline`. With an `acquire` that never yields
-    /// an embedder, `EmbeddingService.embed` re-attempts acquisition on EVERY
-    /// call and never caches one — so `acquisitionAttempts` advances by exactly
-    /// one per `embed`. The baseline is captured after construction rather than
-    /// hardcoded, so this stays honest if `init`'s own retry count ever changes.
-    private func embedCalls(_ service: EmbeddingService, since baseline: Int) -> Int {
-        service.acquisitionAttempts - baseline
-    }
-
     /// The settle seam re-indexes the WHOLE thread on every turn, so without an
-    /// already-indexed skip the work is quadratic over a thread's life — every
-    /// past chunk re-embedded and re-fetched on every settle, synchronously, on
-    /// the MainActor. This measures the work rather than trusting the shape.
-    @Test func reIndexingAGrownThreadEmbedsOnlyTheNewMessage() throws {
+    /// already-indexed skip the work is quadratic over a thread's life — every past
+    /// chunk re-chunked and re-fetched on every settle, synchronously, on the MainActor.
+    ///
+    /// This used to COUNT the embed calls, which was the honest instrument while an
+    /// embedder existed. It no longer does (the embedder was deleted from the shape,
+    /// 2026-09-03), and a row count cannot replace it — the upsert is idempotent, so a
+    /// re-chunk-everything indexer and a skipping one write identical rows. So the pin is
+    /// re-pointed at the mechanism the skip actually rides: `reconcileSession` names the
+    /// messages already stored, and `index` consults exactly that set.
+    @Test func reIndexingAGrownThreadIndexesOnlyTheNewMessage() throws {
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
-        let embedder = nullEmbedder()
-        let baseline = embedder.acquisitionAttempts
-        let indexer = MemoryIndexer(store: store, makeEmbedder: { embedder })
+        let indexer = MemoryIndexer(store: store)
 
         let sessionID = UUID()
         let u1 = msg(.user, "My dentist is Dr. Patel. Her office is on Oak Street. I see her in May.")
         let h1 = msg(.hermes, "Noted.")
         let u2 = msg(.user, "My dog is called Biscuit.")
+        let live = Set([u1.id, h1.id, u2.id])
 
         indexer.index(conversation(sessionID, [u1, h1]))
-        let afterFirst = embedCalls(embedder, since: baseline)
-        #expect(afterFirst == MemoryChunker.chunk(u1.content).count,
-                "the first pass embeds exactly u1's chunks")
+        #expect(store.reconcileSession(sessionID, liveMessageIDs: live) == [u1.id],
+                "after the first pass only u1 is stored — h1 is an assistant turn")
 
         indexer.index(conversation(sessionID, [u1, h1, u2]))
-        let newWork = embedCalls(embedder, since: baseline) - afterFirst
-        #expect(newWork == MemoryChunker.chunk(u2.content).count,
-                "re-indexing a grown thread must embed only the new message")
-        #expect(newWork > 0, "the new message must actually have been indexed")
+        #expect(store.reconcileSession(sessionID, liveMessageIDs: live) == [u1.id, u2.id],
+                "the second pass must add u2 and leave u1's rows alone")
 
         // …and the rows are the same as a single full pass would have produced.
         let oneShot = try #require(MemoryStore.make(inMemoryOnly: true))
-        MemoryIndexer(store: oneShot, makeEmbedder: nullEmbedder)
-            .index(conversation(sessionID, [u1, h1, u2]))
+        MemoryIndexer(store: oneShot).index(conversation(sessionID, [u1, h1, u2]))
         #expect(store.indexCount() == oneShot.indexCount())
+        #expect(store.indexCount() == MemoryChunker.chunk(u1.content).count
+                                    + MemoryChunker.chunk(u2.content).count)
     }
 
     /// Ruling 2 (visibility) in its negative form: every stored row must have a
@@ -256,7 +230,7 @@ struct MemoryIndexerTests {
     /// provenance chip points at a message that no longer exists.
     @Test func rowsWhoseMessageLeftTheConversationAreDeleted() throws {
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
-        let indexer = MemoryIndexer(store: store, makeEmbedder: nullEmbedder)
+        let indexer = MemoryIndexer(store: store)
         let sessionID = UUID()
         let u1 = msg(.user, "My dentist is Dr. Patel.")
         let u2 = msg(.user, "Delete this one. It has two sentences so it is not one row.")

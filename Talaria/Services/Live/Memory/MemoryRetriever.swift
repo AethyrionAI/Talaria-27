@@ -2,9 +2,7 @@ import Foundation
 
 /// One indexed chunk offered to the scorer.
 ///
-/// No vector, and no embedder id: Owen deleted the embedder from the shape on 2026-09-03
-/// after mutation M-R measured it to buy nothing (see `MemoryRetriever`). Task 8b drops the
-/// matching store columns.
+/// Text and provenance, nothing else — see `MemoryRetriever` for why there is no vector.
 struct MemoryCandidate: Sendable {
     let entryID: UUID
     let sessionID: UUID
@@ -26,21 +24,12 @@ struct MemoryHit: Sendable {
 /// grows. (Deliberately paraphrased rather than quoting the banned tokens: naming them here
 /// would make this very file the grep's only hit.)
 ///
-/// **Why the score is lexical only.** The shape was hybrid — `0.7 · cosine + 0.3 · lexical`
-/// — until mutation M-R was run against the labelled corpus on 2026-09-02. Bar 422-R's
-/// pre-registered rule was that lexical-only must score STRICTLY LOWER on at least one of
-/// p@1 / false-admit / top-3, or the embedder buys nothing. It scored lower on none:
-///
-/// | arm | p@1 | false-admit (adversarial) | top-3 |
-/// |---|---|---|---|
-/// | hybrid `0.7/0.3` | 0.827 (62/75) | 0.750 (9/12) | 0.920 (69/75) |
-/// | lexical-only | 0.853 (64/75) | 0.750 (9/12) | 0.973 (73/75) |
-///
-/// Better on two, identical on the third. The cause is structural rather than a bad
-/// weighting: the anchor already requires a lexical hit, so the cosine term never ADMITTED
-/// anything — it only re-ranked within the anchored set, and `NLEmbedding.sentenceEmbedding`
-/// scores interrogative FORM so heavily that it re-ranked it worse. Owen ruled the embedder
-/// deleted on 2026-09-03.
+/// **The score is lexical only — the embedder was deleted by measurement, 2026-09-03.**
+/// Bar 422-R's pre-registered mutation M-R scored a lexical-only arm against the labelled
+/// corpus and it was not lower on ANY of the bar's three numbers (better on p@1 and top-3
+/// recall, identical on false-admit), so the rule fired and Owen deleted the embedder from
+/// the shape. Nothing in the memory path embeds and no stored row carries a vector; the
+/// full numbers live in the 422 RESULT block.
 enum MemoryRetriever {
 
     // MARK: - The gates around retrieval
@@ -51,7 +40,7 @@ enum MemoryRetriever {
     ///
     /// Deliberately an exact set rather than a length threshold, the same shape and for the
     /// same reason as `LocalChatBackend.shortAffirmatives`. A token-count rule was the first
-    /// draft and the corpus falsified it in both directions: `contentTokens("another one")`
+    /// draft and the corpus falsified it in both directions: `LexicalTokenizer.contentTokens("another one")`
     /// is `{another, one}` — two tokens, so the anaphor passes through — while four
     /// ANSWERABLE 422-R queries carry exactly one content token ("who is my dentist",
     /// "when is our anniversary", "what do I collect", "what are we saving up for") and
@@ -64,13 +53,15 @@ enum MemoryRetriever {
 
     static func shouldSkip(_ prompt: String) -> Bool {
         if LocalChatBackend.isShortAffirmative(prompt) { return true }
+        // Internal runs of whitespace collapse too: "another  one" is the same anaphor.
         let normalized = prompt
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "[\\p{P}\\p{S}]+$", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
             .lowercased()
         if anaphoricFollowUps.contains(normalized) { return true }
         // Nothing content-bearing to search on at all (punctuation, an emoji, stop words).
-        return EmbeddingService.contentTokens(prompt).isEmpty
+        return LexicalTokenizer.contentTokens(prompt).isEmpty
     }
 
     /// A question ABOUT the store rather than a question the store might answer. The caller
@@ -96,6 +87,9 @@ enum MemoryRetriever {
     /// THIS query's own score distribution, so a query is measured against how the rest of
     /// the store answered it.
     ///
+    /// **Below four candidates the relative rule cannot fire at all** — see the comment on
+    /// the small-store branch. The anchor carries admission there instead.
+    ///
     /// **The anchor.** A distribution always has a maximum, so the relative rule ALONE
     /// admits on every no-answer query — measured, not assumed. Requiring a non-zero
     /// overlap is what makes an admission mean "the store contains these words." Under a
@@ -116,22 +110,50 @@ enum MemoryRetriever {
 
         let scored = candidates.map { candidate in
             MemoryHit(candidate: candidate,
-                      score: EmbeddingService.lexicalOverlap(query: query, chunk: candidate.text))
+                      score: LexicalTokenizer.lexicalOverlap(query: query, chunk: candidate.text))
         }
 
-        let scores = scored.map(\.score)
-        let mean = scores.reduce(0, +) / Float(scores.count)
-        let variance = scores.reduce(Float(0)) { $0 + ($1 - mean) * ($1 - mean) }
-            / Float(max(scores.count - 1, 1))
-        let sd = variance.squareRoot()
-        // A flat distribution has no standout — one candidate, or a hundred identical ones.
-        // Admitting the arbitrary maximum of a flat set is the false-admit this guard
-        // exists to refuse.
-        guard sd > 0 else { return [] }
+        // **A store too small for a distribution.** With the sample standard deviation the
+        // largest z attainable over `n` values is `(n-1)/√n`, which does not reach the
+        // default 1.5 until n = 4 — so on a one-, two- or three-row store the relative
+        // rule admitted NOTHING, however perfectly a row matched. That is the FIRST-RUN
+        // path: the user saves their first memory, asks about it, and is told there is
+        // nothing there. Below the threshold the anchor alone decides; it is not an open
+        // door, because a row still has to share a content token to score above zero.
+        let admissible: [MemoryHit]
+        if scored.count < 4 {
+            admissible = scored.filter { $0.score > 0 }
+        } else {
+            let scores = scored.map(\.score)
+            let mean = scores.reduce(0, +) / Float(scores.count)
+            let variance = scores.reduce(Float(0)) { $0 + ($1 - mean) * ($1 - mean) }
+                / Float(max(scores.count - 1, 1))
+            let sd = variance.squareRoot()
+            // A flat distribution has no standout — a hundred identical rows. Admitting
+            // the arbitrary maximum of a flat set is the false-admit this guard refuses.
+            guard sd > 0 else { return [] }
+            admissible = scored.filter { $0.score > 0 && ($0.score - mean) / sd >= z }
+        }
 
-        let admitted = scored
-            .filter { $0.score > 0 && ($0.score - mean) / sd >= z }
-            .sorted { $0.score > $1.score }
+        // **The tie-break is part of the answer, not a detail.** `sorted(by:)` is not
+        // stable in Swift, and 13 of the 75 answerable corpus queries tie at rank 1 — so
+        // score alone leaves p@1 dependent on the order the rows came back from a fetch,
+        // which is SwiftData's business rather than a property of the scorer. Measured
+        // over adversarial orderings the same corpus scores anywhere from 59 to 68 of 75.
+        //
+        // Newer first, because between two equally-matching memories the later one is the
+        // more likely to still be true — a repaint supersedes the colour before it. Then
+        // chunk order within a turn, then the id, so the order is total.
+        let admitted = admissible.sorted {
+            if $0.score != $1.score { return $0.score > $1.score }
+            if $0.candidate.sentAt != $1.candidate.sentAt {
+                return $0.candidate.sentAt > $1.candidate.sentAt
+            }
+            if $0.candidate.chunkIndex != $1.candidate.chunkIndex {
+                return $0.candidate.chunkIndex < $1.candidate.chunkIndex
+            }
+            return $0.candidate.entryID.uuidString < $1.candidate.entryID.uuidString
+        }
 
         // Two chunks of one turn are one memory: admitting both spends the block's token
         // budget twice on the same sentence.

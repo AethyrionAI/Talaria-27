@@ -56,8 +56,12 @@ struct MemoryRetrieverTests {
     /// test, and it must not silently suppress corpus hits here.
     private func candidates(_ corpus: Corpus) -> [MemoryCandidate] {
         corpus.turns.map {
+            // Deterministic `sentAt`, ascending with the turn id: the tie-break reads it,
+            // so `Date()` per row would make the reported numbers depend on how fast the
+            // loop ran.
             MemoryCandidate(entryID: UUID(), sessionID: UUID(), chunkIndex: $0.id,
-                            text: $0.text, sentAt: Date())
+                            text: $0.text,
+                            sentAt: Date(timeIntervalSince1970: 1_000 + Double($0.id)))
         }
     }
 
@@ -150,10 +154,10 @@ struct MemoryRetrieverTests {
     @Test func everyPlainNoAnswerQuerySharesNoContentTokenWithAnyTurn() throws {
         let corpus = try Self.loadCorpus()
         let turnTokens = corpus.turns.reduce(into: Set<String>()) {
-            $0.formUnion(EmbeddingService.contentTokens($1.text))
+            $0.formUnion(LexicalTokenizer.contentTokens($1.text))
         }
         for query in corpus.queries where query.queryClass == "plain" {
-            let shared = EmbeddingService.contentTokens(query.text).intersection(turnTokens)
+            let shared = LexicalTokenizer.contentTokens(query.text).intersection(turnTokens)
             #expect(shared.isEmpty,
                     "plain query \(query.text.debugDescription) shares \(shared.sorted()) with a turn")
         }
@@ -161,26 +165,113 @@ struct MemoryRetrieverTests {
 
     // MARK: - Top-k shape
 
+    /// Twenty rows nothing in the query touches, so the three that DO match stand out far
+    /// enough above their own distribution to be admitted at all.
+    ///
+    /// That padding is the point of this fixture. The first version of this test used six
+    /// candidates and asserted only `sameSession.count <= 1` — and on that fixture
+    /// `retrieve` returned an EMPTY array (three ties at 0.333 against three zeros peaks at
+    /// z = 0.913, under the 1.5 bar), so the assertion passed over nothing and the
+    /// de-duplication branch was executed by no test in the suite. `#require(!hits.isEmpty)`
+    /// is what keeps it honest.
+    private func hallwayFixture(session: UUID) -> [MemoryCandidate] {
+        let hallway = "We decided to go with the blue paint for the hallway, not the grey."
+        func row(_ index: Int, _ sessionID: UUID, _ body: String) -> MemoryCandidate {
+            MemoryCandidate(entryID: UUID(), sessionID: sessionID, chunkIndex: index,
+                            text: body, sentAt: Date(timeIntervalSince1970: 1_000 + Double(index)))
+        }
+        let filler = [
+            "How many calories are in a medium banana?", "What year did the Berlin Wall come down?",
+            "Set a timer for twelve minutes.", "Explain how photosynthesis works in simple terms.",
+            "Suggest a name for a new houseplant.", "Mute notifications for the next hour.",
+            "What's 340 divided by 8?", "Draft a two-sentence out-of-office reply.",
+            "How far away is the moon from Earth?", "Play some rain sounds to help me focus.",
+            "Convert 5 miles to kilometers for me.", "What's the square root of 144?",
+            "Write a limerick about a grumpy cat.", "Turn the living room lights down to 20 percent.",
+            "My commute takes about forty minutes each way on the train.",
+            "I water the office plants every Monday morning.", "I collect vinyl records, mostly 70s jazz.",
+            "I meal-prep on Sundays for the whole work week.", "I'm training for a half marathon in the spring.",
+            "My favorite coffee order is an oat milk flat white, no sugar.",
+        ]
+        return [row(0, session, hallway), row(1, session, hallway), row(0, UUID(), hallway)]
+            + filler.enumerated().map { row($0.offset, UUID(), $0.element) }
+    }
+
     /// Two chunks of one long turn are one memory, not two: admitting both spends the
     /// token budget twice on the same sentence. Distinct sessions are never adjacent even
-    /// at the same chunk index.
-    @Test func adjacentChunksOfTheSameSessionAreDeDuplicated() {
+    /// at the same chunk index — so the OTHER session's identical text must survive.
+    ///
+    /// RED by deleting the `adjacent` check in `retrieve`: the same-session count goes to 2.
+    @Test func adjacentChunksOfTheSameSessionAreDeDuplicated() throws {
         let session = UUID()
-        let text = "We decided to go with the blue paint for the hallway, not the grey."
-        func chunk(_ index: Int, _ sessionID: UUID, _ body: String) -> MemoryCandidate {
-            MemoryCandidate(entryID: UUID(), sessionID: sessionID, chunkIndex: index,
-                            text: body, sentAt: Date())
-        }
-        let candidates = [chunk(0, session, text), chunk(1, session, text),
-                          chunk(0, UUID(), text),
-                          chunk(7, UUID(), "How many calories are in a medium banana?"),
-                          chunk(8, UUID(), "What year did the Berlin Wall come down?"),
-                          chunk(9, UUID(), "Set a timer for twelve minutes.")]
         let hits = MemoryRetriever.retrieve(query: "which colour did we pick for the hallway",
-                                            candidates: candidates)
+                                            candidates: hallwayFixture(session: session))
+        try #require(!hits.isEmpty, "the fixture must actually admit something, or this test proves nothing")
         let sameSession = hits.filter { $0.candidate.sessionID == session }
-        #expect(sameSession.count <= 1,
-                "adjacent chunks of one session must collapse, got \(sameSession.map(\.candidate.chunkIndex))")
+        #expect(sameSession.count == 1,
+                "adjacent chunks of one session must collapse to one, got \(sameSession.map(\.candidate.chunkIndex))")
+        #expect(hits.count == 2, "the other session's identical text is a DIFFERENT memory and must survive")
+    }
+
+    // MARK: - A store too small for a distribution
+
+    /// Relative admission is arithmetically impossible on a tiny store, and this is the
+    /// FIRST-RUN path: with the sample standard deviation the largest z attainable over
+    /// `n` values is `(n-1)/√n`, which does not reach 1.5 until n = 4. So a store holding
+    /// one, two or three rows admitted NOTHING — the user saves their first memory, asks
+    /// about it, and is told nothing is there, however perfectly it matches.
+    ///
+    /// RED before the small-store branch: all three cases return an empty array.
+    @Test func aStoreWithFewerThanFourRowsStillRetrievesAPerfectMatch() throws {
+        let dentist = "My dentist is Dr. Patel on Lamar, appointments are usually Tuesday mornings."
+        let noise = ["Set a timer for twelve minutes.", "What's the square root of 144?"]
+        for count in 1 ... 3 {
+            var rows = [MemoryCandidate(entryID: UUID(), sessionID: UUID(), chunkIndex: 0,
+                                        text: dentist, sentAt: Date(timeIntervalSince1970: 1_000))]
+            for i in 0 ..< (count - 1) {
+                rows.append(MemoryCandidate(entryID: UUID(), sessionID: UUID(), chunkIndex: 0,
+                                            text: noise[i],
+                                            sentAt: Date(timeIntervalSince1970: 2_000 + Double(i))))
+            }
+            let hits = MemoryRetriever.retrieve(query: "who is my dentist", candidates: rows)
+            #expect(hits.count == 1, "a \(count)-row store must still answer, got \(hits.count) hits")
+            #expect(hits.first?.candidate.text == dentist)
+        }
+    }
+
+    /// The anchor still applies below the threshold — a small store is not an open door.
+    @Test func aTinyStoreStillRefusesAQueryNothingMatches() {
+        let rows = ["Set a timer for twelve minutes.", "What's the square root of 144?"]
+            .enumerated().map {
+                MemoryCandidate(entryID: UUID(), sessionID: UUID(), chunkIndex: $0.offset,
+                                text: $0.element, sentAt: Date(timeIntervalSince1970: 1_000))
+            }
+        #expect(MemoryRetriever.retrieve(query: "who is my dentist", candidates: rows).isEmpty)
+    }
+
+    // MARK: - Determinism
+
+    /// `sorted(by:)` is NOT stable in Swift, and 13 of the 75 answerable corpus queries tie
+    /// at rank 1 — so without an explicit tie-break the reported p@1 depends on the order
+    /// the candidate array happened to arrive in, which is a fetch's business and not a
+    /// property of the scorer. Under adversarial ordering the same corpus scores anywhere
+    /// from 59 to 68 of 75.
+    ///
+    /// RED by removing the secondary sort keys: shuffling changes the hit list.
+    @Test func theHitListDoesNotDependOnCandidateOrder() throws {
+        let session = UUID()
+        let fixture = hallwayFixture(session: session)
+        let reference = MemoryRetriever.retrieve(query: "which colour did we pick for the hallway",
+                                                 candidates: fixture)
+        try #require(!reference.isEmpty)
+        var generator = SystemRandomNumberGenerator()
+        for _ in 0 ..< 12 {
+            let shuffled = fixture.shuffled(using: &generator)
+            let hits = MemoryRetriever.retrieve(query: "which colour did we pick for the hallway",
+                                                candidates: shuffled)
+            #expect(hits.map(\.candidate.entryID) == reference.map(\.candidate.entryID),
+                    "the hit list must not depend on the order the rows were fetched in")
+        }
     }
 
     // MARK: - The gates around retrieval
@@ -196,6 +287,7 @@ struct MemoryRetrieverTests {
         #expect(MemoryRetriever.shouldSkip("yes please"))
         #expect(MemoryRetriever.shouldSkip("another one"))
         #expect(MemoryRetriever.shouldSkip("say that again"))
+        #expect(MemoryRetriever.shouldSkip("another  one"), "internal whitespace must normalize too")
         #expect(!MemoryRetriever.shouldSkip("where does my sister live"))
         #expect(!MemoryRetriever.shouldSkip("who is my dentist"))
         #expect(!MemoryRetriever.shouldSkip("what do I collect"))
