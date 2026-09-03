@@ -1,24 +1,6 @@
 import Foundation
-import NaturalLanguage
 import Testing
 @testable import Talaria
-
-/// Counts how many times the indexer asked for an embedder. The toggle's second
-/// claim is a COST claim — "no embedder is constructed" — and a row count cannot
-/// see it: with acquisition stubbed to nil, an indexer that built an embedder and
-/// then wrote nothing looks identical to one that never built anything.
-///
-/// File-scope and deliberately un-isolated: it is driven from the indexer's own
-/// `makeEmbedder` closure, which is a plain synchronous callback.
-private final class EmbedderFactory {
-    private(set) var constructions = 0
-    private let make: () -> EmbeddingService
-    init(_ make: @escaping () -> EmbeddingService) { self.make = make }
-    func callAsFunction() -> EmbeddingService {
-        constructions += 1
-        return make()
-    }
-}
 
 /// #422 (bar 422-B): the memory master switch and the resumable launch backfill.
 ///
@@ -39,29 +21,6 @@ struct MemoryToggleBackfillTests {
 
     private func userTurn(_ text: String = "My dentist is Dr. Patel.") -> Message {
         Message(sender: .user, content: text)
-    }
-
-    /// Acquisition that never yields an embedder — rows land with an EMPTY
-    /// vector, which is exactly the state the backfill's re-embed pass exists
-    /// to repair.
-    private func nullEmbedder() -> EmbeddingService { EmbeddingService(acquire: { nil }) }
-
-    /// The runtime's real sentence embedder, acquired over a bounded window
-    /// (422-C: the variable is elapsed time, not attempt count — the first call
-    /// in a process reliably returns nil and a cold run can stay nil for
-    /// several back-to-back calls). Wrapping it in the `acquire:` seam keeps
-    /// the re-embed test off that timing entirely once it is held.
-    private func realEmbedder(budget: Duration = .seconds(3)) async throws -> NLEmbedding {
-        let clock = ContinuousClock()
-        let start = clock.now
-        repeat {
-            if let e = NLEmbedding.sentenceEmbedding(for: .english), e.vector(for: "warm") != nil {
-                return e
-            }
-            try await Task.sleep(for: .milliseconds(50))
-        } while clock.now - start < budget
-        return try #require(NLEmbedding.sentenceEmbedding(for: .english),
-                            "no sentence embedder available to drive the re-embed pass")
     }
 
     // MARK: - The persisted key
@@ -96,14 +55,14 @@ struct MemoryToggleBackfillTests {
 
     @Test func indexingWritesNothingWhileTheToggleIsOff() throws {
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
-        MemoryIndexer(store: store, makeEmbedder: nullEmbedder, isEnabled: { false })
+        MemoryIndexer(store: store, isEnabled: { false })
             .index(conversation([userTurn()]))
         #expect(store.indexCount() == 0, "a turn taken while memory is off must not be remembered")
     }
 
     @Test func backfillWritesNothingWhileTheToggleIsOff() throws {
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
-        let indexer = MemoryIndexer(store: store, makeEmbedder: nullEmbedder, isEnabled: { false })
+        let indexer = MemoryIndexer(store: store, isEnabled: { false })
         var cursor = 0
         indexer.backfill([conversation([userTurn()]), conversation([userTurn("My dog is Biscuit.")])],
                          cursor: &cursor)
@@ -119,7 +78,7 @@ struct MemoryToggleBackfillTests {
     @Test func theToggleIsReadOnEveryCallNotAtConstruction() throws {
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
         var enabled = false
-        let indexer = MemoryIndexer(store: store, makeEmbedder: nullEmbedder, isEnabled: { enabled })
+        let indexer = MemoryIndexer(store: store, isEnabled: { enabled })
 
         indexer.index(conversation([userTurn()]))
         #expect(store.indexCount() == 0, "off at the time of the turn means nothing is written")
@@ -129,36 +88,6 @@ struct MemoryToggleBackfillTests {
         #expect(store.indexCount() > 0, "the very same indexer must honour a flip back ON")
     }
 
-    /// The cost half of the ruling. `EmbeddingService.init` makes real
-    /// `NLEmbedding` asset lookups; a user who has switched memory off should
-    /// not pay for one, and the row count cannot tell whether they did.
-    @Test func noEmbedderIsConstructedWhileTheToggleIsOff() throws {
-        let store = try #require(MemoryStore.make(inMemoryOnly: true))
-        let factory = EmbedderFactory { EmbeddingService(acquire: { nil }) }
-        let indexer = MemoryIndexer(store: store, makeEmbedder: { factory() }, isEnabled: { false })
-
-        indexer.index(conversation([userTurn()]))
-        var cursor = 0
-        indexer.backfill([conversation([userTurn()])], cursor: &cursor)
-
-        #expect(factory.constructions == 0,
-                "memory off must cost nothing — no embedder was needed, \(factory.constructions) were built")
-    }
-
-    /// The negative control for the test above: the same factory, the same
-    /// calls, the toggle ON. Without it a `makeEmbedder` that is simply never
-    /// called — a broken indexer — would satisfy the zero-construction pin.
-    @Test func anEmbedderIsConstructedWhenTheToggleIsOn() throws {
-        let store = try #require(MemoryStore.make(inMemoryOnly: true))
-        let factory = EmbedderFactory { EmbeddingService(acquire: { nil }) }
-        let indexer = MemoryIndexer(store: store, makeEmbedder: { factory() }, isEnabled: { true })
-
-        indexer.index(conversation([userTurn()]))
-
-        #expect(factory.constructions == 1, "indexing a turn must actually reach the embedder")
-        #expect(store.indexCount() > 0)
-    }
-
     /// The KEPT half of Owen's ruling. Switching memory off is not an erasure —
     /// Forget everything is the only eraser — so rows written while it was on
     /// must still be there afterwards, and must come back into use on a flip
@@ -166,7 +95,7 @@ struct MemoryToggleBackfillTests {
     @Test func switchingTheToggleOffKeepsWhatWasAlreadyIndexed() throws {
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
         var enabled = true
-        let indexer = MemoryIndexer(store: store, makeEmbedder: nullEmbedder, isEnabled: { enabled })
+        let indexer = MemoryIndexer(store: store, isEnabled: { enabled })
 
         indexer.index(conversation([userTurn()]))
         let banked = store.indexCount()
@@ -195,14 +124,14 @@ struct MemoryToggleBackfillTests {
 
         let oneShot = try #require(MemoryStore.make(inMemoryOnly: true))
         var oneShotCursor = 0
-        MemoryIndexer(store: oneShot, makeEmbedder: nullEmbedder)
+        MemoryIndexer(store: oneShot)
             .backfill(corpus, cursor: &oneShotCursor)
         #expect(oneShotCursor == corpus.count, "an unbudgeted pass must consume the whole corpus")
         #expect(oneShot.indexCount() > 0)
 
         // …and now the same corpus, killed after 2 conversations and resumed.
         let resumed = try #require(MemoryStore.make(inMemoryOnly: true))
-        let indexer = MemoryIndexer(store: resumed, makeEmbedder: nullEmbedder)
+        let indexer = MemoryIndexer(store: resumed)
         var cursor = 0
         indexer.backfill(corpus, cursor: &cursor, budget: 2)
         #expect(cursor == 2, "the budget must stop the pass exactly where it says")
@@ -222,7 +151,7 @@ struct MemoryToggleBackfillTests {
     @Test func replayingAFinishedBackfillFromZeroAddsNothing() throws {
         let corpus = backfillCorpus(3)
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
-        let indexer = MemoryIndexer(store: store, makeEmbedder: nullEmbedder)
+        let indexer = MemoryIndexer(store: store)
 
         var cursor = 0
         indexer.backfill(corpus, cursor: &cursor)
@@ -235,160 +164,6 @@ struct MemoryToggleBackfillTests {
 
     // MARK: - The empty-vector repair
 
-    /// The gap the incremental index leaves behind (Task 4): a turn indexed
-    /// while the embedder was unavailable keeps its row — the verbatim text IS
-    /// the memory — but with an EMPTY vector, and "already indexed" means the
-    /// settle seam never looks at it again. Without this pass that row is
-    /// lexical-only for the life of the install, which on a phone whose asset
-    /// simply had not downloaded yet is a permanent penalty for a transient
-    /// condition.
-    ///
-    /// Driven directly here. The pass used to hang off `backfill`'s tail and is
-    /// now the runner's to call once per run — `MemoryBackfillRunnerTests` owns
-    /// that scheduling claim; this owns the repair itself.
-    @Test func theRepairPassReEmbedsRowsStoredWhileTheEmbedderWasUnavailable() async throws {
-        let real = try await realEmbedder()
-        let store = try #require(MemoryStore.make(inMemoryOnly: true))
-
-        MemoryIndexer(store: store, makeEmbedder: nullEmbedder)
-            .index(conversation([userTurn()]))
-        let stranded = store.emptyVectorRows(limit: 10)
-        #expect(stranded.count == store.indexCount(),
-                "every row of this fixture must have landed vectorless, or the repair proves nothing")
-        let subject = try #require(stranded.first).entryID
-        #expect(store.vectorByteCount(entryID: subject) == 0)
-
-        let repaired = await MemoryIndexer(store: store, makeEmbedder: { EmbeddingService(acquire: { real }) })
-            .reEmbedStrandedRows()
-
-        #expect(repaired == stranded.count, "the pass must report what it wrote, got \(repaired)")
-        #expect(store.vectorByteCount(entryID: subject) ?? 0 > 0,
-                "a row stranded without a vector must be repaired once an embedder exists")
-        #expect(store.emptyVectorRows(limit: 10).isEmpty,
-                "the pass must repair every stranded row it was given budget for, not just the first")
-    }
-
-    /// Memory OFF stops the repair too — it writes to the index like any other
-    /// indexing, so the switch that stops the settle seam stops this as well.
-    @Test func theRepairPassIsRefusedWhileTheToggleIsOff() async throws {
-        let real = try await realEmbedder()
-        let store = try #require(MemoryStore.make(inMemoryOnly: true))
-        MemoryIndexer(store: store, makeEmbedder: nullEmbedder).index(conversation([userTurn()]))
-        let stranded = store.emptyVectorRows(limit: 10).count
-        #expect(stranded > 0)
-
-        let repaired = await MemoryIndexer(store: store,
-                                           makeEmbedder: { EmbeddingService(acquire: { real }) },
-                                           isEnabled: { false }).reEmbedStrandedRows()
-
-        #expect(repaired == 0)
-        #expect(store.emptyVectorRows(limit: 10).count == stranded, "nothing may be written while off")
-    }
-
-    /// The queue is a bounded FETCH: the repair takes a slice and leaves the
-    /// rest for the next pass, so a large stranded backlog cannot own a launch.
-    @Test func theStrandedRowQueueHonoursItsFetchLimit() throws {
-        let store = try #require(MemoryStore.make(inMemoryOnly: true))
-        MemoryIndexer(store: store, makeEmbedder: nullEmbedder)
-            .index(conversation([userTurn("My dentist is Dr. Patel."),
-                                 userTurn("My dog is called Biscuit."),
-                                 userTurn("I park on Oak Street.")]))
-        #expect(store.indexCount() >= 3, "the fixture needs more rows than the limit under test")
-        #expect(store.emptyVectorRows(limit: 2).count == 2)
-        #expect(store.emptyVectorRows(limit: 0).isEmpty, "a zero limit must fetch nothing")
-    }
-
-    /// **A crash guard, pinned deterministically.** `reEmbedStrandedRows` holds
-    /// live SwiftData models across `await Task.yield()`, and the thing it yields
-    /// to can delete one of them: `reconcileSession` reaps the rows of a message
-    /// the user retried or undid, and saves. Writing to a model whose row is gone
-    /// raises `NSObjectInaccessibleException` — an ObjC exception Swift cannot
-    /// catch, so it is a hard crash on the launch path, not a loggable error.
-    ///
-    /// `Task.yield()` alone gives a test no way to run code at the single instant
-    /// that matters, so `onYield` (production never passes it) fires the reconcile
-    /// exactly between two rows.
-    ///
-    /// **This test corrected the fix.** The guard was first written as
-    /// `!row.isDeleted`, and this fixture repaired 3 rows instead of 1 — no
-    /// crash, but every reaped row written to anyway. Instrumented, the deleted
-    /// models read `isDeleted == false, modelContext == nil`: after a SAVED
-    /// delete the object is unregistered, not flagged. So the flag alone is
-    /// blind to exactly this case, and the guard checks both.
-    @Test func theRepairPassSurvivesItsRowsBeingDeletedDuringAYield() async throws {
-        let real = try await realEmbedder()
-        let store = try #require(MemoryStore.make(inMemoryOnly: true))
-        let sessionID = UUID()
-        let thread = Conversation(id: sessionID, title: "t", messages: [
-            userTurn("My dentist is Dr. Patel."),
-            userTurn("My dog is called Biscuit."),
-            userTurn("I park on Oak Street."),
-        ])
-        MemoryIndexer(store: store, makeEmbedder: nullEmbedder).index(thread)
-        #expect(store.emptyVectorRows(limit: 10).count >= 3, "the fixture needs rows on both sides of a yield")
-
-        let repaired = await MemoryIndexer(store: store, makeEmbedder: { EmbeddingService(acquire: { real }) })
-            .reEmbedStrandedRows(limit: 10, yieldStride: 1, onYield: {
-                // The settle seam, arriving mid-pass: every row of this session
-                // loses its source message and is reaped.
-                _ = store.reconcileSession(sessionID, liveMessageIDs: [])
-            })
-
-        #expect(repaired == 1, "exactly the row repaired before the delete may be counted, got \(repaired)")
-        #expect(store.indexCount() == 0, "the reconcile must really have removed the rows")
-    }
-
     // MARK: - What a vectorless row claims about itself
 
-    /// A row with no vector has no embedder either. `embedderID` is what tells
-    /// retrieval a stored vector is comparable to the query's, so stamping the
-    /// current id onto an EMPTY blob sets a trap for the scorer M2 builds — it
-    /// would read as "scored by the live embedder" and invite a cosine against
-    /// nothing. The repair stamps the real id at the moment it fills the vector,
-    /// and this pins both halves of that.
-    @Test func aRowWithoutAVectorCarriesNoEmbedderIDUntilItIsRepaired() async throws {
-        let real = try await realEmbedder()
-        let store = try #require(MemoryStore.make(inMemoryOnly: true))
-
-        MemoryIndexer(store: store, makeEmbedder: nullEmbedder).index(conversation([userTurn()]))
-        #expect(store.indexCount() == 1, "this fixture is a single row on purpose")
-        #expect(store.allEmbedderIDs() == [""],
-                "a vectorless row must not claim an embedder, got \(store.allEmbedderIDs())")
-
-        _ = await MemoryIndexer(store: store, makeEmbedder: { EmbeddingService(acquire: { real }) })
-            .reEmbedStrandedRows()
-
-        #expect(store.allEmbedderIDs() == [EmbeddingService.embedderID],
-                "the repair must stamp the embedder it actually used")
-        #expect(store.emptyVectorRows(limit: 1).isEmpty, "no row may still be stranded")
-    }
-
-    /// The positive control: a row that DID get a vector carries the real id from
-    /// the moment it is written, with no repair involved. Without this, an
-    /// indexer that stamped `""` on everything would satisfy the test above.
-    @Test func aRowWithAVectorCarriesTheEmbedderIDImmediately() async throws {
-        let real = try await realEmbedder()
-        let store = try #require(MemoryStore.make(inMemoryOnly: true))
-
-        MemoryIndexer(store: store, makeEmbedder: { EmbeddingService(acquire: { real }) })
-            .index(conversation([userTurn()]))
-
-        #expect(store.allEmbedderIDs() == [EmbeddingService.embedderID])
-        #expect(store.emptyVectorRows(limit: 10).isEmpty, "the fixture must have embedded")
-    }
-
-    /// A repair pass with no embedder must leave the rows exactly as they are —
-    /// never blank an embedderID or drop a row it could not score.
-    @Test func theRepairPassLeavesRowsAloneWhenNoEmbedderArrives() async throws {
-        let store = try #require(MemoryStore.make(inMemoryOnly: true))
-        let indexer = MemoryIndexer(store: store, makeEmbedder: nullEmbedder)
-        indexer.index(conversation([userTurn()]))
-        let before = store.indexCount()
-
-        let repaired = await indexer.reEmbedStrandedRows()
-
-        #expect(repaired == 0)
-        #expect(store.indexCount() == before, "a failed repair must not cost the user a memory")
-        #expect(store.emptyVectorRows(limit: 10).count == before)
-    }
 }

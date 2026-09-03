@@ -6,7 +6,17 @@
       "realHostTurns": 20,
       "synthetic": 68
     },
-    "privacyFilter": "Real turns are read-only SELECTs from a copy of ~/.hermes/state.db's messages table, excluding anything resembling a secret/credential (API keys, tokens, passwords, wifi passwords, key-shaped hex/base64), bank/card/ID numbers, email addresses, phone numbers, street addresses, pasted code/logs/stack traces, and turns over 500 characters; borderline turns were dropped in favor of synthetic."
+    "privacyFilter": "Real turns are read-only SELECTs from a copy of ~/.hermes/state.db's messages table, excluding anything resembling a secret/credential (API keys, tokens, passwords, wifi passwords, key-shaped hex/base64), bank/card/ID numbers, email addresses, phone numbers, street addresses, pasted code/logs/stack traces, and turns over 500 characters; borderline turns were dropped in favor of synthetic.",
+    "revised": "2026-09-03",
+    "revision": "422-R lane M2: every no-answer query gains a `class`. The original 12 are labelled `adversarial` (authored as near-misses of a real turn). 20 `plain` no-answer queries were added 2026-09-03 on Owen's ruling: ordinary unrelated questions, each verified by script to share NO content token with ANY turn under the shipped stemmer — that zero-overlap check IS the class definition. Answerable queries and all 104 turns are unchanged from the 2026-09-02 authoring.",
+    "counts": {
+      "turns": 104,
+      "queries": 107,
+      "answerable": 75,
+      "noAnswerAdversarial": 12,
+      "noAnswerPlain": 20
+    },
+    "classCaveat": "Three of the 12 `adversarial` queries (\"what's the capital of Peru\", \"what's the capital of France\", \"how tall is Mount Everest\") in fact share no content token with any turn and meet the `plain` definition. They keep the `adversarial` label so the pre-registered 12-query set measured on 2026-09-02 stays comparable across runs; the report carries both computations."
   },
   "turns": [
     {
@@ -729,51 +739,163 @@
     },
     {
       "text": "what's the capital of Peru",
-      "relevant": null
+      "relevant": null,
+      "class": "adversarial"
     },
     {
       "text": "what did I say about my brother-in-law",
-      "relevant": null
+      "relevant": null,
+      "class": "adversarial"
     },
     {
       "text": "when is my mortgage payment due",
-      "relevant": null
+      "relevant": null,
+      "class": "adversarial"
     },
     {
       "text": "what's my son's teacher's name",
-      "relevant": null
+      "relevant": null,
+      "class": "adversarial"
     },
     {
       "text": "what's the wifi password for the guest network",
-      "relevant": null
+      "relevant": null,
+      "class": "adversarial"
     },
     {
       "text": "what's the capital of France",
-      "relevant": null
+      "relevant": null,
+      "class": "adversarial"
     },
     {
       "text": "how tall is Mount Everest",
-      "relevant": null
+      "relevant": null,
+      "class": "adversarial"
     },
     {
       "text": "what did I decide about the office lease",
-      "relevant": null
+      "relevant": null,
+      "class": "adversarial"
     },
     {
       "text": "when is my next dermatologist appointment",
-      "relevant": null
+      "relevant": null,
+      "class": "adversarial"
     },
     {
       "text": "what's the name of my daughter's school mascot",
-      "relevant": null
+      "relevant": null,
+      "class": "adversarial"
     },
     {
       "text": "who did I get gasoline from last week",
-      "relevant": null
+      "relevant": null,
+      "class": "adversarial"
     },
     {
       "text": "what field does my brother work in in Denver",
-      "relevant": null
+      "relevant": null,
+      "class": "adversarial"
+    },
+    {
+      "text": "which planet is closest to the sun",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "who wrote Pride and Prejudice",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "what language is spoken in Brazil",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "when was the printing press invented",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "how do volcanoes form",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "what is DNA made of",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "who sculpted the statue of David",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "what causes thunder",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "which element has the atomic number six",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "why does a refrigerator hum",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "what is the largest ocean",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "who invented the telephone",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "how tall is a giraffe",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "what is the chemical symbol for gold",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "when did the Roman Empire collapse",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "how are rainbows formed",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "what is the tallest building in Asia",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "who discovered penicillin",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "which timezone is Tokyo in",
+      "relevant": null,
+      "class": "plain"
+    },
+    {
+      "text": "what is the boiling point of mercury",
+      "relevant": null,
+      "class": "plain"
     }
   ]
 }
