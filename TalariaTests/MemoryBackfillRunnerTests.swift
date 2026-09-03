@@ -165,7 +165,7 @@ struct MemoryBackfillRunnerTests {
 
         await makeRunner(sessions, store: memory, knobs).run()
 
-        let afterFlip = memory.indexCount()
+        let afterFlip = try #require(memory.indexCount())
         #expect(afterFlip > 0, "the first conversation must genuinely have been indexed")
         #expect(knobs.cursor == 1,
                 "the cursor read \(knobs.cursor), marking \(4 - knobs.cursor) unindexed session(s) as done forever")
@@ -185,7 +185,7 @@ struct MemoryBackfillRunnerTests {
         await makeRunner(sessions, store: oneShot, Knobs()).run()
         #expect(memory.indexCount() == oneShot.indexCount(),
                 "a stopped-then-resumed backfill must land on exactly the index one clean pass builds")
-        #expect(memory.indexCount() > afterFlip, "the resume must have indexed what the flip skipped")
+        #expect(try #require(memory.indexCount()) > afterFlip, "the resume must have indexed what the flip skipped")
     }
 
     /// The other half of the same protection: the switch flips WHILE the first
@@ -281,7 +281,7 @@ struct MemoryBackfillRunnerTests {
         await makeRunner(sessions, store: memory, knobs).run()
 
         #expect(knobs.cursor == 3, "the walk must clear a missing transcript, not park on it")
-        #expect(memory.indexCount() > 0, "the readable sessions must still have been indexed")
+        #expect(try #require(memory.indexCount()) > 0, "the readable sessions must still have been indexed")
     }
 
     // MARK: - what the walk COSTS
@@ -354,12 +354,12 @@ struct MemoryBackfillRunnerTests {
         await runner.run()
         let ms = Double((clock.now - start) / .milliseconds(1))
 
-        print("422-B backfill: \(conversationCount) conversations / \(memory.indexCount()) rows "
+        print("422-B backfill: \(conversationCount) conversations / \(memory.indexCount() ?? -1) rows "
               + "in \(String(format: "%.0f", ms)) ms on "
               + ProcessInfo.processInfo.operatingSystemVersionString)
 
         #expect(knobs.cursor == conversationCount, "the probe must have walked the whole corpus")
-        #expect(memory.indexCount() >= conversationCount, "…and indexed it")
+        #expect(try #require(memory.indexCount()) >= conversationCount, "…and indexed it")
     }
 
     /// The 422-R corpus's turn texts, read from the repo.
@@ -415,7 +415,7 @@ struct MemoryBackfillRunnerTests {
         await makeRunner(sessions, store: memory, knobs).run()
 
         #expect(knobs.cursor == 2)
-        #expect(memory.indexCount() > 0, "a negative cursor must not skip the corpus")
+        #expect(try #require(memory.indexCount()) > 0, "a negative cursor must not skip the corpus")
     }
 
     // MARK: - Forget everything's other half (fix round 1, Important item 2)
@@ -473,7 +473,7 @@ struct MemoryBackfillRunnerTests {
             // "nothing comes back" assertion is about something.
             guard reads == 2, !forgotten else { return }
             forgotten = true
-            countBeforeForget = memory.indexCount()
+            countBeforeForget = memory.indexCount() ?? -1
             // Production's order, from `AppContainer.forgetLocalMemory`:
             // park + refuse first, erase second.
             runner.cancelAndParkCursorAtCorpusEnd()
@@ -486,7 +486,7 @@ struct MemoryBackfillRunnerTests {
         #expect(countBeforeForget > 0,
                 "precondition: a conversation was genuinely indexed before the erase")
         #expect(memory.indexCount() == 0, """
-            \(memory.indexCount()) row(s) appeared AFTER the forget — the in-flight walk kept \
+            \(memory.indexCount() ?? -1) row(s) appeared AFTER the forget — the in-flight walk kept \
             indexing into the store the user had just emptied
             """)
         #expect(sessions.readCount == 2,

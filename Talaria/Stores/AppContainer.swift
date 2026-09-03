@@ -2004,6 +2004,15 @@ final class AppContainer {
     /// An earlier version kept the walk inline here and had three defects nobody
     /// could see from outside — that is what the extraction is for.
     func startMemoryBackfill(settingsStore: SettingsStore, localSessions: (any LocalSessionStoring)?) {
+        // Recorded BEFORE the guard, and that ordering is the whole point
+        // (#422 final review, I5): `forgetLocalMemory`'s no-runner fallback
+        // reads exactly these two, and assigning them alongside the runner —
+        // i.e. only on the path that also produces a runner — made the
+        // fallback unreachable dead code. A launch that never starts a walk
+        // (no indexer yet, no local store wired) is precisely the launch whose
+        // stale cursor the fallback exists to park.
+        memoryBackfillSessions = localSessions
+        memoryBackfillCursorWriter = { settingsStore.settings.memoryBackfillCursor = $0 }
         guard memoryBackfillTask == nil,
               let localSessions,
               let indexer = chatStore.memoryIndexer else { return }
@@ -2014,8 +2023,6 @@ final class AppContainer {
             readCursor: { settingsStore.settings.memoryBackfillCursor },
             writeCursor: { settingsStore.settings.memoryBackfillCursor = $0 })
         memoryBackfillRunner = runner
-        memoryBackfillSessions = localSessions
-        memoryBackfillCursorWriter = { settingsStore.settings.memoryBackfillCursor = $0 }
         // No `self` capture: the task is HELD by the container but does not hold
         // it, so a container that goes away is not kept alive walking history
         // nobody is looking at.
@@ -2043,9 +2050,14 @@ final class AppContainer {
     ///     that was just emptied.
     ///
     /// Order matters and is asserted by the runner's own tests: park + refuse
-    /// FIRST, erase second. The task is cancelled too, but only as tidying —
-    /// `Task.yield()` returns normally on a cancelled task, so the flag is
-    /// what actually stops the walk.
+    /// FIRST, erase second.
+    ///
+    /// The task is cancelled too, and it is worth being exact about what that
+    /// does. `Task.yield()` is the walk's ONLY suspension point, and it returns
+    /// normally on a cancelled task — the runner checks no cancellation flag of
+    /// the Task's own — so `Task.cancel()` alone stops nothing here. The
+    /// runner's `isCancelled` is what ends the walk; cancelling the task is
+    /// defence in depth against a future suspension point that does honour it.
     func forgetLocalMemory() {
         if let memoryBackfillRunner {
             memoryBackfillRunner.cancelAndParkCursorAtCorpusEnd()

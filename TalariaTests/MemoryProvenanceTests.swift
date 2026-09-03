@@ -228,18 +228,11 @@ struct MemoryProvenanceTests {
         #expect(resolved.sentAt == Self.sentAt)
     }
 
-    /// ⚠️ OWED: `note(id:)`'s POSITIVE path has no store-level pin, because
-    /// nothing in the tree writes a `MemoryNoteRecord` yet — the note writer is
-    /// a later task in this lane. Seeding one here would have meant either a
-    /// test-only writer on `MemoryStore` or reaching into its private context,
-    /// and a test-only production API is the smell this fix round removed
-    /// elsewhere. **Whichever task adds the note writer must add the pin**:
-    /// write a note, then `#expect(store.note(id:)?.text == …)`.
-    ///
-    /// What IS covered meanwhile: the nil path below (same method), the whole
-    /// note branch of the sheet through injected resolvers (four tests above),
-    /// and the identically-shaped `turnEntry(id:)` positive path.
-
+    /// The negative path, which is all this suite can pin on its own: the
+    /// POSITIVE path's writer (`insertNote`) arrived with lane M3, and its pin
+    /// lives beside it as `MemoryNotesStoreTests.insertedNoteResolvesByID`.
+    /// (The "⚠️ OWED" note that stood here outlived the debt by two lanes and
+    /// had drifted onto the wrong test — #422 final review, M1.)
     @Test func anIDTheStoreHasNeverSeenResolvesToNil() throws {
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
         #expect(store.turnEntry(id: UUID()) == nil)

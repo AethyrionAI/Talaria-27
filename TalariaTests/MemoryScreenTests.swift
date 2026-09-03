@@ -194,6 +194,47 @@ struct MemoryScreenTests {
                 "\(model.useRows.count) of 25 use records reached the screen")
         #expect(Set(model.useRows.map(\.id)) == Set(replies), "and they are the same 25")
         #expect(model.useRows.first?.id == replies.last, "still newest-first")
+        #expect(model.recentlyUsedNotice == nil,
+                "everything is on screen — there is nothing to disclose")
+    }
+
+    /// **Fix round 2, I4 — a bound that SAYS so.** Unbounded was the wrong
+    /// answer to the silent cap: it put the user's whole history into a
+    /// non-lazy stack and resolved every source on every refresh. Bounded is
+    /// fine; bounded and quiet is not, because the screen would again be
+    /// telling someone a smaller truth about their own data.
+    @Test func recentlyUsedBoundsAtFiftyAndDisclosesTheTotal() throws {
+        let store = try makeStore()
+        let entryID = index(store, "my dentist is Dr. Patel")
+        for i in 0 ..< 63 {
+            store.recordUse(replyMessageID: UUID(), entryIDs: [entryID], noteIDs: [],
+                            at: Date(timeIntervalSince1970: 1_000_000 + Double(i) * 60))
+        }
+
+        let model = MemoryScreenModel(store: store)
+        model.refresh()
+
+        #expect(model.useRows.count == 50, "the render is bounded")
+        #expect(model.totalUseCount == 63, "and the model still knows the real total")
+        #expect(model.recentlyUsedNotice == "Showing the most recent 50 of 63",
+                "a truncated list about your own data must say it was truncated")
+    }
+
+    /// Exactly at the bound: no notice, because nothing is hidden. An
+    /// off-by-one here would accuse the screen of hiding a row it is showing.
+    @Test func exactlyFiftyUsesDiscloseNothing() throws {
+        let store = try makeStore()
+        let entryID = index(store, "my dentist is Dr. Patel")
+        for i in 0 ..< 50 {
+            store.recordUse(replyMessageID: UUID(), entryIDs: [entryID], noteIDs: [],
+                            at: Date(timeIntervalSince1970: 1_000_000 + Double(i) * 60))
+        }
+
+        let model = MemoryScreenModel(store: store)
+        model.refresh()
+
+        #expect(model.useRows.count == 50)
+        #expect(model.recentlyUsedNotice == nil)
     }
 
     /// Fix round 1 minor: the list is grouped by REPLY and each group says
@@ -307,6 +348,59 @@ struct MemoryScreenTests {
         #expect(row.isExcluded == false)
     }
 
+    /// **Fix round 2, I6 — the unit is a MESSAGE, not a chunk.** A long turn is
+    /// several rows; the screen shows the one a reply happened to retrieve.
+    /// Hiding only that row left its siblings feeding the prompt, so the user
+    /// says "don't use this", watches the row grey out, and the memory keeps
+    /// coming back through chunks they were never shown.
+    @Test func dontUseThisExcludesEveryChunkOfTheSameMessage() throws {
+        let store = try makeStore()
+        let session = UUID(), message = UUID()
+        let entries = (0 ..< 3).map { _ in UUID() }
+        store.upsertTurnChunks(entries.enumerated().map { i, entryID in
+            MemoryTurnIndexRecord(entryID: entryID, sessionID: session, messageID: message,
+                                  chunkIndex: i, text: "chunk \(i): my dentist is Dr. Patel",
+                                  sentAt: Date())
+        })
+        // A second message that must be untouched — the exclusion is keyed on
+        // the message, not applied to the store.
+        let bystander = index(store, "the car is due for a service in March")
+        store.recordUse(replyMessageID: UUID(), entryIDs: [entries[1]], noteIDs: [])
+
+        let model = MemoryScreenModel(store: store)
+        model.refresh()
+        model.excludeEntry(entries[1])
+
+        let live = Set(store.candidates().map(\.entryID))
+        for entryID in entries {
+            #expect(!live.contains(entryID),
+                    "a sibling chunk of the excluded message is still retrievable")
+        }
+        #expect(live.contains(bystander), "another message must be untouched")
+        #expect(store.excludedEntryIDs() == Set(entries))
+    }
+
+    @Test func useAgainRestoresEveryChunkOfTheSameMessage() throws {
+        let store = try makeStore()
+        let session = UUID(), message = UUID()
+        let entries = (0 ..< 3).map { _ in UUID() }
+        store.upsertTurnChunks(entries.enumerated().map { i, entryID in
+            MemoryTurnIndexRecord(entryID: entryID, sessionID: session, messageID: message,
+                                  chunkIndex: i, text: "chunk \(i): my dentist is Dr. Patel",
+                                  sentAt: Date())
+        })
+        store.recordUse(replyMessageID: UUID(), entryIDs: [entries[1]], noteIDs: [])
+
+        let model = MemoryScreenModel(store: store)
+        model.refresh()
+        model.excludeEntry(entries[1])
+        model.restoreEntry(entries[1])
+
+        #expect(store.excludedEntryIDs().isEmpty,
+                "Use again must free the whole message, or the row lies about being back")
+        #expect(Set(store.candidates().map(\.entryID)) == Set(entries))
+    }
+
     // MARK: - INDEX
 
     /// `—` while unknown, the real number once read, and **never `0` as a
@@ -349,6 +443,77 @@ struct MemoryScreenTests {
 
     /// The same guard before anything is read at all: a model that has not
     /// refreshed knows nothing and must claim nothing.
+    /// **Fix round 2, I3 — a FAILED count is not a zero.** `indexCount()` used
+    /// to be `(try? …) ?? 0`, which manufactured exactly the real zero the
+    /// empty copy requires: a user whose container could not be read was told
+    /// their store was empty. The store now returns `nil` on failure, and the
+    /// screen treats it the same as unread.
+    @Test func aCountTheStoreCannotAnswerReadsAsUnknownNotAsEmpty() {
+        // The failure shape, injected at the seam: a dependency whose count
+        // closure reports "cannot say" while everything else is genuinely
+        // empty — which is what a failed fetch looks like from up here.
+        var dependencies = MemoryScreenModel.Dependencies()
+        dependencies.indexCount = { nil }
+        dependencies.indexedMessageCount = { nil }
+        let model = MemoryScreenModel(dependencies: dependencies)
+        model.refresh()
+
+        #expect(model.indexCountText == "—")
+        #expect(model.isEmpty == false,
+                "no notes and no uses, but the count FAILED — that is not an empty store")
+        #expect(model.emptyMessage == nil,
+                "\"Nothing saved yet\" is a claim, and a failed read cannot support it")
+    }
+
+    /// **The STORE half of I3, pinned structurally — and it exists because the
+    /// behavioural pin above could not catch it.**
+    ///
+    /// The mutation run proved that: re-adding `?? 0` to `indexCount()` redded
+    /// nothing, because the model-seam pin injects a nil count directly and a
+    /// real in-memory store never fails a fetch. A defect no test can reach is
+    /// a defect that comes back, so the guarantee is asserted where it lives —
+    /// the count path must go through the logging `countOrNil` and must not
+    /// coalesce. Source-text, deliberately: the coalesce is invisible from the
+    /// type (`Int?` swallows `?? 0` without complaint).
+    @Test func theStoresCountPathNeverCoalescesAFailureIntoZero() throws {
+        let source = try String(
+            contentsOf: URL(fileURLWithPath: #filePath)
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .appendingPathComponent("Talaria/Services/Live/Memory/MemoryStore.swift"),
+            encoding: .utf8)
+
+        for name in ["indexCount", "noteCount"] {
+            let marker = "func \(name)() -> Int? {"
+            let start = try #require(source.range(of: marker),
+                                     "\(name) changed shape — this check did not run")
+            let rest = source[start.upperBound...]
+            let end = try #require(rest.range(of: "\n    }"), "cannot delimit \(name)")
+            let body = String(rest[..<end.lowerBound])
+
+            #expect(body.contains("countOrNil"),
+                    "\(name) no longer routes through the logging count path")
+            #expect(!body.contains("??"), """
+                \(name) coalesces a failed count — that manufactured zero is what told a user \
+                whose store could not be read that they had saved nothing
+                """)
+            #expect(!body.contains("try?"),
+                    "\(name) swallows its error again — the failure must reach the log and the caller")
+        }
+    }
+
+    /// And the store really does answer `nil` rather than `0` when it cannot
+    /// count — the production half of the pin above.
+    @Test func aLiveStoreAnswersItsCountsRatherThanNil() throws {
+        let store = try makeStore()
+        #expect(store.indexCount() == 0, "an empty store answers a real zero")
+        #expect(store.noteCount() == 0)
+        index(store, "my dentist is Dr. Patel")
+        store.insertNote("I am allergic to penicillin", sourceMessageID: nil, sourceSessionID: nil)
+        #expect(store.indexCount() == 1)
+        #expect(store.noteCount() == 1)
+    }
+
     @Test func anUnreadModelClaimsNeitherEmptinessNorACount() throws {
         let store = try makeStore()
         let model = MemoryScreenModel(store: store)
@@ -423,6 +588,7 @@ struct MemoryScreenTests {
 
         #expect(store.indexCount() == 0, "indexed turns")
         #expect(store.noteCount() == 0, "explicit notes")
+        #expect(store.indexCount() != nil, "and a real, READ zero — not a failed count")
         #expect(store.recentUses().isEmpty, "use records")
         #expect(model.noteRows.isEmpty)
         #expect(model.useRows.isEmpty)

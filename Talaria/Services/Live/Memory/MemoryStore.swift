@@ -201,7 +201,11 @@ final class MemoryStore {
                                    chunkIndex: $0.chunkIndex, text: $0.text, sentAt: $0.sentAt) }
     }
 
-    /// Hide a single row from retrieval, or bring it back. A no-op when the row is gone.
+    /// Hide a single ROW from retrieval, or bring it back. A no-op when the row is gone.
+    ///
+    /// Row-level, and deliberately kept that way for the tests and for any
+    /// caller that really does mean one chunk. **The Memory screen does not use
+    /// it** — see `setExcluded(messageID:_:)`.
     func setExcluded(entryID: UUID, _ excluded: Bool) {
         let id = entryID
         guard let row = fetch(FetchDescriptor<MemoryTurnIndexRecord>(
@@ -210,8 +214,56 @@ final class MemoryStore {
         save()
     }
 
-    func indexCount() -> Int {
-        (try? context.fetchCount(FetchDescriptor<MemoryTurnIndexRecord>())) ?? 0
+    /// Hide EVERY row of one message, or bring them all back (#422 final
+    /// review, I6).
+    ///
+    /// **The unit the user is talking about is a message, not a chunk.** A long
+    /// turn is split by `MemoryChunker` into several rows; the Memory screen
+    /// shows the chunk a reply happened to retrieve, and *Don't use this* on it
+    /// used to hide exactly that one — leaving the rest of the same sentence
+    /// retrievable. The user says "don't use this" about something they wrote,
+    /// watches the row grey out, and the memory keeps coming back through its
+    /// siblings. Nothing on screen could explain it, because the other chunks
+    /// were never shown.
+    ///
+    /// Returns the rows it touched, so a caller can tell a real change from a
+    /// no-op.
+    @discardableResult
+    func setExcluded(messageID: UUID, _ excluded: Bool) -> Int {
+        let id = messageID
+        let rows = fetch(FetchDescriptor<MemoryTurnIndexRecord>(
+            predicate: #Predicate { $0.messageID == id }), op: "setExcludedByMessage")
+        guard !rows.isEmpty else { return 0 }
+        rows.forEach { $0.isExcluded = excluded }
+        save()
+        return rows.count
+    }
+
+    /// The screen's door: exclude (or restore) the whole MESSAGE an entry
+    /// belongs to. Resolves the entry's `messageID` first — the screen knows
+    /// the row it rendered, and the row's siblings are exactly what it cannot
+    /// see. A no-op when the entry is gone.
+    @discardableResult
+    func setExcludedForEntry(_ entryID: UUID, _ excluded: Bool) -> Int {
+        let id = entryID
+        var descriptor = FetchDescriptor<MemoryTurnIndexRecord>(
+            predicate: #Predicate { $0.entryID == id })
+        descriptor.fetchLimit = 1
+        guard let row = fetch(descriptor, op: "setExcludedForEntry").first else { return 0 }
+        return setExcluded(messageID: row.messageID, excluded)
+    }
+
+    /// How many indexed turn chunks exist — **`nil` when the store could not
+    /// answer** (#422 final review, I3).
+    ///
+    /// It used to be `(try? …) ?? 0`, and that zero was a manufactured fact.
+    /// The Memory screen's empty copy ("Nothing saved yet") requires a real,
+    /// READ zero precisely so it cannot claim a person's store is empty when
+    /// it merely failed to read — and a coalescing count handed it exactly
+    /// that claim, for the one user whose container is unhappy. `nil` renders
+    /// as `—`, the same honest answer as "not read yet".
+    func indexCount() -> Int? {
+        countOrNil(FetchDescriptor<MemoryTurnIndexRecord>(), op: "indexCount")
     }
 
     /// How many distinct MESSAGES the index covers, which is not the same
@@ -257,8 +309,10 @@ final class MemoryStore {
     /// How many explicit notes exist. Counted rather than fetched: the Memory
     /// screen's Forget-everything pin and the notes budget both want the
     /// number, not the rows.
-    func noteCount() -> Int {
-        (try? context.fetchCount(FetchDescriptor<MemoryNoteRecord>())) ?? 0
+    /// How many explicit notes exist, `nil` when the store could not answer —
+    /// same rule and same reason as `indexCount()`.
+    func noteCount() -> Int? {
+        countOrNil(FetchDescriptor<MemoryNoteRecord>(), op: "noteCount")
     }
 
     /// **Forget everything — the ONLY eraser (#422, Owen 2026-09-02).**
@@ -563,6 +617,17 @@ final class MemoryStore {
     /// it, and one in `deleteSession` leaves the doomed session's rows dangling —
     /// the exact invariant bar 422-A protects. Behaviour on failure is unchanged
     /// (empty result); only the silence is.
+    /// `fetchCount` with the same diagnostic as `fetch(_:op:)`, and the same
+    /// refusal to invent an answer: a failure is `nil`, never `0`.
+    private func countOrNil<T: PersistentModel>(_ descriptor: FetchDescriptor<T>, op: String) -> Int? {
+        do {
+            return try context.fetchCount(descriptor)
+        } catch {
+            Self.logger.error("memory count failed (\(op, privacy: .public)): \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
     private func fetch<T: PersistentModel>(_ descriptor: FetchDescriptor<T>, op: String) -> [T] {
         do {
             return try context.fetch(descriptor)

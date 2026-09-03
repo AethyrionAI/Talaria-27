@@ -1587,8 +1587,17 @@ final class ChatStore {
                         // lost its placeholder. Both arms, or a recovery would
                         // silently drop the chip.
                         resolved.memoryProvenance = self.takeMemoryProvenance(forReplyID: resolved.id)
-                        if conv.messages.contains(where: { $0.id == resolved.id }) {
+                        if let adopted = conv.messages.firstIndex(where: { $0.id == resolved.id }) {
                             // #120: a mid-stream merge already adopted this row.
+                            // `resolved` is DISCARDED here, so the stamp has to
+                            // go onto the row the user is actually looking at —
+                            // otherwise this arm silently drops the chip (#422
+                            // final review, C1).
+                            if let provenance = resolved.memoryProvenance,
+                               conv.messages[adopted].memoryProvenance == nil {
+                                conv.messages[adopted].memoryProvenance = provenance
+                                self.conversation = conv
+                            }
                             ledger.finalDelivery = .alreadyPresent
                         } else if !resolved.content.isEmpty || !resolved.attachments.isEmpty {
                             conv.messages.append(resolved)
@@ -4620,6 +4629,25 @@ final class ChatStore {
             }
             if refreshedConversation.messages[index].servingModel == nil, let model = local.servingModel {
                 refreshedConversation.messages[index].servingModel = model
+            }
+
+            // #422 ruling 2 — memory provenance is client-only in the same way,
+            // and this line is the whole reason the chip renders at all.
+            //
+            // **The defect it fixes (final review, C1).** The stamp landed on
+            // the settled reply and this merge ran on the very next statement,
+            // rebuilding the conversation from the backend's own transcript —
+            // which knows nothing about what the phone's memory store fed the
+            // prompt. Every field above is carried one at a time; a field that
+            // is not listed here is simply dropped, silently, on the settle
+            // itself and again on every later poll, refresh and reopen. The
+            // suite passed anyway because the fixtures' fake clients never
+            // populated `currentConversation`, so the merge returned early and
+            // the stamped copy survived — a green test over a feature that
+            // could not work.
+            if refreshedConversation.messages[index].memoryProvenance == nil,
+               let provenance = local.memoryProvenance {
+                refreshedConversation.messages[index].memoryProvenance = provenance
             }
 
             if !local.attachments.isEmpty {

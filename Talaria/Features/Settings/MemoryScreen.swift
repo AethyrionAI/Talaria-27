@@ -57,6 +57,15 @@ final class MemoryScreenModel {
     /// remembers nothing about them.
     static let unknownCount = "—"
 
+    /// **An honest bound, not a silent one** (#422 final review, I4). The
+    /// earlier fix made RECENTLY USED unbounded to satisfy "every
+    /// `MemoryUseRecord`", which traded a silent cap for an unbounded render:
+    /// a non-lazy stack plus one store resolve per source per refresh, growing
+    /// with the user's whole history. The list is bounded again — but it SAYS
+    /// so, with the true total, which is the difference between a limit and a
+    /// lie.
+    static let recentlyUsedLimit = 50
+
     /// `nonisolated` because `SourceRow` — a nested VALUE type, and therefore
     /// outside this class's actor — builds its own words from them.
     nonisolated static let dontUseThisLabel = "Don't use this"
@@ -161,7 +170,11 @@ final class MemoryScreenModel {
     // MARK: State
 
     private(set) var noteRows: [NoteRow] = []
+    /// The rows the screen RENDERS — at most `recentlyUsedLimit` of them.
     private(set) var useRows: [UseRow] = []
+    /// How many use records the store actually holds, which is what
+    /// `recentlyUsedNotice` reports and what makes the bound honest.
+    private(set) var totalUseCount = 0
 
     /// `nil` until `refresh()` has actually read a count, and for a screen with
     /// no store at all. **Not zero** — see `unknownCount`.
@@ -189,16 +202,19 @@ final class MemoryScreenModel {
         var dependencies = Dependencies()
         if let store {
             dependencies.notes = { store.allNotes() }
-            // UNBOUNDED, deliberately (fix round 1, Important item 1): the
-            // store's default page size is 20, and a list whose bar is "every
-            // `MemoryUseRecord`" cannot silently stop at a page boundary.
+            // Unbounded from the STORE, bounded by the SCREEN with a line that
+            // names the total (I4). Fetching everything is what lets the count
+            // be true; rendering everything is what made it expensive.
             dependencies.uses = { store.recentUses(limit: nil) }
             dependencies.resolveEntry = { store.turnEntry(id: $0) }
             dependencies.resolveNote = { store.note(id: $0) }
             dependencies.indexCount = { store.indexCount() }
             dependencies.indexedMessageCount = { store.indexedMessageCount() }
             dependencies.excludedEntryIDs = { store.excludedEntryIDs() }
-            dependencies.setExcluded = { store.setExcluded(entryID: $0, $1) }
+            // MESSAGE-level (I6): a long turn is several rows, and hiding only
+            // the chunk that happened to be retrieved leaves its siblings
+            // feeding the prompt.
+            dependencies.setExcluded = { store.setExcludedForEntry($0, $1) }
             dependencies.deleteNote = { store.deleteNote($0) }
             dependencies.updateNote = { store.updateNote($0, text: $1) }
             dependencies.forgetEverything = { store.forgetEverything() }
@@ -235,6 +251,13 @@ final class MemoryScreenModel {
             + "you've sent in on-device chats"
     }
 
+    /// `nil` when everything is on screen; otherwise the line that says what
+    /// is not. Never silently truncate a list about someone's own data.
+    var recentlyUsedNotice: String? {
+        guard totalUseCount > Self.recentlyUsedLimit else { return nil }
+        return "Showing the most recent \(Self.recentlyUsedLimit) of \(totalUseCount)"
+    }
+
     var hostLine: String? {
         dependencies.hostConfigured() ? Self.hostLine : nil
     }
@@ -267,7 +290,9 @@ final class MemoryScreenModel {
                 savedLine: Self.savedLine(createdAt: note.createdAt, editedAt: note.editedAt),
                 truncationNotice: note.wasTruncated ? Self.truncationNotice : nil)
         }
-        useRows = dependencies.uses().map { use in
+        let allUses = dependencies.uses()
+        totalUseCount = allUses.count
+        useRows = allUses.prefix(Self.recentlyUsedLimit).map { use in
             var sources = use.entryIDs.map { id -> SourceRow in
                 guard let entry = dependencies.resolveEntry(id) else { return Self.deletedRow(id, .entry) }
                 return SourceRow(
@@ -531,7 +556,7 @@ struct MemoryScreen: View {
             MonoLabel("// Recently used", size: 10, tracking: Design.Tracking.monoXWide,
                       color: Design.Colors.mutedForeground)
 
-            VStack(spacing: 0) {
+            LazyVStack(spacing: 0) {
                 if model.useRows.isEmpty {
                     infoRow("No reply has drawn on memory yet")
                 } else {
@@ -551,6 +576,15 @@ struct MemoryScreen: View {
                             }
                         }
                         if index < model.useRows.count - 1 { divider }
+                    }
+                    if let notice = model.recentlyUsedNotice {
+                        divider
+                        MonoLabel(notice, size: 9, weight: .medium,
+                                  tracking: Design.Tracking.monoWide,
+                                  color: Design.Colors.mutedForeground)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, Design.Spacing.md)
+                            .padding(.vertical, Design.Spacing.sm)
                     }
                 }
             }

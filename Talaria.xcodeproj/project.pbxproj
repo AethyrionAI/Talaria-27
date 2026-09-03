@@ -159,6 +159,7 @@
 		2DC866BFB555CC01C8430B03 /* HermesControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D7400AD50E67CCB189E8028 /* HermesControls.swift */; };
 		2DCB31A1A786B6B208410A92 /* BareClockResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C492BA315CBF858B2E270CD8 /* BareClockResolutionTests.swift */; };
 		2E22E42495A7225E401E220A /* Icon-WitchsBrew@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 8703770797F16E0192FB5EE2 /* Icon-WitchsBrew@3x.png */; };
+		2E7575018352CEBC37B22C02 /* ChatStoreMergeCompletenessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C03E717CDB8A2BB53A299AE /* ChatStoreMergeCompletenessTests.swift */; };
 		2F5A252C222B9CF14FEFFE03 /* OfferReadInstrumentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76C159680F52012CC7372A0D /* OfferReadInstrumentTests.swift */; };
 		2F6057CE3E050CA5FE899316 /* SessionsSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92672F43E2FCAF98C5F13FDD /* SessionsSettingsScreen.swift */; };
 		2FB5CEAA1C428E04D3A3625F /* InboxItemStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88CAC7066A927294099D41BE /* InboxItemStatus.swift */; };
@@ -994,6 +995,7 @@
 		6B9B3CCAEE9B1CF7C2BB4AF5 /* StartVoiceSessionIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartVoiceSessionIntent.swift; sourceTree = "<group>"; };
 		6BB71CCECAE06823EA97EEDA /* ReasoningChannelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReasoningChannelTests.swift; sourceTree = "<group>"; };
 		6BDCDEFD0DC35483E4EB11AC /* IconPreview-GlitchGarden.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-GlitchGarden.png"; sourceTree = "<group>"; };
+		6C03E717CDB8A2BB53A299AE /* ChatStoreMergeCompletenessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStoreMergeCompletenessTests.swift; sourceTree = "<group>"; };
 		6C5FDB59E099F96641AB625B /* Icon-BubblegumMecha@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-BubblegumMecha@2x.png"; sourceTree = "<group>"; };
 		6CA4892C88295D384A10AF06 /* Icon-GraffitiGalaxy@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-GraffitiGalaxy@3x.png"; sourceTree = "<group>"; };
 		6CE4EEAC02A092183861BD65 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -1537,6 +1539,7 @@
 				7DF70134F698ABE4575D7784 /* CarPlayVoiceStateTests.swift */,
 				481E7932F34BD96E19482B68 /* ChartSpecTests.swift */,
 				D38920943EB10B55009A10F9 /* ChatBackendRouterTests.swift */,
+				6C03E717CDB8A2BB53A299AE /* ChatStoreMergeCompletenessTests.swift */,
 				3E227A45DC083CF27D41960B /* ChatStorePersistenceTests.swift */,
 				01DFC9988C6A9D20E2DE8048 /* ChatTurnBodyEncodingTests.swift */,
 				CB2DC5750CEF76912105266B /* CodeSyntaxHighlighterTests.swift */,
@@ -3089,6 +3092,7 @@
 				46CB70757EFB8ACDD6181B90 /* CardClauseInstrumentTests.swift in Sources */,
 				22F48F91FF6426E5A751032B /* ChartSpecTests.swift in Sources */,
 				5C49C4720FA8F43B7B25A932 /* ChatBackendRouterTests.swift in Sources */,
+				2E7575018352CEBC37B22C02 /* ChatStoreMergeCompletenessTests.swift in Sources */,
 				BE8D4CCC3959C23AD49BCEA3 /* ChatStorePersistenceTests.swift in Sources */,
 				BFE59FF9B10E6EE67931A08C /* ChatTurnBodyEncodingTests.swift in Sources */,
 				0DD363D8D32CDD9AC8B368F7 /* CodeSyntaxHighlighterTests.swift in Sources */,

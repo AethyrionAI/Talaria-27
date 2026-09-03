@@ -477,6 +477,40 @@ struct NamingSweepTests {
                 "ConnectHostCopy.privateCloudPolicySentence has drifted from the pinned wording")
     }
 
+    /// **#422 final review, I2 — the published policy describes the app it
+    /// ships with.** `docs/privacy.html` is a GitHub Pages root, so merging
+    /// this PR publishes it; a policy that does not mention the on-device
+    /// memory index is a privacy document that omits the one feature that
+    /// stores the user's own words. Whitespace-collapsed for the same reason
+    /// the PCC sentence is: the file hand-wraps its prose.
+    @Test func thePolicyDescribesTheOnDeviceMemoryStore() throws {
+        let policy = Self.collapsedWhitespace(
+            try Self.read("docs/privacy.html")
+                .replacingOccurrences(of: "&mdash;", with: "\u{2014}")
+                .replacingOccurrences(of: "&rarr;", with: "\u{2192}"))
+
+        for clause in [
+            "keeps an on-device index of your own messages from on-device chats",
+            "any notes you asked it to remember",
+            "Turning the memory switch off stops both new indexing and any use of what is already stored",
+            "Forget everything</strong>, under Settings \u{2192} Sessions \u{2192} Memory, erases the on-device memory index and every remembered note",
+        ] {
+            #expect(policy.contains(clause),
+                    "the published policy no longer describes local memory: \(clause)")
+        }
+    }
+
+    /// **I1 — the effective date revises with the change**, which is the file's
+    /// own promise in its Changes clause. A policy edit that leaves the date
+    /// behind tells a reader the text they are looking at is older than it is.
+    @Test func thePolicysEffectiveDateMatchesThisChange() throws {
+        let policy = try Self.read("docs/privacy.html")
+        #expect(policy.contains("Effective: 2026-09-03"), """
+            the policy text changed in this lane but its Effective date did not — the file's \
+            own Changes clause promises the date revises with the change
+            """)
+    }
+
     /// Collapses any run of whitespace (including newlines) to a single
     /// space — a browser does the same to hand-wrapped HTML prose on render,
     /// so this is what makes "byte-identical" a claim about the WORDS rather

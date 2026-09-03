@@ -188,7 +188,13 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         self.memoryProvenance = memoryProvenance
     }
 
-    enum CodingKeys: String, CodingKey {
+    /// `CaseIterable` so `ChatStoreMergeCompletenessTests` can enumerate every
+    /// field and require each one to be either server-owned or carried through
+    /// `ChatStore.mergeConversationMetadata` (#422 final review, C1). Adding a
+    /// client-only field without teaching the merge about it silently deletes
+    /// it on the next refresh — that is exactly how `memoryProvenance` shipped
+    /// a chip that never rendered.
+    enum CodingKeys: String, CodingKey, CaseIterable {
         case id, clientMessageID, sender, content, timestamp, jobID, status, attachments, toolActivities
         case voiceSessionDuration
         case reasoning, reasoningSummary
