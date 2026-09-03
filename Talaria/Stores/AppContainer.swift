@@ -1349,9 +1349,9 @@ final class AppContainer {
         // ruling 3 lets into this store. No store, no indexer: the seam then
         // behaves exactly as it did before this lane.
         container.memoryStore = memoryStore
-        container.chatStore.memoryIndexer = memoryStore.map {
-            MemoryIndexer(store: $0, embedder: EmbeddingService())
-        }
+        // The indexer builds its own embedder LAZILY (see MemoryIndexer), so
+        // nothing NaturalLanguage-shaped is constructed until the first settle.
+        container.chatStore.memoryIndexer = memoryStore.map { MemoryIndexer(store: $0) }
 
         // #14: attachment sends (the deliberately-backgroundable long path,
         // #38) ride a BGContinuedProcessingTask — system progress UI, and the

@@ -12,11 +12,19 @@ import Foundation
 @MainActor
 final class MemoryIndexer {
     private let store: MemoryStore
-    private let embedder: EmbeddingService
+    private let makeEmbedder: () -> EmbeddingService
 
-    init(store: MemoryStore, embedder: EmbeddingService) {
+    /// LAZY on purpose. `EmbeddingService.init` makes up to two
+    /// `NLEmbedding.sentenceEmbedding(for:)` lookups, and the indexer is
+    /// constructed on the LAUNCH path (AppContainer) while it is first used on
+    /// a settle — so an eager embedder charges every launch for work no launch
+    /// needs. The factory is injected so a test can hand over a pre-made
+    /// instance and then read its counters.
+    private lazy var embedder: EmbeddingService = makeEmbedder()
+
+    init(store: MemoryStore, makeEmbedder: @escaping () -> EmbeddingService = { EmbeddingService() }) {
         self.store = store
-        self.embedder = embedder
+        self.makeEmbedder = makeEmbedder
     }
 
     /// Indexes the user-authored turns of a LOCAL-ORIGIN conversation.
@@ -39,15 +47,27 @@ final class MemoryIndexer {
     ///   user typed at this moment. Indexing it would re-file whole past
     ///   threads as fresh memories, at their transplant timestamp.
     ///
-    /// Idempotent by construction: rows key on (`messageID`, `chunkIndex`), so
-    /// re-indexing a growing thread on every settle updates in place. A turn
-    /// whose embedding is not available yet keeps its row with an EMPTY vector
-    /// — the verbatim text IS the memory, and retrieval scores such a row
+    /// INCREMENTAL, and that is load-bearing rather than an optimisation. The
+    /// seam hands the WHOLE conversation over on every settle, so re-chunking and
+    /// re-embedding all of it would make a thread's own history cost more on
+    /// every turn — quadratic work, synchronous, on the MainActor, on the path
+    /// the user is waiting on. One `reconcileSession` fetch names the messages
+    /// already stored and only the rest are embedded.
+    ///
+    /// The same call deletes the rows whose message has LEFT the conversation
+    /// (`retryMessage`, `/undo`, `regenerateReply`), which is ruling 2's
+    /// requirement that every stored row keep a resolvable source.
+    ///
+    /// A turn whose embedding is not available yet keeps its row with an EMPTY
+    /// vector — the verbatim text IS the memory, and retrieval scores such a row
     /// lexically. Blocking or retrying here would stall the settle seam.
     func index(_ conversation: Conversation) {
+        let alreadyIndexed = store.reconcileSession(
+            conversation.id, liveMessageIDs: Set(conversation.messages.map(\.id)))
         var rows: [MemoryTurnIndexRecord] = []
         for message in conversation.messages
-        where message.sender.isUserAuthored && !message.isContextPriming {
+        where message.sender.isUserAuthored && !message.isContextPriming
+            && !alreadyIndexed.contains(message.id) {
             for (i, chunk) in MemoryChunker.chunk(message.content).enumerated() {
                 let vector = embedder.embed(chunk).map(EmbeddingService.encode) ?? Data()
                 rows.append(MemoryTurnIndexRecord(

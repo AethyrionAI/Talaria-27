@@ -90,6 +90,38 @@ final class MemoryStore {
         save()
     }
 
+    /// The per-settle reconcile: ONE fetch and at most one save, answering both
+    /// questions the indexer has about a session.
+    ///
+    /// **Deletes** the rows whose `messageID` is no longer in `liveMessageIDs`.
+    /// That is ruling 2 in its negative form — every stored row must have a
+    /// resolvable source, and `retryMessage` (removes a user row) and `/undo` /
+    /// `regenerateReply` (truncate a range) both make a message disappear. Left
+    /// alone, such a row stays retrievable forever with a provenance chip
+    /// pointing at nothing.
+    ///
+    /// **Returns** the message ids that still have rows, so the caller can skip
+    /// re-chunking and re-embedding them. A message's content cannot change once
+    /// indexed — the only in-place message mutation targets priming rows, which
+    /// never enter this store — so "already indexed" means "done", and the
+    /// settle seam stops being quadratic over a thread's life.
+    func reconcileSession(_ sessionID: UUID, liveMessageIDs: Set<UUID>) -> Set<UUID> {
+        let rows = fetch(FetchDescriptor<MemoryTurnIndexRecord>(
+            predicate: #Predicate { $0.sessionID == sessionID }), op: "reconcileSession")
+        var indexed: Set<UUID> = []
+        var deletedAny = false
+        for row in rows {
+            if liveMessageIDs.contains(row.messageID) {
+                indexed.insert(row.messageID)
+            } else {
+                context.delete(row)
+                deletedAny = true
+            }
+        }
+        if deletedAny { save() }
+        return indexed
+    }
+
     func deleteSession(_ sessionID: UUID) {
         let rows = fetch(FetchDescriptor<MemoryTurnIndexRecord>(
             predicate: #Predicate { $0.sessionID == sessionID }), op: "deleteSession")
