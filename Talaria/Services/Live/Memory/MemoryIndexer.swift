@@ -76,6 +76,12 @@ final class MemoryIndexer {
     /// the embedder is lazy — no `NLEmbedding` asset lookup either. The switch
     /// is not an eraser, so nothing already stored is touched; Forget
     /// everything is the only thing that deletes (Owen, 09-02).
+    ///
+    /// One accepted consequence of returning this early: the RECONCILE does not
+    /// run either, so rows whose message the user retried or undid while memory
+    /// was off are not reaped at that moment. They are reaped on the first
+    /// settle after it goes back ON — the reconcile is per-session and reads the
+    /// live message set, so it self-heals rather than needing a catch-up pass.
     func index(_ conversation: Conversation) {
         guard isEnabled() else { return }
         let alreadyIndexed = store.reconcileSession(
@@ -114,6 +120,14 @@ final class MemoryIndexer {
     /// duplicate (bar 422-A's upsert idempotence), so a stale cursor costs work
     /// and nothing else.
     ///
+    /// **The repair pass is NOT run from here** — `MemoryBackfillRunner` calls
+    /// `reEmbedStrandedRows` once, after the whole walk. It used to hang off the
+    /// tail of this method guarded by `cursor >= conversations.count`, which was
+    /// a condition that could never be false for the only caller there is: the
+    /// runner hands over one conversation at a time, so "the pass has reached the
+    /// end" was true on every single window and the store was re-scanned once per
+    /// conversation. A guard whose caller can never fail it is not a guard.
+    ///
     /// The caller owns the cursor's PERSISTENCE (`UserSettings
     /// .memoryBackfillCursor`) and the order of `conversations`. Oldest-first is
     /// what makes the cursor meaningful across launches: a session created
@@ -128,12 +142,10 @@ final class MemoryIndexer {
             cursor += 1
             processed += 1
         }
-        // Only once the pass has reached the end, so a windowed caller does not
-        // re-scan the store for stranded rows on every window.
-        if cursor >= conversations.count { reEmbedStrandedRows() }
     }
 
-    /// Repairs rows that were stored WITHOUT a vector.
+    /// Repairs rows that were stored WITHOUT a vector, returning how many it
+    /// wrote. Called ONCE per backfill run, by the runner, after the walk.
     ///
     /// `index` is incremental — an already-indexed message is never revisited —
     /// so a turn taken while the embedder had not yet acquired its asset keeps
@@ -141,22 +153,32 @@ final class MemoryIndexer {
     /// because of a condition that lasted seconds. This is the only path that
     /// looks at such a row again.
     ///
-    /// Bounded on purpose: it runs on the launch path, so it takes a slice and
-    /// leaves the rest to the next pass. A row whose text the embedder simply
-    /// cannot vectorise is skipped and retried later — cheap, and self-limiting
-    /// at this cap — but a MISSING embedder stops the pass outright, because
-    /// every remaining row would fail the same way.
-    private func reEmbedStrandedRows(limit: Int = 200) {
-        let stranded = store.entriesWithEmptyVector(limit: limit)
-        guard !stranded.isEmpty else { return }   // …so no embedder is built for an empty queue
-        for row in stranded {
-            guard let vector = embedder.embed(row.text) else {
-                if !embedder.isAvailable { return }
-                continue
+    /// Bounded, yielding, and committed once. `limit` caps the slice so a launch
+    /// is not spent here; the yield every `yieldStride` rows keeps a full slice
+    /// off the main thread in one block (embedding is milliseconds per row and
+    /// this runs at `.utility` behind everything the user can see); and the
+    /// single `commitVectorRepairs()` replaces what would otherwise be up to
+    /// `limit` SwiftData saves. A row whose text the embedder simply cannot
+    /// vectorise is skipped and retried on a later pass — cheap, and
+    /// self-limiting at this cap — but a MISSING embedder stops the pass
+    /// outright, because every remaining row would fail the same way.
+    // harness-visible
+    func reEmbedStrandedRows(limit: Int = 200, yieldStride: Int = 20) async -> Int {
+        guard isEnabled() else { return 0 }
+        let stranded = store.emptyVectorRows(limit: limit)
+        guard !stranded.isEmpty else { return 0 }   // …so no embedder is built for an empty queue
+        var repaired = 0
+        for (offset, row) in stranded.enumerated() {
+            if let vector = embedder.embed(row.text) {
+                row.vector = EmbeddingService.encode(vector)
+                row.embedderID = EmbeddingService.embedderID
+                repaired += 1
+            } else if !embedder.isAvailable {
+                break
             }
-            store.updateVector(entryID: row.entryID,
-                               vector: EmbeddingService.encode(vector),
-                               embedderID: EmbeddingService.embedderID)
+            if (offset + 1) % yieldStride == 0 { await Task.yield() }
         }
+        if repaired > 0 { store.commitVectorRepairs() }
+        return repaired
     }
 }

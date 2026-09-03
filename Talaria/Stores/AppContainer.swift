@@ -1966,54 +1966,27 @@ final class AppContainer {
         await permissionsStore.reloadCapabilities()
     }
 
-    /// #422 (bar 422-B): index the local sessions the settle seam never saw —
-    /// everything the user said before memory existed.
+    /// #422 (bar 422-B): kick off the launch backfill over stored local sessions
+    /// — everything the user said before memory existed.
     ///
-    /// **Not a BGTask.** #63's discretionary scheduling is exactly wrong for
-    /// this: the work is cheap, wants to happen soon, and has no deadline the
-    /// system can help with. One `.utility` Task, windowed, yielding between
-    /// windows, is the whole mechanism — it competes with nothing on the launch
-    /// path and simply stops when the process does.
-    ///
-    /// **Oldest-first, and that is what makes the cursor mean anything.**
-    /// `sessionSummaries()` is most-recent-first, so a cursor into it would
-    /// skip unread history the moment a new session appeared. Sorted by
-    /// `createdAt` ascending, a new session APPENDS and everything behind the
-    /// cursor stays where it was.
-    ///
-    /// Transcripts are loaded a window at a time rather than all at once: a
-    /// long history is the case this exists for, and holding every one of its
-    /// transcripts in memory to walk them once is the wrong trade.
+    /// Deliberately thin. The cursor arithmetic lives in `MemoryBackfillRunner`,
+    /// where it is tested; this is construction and a task, and nothing else.
+    /// An earlier version kept the walk inline here and had three defects nobody
+    /// could see from outside — that is what the extraction is for.
     func startMemoryBackfill(settingsStore: SettingsStore, localSessions: (any LocalSessionStoring)?) {
         guard memoryBackfillTask == nil,
               let localSessions,
               let indexer = chatStore.memoryIndexer else { return }
-        // No `self` capture: the task is HELD by the container but does not
-        // hold it, so a container that goes away is not kept alive walking
-        // history nobody is looking at.
-        memoryBackfillTask = Task(priority: .utility) { @MainActor in
-            // Read INSIDE the task: the switch is the user's, and a backfill is
-            // indexing like any other (Owen, 09-02 — off stops both halves).
-            guard settingsStore.settings.memoryEnabled else { return }
-            let ordered = localSessions.sessionSummaries()
-                .sorted { $0.createdAt < $1.createdAt }
-                .map(\.id)
-            var cursor = min(max(0, settingsStore.settings.memoryBackfillCursor), ordered.count)
-            let window = 5
-            repeat {
-                let slice = ordered[cursor ..< min(cursor + window, ordered.count)]
-                let conversations = slice.compactMap { localSessions.conversation(withID: $0) }
-                var walked = 0
-                // The window is its own array, so `backfill` walks 0…slice.count
-                // and the absolute cursor advances by the SLICE's length —
-                // a summary whose transcript has gone missing must still be
-                // stepped over, or the pass parks on it forever.
-                indexer.backfill(conversations, cursor: &walked)
-                cursor += slice.count
-                settingsStore.settings.memoryBackfillCursor = cursor
-                await Task.yield()
-            } while cursor < ordered.count && !Task.isCancelled
-        }
+        let runner = MemoryBackfillRunner(
+            sessions: localSessions,
+            indexer: indexer,
+            isEnabled: { settingsStore.settings.memoryEnabled },
+            readCursor: { settingsStore.settings.memoryBackfillCursor },
+            writeCursor: { settingsStore.settings.memoryBackfillCursor = $0 })
+        // No `self` capture: the task is HELD by the container but does not hold
+        // it, so a container that goes away is not kept alive walking history
+        // nobody is looking at.
+        memoryBackfillTask = Task(priority: .utility) { @MainActor in await runner.run() }
     }
 
     /// #137 one-shot grandfathering — see SensorStreamingGrandfathering.

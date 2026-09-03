@@ -131,40 +131,41 @@ final class MemoryStore {
 
     /// Rows that were stored WITHOUT a vector, oldest first, capped at `limit`.
     ///
-    /// This is a repair queue, not a query surface. `MemoryIndexer.index` is
+    /// This is a repair QUEUE, not a query surface. `MemoryIndexer.index` is
     /// incremental — a message that already has rows is never revisited — so a
-    /// turn indexed while the embedder had not yet acquired its asset would
-    /// keep an empty vector for the life of the install, permanently
-    /// lexical-only because of a condition that lasted seconds.
+    /// turn indexed while the embedder had not yet acquired its asset would keep
+    /// an empty vector for the life of the install, permanently lexical-only
+    /// because of a condition that lasted seconds.
+    ///
+    /// **Returns the MODELS, not a snapshot**, and that is deliberate: the
+    /// repair writes each row's vector back, and re-fetching every row by
+    /// `entryID` to do so is one predicate fetch per row for objects the caller
+    /// is already holding. The rows belong to this store's private context and
+    /// this class is `@MainActor`, so they never cross an isolation boundary.
+    /// Pair every mutation with one `commitVectorRepairs()`.
     ///
     /// The predicate is `vector == empty` rather than a `vector.isEmpty` test:
     /// the comparison is one SwiftData can push down to the store, so a large
     /// index is not faulted row by row (and every blob materialised) on every
     /// launch just to find the handful that need repair. Oldest first so the
     /// repair walks history in the order the user lived it.
-    func entriesWithEmptyVector(limit: Int) -> [(entryID: UUID, text: String)] {
+    func emptyVectorRows(limit: Int) -> [MemoryTurnIndexRecord] {
         guard limit > 0 else { return [] }
         let empty = Data()
         var descriptor = FetchDescriptor<MemoryTurnIndexRecord>(
             predicate: #Predicate { $0.vector == empty },
             sortBy: [SortDescriptor(\.sentAt, order: .forward)])
         descriptor.fetchLimit = limit
-        return fetch(descriptor, op: "entriesWithEmptyVector").map { ($0.entryID, $0.text) }
+        return fetch(descriptor, op: "emptyVectorRows")
     }
 
-    /// Writes a vector onto an existing row, leaving its TEXT untouched — the
-    /// text is the memory (ruling 1), the vector only scores it.
-    func updateVector(entryID: UUID, vector: Data, embedderID: String) {
-        let id = entryID
-        guard let row = fetch(FetchDescriptor<MemoryTurnIndexRecord>(
-            predicate: #Predicate { $0.entryID == id }), op: "updateVector").first else { return }
-        row.vector = vector
-        row.embedderID = embedderID
-        save()
-    }
+    /// ONE save for a whole repair pass. Saving per row would put up to `limit`
+    /// SwiftData commits on the launch path to write a few kilobytes of blobs.
+    func commitVectorRepairs() { save() }
 
     /// The stored blob's size, so a caller (and a test) can tell a repaired row
-    /// from a stranded one without decoding. Nil when the row is gone.
+    /// from a stranded one without decoding, and by a route independent of the
+    /// objects the repair itself mutated. Nil when the row is gone.
     func vectorByteCount(entryID: UUID) -> Int? {
         let id = entryID
         return fetch(FetchDescriptor<MemoryTurnIndexRecord>(
