@@ -272,16 +272,12 @@ struct MemoryProvenanceTests {
 
     // MARK: - Row construction helpers
     //
-    // ⚠️ This one spells `embedderID:`/`vector:` because the CURRENT record
-    // initialiser requires them. It is the only such reference in this lane,
-    // it is confined to a test fixture, and when the lexical-only schema lands
-    // it takes the same one-line edit as the fixtures in MemoryStoreTests /
-    // MemoryIndexerTests / MemoryBackfillRunnerTests. Neither `turnEntry(id:)`
-    // nor `note(id:)` nor MemoryProvenanceChip reads either column.
+    // Text-only initialiser — the embedder was deleted by ruling (bar 422-R,
+    // 2026-09-03): no `embedderID`/`vector` columns exist on
+    // `MemoryTurnIndexRecord` any more, so this fixture no longer spells them.
 
     private static func turnChunk(entryID: UUID, text: String, sentAt: Date) -> MemoryTurnIndexRecord {
         MemoryTurnIndexRecord(entryID: entryID, sessionID: UUID(), messageID: UUID(),
-                              chunkIndex: 0, text: text, sentAt: sentAt,
-                              embedderID: "test", vector: Data())
+                              chunkIndex: 0, text: text, sentAt: sentAt)
     }
 }
