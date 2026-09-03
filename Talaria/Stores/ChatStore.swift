@@ -558,6 +558,15 @@ final class ChatStore {
     /// `recordLocalOriginAfterSettledTurn`, never by scanning brain stamps.
     var isLocalSessionThread: (@MainActor (Conversation) -> Bool)?
 
+    /// #422 (bar 422-B): the local memory index, wired by AppContainer. It
+    /// rides the SAME seam as the store-membership upsert below, and that is
+    /// the point — #422's ruling 3 says only local-origin turns may enter the
+    /// memory store, and this store already owns that verdict (#190B: origin
+    /// is membership, not a per-message brain stamp). Anything downstream of
+    /// `localSessions.upsertSession` is a row the app has already judged local.
+    /// Nil (tests, container-creation failure) simply doesn't index.
+    var memoryIndexer: MemoryIndexer?
+
     /// #190B: a failed session open, surfaced as state the UI renders — the
     /// old catch logged and returned, which is how a deterministic dead tap
     /// stayed invisible on device while the suite ran green (#189/#191's
@@ -1783,11 +1792,17 @@ final class ChatStore {
               let conversation, !conversation.messages.isEmpty else { return }
         if isLocalSessionThread?(conversation) == true {
             localSessions.upsertSession(conversation)
+            // #422 (bar 422-B): index beside the upsert, never instead of it —
+            // the memory row and the stored transcript are the same local-origin
+            // verdict, and re-indexing a growing thread is idempotent (rows key
+            // on messageID × chunkIndex).
+            memoryIndexer?.index(conversation)
             return
         }
         let assistantTurns = conversation.messages.filter { $0.sender == .hermes }.count
         if assistantTurns == 1 {
             localSessions.upsertSession(conversation)
+            memoryIndexer?.index(conversation)
             chatLog.notice("local origin established for '\(conversation.id.uuidString, privacy: .public)' — first assistant turn settled on-device (#190B)")
         }
     }

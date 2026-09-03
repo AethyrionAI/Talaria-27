@@ -56,6 +56,12 @@ final class AppContainer {
     /// #26/#31: the on-device brain, kept for the standalone availability
     /// state (and the #30 PCC tier). Nil in bare test containers.
     private(set) var localChatBackend: LocalChatBackend?
+    /// #422: the on-device memory index — its OWN SwiftData container, never
+    /// the session store's (ruling 3 made structural: no host row can live
+    /// here). Held on the container because retrieval, the Memory screen and
+    /// Forget-everything all read the same store the settle seam writes. Nil
+    /// when the container failed to create, and in bare test containers.
+    private(set) var memoryStore: MemoryStore?
     /// #97: the pin/archive overlay for server-session rows, consumed by the
     /// sessions drawer + conversation search. Nil in bare test containers
     /// that construct stores directly.
@@ -676,6 +682,11 @@ final class AppContainer {
         // failure) degrades sessions to the pre-#190 single slot — logged in
         // the store, never a boot crash.
         let localSessionStore = SwiftDataLocalSessionStore.make()
+        // #422: the local memory index, built exactly like the session store
+        // above and for the same reason — a nil store (container-creation
+        // failure) is logged in the store and degrades to "no memory", never a
+        // boot crash. Separate container by ruling 3.
+        let memoryStore = MemoryStore.make()
         // #190: the ONE standalone-thread discriminator, shared by the
         // legacy-cache adoption + live-row listing (backend) and the
         // walk-away persist (ChatStore). No configured host means every
@@ -1331,6 +1342,16 @@ final class AppContainer {
         // discriminator as the backend's legacy adoption.
         container.chatStore.localSessions = localSessionStore
         container.chatStore.isLocalSessionThread = isLocalThread
+
+        // #422 (bar 422-B): the memory index rides the SAME settle seam as the
+        // store-membership upsert just above — that seam is where a turn has
+        // already been judged local-origin, which is the only kind of turn
+        // ruling 3 lets into this store. No store, no indexer: the seam then
+        // behaves exactly as it did before this lane.
+        container.memoryStore = memoryStore
+        container.chatStore.memoryIndexer = memoryStore.map {
+            MemoryIndexer(store: $0, embedder: EmbeddingService())
+        }
 
         // #14: attachment sends (the deliberately-backgroundable long path,
         // #38) ride a BGContinuedProcessingTask — system progress UI, and the
