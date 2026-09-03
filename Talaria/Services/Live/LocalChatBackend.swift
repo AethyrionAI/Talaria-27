@@ -442,21 +442,41 @@ final class LocalChatBackend: HermesClientProtocol {
     func memoryPrefix(for input: ComposedTurnInput) async -> String {  // harness-visible
         let prompt = input.promptText
         var pieces: [String] = []
+        // The just-saved notice is a fact about THIS turn and is never
+        // trimmed — it quotes the user's own words back (≤ 500 chars by
+        // `ExplicitMemoryIntent`'s cap), and a truncated "we saved …" would
+        // misreport what is in the store. It is COUNTED, though: fix round
+        // 1's finding was that it sat outside the cap entirely, so a long
+        // note plus three hits could spend well past `memoryBlockTokens`.
+        // Counting it against the hits budget is what makes the cap cover
+        // the whole block — notes + notice + hits — rather than the hits
+        // alone.
         if let savedNote = input.savedNote {
             pieces.append(MemoryBudget.justSavedPrefix(savedNote))
         }
+        let noticeTokens = pieces.isEmpty
+            ? 0
+            : await intelligence.measuredTokenCount(of: pieces.joined(separator: "\n\n"))
 
         var entryIDs: [UUID] = []
-        let noteIDs = await memoryNotesBlock().noteIDs
+        // Read ONCE and passed down (fix round 1, minor): `memoryNotesBlock`
+        // fetches the notes table, and asking it twice in one pass is a
+        // second fetch for an answer that cannot have changed between them.
+        let notes = await memoryNotesBlock()
+        let noteIDs = notes.noteIDs
         if memoryIsOn, let memoryStore, !MemoryRetriever.shouldSkip(prompt) {
             memoryRetrievalCount += 1
             let hits = MemoryRetriever.retrieve(query: prompt, candidates: memoryStore.candidates())
             if hits.isEmpty {
+                // The no-match line needs no budgeting of its own: it exists
+                // ONLY on the branch where no hit was admitted, so it can
+                // never compete with one for the cap.
                 if MemoryRetriever.isMemoryShapedQuestion(prompt) {
                     pieces.append(MemoryBudget.noMemoriesMatch)
                 }
             } else {
-                let admitted = await admittedHitsBlock(hits)
+                let admitted = await admittedHitsBlock(
+                    hits, notesBlock: notes.text, noticeTokens: noticeTokens)
                 if !admitted.block.isEmpty {
                     pieces.append(admitted.block)
                     entryIDs = admitted.entryIDs
@@ -493,18 +513,28 @@ final class LocalChatBackend: HermesClientProtocol {
     }
 
     /// Head-trims the hits and drops the lowest-ranked ones until the block
-    /// fits what the notes left of `memoryBlockTokens`.
+    /// fits what the notes AND this turn's just-saved notice left of
+    /// `memoryBlockTokens`.
     ///
-    /// The cap is shared with the notes on purpose: `memoryBlockTokens` is
-    /// what local memory may spend of the window IN TOTAL, so a user with
-    /// eight notes has less room for retrieved turns, not a second budget.
-    /// Dropping from the TAIL is what makes the cap a ranking decision rather
-    /// than a truncation of the best hit.
-    private func admittedHitsBlock(_ hits: [MemoryHit]) async -> (block: String, entryIDs: [UUID]) {
+    /// The cap is shared on purpose: `memoryBlockTokens` is what local memory
+    /// may spend of the window IN TOTAL, so a user with eight notes — or a
+    /// turn that just saved a 500-character one — has less room for retrieved
+    /// turns, not a second budget. Dropping from the TAIL is what makes the
+    /// cap a ranking decision rather than a truncation of the best hit.
+    ///
+    /// The one thing that can still exceed the cap is a notice larger than
+    /// the whole block budget, which drives `hitsBudget` to 0 and admits no
+    /// hits at all. That is deliberate and it is the only honest option: the
+    /// notice is the user's verbatim words and trimming it would misreport
+    /// what was stored. Bounded by construction — a note is ≤ 500 characters.
+    private func admittedHitsBlock(
+        _ hits: [MemoryHit], notesBlock: String, noticeTokens: Int
+    ) async -> (block: String, entryIDs: [UUID]) {
         let blockBudget = MemoryBudget.memoryBlockTokens(contextSize: await activeContextSize())
-        let notes = await memoryNotesBlock().text
-        let notesTokens = notes.isEmpty ? 0 : await intelligence.measuredTokenCount(of: notes)
-        let hitsBudget = max(0, blockBudget - notesTokens)
+        let notesTokens = notesBlock.isEmpty
+            ? 0
+            : await intelligence.measuredTokenCount(of: notesBlock)
+        let hitsBudget = max(0, blockBudget - notesTokens - noticeTokens)
 
         let trimmed = await MemoryBudget.trimmedHits(
             hits.map { (text: $0.candidate.text, sentAt: $0.candidate.sentAt) },
@@ -1542,10 +1572,10 @@ final class LocalChatBackend: HermesClientProtocol {
             // here, at route time (see `turnAppendsCapabilityAnswer`).
             // #422 bar 422-D: the router sees the user's OWN words. The
             // memory prefix is composed after this call returns
-            // (`memoryPrefixedTurnInput`), so a retrieved memory can never
-            // decide whether this turn gets a tool belt. Recorded rather
-            // than merely true-by-reading: the spy is what makes the
-            // ordering falsifiable.
+            // (`memoryPrefix(for:)` + `prefixed(_:with:)`), so a retrieved
+            // memory can never decide whether this turn gets a tool belt.
+            // Recorded rather than merely true-by-reading: the spy is what
+            // makes the ordering falsifiable.
             lastRoutedPrompt = nextPrompt
             let route = await routeTurn(
                 prompt: nextPrompt, context: priorAssistantTurn, hasImage: hasImage)
@@ -1890,7 +1920,32 @@ final class LocalChatBackend: HermesClientProtocol {
         // instructions text than the session carries is the drift that makes
         // "it fits" a guess.
         let baseInstructions = await instructionsWithMemoryNotes(hasImageInContext: hasImageInContext)
-        let contextBudget = max(1024, await activeContextSize() - Self.responseHeadroomTokens(for: activeTier))
+        let contextSize = await activeContextSize()
+        // #422 bar 422-D, FIX ROUND 1: reserve room for THIS turn's prefix.
+        //
+        // `injectedMemoryTokensThisSession` covers turns 1…N−1 — the prefixes
+        // already in the live transcript. It cannot cover turn N's, because
+        // this check runs BEFORE retrieval (bar 422-D's own ordering: the
+        // router and the fit check see the user's bare words). So every
+        // generation used to carry one unaccounted prefix — ~330 tokens
+        // typically, ~460 with a just-saved notice, two of them on a retry
+        // leg that reset the counter — against 1,024 tokens of reply
+        // headroom.
+        //
+        // The reserve is one whole `memoryBlockTokens`: the most this turn
+        // could possibly spend, taken unconditionally while memory is ON
+        // because at this point nobody knows yet whether the turn will
+        // retrieve. Paying up to 800 tokens of the phone's 7,168 to
+        // guarantee the next prefix has somewhere to land is the trade —
+        // rebuild a little early, never overflow mid-turn.
+        //
+        // With memory OFF the reserve is not taken at all: no retrieval, no
+        // notes block, no prefix, so there is nothing to reserve for and the
+        // budget is byte-for-byte what it was before this lane.
+        let contextBudget = max(
+            256,
+            max(1024, contextSize - Self.responseHeadroomTokens(for: activeTier))
+                - (memoryIsOn ? MemoryBudget.memoryBlockTokens(contextSize: contextSize) : 0))
         // #422 bar 422-D: the prefixes already inside the LIVE session's
         // transcript. `turns` comes from `currentConversation`, which stores
         // the user's bare messages, so without this term the estimate is low

@@ -213,6 +213,69 @@ struct MemoryInjectionTests {
                 """)
     }
 
+    /// **FIX ROUND 1 (Important).** `fitsContext` must reserve room for the
+    /// prefix THIS turn is about to inject.
+    ///
+    /// The defect: `injectedMemoryTokensThisSession` covers turns 1…N−1 —
+    /// the prefixes already in the live transcript — and cannot cover turn
+    /// N's, because the fit check runs BEFORE retrieval (bar 422-D's own
+    /// ordering). So every generation carried one unaccounted prefix, ~330
+    /// tokens typically and ~460 with a just-saved notice, against 1,024
+    /// tokens of reply headroom.
+    ///
+    /// The pin is a CONTRAST rather than an arithmetic assertion, and that is
+    /// deliberate: two backends over the same store and the same transcript,
+    /// differing only in the toggle, so the only thing that can separate
+    /// their verdicts is the reserve. It also keeps the test off the
+    /// simulator's own numbers (`contextSize` 0 ⇒ a 1,024-token floor, and a
+    /// `count / 3` token estimate), which are not the phone's.
+    ///
+    /// RED-first evidence (fix report): with the reserve removed the two
+    /// backends agree at every transcript length, so the memory-OFF check at
+    /// the flip point fails.
+    @Test func fitsContextReservesThisTurnsBlockWhileMemoryIsOn() async throws {
+        let store = try seededStore()   // no notes: instructions are identical either way
+        let on = makeBackend(memoryStore: store, isMemoryEnabled: { true })
+        let off = makeBackend(memoryStore: store, isMemoryEnabled: { false })
+        let prompt = "and now?"
+
+        var transcript = ""
+        var flipped = false
+        for _ in 1...120 {
+            transcript += "another sentence of ordinary history. "
+            let turns = [LocalChatBackend.TranscriptTurn(role: .user, text: transcript)]
+            let onFits = await on.fitsContext(
+                turns: turns, nextPrompt: prompt, hasImageInContext: false)
+            guard !onFits else { continue }
+            // The memory-ON backend has stopped fitting. At this exact size
+            // the memory-OFF backend must still fit — the gap between them
+            // IS the reserved block.
+            let offFits = await off.fitsContext(
+                turns: turns, nextPrompt: prompt, hasImageInContext: false)
+            #expect(offFits, """
+                memory ON and memory OFF rejected the same transcript, so no block was \
+                reserved — this turn's own prefix will be injected into a session that \
+                had no room left for it
+                """)
+            flipped = true
+            break
+        }
+        #expect(flipped, "the transcript never outgrew the reserved budget — the pin never ran")
+        #expect(on.injectedMemoryTokensThisSession == 0,
+                "precondition: nothing was injected, so the ONLY difference is the reserve")
+    }
+
+    /// And the reserve is not a permanent tax: with memory OFF the budget is
+    /// byte-for-byte what it was before this lane, so a transcript that fit
+    /// before still fits.
+    @Test func aMemoryOffBackendTakesNoReserve() async throws {
+        let store = try seededStore()
+        let off = makeBackend(memoryStore: store, isMemoryEnabled: { false })
+        // Instructions plus a two-word prompt, no history: comfortably inside
+        // even the simulator's 1,024-token floor.
+        #expect(await off.fitsContext(turns: [], nextPrompt: "and now?", hasImageInContext: false))
+    }
+
     // MARK: - (d) Notes rebuild once per change, never per turn
 
     /// **422-D: two notes, exactly one rebuild each — and none on the turns
@@ -432,6 +495,40 @@ struct MemoryInjectionTests {
         #expect(tokens <= MemoryBudget.memoryBlockTokens(contextSize: 0),
                 "the block must fit the runtime cap — \(tokens) tok")
         #expect(prefix.contains("…"), "an over-long hit is TRUNCATED, with the cut marked")
+    }
+
+    /// **FIX ROUND 1 (Minor).** The just-saved notice counts against the
+    /// block cap too.
+    ///
+    /// It used to sit outside it entirely: `admittedHitsBlock` budgeted only
+    /// the hits, against `memoryBlockTokens − notesTokens`, so a 500-character
+    /// note (the `ExplicitMemoryIntent` maximum) plus three long hits spent
+    /// the notice's tokens on top of a full block. The notice itself is never
+    /// trimmed — it quotes the user's own words, and a truncated "we saved …"
+    /// would misreport the store — so it is the HITS that give way.
+    @Test func theJustSavedNoticeCountsAgainstTheBlockCap() async throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let long = String(repeating: "Pearl Street dentist Ramirez appointment ", count: 40)
+        store.upsertTurnChunks((0..<3).map { index in
+            MemoryTurnIndexRecord(
+                entryID: UUID(), sessionID: UUID(), messageID: UUID(), chunkIndex: 0,
+                text: long, sentAt: Date(timeIntervalSince1970: 1_750_000_000 + Double(index)))
+        })
+        let backend = makeBackend(memoryStore: store)
+        let intelligence = LocalIntelligenceService()
+
+        // A note at `ExplicitMemoryIntent`'s 500-character cap — the largest
+        // notice this turn could possibly carry.
+        let savedNote = String(repeating: "a", count: 499) + "z"
+        #expect(savedNote.count == 500)
+        let input = compose(hitQuery, savedNote: savedNote)
+        let prefix = await backend.memoryPrefix(for: input)
+
+        #expect(prefix.hasPrefix(MemoryBudget.justSavedPrefix(savedNote)),
+                "the notice is carried VERBATIM and first — it is never the thing that gives way")
+        let tokens = await intelligence.measuredTokenCount(of: prefix)
+        #expect(tokens <= MemoryBudget.memoryBlockTokens(contextSize: 0),
+                "notes + notice + hits must fit ONE block cap — \(tokens) tok")
     }
 
     // MARK: - (i) What the reply drew on
