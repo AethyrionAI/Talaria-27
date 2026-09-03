@@ -1,0 +1,779 @@
+{
+  "meta": {
+    "authored": "2026-09-02",
+    "sources": {
+      "appendixB": 16,
+      "realHostTurns": 20,
+      "synthetic": 68
+    },
+    "privacyFilter": "Real turns are read-only SELECTs from a copy of ~/.hermes/state.db's messages table, excluding anything resembling a secret/credential (API keys, tokens, passwords, wifi passwords, key-shaped hex/base64), bank/card/ID numbers, email addresses, phone numbers, street addresses, pasted code/logs/stack traces, and turns over 500 characters; borderline turns were dropped in favor of synthetic."
+  },
+  "turns": [
+    {
+      "id": 0,
+      "text": "Remember that my sister Shelley lives in Austin and her birthday is in March."
+    },
+    {
+      "id": 1,
+      "text": "I'm allergic to shellfish, so never suggest seafood places."
+    },
+    {
+      "id": 2,
+      "text": "My dentist is Dr. Patel on Lamar, appointments are usually Tuesday mornings."
+    },
+    {
+      "id": 3,
+      "text": "We decided to go with the blue paint for the hallway, not the grey."
+    },
+    {
+      "id": 4,
+      "text": "The dog's name is Biscuit and he takes his heart pill at 8pm."
+    },
+    {
+      "id": 5,
+      "text": "Write me a haiku about rain on a tin roof."
+    },
+    {
+      "id": 6,
+      "text": "How many steps did I take yesterday?"
+    },
+    {
+      "id": 7,
+      "text": "My wifi password at home is on the fridge, I keep forgetting it."
+    },
+    {
+      "id": 8,
+      "text": "I usually run on Saturday mornings along the river trail."
+    },
+    {
+      "id": 9,
+      "text": "Summarize the French Revolution in fifty words."
+    },
+    {
+      "id": 10,
+      "text": "The Thai place on South Congress that Shelley likes is called Thai Fresh."
+    },
+    {
+      "id": 11,
+      "text": "My car is due for an oil change at 42,000 miles."
+    },
+    {
+      "id": 12,
+      "text": "I prefer window seats and always book the aisle for my wife."
+    },
+    {
+      "id": 13,
+      "text": "What's fifteen percent of eighty?"
+    },
+    {
+      "id": 14,
+      "text": "Our anniversary is October 14th, we got married in 2015."
+    },
+    {
+      "id": 15,
+      "text": "Set an alarm for 6:30 tomorrow."
+    },
+    {
+      "id": 16,
+      "text": "OJAMD, Mac Mini, and OJ5050 - my laptop."
+    },
+    {
+      "id": 17,
+      "text": "it would have to be in claude desktop. My session resets at 5am, and the week resets at 10am. I need to send a claude code prompt within that window of time. After 5am. I could have it up and set the power settings to stay away and have hermes open too in the background."
+    },
+    {
+      "id": 18,
+      "text": "1. I use lm studio sometimes, and I hate tea LOL. I gues its 'working' but definitely has room to grow"
+    },
+    {
+      "id": 19,
+      "text": "Well, I want trackers for Deepseek (you), Minimax.io, Kimi.com (kimi coding), Z.ai (GLM), and Nous Portal. Is this possible?"
+    },
+    {
+      "id": 20,
+      "text": "I need an api dashboard. Something that I can load to keep track of the different subscriptions that I have, and ideally, how much I have left. Usage is a bonus. What thoughts do you have on that?"
+    },
+    {
+      "id": 21,
+      "text": "I like the private hithub repo thing. Can you write up a markdown plan for me to implement this? I'll review and we'll go from there"
+    },
+    {
+      "id": 22,
+      "text": "Question. Instead of setting up sidecars and relays and shims, could a 'Hermes Plugin' be created to house these things?"
+    },
+    {
+      "id": 23,
+      "text": "Wait, to be clear, these are going on AethyrionAI/Talaria-27"
+    },
+    {
+      "id": 24,
+      "text": "Yes please do an investigation. I ran out of session credits with claude and everything didn't get strung back together"
+    },
+    {
+      "id": 25,
+      "text": "Oh wow. If the orientataion goes landscape, the session shelf is forced midway popped out and the chat is hidden behind it. Never noticed. Please create an issue to investigate that, and other resolutions in case Ipads or smaller phones than mine were used"
+    },
+    {
+      "id": 26,
+      "text": "Create a small one-page PDF that just says T21 probe, and save it as probe-t21.pdf in my MobileDL agent-work folder so I can download it on my phone."
+    },
+    {
+      "id": 27,
+      "text": "Where is my phone right now? Check its actual location."
+    },
+    {
+      "id": 28,
+      "text": "generate a markdown table of my steps taken this week"
+    },
+    {
+      "id": 29,
+      "text": "make a 404 page, techy and creative."
+    },
+    {
+      "id": 30,
+      "text": "Write a summary on ancient Mesopotamia"
+    },
+    {
+      "id": 31,
+      "text": "Compare Kimi 2.7 Code and Kimi 2.6"
+    },
+    {
+      "id": 32,
+      "text": "Compare the mac mini m4 processor to intel and amd equivilent processors."
+    },
+    {
+      "id": 33,
+      "text": "Tell me about nemo relay"
+    },
+    {
+      "id": 34,
+      "text": "What model are you using and on what Hermes host"
+    },
+    {
+      "id": 35,
+      "text": "Can you make an entry for Talaria 27 in Hindsight?"
+    },
+    {
+      "id": 36,
+      "text": "My brother Marcus moved to Denver last spring for a new job."
+    },
+    {
+      "id": 37,
+      "text": "My mom's name is Carol and she calls every Sunday evening."
+    },
+    {
+      "id": 38,
+      "text": "My best friend Priya is coming to visit the first week of November."
+    },
+    {
+      "id": 39,
+      "text": "My daughter starts third grade at Maple Elementary this fall."
+    },
+    {
+      "id": 40,
+      "text": "My coworker Dana is covering for me while I'm out next Thursday."
+    },
+    {
+      "id": 41,
+      "text": "Our cat Pepper needs her vaccine booster in December."
+    },
+    {
+      "id": 42,
+      "text": "I take my blood pressure medication every morning with breakfast."
+    },
+    {
+      "id": 43,
+      "text": "My knee surgery is scheduled for the second week of January."
+    },
+    {
+      "id": 44,
+      "text": "I switched to a gluten-free diet back in June for my stomach issues."
+    },
+    {
+      "id": 45,
+      "text": "The lawn guy comes every other Friday to mow the front and back."
+    },
+    {
+      "id": 46,
+      "text": "We're repainting the kitchen a pale sage green next month."
+    },
+    {
+      "id": 47,
+      "text": "The water heater is due for replacement, it's twelve years old now."
+    },
+    {
+      "id": 48,
+      "text": "I keep the spare house key under the flowerpot by the back door."
+    },
+    {
+      "id": 49,
+      "text": "Trash pickup switched to Wednesdays instead of Mondays this year."
+    },
+    {
+      "id": 50,
+      "text": "The gutters need cleaning before the rainy season starts in October."
+    },
+    {
+      "id": 51,
+      "text": "I'm presenting the quarterly roadmap to the team on the 22nd."
+    },
+    {
+      "id": 52,
+      "text": "We're migrating the staging database over the long weekend."
+    },
+    {
+      "id": 53,
+      "text": "My performance review got pushed to the end of the month."
+    },
+    {
+      "id": 54,
+      "text": "I prefer stand-up meetings kept under ten minutes."
+    },
+    {
+      "id": 55,
+      "text": "I always block Friday afternoons for deep work, no meetings."
+    },
+    {
+      "id": 56,
+      "text": "We're flying to Lisbon for our trip in late September."
+    },
+    {
+      "id": 57,
+      "text": "My passport renewal appointment is booked for next Tuesday."
+    },
+    {
+      "id": 58,
+      "text": "I always pack a portable charger and noise-cancelling headphones for flights."
+    },
+    {
+      "id": 59,
+      "text": "We're renting a car instead of taking trains this trip."
+    },
+    {
+      "id": 60,
+      "text": "I've been learning to play the ukulele on Tuesday evenings."
+    },
+    {
+      "id": 61,
+      "text": "My favorite coffee order is an oat milk flat white, no sugar."
+    },
+    {
+      "id": 62,
+      "text": "I'm training for a half marathon in the spring."
+    },
+    {
+      "id": 63,
+      "text": "I collect vinyl records, mostly 70s jazz."
+    },
+    {
+      "id": 64,
+      "text": "Tuesday nights are book club, we're reading a mystery novel this month."
+    },
+    {
+      "id": 65,
+      "text": "I've started composting kitchen scraps in the backyard bin."
+    },
+    {
+      "id": 66,
+      "text": "I switched my phone plan to the unlimited data tier last week."
+    },
+    {
+      "id": 67,
+      "text": "I canceled the gym membership and started running outside instead."
+    },
+    {
+      "id": 68,
+      "text": "My favorite podcast to listen to on runs is about true crime."
+    },
+    {
+      "id": 69,
+      "text": "I'm using a standing desk now, alternating every hour."
+    },
+    {
+      "id": 70,
+      "text": "I meal-prep on Sundays for the whole work week."
+    },
+    {
+      "id": 71,
+      "text": "My go-to weeknight dinner is a stir-fry with whatever vegetables are left."
+    },
+    {
+      "id": 72,
+      "text": "I don't drink coffee after 2pm or I can't sleep."
+    },
+    {
+      "id": 73,
+      "text": "My son plays goalkeeper on his Saturday soccer team."
+    },
+    {
+      "id": 74,
+      "text": "Parent-teacher conferences are scheduled for the third week of October."
+    },
+    {
+      "id": 75,
+      "text": "We're saving up for a kitchen renovation next year."
+    },
+    {
+      "id": 76,
+      "text": "I split rent with my roommate fifty-fifty, due on the first."
+    },
+    {
+      "id": 77,
+      "text": "We decided to have the housewarming party in the backyard instead of renting a venue."
+    },
+    {
+      "id": 78,
+      "text": "I decided to switch banks after the branch near me closed."
+    },
+    {
+      "id": 79,
+      "text": "We're getting a puppy in the spring, we've decided on a golden retriever."
+    },
+    {
+      "id": 80,
+      "text": "I'm taking Fridays off this summer to spend more time outside."
+    },
+    {
+      "id": 81,
+      "text": "My commute takes about forty minutes each way on the train."
+    },
+    {
+      "id": 82,
+      "text": "I water the office plants every Monday morning."
+    },
+    {
+      "id": 83,
+      "text": "Our team decided to move stand-up to async written updates instead."
+    },
+    {
+      "id": 84,
+      "text": "I've been meal-planning around a high-protein diet since March."
+    },
+    {
+      "id": 85,
+      "text": "My license plate renewal is due at the end of November."
+    },
+    {
+      "id": 86,
+      "text": "I keep a running grocery list on the fridge whiteboard."
+    },
+    {
+      "id": 87,
+      "text": "We moved the couch to the other wall so the TV faces the window less."
+    },
+    {
+      "id": 88,
+      "text": "Write a limerick about a grumpy cat."
+    },
+    {
+      "id": 89,
+      "text": "What's the square root of 144?"
+    },
+    {
+      "id": 90,
+      "text": "Play some rain sounds to help me focus."
+    },
+    {
+      "id": 91,
+      "text": "How many calories are in a medium banana?"
+    },
+    {
+      "id": 92,
+      "text": "Turn the living room lights down to 20 percent."
+    },
+    {
+      "id": 93,
+      "text": "Give me three ideas for a birthday card message for a coworker."
+    },
+    {
+      "id": 94,
+      "text": "What's today's weather going to be like?"
+    },
+    {
+      "id": 95,
+      "text": "Convert 5 miles to kilometers for me."
+    },
+    {
+      "id": 96,
+      "text": "Set a timer for twelve minutes."
+    },
+    {
+      "id": 97,
+      "text": "Explain how photosynthesis works in simple terms."
+    },
+    {
+      "id": 98,
+      "text": "What's 340 divided by 8?"
+    },
+    {
+      "id": 99,
+      "text": "Draft a two-sentence out-of-office reply."
+    },
+    {
+      "id": 100,
+      "text": "How far away is the moon from Earth?"
+    },
+    {
+      "id": 101,
+      "text": "Mute notifications for the next hour."
+    },
+    {
+      "id": 102,
+      "text": "Suggest a name for a new houseplant."
+    },
+    {
+      "id": 103,
+      "text": "What year did the Berlin Wall come down?"
+    }
+  ],
+  "queries": [
+    {
+      "text": "where does my sister live",
+      "relevant": 0
+    },
+    {
+      "text": "when is Shelley's birthday",
+      "relevant": 0
+    },
+    {
+      "text": "do I have any food allergies",
+      "relevant": 1
+    },
+    {
+      "text": "who is my dentist",
+      "relevant": 2
+    },
+    {
+      "text": "which colour did we pick for the hallway",
+      "relevant": 3
+    },
+    {
+      "text": "when does the dog get his medicine",
+      "relevant": 4
+    },
+    {
+      "text": "what's the name of that Thai restaurant",
+      "relevant": 10
+    },
+    {
+      "text": "when is my car's next service",
+      "relevant": 11
+    },
+    {
+      "text": "what seat does my wife like on planes",
+      "relevant": 12
+    },
+    {
+      "text": "when is our anniversary",
+      "relevant": 14
+    },
+    {
+      "text": "when do I usually go running",
+      "relevant": 8
+    },
+    {
+      "text": "what's my dog called",
+      "relevant": 4
+    },
+    {
+      "text": "what's my laptop called",
+      "relevant": 16
+    },
+    {
+      "text": "when does my session reset",
+      "relevant": 17
+    },
+    {
+      "text": "do I like tea",
+      "relevant": 18
+    },
+    {
+      "text": "what local AI tool do I sometimes use",
+      "relevant": 18
+    },
+    {
+      "text": "which AI providers did I want usage trackers for",
+      "relevant": 19
+    },
+    {
+      "text": "what kind of dashboard did I want for my subscriptions",
+      "relevant": 20
+    },
+    {
+      "text": "what repo hosting idea did I say I liked",
+      "relevant": 21
+    },
+    {
+      "text": "what did I suggest instead of relays and shims",
+      "relevant": 22
+    },
+    {
+      "text": "what's the github org for this project",
+      "relevant": 23
+    },
+    {
+      "text": "what happened when I ran out of claude session credits",
+      "relevant": 24
+    },
+    {
+      "text": "what UI bug did I report about landscape orientation",
+      "relevant": 25
+    },
+    {
+      "text": "which city did my brother move to",
+      "relevant": 36
+    },
+    {
+      "text": "when does my mom usually call",
+      "relevant": 37
+    },
+    {
+      "text": "when is Priya visiting",
+      "relevant": 38
+    },
+    {
+      "text": "what grade is my daughter starting",
+      "relevant": 39
+    },
+    {
+      "text": "who's covering for me on Thursday",
+      "relevant": 40
+    },
+    {
+      "text": "when does the cat need her booster shot",
+      "relevant": 41
+    },
+    {
+      "text": "when do I take my blood pressure medication",
+      "relevant": 42
+    },
+    {
+      "text": "when is my knee surgery",
+      "relevant": 43
+    },
+    {
+      "text": "when did I go gluten-free",
+      "relevant": 44
+    },
+    {
+      "text": "how often does the lawn get mowed",
+      "relevant": 45
+    },
+    {
+      "text": "what color are we painting the kitchen",
+      "relevant": 46
+    },
+    {
+      "text": "how old is the water heater",
+      "relevant": 47
+    },
+    {
+      "text": "where's the spare house key",
+      "relevant": 48
+    },
+    {
+      "text": "what day is trash pickup now",
+      "relevant": 49
+    },
+    {
+      "text": "when do the gutters need cleaning",
+      "relevant": 50
+    },
+    {
+      "text": "when's my roadmap presentation",
+      "relevant": 51
+    },
+    {
+      "text": "when is the database migration happening",
+      "relevant": 52
+    },
+    {
+      "text": "when is my performance review now",
+      "relevant": 53
+    },
+    {
+      "text": "how long do I like stand-ups to be",
+      "relevant": 54
+    },
+    {
+      "text": "what do I keep Friday afternoons free for",
+      "relevant": 55
+    },
+    {
+      "text": "where are we traveling to in September",
+      "relevant": 56
+    },
+    {
+      "text": "when's my passport appointment",
+      "relevant": 57
+    },
+    {
+      "text": "what do I always pack for flights",
+      "relevant": 58
+    },
+    {
+      "text": "how are we getting around on this trip",
+      "relevant": 59
+    },
+    {
+      "text": "what instrument am I learning",
+      "relevant": 60
+    },
+    {
+      "text": "what's my usual coffee order",
+      "relevant": 61
+    },
+    {
+      "text": "what race am I training for",
+      "relevant": 62
+    },
+    {
+      "text": "what do I collect",
+      "relevant": 63
+    },
+    {
+      "text": "what night is book club",
+      "relevant": 64
+    },
+    {
+      "text": "what have I started doing with kitchen scraps",
+      "relevant": 65
+    },
+    {
+      "text": "which phone plan tier am I on now",
+      "relevant": 66
+    },
+    {
+      "text": "did I keep the gym membership",
+      "relevant": 67
+    },
+    {
+      "text": "what kind of podcast do I listen to while running",
+      "relevant": 68
+    },
+    {
+      "text": "how often do I switch positions at my standing desk",
+      "relevant": 69
+    },
+    {
+      "text": "which day do I meal-prep",
+      "relevant": 70
+    },
+    {
+      "text": "what's my usual weeknight dinner",
+      "relevant": 71
+    },
+    {
+      "text": "how late can I drink coffee",
+      "relevant": 72
+    },
+    {
+      "text": "what position does my son play",
+      "relevant": 73
+    },
+    {
+      "text": "when are parent-teacher conferences",
+      "relevant": 74
+    },
+    {
+      "text": "what are we saving up for",
+      "relevant": 75
+    },
+    {
+      "text": "how is rent split with my roommate",
+      "relevant": 76
+    },
+    {
+      "text": "where are we having the housewarming party",
+      "relevant": 77
+    },
+    {
+      "text": "why did I switch banks",
+      "relevant": 78
+    },
+    {
+      "text": "what breed of puppy are we getting",
+      "relevant": 79
+    },
+    {
+      "text": "which day am I taking off this summer",
+      "relevant": 80
+    },
+    {
+      "text": "how long is my train commute",
+      "relevant": 81
+    },
+    {
+      "text": "when do I water the office plants",
+      "relevant": 82
+    },
+    {
+      "text": "how did the team change stand-up format",
+      "relevant": 83
+    },
+    {
+      "text": "since when have I been eating high protein",
+      "relevant": 84
+    },
+    {
+      "text": "when is my license plate renewal due",
+      "relevant": 85
+    },
+    {
+      "text": "where do I keep my grocery list",
+      "relevant": 86
+    },
+    {
+      "text": "why did we move the couch",
+      "relevant": 87
+    },
+    {
+      "text": "what's the capital of Peru",
+      "relevant": null
+    },
+    {
+      "text": "what did I say about my brother-in-law",
+      "relevant": null
+    },
+    {
+      "text": "when is my mortgage payment due",
+      "relevant": null
+    },
+    {
+      "text": "what's my son's teacher's name",
+      "relevant": null
+    },
+    {
+      "text": "what's the wifi password for the guest network",
+      "relevant": null
+    },
+    {
+      "text": "what's the capital of France",
+      "relevant": null
+    },
+    {
+      "text": "how tall is Mount Everest",
+      "relevant": null
+    },
+    {
+      "text": "what did I decide about the office lease",
+      "relevant": null
+    },
+    {
+      "text": "when is my next dermatologist appointment",
+      "relevant": null
+    },
+    {
+      "text": "what's the name of my daughter's school mascot",
+      "relevant": null
+    },
+    {
+      "text": "who did I get gasoline from last week",
+      "relevant": null
+    },
+    {
+      "text": "what field does my brother work in in Denver",
+      "relevant": null
+    }
+  ]
+}
