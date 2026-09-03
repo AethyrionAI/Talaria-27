@@ -1357,8 +1357,6 @@ final class AppContainer {
         // ruling 3 lets into this store. No store, no indexer: the seam then
         // behaves exactly as it did before this lane.
         container.memoryStore = memoryStore
-        // The indexer builds its own embedder LAZILY (see MemoryIndexer), so
-        // nothing NaturalLanguage-shaped is constructed until the first settle.
         // The master switch is a CLOSURE, not a captured Bool: the indexer is
         // built once here and lives for the process, so reading the setting at
         // construction would leave a mid-session flip inert until the next cold

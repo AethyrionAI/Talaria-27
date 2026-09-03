@@ -1,5 +1,4 @@
 import Foundation
-import NaturalLanguage
 import Testing
 @testable import Talaria
 
@@ -27,33 +26,14 @@ struct MemoryIndexerTests {
         Message(sender: sender, content: text, isContextPriming: priming)
     }
 
-    /// A service whose acquisition never yields an embedder: `embed` returns
-    /// nil, rows persist with an empty vector, and the ROW COUNT — which is all
-    /// these exclusion pins assert — is unchanged. Using it keeps the suite off
-    /// the real NaturalLanguage asset lookups, which cost real milliseconds per
-    /// call and answer a question 422-C already owns.
-    private func nullEmbedder() -> EmbeddingService { EmbeddingService(acquire: { nil }) }
-
-    private func indexed(
-        _ messages: [Message],
-        embedder: @escaping () -> EmbeddingService
-    ) throws -> Int {
+    private func indexed(_ messages: [Message]) throws -> Int {
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
-        MemoryIndexer(store: store, makeEmbedder: embedder).index(conversation(messages))
+        MemoryIndexer(store: store).index(conversation(messages))
         return store.indexCount()
     }
 
-    private func indexed(_ messages: [Message]) throws -> Int {
-        try indexed(messages, embedder: nullEmbedder)
-    }
-
-    /// The ONE pin that runs the REAL embedder, deliberately kept: every other
-    /// test here stubs acquisition to nil, so without this the suite would never
-    /// execute the branch where `embed` actually returns a vector and
-    /// `EmbeddingService.encode` writes a non-empty blob.
     @Test func userTurnsAreIndexed() throws {
-        #expect(try indexed([msg(.user, "My dentist is Dr. Patel.")],
-                            embedder: { EmbeddingService() }) == 1)
+        #expect(try indexed([msg(.user, "My dentist is Dr. Patel.")]) == 1)
     }
 
     @Test func voiceUserTurnsAreIndexed() throws {
@@ -157,7 +137,7 @@ struct MemoryIndexerTests {
         let chatStore = ChatStore(hermesClient: SettlingClient(), persistence: scratchPersistence())
         chatStore.localSessions = sessions
         chatStore.isLocalSessionThread = { sessions.hasSession(withID: $0.id) }
-        chatStore.memoryIndexer = MemoryIndexer(store: memory, makeEmbedder: nullEmbedder)
+        chatStore.memoryIndexer = MemoryIndexer(store: memory)
 
         #expect(memory.indexCount() == 0, "nothing is indexed before a turn settles")
 
@@ -192,7 +172,7 @@ struct MemoryIndexerTests {
         let chatStore = ChatStore(hermesClient: SettlingClient(), persistence: persistence)
         chatStore.localSessions = sessions
         chatStore.isLocalSessionThread = { sessions.hasSession(withID: $0.id) }
-        chatStore.memoryIndexer = MemoryIndexer(store: memory, makeEmbedder: nullEmbedder)
+        chatStore.memoryIndexer = MemoryIndexer(store: memory)
         await chatStore.loadConversationIfNeeded()
 
         // #192 flips the brain mid-thread: this turn settles on-device.
@@ -207,24 +187,25 @@ struct MemoryIndexerTests {
 
     // MARK: - Per-settle reconcile
 
-    /// `embed` calls made since `baseline`. With an `acquire` that never yields
-    /// an embedder, `EmbeddingService.embed` re-attempts acquisition on EVERY
-    /// call and never caches one — so `acquisitionAttempts` advances by exactly
-    /// one per `embed`. The baseline is captured after construction rather than
-    /// hardcoded, so this stays honest if `init`'s own retry count ever changes.
-    private func embedCalls(_ service: EmbeddingService, since baseline: Int) -> Int {
-        service.acquisitionAttempts - baseline
-    }
-
     /// The settle seam re-indexes the WHOLE thread on every turn, so without an
-    /// already-indexed skip the work is quadratic over a thread's life — every
-    /// past chunk re-embedded and re-fetched on every settle, synchronously, on
-    /// the MainActor. This measures the work rather than trusting the shape.
-    @Test func reIndexingAGrownThreadEmbedsOnlyTheNewMessage() throws {
+    /// already-indexed skip the work is quadratic over a thread's life — every past
+    /// chunk re-chunked and re-fetched on every settle, synchronously, on the MainActor.
+    ///
+    /// **Finding a failing instrument for this took three attempts, and the first two
+    /// were vacuous.** Counting embed calls worked until the embedder was deleted
+    /// (2026-09-03). `reconcileSession`'s already-indexed set then looked like a
+    /// replacement and is not: it reports which messages HAVE rows, which is true whether
+    /// or not they were just re-chunked. Neither is a row count — the upsert is idempotent,
+    /// so a re-chunk-everything indexer and a skipping one write the same rows.
+    ///
+    /// What discriminates is TAMPERING. A row's text is overwritten out of band, then the
+    /// thread is re-indexed. The skip means u1 is never re-chunked, so nothing is written
+    /// over the tampered row and it survives. Delete `&& !alreadyIndexed.contains(message.id)`
+    /// from `MemoryIndexer.index` and u1 IS re-chunked, the upsert matches on
+    /// `(messageID, chunkIndex)` and `row.text = chunk.text` restores the original — RED.
+    @Test func reIndexingAGrownThreadIndexesOnlyTheNewMessage() throws {
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
-        let embedder = nullEmbedder()
-        let baseline = embedder.acquisitionAttempts
-        let indexer = MemoryIndexer(store: store, makeEmbedder: { embedder })
+        let indexer = MemoryIndexer(store: store)
 
         let sessionID = UUID()
         let u1 = msg(.user, "My dentist is Dr. Patel. Her office is on Oak Street. I see her in May.")
@@ -232,21 +213,25 @@ struct MemoryIndexerTests {
         let u2 = msg(.user, "My dog is called Biscuit.")
 
         indexer.index(conversation(sessionID, [u1, h1]))
-        let afterFirst = embedCalls(embedder, since: baseline)
-        #expect(afterFirst == MemoryChunker.chunk(u1.content).count,
-                "the first pass embeds exactly u1's chunks")
+        let u1Rows = MemoryChunker.chunk(u1.content).count
+        #expect(store.indexCount() == u1Rows)
+
+        // Overwrite u1's first chunk out of band. Only a re-chunk of u1 can undo this.
+        let tampered = "TAMPERED — no message in this conversation contains this sentence."
+        store.upsertTurnChunks([MemoryTurnIndexRecord(
+            entryID: UUID(), sessionID: sessionID, messageID: u1.id, chunkIndex: 0,
+            text: tampered, sentAt: u1.timestamp)])
+        try #require(store.candidates().contains { $0.text == tampered },
+                     "the tamper must land, or the pin below proves nothing")
+        #expect(store.indexCount() == u1Rows, "the tamper is an UPDATE, not an insert")
 
         indexer.index(conversation(sessionID, [u1, h1, u2]))
-        let newWork = embedCalls(embedder, since: baseline) - afterFirst
-        #expect(newWork == MemoryChunker.chunk(u2.content).count,
-                "re-indexing a grown thread must embed only the new message")
-        #expect(newWork > 0, "the new message must actually have been indexed")
 
-        // …and the rows are the same as a single full pass would have produced.
-        let oneShot = try #require(MemoryStore.make(inMemoryOnly: true))
-        MemoryIndexer(store: oneShot, makeEmbedder: nullEmbedder)
-            .index(conversation(sessionID, [u1, h1, u2]))
-        #expect(store.indexCount() == oneShot.indexCount())
+        #expect(store.candidates().contains { $0.text == tampered },
+                "re-indexing a grown thread must not re-chunk u1 — that skip is what keeps the settle seam linear")
+        #expect(store.candidates().contains { $0.text == u2.content },
+                "…and the new message must actually have been indexed")
+        #expect(store.indexCount() == u1Rows + MemoryChunker.chunk(u2.content).count)
     }
 
     /// Ruling 2 (visibility) in its negative form: every stored row must have a
@@ -256,7 +241,7 @@ struct MemoryIndexerTests {
     /// provenance chip points at a message that no longer exists.
     @Test func rowsWhoseMessageLeftTheConversationAreDeleted() throws {
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
-        let indexer = MemoryIndexer(store: store, makeEmbedder: nullEmbedder)
+        let indexer = MemoryIndexer(store: store)
         let sessionID = UUID()
         let u1 = msg(.user, "My dentist is Dr. Patel.")
         let u2 = msg(.user, "Delete this one. It has two sentences so it is not one row.")

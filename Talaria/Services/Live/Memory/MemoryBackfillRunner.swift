@@ -4,10 +4,9 @@ import Foundation
 /// everything the user said before memory existed.
 ///
 /// **A unit, not a closure in `AppContainer`.** The cursor arithmetic here has
-/// three ways to be quietly wrong — advancing past history the user never had
-/// indexed, walking an order that shifts under the cursor, and re-scanning the
-/// repair queue once per conversation — and none of them is visible from
-/// outside. Living behind `init` seams (`isEnabled`, `readCursor`,
+/// two ways to be quietly wrong — advancing past history the user never had
+/// indexed, and walking an order that shifts under the cursor — and neither is
+/// visible from outside. Living behind `init` seams (`isEnabled`, `readCursor`,
 /// `writeCursor`) makes each of them a test rather than a claim; the container's
 /// task just constructs one and calls `run()`.
 ///
@@ -16,8 +15,8 @@ import Foundation
 /// help with. One `.utility` task yielding after every conversation is the whole
 /// mechanism, and it simply stops when the process does.
 ///
-/// **It does NOT compete with nothing.** Every step of it — the store reads, the
-/// chunking, the embedding — runs on the MainActor, so it is on the same thread
+/// **It does NOT compete with nothing.** Every step of it — the store reads and
+/// the chunking — runs on the MainActor, so it is on the same thread
 /// as the UI and the `.utility` priority buys ordering, not parallelism. That is
 /// why the unit of work is ONE conversation with a yield after it rather than a
 /// window, and why the cursor is written every `cursorWriteStride` conversations
@@ -30,15 +29,6 @@ final class MemoryBackfillRunner {
     private let isEnabled: () -> Bool
     private let readCursor: () -> Int
     private let writeCursor: (Int) -> Void
-    private let repairLimit: Int
-
-    /// How many repair passes this runner has made, and how many rows they
-    /// wrote. Observable because "the repair runs once per run" is a claim about
-    /// a call that leaves no other trace once the queue is empty.
-    // harness-visible
-    private(set) var repairPasses = 0
-    // harness-visible
-    private(set) var repairedRows = 0
 
     /// Conversations per persisted cursor. Every write re-encodes the entire
     /// settings blob and invalidates its observers, so writing per conversation
@@ -54,18 +44,15 @@ final class MemoryBackfillRunner {
          indexer: MemoryIndexer,
          isEnabled: @escaping () -> Bool,
          readCursor: @escaping () -> Int,
-         writeCursor: @escaping (Int) -> Void,
-         repairLimit: Int = 200) {
+         writeCursor: @escaping (Int) -> Void) {
         self.sessions = sessions
         self.indexer = indexer
         self.isEnabled = isEnabled
         self.readCursor = readCursor
         self.writeCursor = writeCursor
-        self.repairLimit = repairLimit
     }
 
-    /// Walks the stored sessions from the persisted cursor, then repairs
-    /// stranded vectors ONCE.
+    /// Walks the stored sessions from the persisted cursor.
     ///
     /// **The cursor advances only for work that actually happened**, and is
     /// PERSISTED in batches of `cursorWriteStride` plus a flush at every exit.
@@ -113,10 +100,6 @@ final class MemoryBackfillRunner {
         // Every early exit above flushes too: progress the user actually paid
         // for must survive, or a paused backfill re-walks it on the next launch.
         flushCursor()
-
-        guard isEnabled() else { return }
-        repairPasses += 1
-        repairedRows += await indexer.reEmbedStrandedRows(limit: repairLimit)
     }
 
     /// The walk order, and the cursor's whole meaning.
