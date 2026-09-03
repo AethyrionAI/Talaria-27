@@ -232,9 +232,13 @@ final class LocalChatBackend: HermesClientProtocol {
     }
 
     /// The live threshold for THIS backend's active tier.
+    ///
+    /// Reads `promptBudget()` (fix round 2 (c)) rather than re-deriving a
+    /// third budget of its own — the drift between two of them was
+    /// final-review item 1, and a third would have been the next one. On the
+    /// phone the flat 1,500 cap wins either way (6,368 / 4 = 1,592).
     func injectedMemoryRebuildThreshold() async -> Int {  // harness-visible
-        Self.injectedMemoryRebuildThreshold(
-            contextBudget: max(1024, await activeContextSize() - Self.responseHeadroomTokens(for: activeTier)))
+        Self.injectedMemoryRebuildThreshold(contextBudget: await promptBudget())
     }
 
     /// How many rebuilds the accumulation above caused. Counted rather than
@@ -2395,7 +2399,20 @@ final class LocalChatBackend: HermesClientProtocol {
         // Scoped to `.memoryCreation` alone. Every other claim kind is about
         // a DEVICE action — a reminder, an alarm, a calendar event — and the
         // memory toggle has nothing to do with whether those ran.
-        if claim.kind == .memoryCreation, !memoryEnabled {
+        //
+        // **And `.memoryCreation` is not by itself proof that the sentence is
+        // about memory** (fix round 2 (b)). *"That has been saved to your
+        // reminders."* classifies as a memory claim through the passive
+        // pattern's bare `that` — the over-reach `MemoryHonestyTests` records
+        // — and it is really a fabricated DEVICE action. Silencing it because
+        // the MEMORY toggle is off would let a device fabrication through
+        // uncorrected, which is #338's entire failure class and a strictly
+        // worse outcome than the over-reach itself. So the short-circuit
+        // stands down whenever the sentence names a device artifact: that
+        // reply is still corrected, in the memory copy, exactly as it is
+        // today with memory on.
+        if claim.kind == .memoryCreation, !memoryEnabled,
+           !ActionClaimDetector.mentionsDeviceArtifact(claim.sentence) {
             Self.logger.notice("honesty guard: memory claim left uncorrected — memory is OFF, so the app promised nothing (#422)")
             return settledText
         }

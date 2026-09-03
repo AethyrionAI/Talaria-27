@@ -2962,7 +2962,9 @@ final class ChatStore {
     private func restoreRetriedRow(_ row: Message?, at index: Int?, why: String) {
         guard let row, let index else { return }
         chatLog.notice("retry: \(why, privacy: .public) — restoring the removed row at index \(index) (#279/#78)")
-        restoreTruncatedRows([row], at: index)
+        // Fix round 2 (a): no notes — this row's removal never went through
+        // `truncateTranscript` (#279), so it deleted none to restore.
+        restoreTruncatedRows([row], at: index, notes: [])
     }
 
     // MARK: - Transcript truncation (#78)
@@ -3000,8 +3002,8 @@ final class ChatStore {
     /// Returns the removed rows so a caller whose follow-up send never
     /// dispatches can put them back (`restoreTruncatedRows`).
     @discardableResult
-    func truncateTranscript(from index: Int, reason: String) -> [Message] {
-        guard var conv = conversation, conv.messages.indices.contains(index) else { return [] }
+    func truncateTranscript(from index: Int, reason: String) -> TruncatedTranscript {
+        guard var conv = conversation, conv.messages.indices.contains(index) else { return .empty }
         let removed = Array(conv.messages[index...])
         conv.messages.removeSubrange(index...)
         conversation = conv
@@ -3025,14 +3027,29 @@ final class ChatStore {
         // to keep, with no error and nothing on screen to notice. Overwritten
         // by each truncation, which is correct: a truncation nobody restored
         // is a truncation whose notes were meant to go.
-        truncatedNoteStash = memoryStore?.deleteNotes(
+        //
+        // FIX ROUND 2 (a): the snapshots leave here as a VALUE, carried by the
+        // return. They used to sit in an instance field that
+        // `restoreTruncatedRows` consumed unconditionally — and that function
+        // also serves `restoreRetriedRow`, whose row removal never came
+        // through here at all (#279). So an /undo that deleted a note,
+        // followed by ANY later retry whose re-send was swallowed, resurrected
+        // it: the retry's restore drained a stash belonging to a truncation
+        // the user had deliberately not undone. A value cannot be picked up by
+        // a path that was never given it.
+        let deletedNotes = memoryStore?.deleteNotes(
             withSourceMessageIDs: Set(removed.map(\.id))) ?? []
-        return removed
+        return TruncatedTranscript(rows: removed, notes: deletedNotes)
     }
 
-    /// Notes the most recent `truncateTranscript` deleted, held only until
-    /// that truncation is either restored or superseded. See item 2 above.
-    private var truncatedNoteStash: [MemoryNoteSnapshot] = []
+    /// What a truncation removed: the transcript rows AND the explicit notes
+    /// those rows had saved, together, because putting one back without the
+    /// other is the data loss final-review item 2 found.
+    struct TruncatedTranscript {
+        let rows: [Message]
+        let notes: [MemoryNoteSnapshot]
+        static let empty = TruncatedTranscript(rows: [], notes: [])
+    }
 
     /// Puts rows a truncation removed back where they were — the safety net
     /// for a caller that truncated in order to re-send and then didn't send
@@ -3040,17 +3057,23 @@ final class ChatStore {
     /// byte-identical re-roll left history destroyed in memory with nothing
     /// sent and nothing persisted). Id-deduped, so a partially-recovered
     /// transcript can't double a row.
-    private func restoreTruncatedRows(_ rows: [Message], at index: Int) {
+    ///
+    /// `notes` is a REQUIRED parameter with no default (fix round 2 (a)):
+    /// every caller has to say what it is restoring. `restoreRetriedRow`
+    /// passes `[]` because its row never went through `truncateTranscript`
+    /// and so deleted no notes — and when this was an instance field it
+    /// silently drained one belonging to a different, deliberate truncation.
+    private func restoreTruncatedRows(
+        _ rows: [Message], at index: Int, notes: [MemoryNoteSnapshot]
+    ) {
         // FINAL REVIEW item 2: the notes come back with the rows, under
         // their ORIGINAL ids — restored identity is what keeps lane M4's
         // `Message.memoryProvenance` and every existing `MemoryUseRecord`
         // pointing at a note that still exists. Done before the early
         // returns below: whether the MESSAGE rows need restoring is a
-        // separate question from whether the NOTES do (a partially recovered
-        // transcript can already hold every row and still be missing the
-        // note), and a stash left unconsumed would outlive its truncation.
-        let notes = truncatedNoteStash
-        truncatedNoteStash = []
+        // separate question from whether the NOTES do — a partially
+        // recovered transcript can already hold every row and still be
+        // missing the note.
         memoryStore?.restoreNotes(notes)
 
         guard !rows.isEmpty, var conv = conversation else { return }
@@ -3114,15 +3137,15 @@ final class ChatStore {
             return
         }
 
-        let removed = truncateTranscript(from: userIdx, reason: "regenerate")
+        let truncated = truncateTranscript(from: userIdx, reason: "regenerate")
         let dispatched = await sendMessage(content, attachments: attachments)
         guard !dispatched else { return }
         // A send guard swallowed the re-roll — in practice the duplicate
         // check, when an identical turn is still pending elsewhere in the
         // thread. Nothing was sent, so the truncation destroyed history for
         // nothing; put it back rather than leave the user short a turn.
-        chatLog.notice("regenerate: the re-send was swallowed by a send guard — restoring \(removed.count) truncated row(s) (#78)")
-        restoreTruncatedRows(removed, at: userIdx)
+        chatLog.notice("regenerate: the re-send was swallowed by a send guard — restoring \(truncated.rows.count) truncated row(s) (#78)")
+        restoreTruncatedRows(truncated.rows, at: userIdx, notes: truncated.notes)
     }
 
     /// The pieces a truncated user turn hands back to the composer.

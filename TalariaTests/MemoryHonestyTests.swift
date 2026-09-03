@@ -367,6 +367,46 @@ struct MemoryHonestyTests {
         #expect(backend.honestyGuardFireCount == 1)
     }
 
+    /// **FIX ROUND 2 (b) — the OFF short-circuit must not swallow a DEVICE
+    /// fabrication.**
+    ///
+    /// *"That has been saved to your reminders."* classifies as
+    /// `.memoryCreation` through the passive pattern's bare `that` — the
+    /// over-reach the KNOWN LIMITS below record. Combined with the new OFF
+    /// short-circuit, that over-reach became a hole: with memory off, a
+    /// fabricated REMINDER passed entirely uncorrected. Silencing a device
+    /// fabrication is #338's whole failure class and strictly worse than
+    /// mis-labelling one, so the short-circuit stands down whenever the
+    /// sentence names a device artifact.
+    @Test("Fix 2(b): memory OFF still corrects a sentence naming a device artifact")
+    func theOffToggleDoesNotSwallowADeviceFabrication() {
+        let backend = makeBackend()
+        let reply = "That has been saved to your reminders."
+        let out = backend.honestyGuardedReply(
+            modelText: reply, settledText: reply, executedToolNames: [],
+            savedNote: false, memoryEnabled: false)
+
+        #expect(out != reply, """
+            a fabricated REMINDER passed uncorrected because the MEMORY toggle is off — \
+            the memory toggle has no business suppressing a device claim
+            """)
+        #expect(backend.honestyGuardFireCount == 1)
+    }
+
+    /// The contrast that keeps the fix honest: a memory claim with NO device
+    /// noun is still left alone, which is Owen's ruling.
+    @Test("Fix 2(b): a device-noun-free memory claim is still untouched while OFF")
+    func aPlainMemoryClaimIsStillUntouchedWhileOff() {
+        let backend = makeBackend()
+        let reply = "Got it, I'll remember that."
+        let out = backend.honestyGuardedReply(
+            modelText: reply, settledText: reply, executedToolNames: [],
+            savedNote: false, memoryEnabled: false)
+
+        #expect(out == reply)
+        #expect(backend.honestyGuardFireCount == 0)
+    }
+
     /// Scoped to memory claims ALONE. Every other kind is about a DEVICE
     /// action, and the memory toggle has nothing to say about whether an
     /// alarm was really set.

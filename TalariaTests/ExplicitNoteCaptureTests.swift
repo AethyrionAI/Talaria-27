@@ -278,6 +278,72 @@ struct ExplicitNoteCaptureTests {
                 "an undone note must stay undone — the stash belongs to one truncation")
     }
 
+    // MARK: - The stash is a VALUE, not a cross-path field (fix round 2 (a))
+
+    /// **The regression this pins.** Fix round 1 held the deleted notes in an
+    /// instance field that `restoreTruncatedRows` consumed unconditionally —
+    /// and that function also serves `restoreRetriedRow`, whose row removal
+    /// never goes through `truncateTranscript` at all (#279). So a
+    /// deliberately undone note was RESURRECTED by the next unrelated retry
+    /// whose re-send happened to be swallowed: the retry drained a stash that
+    /// belonged to a truncation the user had chosen not to undo.
+    ///
+    /// The shape is what makes it hard to see — nothing about the retry path
+    /// mentions notes, and the resurrection lands on a store the user is not
+    /// looking at. A value cannot be picked up by a path that was never
+    /// handed it.
+    @Test func aRetryRestoreNeverResurrectsAnUndoneNote() async throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let (chatStore, _) = makeChatStore(memoryStore: store)
+
+        // 1. Save a note, then UNDO it. The user meant that.
+        _ = await chatStore.sendMessage("Remember that my sister lives in Austin")
+        #expect(store.allNotes().count == 1)
+        let afterNote = try #require(chatStore.conversation?.messages)
+        let noteIdx = try #require(afterNote.lastIndex { $0.sender.isUserAuthored })
+        chatStore.truncateTranscript(from: noteIdx, reason: "/undo")
+        #expect(store.allNotes().isEmpty, "precondition: the undo removed it")
+
+        // 2. A LATER, unrelated retry whose re-send is swallowed. Its removed
+        //    row never went through `truncateTranscript`, so it deleted no
+        //    notes and must restore none.
+        let stuck = Message(
+            id: UUID(), clientMessageID: UUID(), sender: .user,
+            content: "what is the weather", status: .sending)
+        let failed = Message(
+            id: UUID(), clientMessageID: UUID(), sender: .user,
+            content: "what is the weather", status: .failed)
+        chatStore.conversation = Conversation(title: "Hermes", messages: [stuck, failed])
+        await chatStore.retryMessage(failed)
+
+        #expect(store.allNotes().isEmpty, """
+            an unrelated retry's restore brought back a note the user had already undone — \
+            the note snapshots are being picked up by a path that never deleted them
+            """)
+    }
+
+    /// The same defect's second face: Edit-and-Resend truncates (deleting the
+    /// note), the resend captures a FRESH note, and a later restore that
+    /// re-inserted the old one would leave TWO rows for one "Remember that…".
+    @Test func editAndResendLeavesExactlyOneNote() async throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let (chatStore, _) = makeChatStore(memoryStore: store)
+
+        _ = await chatStore.sendMessage("Remember that my sister lives in Austin")
+        #expect(store.allNotes().count == 1)
+        let messages = try #require(chatStore.conversation?.messages)
+        let idx = try #require(messages.lastIndex { $0.sender.isUserAuthored })
+
+        // Edit-and-resend: truncate, then send the edited text.
+        chatStore.truncateTranscript(from: idx, reason: "edit-and-resend")
+        #expect(store.allNotes().isEmpty)
+        _ = await chatStore.sendMessage("Remember that my sister lives in Dallas")
+
+        let notes = store.allNotes()
+        #expect(notes.count == 1, "one 'Remember that…' turn must leave exactly one note")
+        #expect(notes.first?.text == "my sister lives in Dallas", "the EDITED text is what is kept")
+    }
+
     // MARK: - Retry does not duplicate the note (fix round 1, Important item 3)
     //
     // `ChatStore.retryMessage` removes its single row with a bare

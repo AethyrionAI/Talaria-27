@@ -380,6 +380,24 @@ enum ActionClaimDetector {
         "appointment", "appointments",
     ]
 
+    /// Whether a sentence names one of the device artifacts above.
+    ///
+    /// Exposed for #422's memory toggle (fix round 2 (b)): the honesty guard
+    /// stays quiet on a memory claim while memory is OFF, but must NOT stay
+    /// quiet on *"That has been saved to your reminders."* — which the memory
+    /// passive pattern claims via its bare `that` (the documented over-reach)
+    /// and which is really a fabricated DEVICE action. A device fabrication
+    /// passing uncorrected is #338's whole failure class, and the memory
+    /// toggle has no business suppressing it.
+    ///
+    /// Reads the SAME `artifactNouns` and the SAME tokenizer the detector
+    /// itself uses, rather than a second list at the call site — a copy would
+    /// be free to drift, and the drift would show up as a silently
+    /// unprotected sentence.
+    static func mentionsDeviceArtifact(_ sentence: String) -> Bool {
+        tokens(of: sentence).contains(where: artifactNouns.contains)
+    }
+
     private static let creationVerbsPerfect: Set<String> =
         ["set", "created", "added", "scheduled", "made", "put", "placed"]
     private static let creationVerbsPast: Set<String> =

@@ -1952,7 +1952,7 @@ struct ChatScreen: View {
         // Truncate through the store's one primitive (#78/#274). This path
         // never persisted at all before, so `/undo` was undone by a relaunch
         // even when the merge left it alone.
-        let removedCount = chatStore.truncateTranscript(from: lastUserIdx, reason: "/undo").count
+        let removedCount = chatStore.truncateTranscript(from: lastUserIdx, reason: "/undo").rows.count
 
         let remaining = chatStore.conversation?.messages.count ?? 0
         appendSystemMessage("Undid \(removedCount) message\(removedCount == 1 ? "" : "s"). Removed: \"\(String(removedContent.prefix(60)))\(removedContent.count > 60 ? "..." : "")\"\n\(remaining) message\(remaining == 1 ? "" : "s") remaining.")
