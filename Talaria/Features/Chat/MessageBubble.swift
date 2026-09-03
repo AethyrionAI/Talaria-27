@@ -305,6 +305,15 @@ struct MessageBubble: View {
                                       color: Design.Colors.dimForeground)
                         }
 
+                        // #422 ruling 2: a reply that drew on memory says so,
+                        // and the tap-through names every memory it used.
+                        // Absent — not blank — on a reply that drew on none,
+                        // which is also what every pre-#422 cached row
+                        // decodes to.
+                        if let memoryProvenance = message.memoryProvenance {
+                            MemoryProvenanceChip(provenance: memoryProvenance)
+                        }
+
                         // Read-aloud (#2) — hidden while a Talk session owns
                         // the audio session.
                         if !message.content.isEmpty && !talkStore.isSessionActive {

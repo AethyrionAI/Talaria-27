@@ -55,7 +55,15 @@ import os
 final class MemoryStore {
     private static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "MemoryStore")
     private let container: ModelContainer
-    private let context: ModelContext   // private context — NEVER mainContext (iOS 27 SIGTRAP)
+    /// The private context — NEVER `mainContext` (iOS 27 SIGTRAP).
+    ///
+    /// Internal rather than `private` only because Swift's `private` is
+    /// FILE-scoped and `MemoryStore+Lookup.swift` is a separate file (kept
+    /// separate so the provenance lookup does not sit in the way of this
+    /// file's schema edits). Treat it as private: everything outside this
+    /// class goes through a named method.
+    // lookup-visible
+    let context: ModelContext
 
     private init(container: ModelContainer) {
         self.container = container
