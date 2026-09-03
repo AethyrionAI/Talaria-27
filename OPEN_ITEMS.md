@@ -12059,3 +12059,123 @@ scope: **wholesale, or a permanent dual path?**
 > 5. Glance at Settings → Developer: the Runs Transport row reads ON without
 >    anyone having touched it. That is the migration, visible.
 
+## 422. 🧠 MEMORY–AGENT INTEGRATION — what Talaria does with what the agent remembers — **NAMED BY OWEN 2026-08-31 at #378's close ("Open a new item for memory agent integration. Lets discuss this; i have thoughts"). FILED THE DAY IT WAS NAMED per #268. NO SCOPE YET — Owen's thoughts come first, and nothing here should be read as a design.**
+
+**Why this exists as its own number rather than as #378 reopened:** #378 was
+the *introspection* lane and it delivered exactly what it claimed — a
+read-only DEVELOPER panel over a local memories directory, honest on a device
+(it says UNREACHABLE, never an empty list). Closing it was right. **But the
+question Owen raised is larger than the panel**, and re-opening a lane that met
+its bars to hold a different question is how entries become unreadable.
+
+**What is already TRUE and should not be re-derived when scope is written:**
+- **The phone has no path to `~/.hermes/memories/*.md`.** That is why #378's
+  panel reports UNREACHABLE on device and would do so *"on every device,
+  forever, under that scope"* — a structural fact, not a bug.
+- **There are at least TWO stores and they can disagree.** Owen runs the file
+  backend AND a shared **Honcho** instance (#159's correction). If a profile's
+  `memory.provider` is Honcho or Mem0, the `.md` files are one layer and **may
+  be stale** — so any surface that renders them unlabelled would be asserting
+  something it cannot measure (#180's family).
+- **A delivery route exists in principle:** the talaria plugin already speaks a
+  plane the phone speaks, and could expose memory without adding a client-side
+  dependency. Ruled scope for #378 excluded new dependencies; that ruling was
+  about #378 and does not bind this entry.
+- **Honcho was deferred there, not refused:** *"later if ever wanted."*
+
+**Deliberately NOT decided here:** whether this is a read surface, a write
+surface, or an agent-behaviour question (what the agent remembers ABOUT the
+user, and whether the user can correct it); whether it is user-facing at all;
+and which store is authoritative when they disagree. **Owen routes.**
+
+**Related:** #378 (the introspection lane this succeeds — CLOSED, delivered),
+#379 (Projects introspection, PARKED post-launch), #159 (the correction that
+established the two-store reality), #269/#308 (the plugin arc, if delivery
+routes through it), #180 (asserting what cannot be measured).
+
+> **🧭 SHAPED 2026-08-31 (Owen, in conversation). His opening idea and the
+> correction it produced are both recorded, because the correction is the
+> useful part.**
+>
+> **Owen's first framing:** *"tie it into my honcho and hindsight"* — Talaria as
+> a client of the memory providers his host already runs. **Both are real
+> Hermes memory plugins** (`~/.hermes/hermes-agent/plugins/memory/` ships
+> **eight**: `byterover`, `hindsight`, `holographic`, `honcho`, `mem0`,
+> `openviking`, `retaindb`, `supermemory`), so the idea maps onto an existing
+> plugin set rather than inventing one.
+>
+> **The correction, accepted by Owen (*"your point is better"*):** that shape
+> only serves users who HAVE a host, and the launch pivot says judge against
+> the hostless default user. **Talaria has NO memory of its own today** —
+> there is no `MemoryStore` and no memory model in the tree; `AgentMemorySection`
+> is a READER of the host's files (#378) and nothing more. **So this splits
+> into two different products:**
+>
+> - **(a) CLIENT OF THE HOST'S PROVIDERS** — modest work, needs a delivery
+>   route, **host-tier only**. Cheap in one specific way worth remembering:
+>   because the providers are Hermes PLUGINS, the host tier gets memory the
+>   moment a delivery route exists — one route, not eight integrations.
+> - **(b) TALARIA'S OWN LOCAL MEMORY** — bigger, and the one that serves the
+>   default user. Can later FEED (a) when a host is attached.
+>
+> **⚖️ BOTH ARE POST-LAUNCH (Owen). But (b) is recorded as a DELIBERATE LAUNCH
+> GAP, not a backlog line:** *"It has no memory between sessions right now."* A
+> local assistant without cross-session memory is a materially different product
+> from one with it, and that is a decision to have made on purpose rather than
+> discovered in a review.
+>
+> ### The client-side options — the storage half is SOLVED, which is why it is
+> ### not where the difficulty is
+>
+> Already in the tree: **SwiftData** (`SwiftDataLocalSessionStore`, two `@Model`
+> types) and **FoundationModels** with `@Generable` structured output.
+> **Probed on the shipping toolchain 2026-08-31** (measured, not assumed):
+> ```
+> NLContextualEmbedding(.english) : AVAILABLE  dim=512 revision=1 hasAssets=true
+> NLEmbedding.sentenceEmbedding   : AVAILABLE  dim=512
+> ```
+> On-device transformer embeddings, no dependency, no entitlement, no network.
+>
+> | shape | build cost | fails by |
+> |---|---|---|
+> | **1. Rolling digest** — model summarizes each session; inject the digests | trivial | **dilution** — everything blurs to mush after ~50 sessions |
+> | **2. Extracted facts** — `@Generable` subject/predicate/confidence/source into SwiftData | moderate | **extraction quality** — the real risk |
+> | **3. Embedding retrieval over turns** — embed turns with `NLContextualEmbedding`, cosine top-k. **No vector DB**: brute-force over ~20k vectors is milliseconds | moderate | retrieving the lexically-related-but-irrelevant |
+> | **4. Hybrid (2 + 3)** — facts answer *"who is Shelley"*, episodes answer *"what did we decide"* | largest | both of the above |
+>
+> ### 🎯 RECOMMENDED FIRST SHAPE: **3, not 2** — and the reason is this project's own evidence
+>
+> Sessions are already persisted, so there is **no new capture path**; there is
+> **no extraction step, so there is nothing to get wrong**; and retrieval of
+> REAL STORED TEXT cannot fabricate the way an extracted "fact" can.
+> **#417 measured this model inventing content when it has nothing to say
+> (20/40), and measured the fix: give it something real and fabrication goes to
+> 0/40.** A memory system that surfaces a WRONG memory is worse than no memory,
+> because it launders a fabrication into something that looks retrieved. Shape 3
+> has the smallest lying surface. Facts are the better product eventually; they
+> are also where the measured failure mode lives.
+>
+> ### The three hard questions, none of them technical
+> 1. **What earns a memory?** A permissive rule floods the store and dilution
+>    kills shape 1 and 3 alike.
+> 2. **Can the user see and correct it?** Part of Honcho's value is that memory
+>    is INSPECTABLE. A silent local store that quietly gets the user wrong is a
+>    trust problem, not a feature — and #378 already established that a surface
+>    which cannot label its own staleness should not render (#180's family).
+> 3. **What happens when BOTH exist?** Local memory plus a host's Honcho is
+>    #422's two-store disagreement problem moved inside one device. #159's
+>    correction — that the `.md` files may be stale when the provider is Honcho
+>    or Mem0 — is the same hazard one layer down.
+>
+> **Nothing is built and no bars are pre-registered** — this is shape, not a
+> lane. A lane opens post-launch with bars written first.
+
+> **✅ CLOSED 2026-09-02 (sweep 14) on Owen's 09-01 mandate — everything off the live board except what he tests.** Closes as PARKED — RULED 2026-08-31 (Owen): both shapes post-launch — (a) client of the host's memory plugins, (b) Talaria's own local memory recorded as a DELIBERATE LAUNCH GAP. Storage solved (`NLContextualEmbedding`); first shape when it opens is embedding retrieval over stored turns, never extracted facts. Listed on the Desk Board §04.
+
+> **🔁 REOPENED 2026-09-02 evening (Owen: "Now that Fable 5.1 has released, I bet we could revisit giving Talaria memory") — moved back from the archive VERBATIM (sweep-14 closing block kept above; #424's set check sees a move, not a drop). Four rulings, AskUserQuestion, all the recommended arm:**
+> 1. **What earns a memory — RETRIEVAL + EXPLICIT ONLY.** Two sources, neither inferred: real text retrieved from the user's own stored turns, and notes the user creates by saying "remember that…". The model never decides what is true about the user; it cannot invent a memory that does not exist (#417's 20/40 fabrication finding is the reason).
+> 2. **Visibility — LIST + PER-REPLY PROVENANCE.** A Memory screen showing every memory with its SOURCE (the turn it came from, or "you told me on <date>"), edit/delete; plus a small chip on any reply that drew on memory (the #371 provenance shape). Nothing remembered is invisible.
+> 3. **Two stores — NEVER MERGED.** Local memory feeds the local brain; the host's memory (Honcho/Hindsight) feeds host turns; the app labels which store a reply drew on. No reconciliation, no silent overrides.
+> 4. **Scheduling — DESIGN NOW, DECIDE AFTER THE DOC.** A Fable design lane (read-only + measurement) returns the on-device token budget arithmetic, the shape, and pre-registered bars; Owen rules pre- vs post-launch with numbers in hand. Sunday's post-launch ruling stands until then.
+> **Design lane dispatched 09-02; doc lands at `planning/2026-09-02-422-local-memory-design.md`. Bars for any build pre-register HERE after the doc, not before.**
+
