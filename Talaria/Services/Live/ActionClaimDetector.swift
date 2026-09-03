@@ -88,6 +88,13 @@ enum ActionClaimDetector {
         /// `memoryCreation` sits with the never-licensed kinds because no tool
         /// on the belt writes a memory: reading the calendar, and creating a
         /// reminder, are both silent on whether a note was stored.
+        ///
+        /// **For `memoryCreation` this value is VESTIGIAL in the licence
+        /// path** — `unfulfilledClaim` short-circuits that kind to `savedNote`
+        /// before this property is consulted, so changing it to `true` would
+        /// not license anything. It is stated anyway because the kind's
+        /// licensing rule belongs next to the other kinds' where a reader
+        /// looks for it, and `conversationHistoryLicenseIsNarrow` asserts it.
         var isLicensedByAnyToolCall: Bool {
             switch self {
             case .firstPersonCreation, .impersonatedCard, .memoryCreation: false
@@ -416,10 +423,32 @@ enum ActionClaimDetector {
     /// inert on its own, since every pattern below also requires a memory verb.
     private static let memoryNouns: Set<String> = ["memory", "note", "notes", "that"]
 
-    /// The verbs a memory claim is made with. Deliberately narrow: `keep`
-    /// and `kept` are absent here because they only assert anything in the
-    /// fixed *"keep … in mind"* frame, which has its own patterns below.
-    private static let memoryVerbs: Set<String> = ["remember", "remembered", "noted", "saved"]
+    /// The objects a memory claim may name. Wider than `memoryNouns` because
+    /// the negated-promise frame below takes a bare pronoun — *"I won't
+    /// forget it"* — where the first-person tiers do not.
+    private static let memoryObjects: Set<String> = memoryNouns.union(["this", "it"])
+
+    /// **Verbs that assert a memory WRITE in any first-person frame.**
+    ///
+    /// `remember` is deliberately NOT here, and that separation is the whole
+    /// point — see `memoryPromiseVerbs`.
+    private static let memoryWriteVerbs: Set<String> = ["noted", "saved"]
+
+    /// **`remember` asserts a write ONLY in the future frame, and reading it
+    /// otherwise was a real defect (review round 1, 2026-09-03).**
+    ///
+    /// *"I'll remember that"* is a promise to store. *"I remember that"*,
+    /// *"I remembered that you like coffee"* and *"I've remembered that"* are
+    /// **RECALL** — and on a retrieval turn `savedNote` is `false` by
+    /// construction, so a tier that read those as claims appended *"Nothing
+    /// was saved to memory… the reply above is inaccurate"* to an ACCURATE
+    /// recall. That is #338's own worst case — *"a guard whose correction is
+    /// itself false is worse than no guard"* — reached through the one turn
+    /// shape local memory exists to produce.
+    ///
+    /// So the future frame gets both verb sets; the perfect and bare-past
+    /// frames get only `memoryWriteVerbs`.
+    private static let memoryPromiseVerbs: Set<String> = ["remember"]
 
     /// **The memory tier's first-person patterns, and the gaps are the whole
     /// design.** Each shape either pins the auxiliary (`will` / `have`) or
@@ -429,14 +458,21 @@ enum ActionClaimDetector {
     /// is unchanged here: a guard that fires on an honest offer trains the
     /// user to ignore it.
     private static let memoryFirstPersonPatterns: [TokenPattern] = [
-        // "I'll remember that", "I've noted that", "I've already saved that
-        // to memory". The contraction carries the tense on its own.
-        .init(steps: [["i'll", "i've"], memoryVerbs, memoryNouns], maxGap: 1),
-        // "I will remember that", "I have noted that" — the auxiliary is a
-        // required step, which is what excludes "I can remember that".
-        .init(steps: [["i"], ["will", "have"], memoryVerbs, memoryNouns], maxGap: 1),
-        // "I remember that", "I noted that" — no gap, for the same reason.
-        .init(steps: [["i"], memoryVerbs, memoryNouns], maxGap: 0),
+        // THE FUTURE FRAME — "I'll remember that", "I'll note that". A promise
+        // to store, and the only frame in which `remember` is a claim.
+        .init(steps: [["i'll"], memoryPromiseVerbs.union(memoryWriteVerbs), memoryNouns], maxGap: 1),
+        // "I will remember that" — the auxiliary is a required step, which is
+        // what excludes "I can remember that".
+        .init(steps: [["i"], ["will"], memoryPromiseVerbs.union(memoryWriteVerbs), memoryNouns], maxGap: 1),
+        // THE COMPLETED-WRITE FRAME — "I've noted that", "I've already saved
+        // that to memory". `remember` is absent by construction: "I've
+        // remembered that" is recall, not a write.
+        .init(steps: [["i've"], memoryWriteVerbs, memoryNouns], maxGap: 1),
+        // "I have noted that", "I have saved that".
+        .init(steps: [["i"], ["have"], memoryWriteVerbs, memoryNouns], maxGap: 1),
+        // "I noted that", "I saved that" — no gap, for the same reason the
+        // auxiliary is pinned above.
+        .init(steps: [["i"], memoryWriteVerbs, memoryNouns], maxGap: 0),
         // "I'll keep that in mind" / "I'll keep in mind" — the fixed frame,
         // with `in mind` as required steps so a bare "keep" cannot match.
         .init(steps: [["i'll", "i've"], ["keep", "kept"], ["in"], ["mind"]], maxGap: 1),
@@ -445,7 +481,7 @@ enum ActionClaimDetector {
     ]
 
     /// The memory tier's passive twin of `passivePatterns` — *"That's been
-    /// noted."*, *"Your preference has been saved."*
+    /// noted."*, *"This has been saved to memory."*
     ///
     /// **It requires `been`, and that is load-bearing rather than tidy.** A
     /// looser *"is / was + verb"* shape would match the correction the app
@@ -454,10 +490,51 @@ enum ActionClaimDetector {
     /// `HonestyGuardWiringTests` and `MemoryHonestyTests` both pin the notice
     /// as claim-free; this is why it stays that way.
     ///
-    /// `that's` and `it's` are subjects, not auxiliaries — the tokenizer keeps
-    /// the apostrophe inside the word, so `that's` never reads as `that`.
+    /// **And it requires a memory NOUN, which the first cut did not (review
+    /// round 1, 2026-09-03).** Aux + `been` + verb alone matched *"Your
+    /// changes have been saved."*, *"The file has been saved."* and — worst —
+    /// *"Your reminder has been saved."*: a DEVICE fabrication answered with
+    /// the MEMORY correction. The noun is the SUBJECT step rather than a
+    /// sentence-wide token test, because a sentence-wide test would let
+    /// *"That reminder has been saved"* through on the stray `that`.
+    ///
+    /// `that's` and `it's` are subjects carrying their own auxiliary — the
+    /// tokenizer keeps the apostrophe inside the word, so `that's` never reads
+    /// as `that` and needs its own row.
     private static let memoryPassivePatterns: [TokenPattern] = [
-        .init(steps: [["has", "have", "that's", "it's"], ["been"], memoryVerbs], maxGap: 0),
+        // "That's been noted.", "It's been saved."
+        .init(steps: [["that's", "it's"], ["been"], memoryWriteVerbs], maxGap: 0),
+        // "That has been noted.", "This has been saved to memory.",
+        // "Your note has been saved."
+        .init(steps: [memoryNouns.union(["this"]), ["has", "have"], ["been"], memoryWriteVerbs],
+              maxGap: 0),
+    ]
+
+    /// **THE ONE NEGATION THAT IS A CLAIM (review round 1, 2026-09-03).**
+    ///
+    /// *"I won't forget that."* and *"I'll never forget that."* promise a
+    /// stored memory in negative grammar, and they are natural replies to the
+    /// *"keep in mind…"* / *"FYI…"* prompts bar 422-H's device arm targets.
+    /// The sentence-level negation silencer runs ahead of every tier, so
+    /// without an exemption this whole family is unreachable — not merely
+    /// unmatched.
+    ///
+    /// **It is a FRAME, not a keyword, and it is first-person anchored.** The
+    /// negation must be the one attached to `forget`, an object must follow,
+    /// and the subject must be the model itself — so *"You won't forget
+    /// that"* (the model addressing the USER) stays silent, and so does every
+    /// other negation: *"I can't remember things between chats"*, *"I won't be
+    /// able to remember that"*, *"I don't have memory between sessions"*.
+    ///
+    /// Matched on the QUOTE-STRIPPED tokens, so the model quoting someone
+    /// else's promise cannot buy the exemption — which also keeps #338's
+    /// deliberate "silencers read the whole sentence" behaviour intact for
+    /// every sentence that does not match this frame.
+    private static let memoryNegatedPromisePatterns: [TokenPattern] = [
+        // "I won't forget that.", "I'll never forget that.", "I never forget that."
+        .init(steps: [["i", "i'll"], ["won't", "wont", "never"], ["forget"], memoryObjects], maxGap: 0),
+        // "I will not forget that.", "I will never forget this."
+        .init(steps: [["i"], ["will"], ["not", "never"], ["forget"], memoryObjects], maxGap: 0),
     ]
 
     /// Sentence-level silencers. Any one of them and the sentence cannot be a
@@ -606,7 +683,22 @@ enum ActionClaimDetector {
         // KNOWN-LIMIT rows in `ActionClaimDetectorTests`. That direction is a
         // miss; the other was a lie.
         let rawTokens = tokens(of: sentence)
-        if rawTokens.contains(where: negationTokens.contains) { return [] }
+        // #422: the quote strip MOVES UP, but only its COMPUTATION — the three
+        // silencers below still read `rawTokens`, so round-2's fix is intact.
+        // The stripped form is needed here for one reason: the negated-promise
+        // exemption must be judged on what the model ASSERTS, not on what it
+        // quotes, or a quoted "I won't forget that" would buy an exemption for
+        // a sentence whose real claim sits outside the quotation.
+        let scannable = strippingQuotedSpans(from: sentence)
+        let scannableTokens = tokens(of: scannable)
+        // **The one negation that is a claim.** *"I won't forget that."* is a
+        // promise to store, and the silencer below would otherwise make the
+        // whole family unreachable. Narrow by construction — see the pattern's
+        // own note.
+        let isNegatedMemoryPromise = memoryNegatedPromisePatterns.contains {
+            $0.matches(scannableTokens)
+        }
+        if !isNegatedMemoryPromise, rawTokens.contains(where: negationTokens.contains) { return [] }
         if attributionPatterns.contains(where: { $0.matches(rawTokens) }) { return [] }
         // Review finding: a sentence-initial `if` / `once` / `after` / … frames
         // the whole sentence as a condition or a general rule. Checked here,
@@ -614,10 +706,9 @@ enum ActionClaimDetector {
         // it catches — *"Once a reminder has been created…"* — is a passive.
         if let opener = rawTokens.first, explanatoryOpeners.contains(opener) { return [] }
 
-        // From here on the quoted spans are gone, so the model quoting the
-        // user — or quoting a reminder's own title — cannot arm a claim.
-        let scannable = strippingQuotedSpans(from: sentence)
-
+        // From here on the quoted spans are gone (`scannable`, computed
+        // above), so the model quoting the user — or quoting a reminder's own
+        // title — cannot arm a claim.
         var found: [Claim] = []
         // Round-3 review: label position is judged on the STRIPPED sentence.
         // `labelPositionBody` drops every non-letter, INCLUDING a leading
@@ -634,7 +725,8 @@ enum ActionClaimDetector {
         if labelPositionBody(of: scannable).hasPrefix(impersonatedCardMarker) {
             found.append(Claim(kind: .impersonatedCard, sentence: sentence))
         }
-        let tokens = tokens(of: scannable)
+        // Same tokens the exemption was judged on — computed once.
+        let tokens = scannableTokens
         // The device tiers all have to be ABOUT a device artifact. The MEMORY
         // tier has its own nouns, so this is read as a fact rather than
         // enforced as a guard — see the two placements below.
@@ -659,7 +751,8 @@ enum ActionClaimDetector {
         // a state change that will never occur. The promise IS the fabrication,
         // so the offer suppressor must not reach this tier.
         if memoryFirstPersonPatterns.contains(where: { $0.matches(tokens) })
-            || memoryPassivePatterns.contains(where: { $0.matches(tokens) }) {
+            || memoryPassivePatterns.contains(where: { $0.matches(tokens) })
+            || isNegatedMemoryPromise {
             found.append(Claim(kind: .memoryCreation, sentence: sentence))
             return found
         }

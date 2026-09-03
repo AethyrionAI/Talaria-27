@@ -51,16 +51,17 @@ struct MemoryHonestyTests {
                 "nothing was stored — this reply is a promise the app cannot keep: \(String(describing: claim))")
     }
 
-    @Test("422-H: the PASSIVE memory form fires too")
-    func thePassiveMemoryFormFires() {
+    @Test("422-H: the PASSIVE memory form fires too",
+          arguments: ["That's been noted.",
+                      "This has been saved to memory.",
+                      "That has been noted.",
+                      "Your note has been saved."])
+    func thePassiveMemoryFormFires(reply: String) {
         // The passive tier's memory twin: the same *"…has been created"* shape
-        // #337-A's production reply used, wearing a memory verb.
+        // #337-A's production reply used, wearing a memory verb — and, since
+        // review round 1, gated on a memory NOUN as its subject.
         #expect(ActionClaimDetector.unfulfilledClaim(
-            in: "That's been noted.", executedToolNames: [], savedNote: false)?.kind
-            == .memoryCreation)
-        #expect(ActionClaimDetector.unfulfilledClaim(
-            in: "Your preference has been saved.", executedToolNames: [], savedNote: false)?.kind
-            == .memoryCreation)
+            in: reply, executedToolNames: [], savedNote: false)?.kind == .memoryCreation)
     }
 
     @Test("422-H/338-B: a CURLY apostrophe fires exactly as the straight one does")
@@ -137,6 +138,96 @@ struct MemoryHonestyTests {
         #expect(ActionClaimDetector.unfulfilledClaim(
             in: "I\u{2019}ve set the alarm for 6:30.", executedToolNames: [], savedNote: false)?.kind
             == .firstPersonCreation)
+    }
+
+    // MARK: - RECALL is never corrected (review round 1, 2026-09-03)
+
+    @Test("422-H: an ACCURATE recall is never corrected",
+          arguments: ["Yes, I remember that.",
+                      "I remember that your sister lives in Austin.",
+                      "I remembered that you like coffee.",
+                      "I've remembered that you like coffee."])
+    func accurateRecallIsNeverCorrected(reply: String) {
+        // **The defect this row exists for.** On a RETRIEVAL turn `savedNote`
+        // is `false` by construction — nothing is written, the memory is only
+        // read — so a tier that read these as claims appended "Nothing was
+        // saved to memory… the reply above is inaccurate" to a reply that was
+        // accurate. #338's own worst case, reached through the one turn shape
+        // local memory exists to produce.
+        //
+        // RED WITNESS: restore `[["i"], memoryVerbs, memoryNouns], maxGap: 0`
+        // (with `remember`/`remembered` in the verb set) and all four fire.
+        #expect(ActionClaimDetector.unfulfilledClaim(
+            in: reply, executedToolNames: [], savedNote: false) == nil,
+                "recall is not a write — correcting it is the guard lying about the model")
+    }
+
+    // MARK: - A DEVICE write never gets the MEMORY correction
+
+    @Test("422-H: a passive DEVICE claim is never read as a memory claim",
+          arguments: ["Your changes have been saved.",
+                      "The file has been saved.",
+                      "Your reminder has been saved."])
+    func aDeviceWriteIsNeverGivenTheMemoryCorrection(reply: String) {
+        // Before the passive tier was noun-gated these all matched aux +
+        // `been` + memory verb, so a DEVICE fabrication was answered with
+        // "Nothing was saved to memory" — a true sentence about the wrong
+        // subject, which is its own dishonesty.
+        //
+        // What they fall to instead is the device tiers' business, not this
+        // suite's; the assertion is only that memory does not claim them.
+        #expect(ActionClaimDetector.unfulfilledClaim(
+            in: reply, executedToolNames: [], savedNote: false)?.kind != .memoryCreation)
+    }
+
+    // MARK: - The negated promise (the one negation that IS a claim)
+
+    @Test("422-H: \"I won't forget that\" is a memory claim, not a negation",
+          arguments: ["I won't forget that.",
+                      "I'll never forget that.",
+                      "I will not forget that.",
+                      "Don't worry, I won't forget that."])
+    func theNegatedPromiseFrameFires(reply: String) {
+        // These are natural replies to the "keep in mind…" / "FYI…" prompts
+        // bar 422-H's device arm targets, and the sentence-level negation
+        // silencer runs ahead of every tier — so without the exemption the
+        // whole family is unreachable rather than merely unmatched.
+        #expect(ActionClaimDetector.unfulfilledClaim(
+            in: reply, executedToolNames: [], savedNote: false)?.kind == .memoryCreation)
+    }
+
+    @Test("422-H: every OTHER negation still stays quiet",
+          arguments: ["I can't remember things between chats unless you ask me to.",
+                      "I won't be able to remember that.",
+                      "I don't have memory between sessions.",
+                      "You won't forget that.",
+                      "I'm not going to forget.",
+                      "I won't forget to remind you at 8."])
+    func otherNegationsStayQuiet(reply: String) {
+        // The exemption is a FRAME — the negation attached to `forget`, an
+        // object after it, and a FIRST-PERSON subject. "You won't forget that"
+        // is the model addressing the USER, and "I won't be able to remember
+        // that" is an honest disclaimer; both must survive untouched.
+        #expect(ActionClaimDetector.unfulfilledClaim(
+            in: reply, executedToolNames: [], savedNote: false) == nil,
+                "the exemption must not become a general negation hole")
+    }
+
+    @Test("422-H: the negated promise is licensed by a saved note like any other")
+    func theNegatedPromiseIsLicensedBySavedNote() {
+        #expect(ActionClaimDetector.unfulfilledClaim(
+            in: "I won't forget that.", executedToolNames: [], savedNote: true) == nil)
+    }
+
+    @Test("422-H: a QUOTED negated promise buys no exemption")
+    func aQuotedNegatedPromiseBuysNoExemption() {
+        // The exemption is judged on the quote-stripped tokens, so the model
+        // quoting someone else's promise cannot unlock the silencer — which
+        // keeps #338's "silencers read the whole sentence" behaviour intact
+        // for every sentence that does not match the frame itself.
+        #expect(ActionClaimDetector.unfulfilledClaim(
+            in: "You wrote \"I won't forget that\" in your note.",
+            executedToolNames: [], savedNote: false) == nil)
     }
 
     // MARK: - The correction copy (Owen's naming ruling)

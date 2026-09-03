@@ -1795,16 +1795,16 @@ final class LocalChatBackend: HermesClientProtocol {
     ///     EARLIER in this conversation. Production reads it off the relay's
     ///     conversation-scoped latch; the default keeps every existing test
     ///     honest at the strictest setting.
-    ///
-    /// Never throws and never returns less than it was given (#197: the tool
-    /// path gains no throw; #338: the model's text is never rewritten or
-    /// deleted). On a normal successful turn this is an identity function —
-    /// bar 338-D's "adds no user-visible change to a normal turn".
     ///   - savedNote: whether the explicit-note path really wrote a memory
     ///     THIS turn (#422 bar 422-H). The one fact that licenses a
     ///     `memoryCreation` claim, and it licenses nothing else. Default
     ///     `false` — the strict reading, so every existing caller keeps the
     ///     behaviour it had.
+    ///
+    /// Never throws and never returns less than it was given (#197: the tool
+    /// path gains no throw; #338: the model's text is never rewritten or
+    /// deleted). On a normal successful turn this is an identity function —
+    /// bar 338-D's "adds no user-visible change to a normal turn".
     func honestyGuardedReply(  // harness-visible
         modelText: String,
         settledText: String,
@@ -1825,7 +1825,14 @@ final class LocalChatBackend: HermesClientProtocol {
     }
 
     /// **The production entry point** — the overload both turn paths call, and
-    /// the ONE place the guard's two inputs are read from live state.
+    /// the ONE place the guard's LIVE inputs are read.
+    ///
+    /// The pure overload takes three facts. Two are read from live state
+    /// here — the recorder's names and the relay's conversation latch. The
+    /// third, `savedNote`, is NOT: it is passed in by the caller, because the
+    /// explicit-note path is deterministic and leaves nothing on the relay to
+    /// read. Its default is `false`, so a caller that does not pass it keeps
+    /// the strict reading.
     ///
     /// Separated from the pure overload above so the recorder and the relay
     /// latch are read HERE rather than at two call sites that could drift
