@@ -78,3 +78,6 @@ handoffs/
 #                one of those into a dead link.
 #   private/   — durable, ours, and deliberately not in the repo.
 private/
+
+# superpowers lane worktrees (never committed)
+.worktrees/
