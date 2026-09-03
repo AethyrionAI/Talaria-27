@@ -2464,6 +2464,8 @@ Logged 2026-07-20 (Session V launch sweep).
 > rest of it; the release re-applies `!isMuted`, so the user's pick lands at
 > worst 800 ms later.
 
+> **🎉 2026-09-02 ~10:00 — FIRST FIELD RESULT ON THE GATE BUILD (Owen, build 3211, speakerphone): "It works. When it talks on speakerphone, it doesn't interrupt itself!"** Recorded as the FELT verdict — the first session on any build in this entry's history where the assistant finished its own sentences on speakerphone. **138-O-E is still OWED on the log** (the card's PASS needs the `#138 onset gate: speech_started suppressed Nms` positive control present — proof the server DID send the onset trip and the gate ate it — plus 0/3 at low AND max); a sysdiagnose taken after the session captures it. Volume for this session and whether a reply ran uncut (the 419-B confirmation) pending Owen's word.
+
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
 
 > **🔬 PREMISE RE-CHECKED 2026-08-25 (Owen's applicability rider on the
