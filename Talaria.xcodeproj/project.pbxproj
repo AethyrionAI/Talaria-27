@@ -568,6 +568,7 @@
 		DE180D6909C02AE322597D55 /* AutoConnectTogglePinTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD8DFCE97A179E10325B2F31 /* AutoConnectTogglePinTests.swift */; };
 		DE435424F4A8F719238D0404 /* ChakraPetch-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 964DBCC8D7F3F57C65040223 /* ChakraPetch-Bold.ttf */; };
 		DEECCA00F8AE106264BC5577 /* ArtifactMirrorItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7BC37FA10687CA4EB0768C7 /* ArtifactMirrorItemTests.swift */; };
+		DF41ABDBB55730C55F7B4B33 /* LexicalTokenizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8756531F85C83C1FBE6C6A20 /* LexicalTokenizerTests.swift */; };
 		DF6F1873F87AB0F743FC4BDB /* ContinuedProcessingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E80C72ED59E41EF426FAEF /* ContinuedProcessingTests.swift */; };
 		E027DB6E9CE70DF5FB1A5662 /* MarkdownParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64DA062D1DCE08D81973794F /* MarkdownParser.swift */; };
 		E06742071CFCB7AFF63C1F08 /* Icon-DeepField@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 31AF84E49DFBC89FAE4AD725 /* Icon-DeepField@3x.png */; };
@@ -1040,6 +1041,7 @@
 		8703770797F16E0192FB5EE2 /* Icon-WitchsBrew@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-WitchsBrew@3x.png"; sourceTree = "<group>"; };
 		872B0ADD4223BACB94F26C79 /* ResilientHermesClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResilientHermesClient.swift; sourceTree = "<group>"; };
 		8739CA6477AD05CC3DAF4CB7 /* ShareInboxCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareInboxCoreTests.swift; sourceTree = "<group>"; };
+		8756531F85C83C1FBE6C6A20 /* LexicalTokenizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LexicalTokenizerTests.swift; sourceTree = "<group>"; };
 		87E097ED8DDD1535E7288D6D /* HealthServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthServiceProtocol.swift; sourceTree = "<group>"; };
 		885791BF5D014DFF87001553 /* Icon-LuchaLibre@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-LuchaLibre@3x.png"; sourceTree = "<group>"; };
 		88975BD7EEDA7212610A9EFC /* IconPreview-Terminal.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-Terminal.png"; sourceTree = "<group>"; };
@@ -1561,6 +1563,7 @@
 				5DC2444BE82337EBC23E0B9C /* InstrumentLaunchIntentTests.swift */,
 				A153FB314B12F8BFAA4A1800 /* InstrumentRegistryTests.swift */,
 				F2D99D44859390A04BE71DF5 /* IPadAdaptationTests.swift */,
+				8756531F85C83C1FBE6C6A20 /* LexicalTokenizerTests.swift */,
 				F827381E8387C71D8135EFB3 /* LocalChatBackendTests.swift */,
 				5225896A0381DF9CEFD84EF9 /* LocalIntelligenceTests.swift */,
 				65B76EF12480785C00968B54 /* LocalSessionHistoryTests.swift */,
@@ -3092,6 +3095,7 @@
 				A08A532DBFCA01244EB8D4A5 /* InstrumentConductorTests.swift in Sources */,
 				2A7AC19318880AB670D8B392 /* InstrumentLaunchIntentTests.swift in Sources */,
 				8A3AC2583D13A4F41EC68DF2 /* InstrumentRegistryTests.swift in Sources */,
+				DF41ABDBB55730C55F7B4B33 /* LexicalTokenizerTests.swift in Sources */,
 				33F0CFB46E7013D2212311C0 /* LocalChatBackendTests.swift in Sources */,
 				CE06D7642092F56AD5B43D20 /* LocalIntelligenceTests.swift in Sources */,
 				FB1882D00D708B61E19B7A37 /* LocalSessionHistoryTests.swift in Sources */,

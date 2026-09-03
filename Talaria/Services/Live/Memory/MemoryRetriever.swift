@@ -1,17 +1,16 @@
 import Foundation
 
-/// One indexed chunk offered to the scorer. `vector` is EMPTY for every row indexed before
-/// the embedder acquired, and for every row of a non-English user — a normal state, not a
-/// corrupt one, which is why the scorer routes those to the lexical term instead of
-/// discarding them.
+/// One indexed chunk offered to the scorer.
+///
+/// No vector, and no embedder id: Owen deleted the embedder from the shape on 2026-09-03
+/// after mutation M-R measured it to buy nothing (see `MemoryRetriever`). Task 8b drops the
+/// matching store columns.
 struct MemoryCandidate: Sendable {
     let entryID: UUID
     let sessionID: UUID
     let chunkIndex: Int
     let text: String
     let sentAt: Date
-    let embedderID: String
-    let vector: [Float]
 }
 
 struct MemoryHit: Sendable {
@@ -26,13 +25,23 @@ struct MemoryHit: Sendable {
 /// anywhere under `Talaria/Services/Live/Memory/` — is what keeps that true as the module
 /// grows. (Deliberately paraphrased rather than quoting the banned tokens: naming them here
 /// would make this very file the grep's only hit.)
+///
+/// **Why the score is lexical only.** The shape was hybrid — `0.7 · cosine + 0.3 · lexical`
+/// — until mutation M-R was run against the labelled corpus on 2026-09-02. Bar 422-R's
+/// pre-registered rule was that lexical-only must score STRICTLY LOWER on at least one of
+/// p@1 / false-admit / top-3, or the embedder buys nothing. It scored lower on none:
+///
+/// | arm | p@1 | false-admit (adversarial) | top-3 |
+/// |---|---|---|---|
+/// | hybrid `0.7/0.3` | 0.827 (62/75) | 0.750 (9/12) | 0.920 (69/75) |
+/// | lexical-only | 0.853 (64/75) | 0.750 (9/12) | 0.973 (73/75) |
+///
+/// Better on two, identical on the third. The cause is structural rather than a bad
+/// weighting: the anchor already requires a lexical hit, so the cosine term never ADMITTED
+/// anything — it only re-ranked within the anchored set, and `NLEmbedding.sentenceEmbedding`
+/// scores interrogative FORM so heavily that it re-ranked it worse. Owen ruled the embedder
+/// deleted on 2026-09-03.
 enum MemoryRetriever {
-
-    /// The hybrid weights. Mutation M-R drives these to `0` / `1` to measure what the
-    /// embedder buys over the lexical scorer alone; the arm's numbers ride the 422 RESULT
-    /// block.
-    static let embeddingWeight: Float = 0.7
-    static let lexicalWeight: Float = 0.3
 
     // MARK: - The gates around retrieval
 
@@ -79,81 +88,61 @@ enum MemoryRetriever {
 
     // MARK: - The scorer
 
-    /// A candidate carrying the lexical term the anchor rule re-reads, so the anchor costs
-    /// no second tokenization pass over the chunk.
-    private struct ScoredCandidate {
-        let hit: MemoryHit
-        let lexical: Float
-    }
-
-    /// Hybrid score, RELATIVE admission, lexical anchor, top-k de-duplicated by adjacent
-    /// chunk.
+    /// Lexical score, RELATIVE admission, top-k de-duplicated by adjacent chunk.
     ///
-    /// **Relative, not absolute** (design §2.3): no cosine floor exists to be set — the same
-    /// cosine that means "this is the memory" for one query means "this is any sentence" for
-    /// another, because `NLEmbedding.sentenceEmbedding` scores interrogative FORM heavily.
-    /// Admission is therefore `z` standard deviations above the mean of THIS query's own
-    /// score distribution.
+    /// **Relative, not absolute** (design §2.3): no overlap floor exists to be set — an
+    /// overlap of 1/3 is decisive for a three-token query and meaningless for a
+    /// twelve-token one. Admission is therefore `z` standard deviations above the mean of
+    /// THIS query's own score distribution, so a query is measured against how the rest of
+    /// the store answered it.
     ///
-    /// **The anchor is doing most of the gating, and that is measured.** The relative rule
-    /// alone admits on every no-answer query in the corpus, because a distribution always
-    /// has a maximum. Requiring a non-zero lexical overlap is what makes an admission mean
-    /// "the store contains these words," and it is the only anchor clause: an earlier draft
-    /// also anchored the top 2% by score regardless of overlap, and on the corpus that
-    /// clause was strictly worse on all three bar numbers (p@1 0.680 vs 0.827, false-admit
-    /// 12/12 vs 9/12, top-3 0.933 vs 0.920) — it re-admitted exactly the pure-cosine
-    /// artifacts the anchor exists to reject.
+    /// **The anchor.** A distribution always has a maximum, so the relative rule ALONE
+    /// admits on every no-answer query — measured, not assumed. Requiring a non-zero
+    /// overlap is what makes an admission mean "the store contains these words." Under a
+    /// purely lexical score that floor is implied by any `z >= 0` (a zero-overlap candidate
+    /// cannot sit above its own distribution's mean), and it is kept explicit anyway so the
+    /// guarantee does not quietly depend on the sign of a tuning constant.
+    ///
+    /// The earlier hybrid draft also anchored the top 2% by score regardless of overlap;
+    /// on the corpus that clause was strictly worse on all three bar numbers (p@1 0.680 vs
+    /// 0.827, false-admit 12/12 vs 9/12, top-3 0.933 vs 0.920) because it re-admitted
+    /// exactly the score artifacts the anchor exists to reject. It is not coming back.
     static func retrieve(query: String,
-                         queryVector: [Float]?,
                          candidates: [MemoryCandidate],
-                         liveEmbedderID: String,
                          topK: Int = 3,
                          z: Float = 1.5) -> [MemoryHit] {
         guard !shouldSkip(query) else { return [] }
+        guard !candidates.isEmpty else { return [] }
 
-        // Bar 422-C's rule: a row whose `embedderID` is not the live embedder's is never
-        // scored — its vector came out of a different model, so its cosine against a live
-        // query vector is a number with no meaning. An EMPTY vector is not such a row: it
-        // is the pre-backfill / non-English state, it carries `embedderID == ""`, and it is
-        // scored on the lexical term alone rather than dropped.
-        let scorable = candidates.filter { $0.vector.isEmpty || $0.embedderID == liveEmbedderID }
-        guard !scorable.isEmpty else { return [] }
-
-        let scored: [ScoredCandidate] = scorable.map { candidate in
-            var cosine: Float = 0
-            if let queryVector, !candidate.vector.isEmpty, candidate.embedderID == liveEmbedderID {
-                cosine = EmbeddingService.cosine(queryVector, candidate.vector)
-            }
-            let lexical = EmbeddingService.lexicalOverlap(query: query, chunk: candidate.text)
-            return ScoredCandidate(hit: MemoryHit(candidate: candidate,
-                                                  score: embeddingWeight * cosine + lexicalWeight * lexical),
-                                   lexical: lexical)
+        let scored = candidates.map { candidate in
+            MemoryHit(candidate: candidate,
+                      score: EmbeddingService.lexicalOverlap(query: query, chunk: candidate.text))
         }
 
-        let scores = scored.map(\.hit.score)
+        let scores = scored.map(\.score)
         let mean = scores.reduce(0, +) / Float(scores.count)
         let variance = scores.reduce(Float(0)) { $0 + ($1 - mean) * ($1 - mean) }
             / Float(max(scores.count - 1, 1))
         let sd = variance.squareRoot()
         // A flat distribution has no standout — one candidate, or a hundred identical ones.
-        // Admitting the arbitrary maximum of a flat set is the false-admit this guard exists
-        // to refuse.
+        // Admitting the arbitrary maximum of a flat set is the false-admit this guard
+        // exists to refuse.
         guard sd > 0 else { return [] }
 
         let admitted = scored
-            .filter { $0.lexical > 0 && ($0.hit.score - mean) / sd >= z }
-            .sorted { $0.hit.score > $1.hit.score }
+            .filter { $0.score > 0 && ($0.score - mean) / sd >= z }
+            .sorted { $0.score > $1.score }
 
         // Two chunks of one turn are one memory: admitting both spends the block's token
         // budget twice on the same sentence.
         var out: [MemoryHit] = []
-        for candidate in admitted {
+        for hit in admitted {
             guard out.count < topK else { break }
             let adjacent = out.contains {
-                $0.candidate.sessionID == candidate.hit.candidate.sessionID
-                    && abs($0.candidate.chunkIndex - candidate.hit.candidate.chunkIndex) <= 1
+                $0.candidate.sessionID == hit.candidate.sessionID
+                    && abs($0.candidate.chunkIndex - hit.candidate.chunkIndex) <= 1
             }
-            if !adjacent { out.append(candidate.hit) }
+            if !adjacent { out.append(hit) }
         }
         return out
     }

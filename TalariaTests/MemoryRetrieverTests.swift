@@ -4,25 +4,41 @@ import Foundation
 
 /// #422 (bar 422-R): the retriever, scored against the labelled corpus.
 ///
-/// The bar is three numbers over two query classes, and each is REPORTED with its
-/// denominator on a `422-R:` line so a run's log carries the measurement rather than
-/// only its verdict: **precision@1 ≥ 0.80** on answerable queries, **false-admit
-/// rate ≤ 0.10** on no-answer queries, **top-3 recall ≥ 0.90** on answerable queries.
+/// Every number is REPORTED with its denominator on a `422-R:` line so a run's log carries
+/// the measurement and not only the verdict: **precision@1 ≥ 0.80** and **top-3 recall
+/// ≥ 0.90** on answerable queries, and the false-admit rate on BOTH no-answer classes.
+///
+/// **Two classes, one gated.** `plain` no-answer queries are ordinary unrelated questions
+/// that share no content token with any turn; `adversarial` ones are authored near-misses
+/// of a real turn ("when is my next dermatologist appointment" against "My passport renewal
+/// appointment is booked for next Tuesday"). Owen accepted the adversarial miss on
+/// 2026-09-03 and set the plain class as the gated one, so the bar test asserts ≤ 0.10 on
+/// `plain` and the adversarial rate rides every log line un-gated.
 ///
 /// A simulator process shares the Mac's filesystem, so `#filePath` resolves to the
-/// checked-in corpus — the same route `InstrumentRegistryTests` and
-/// `MemoryBackfillRunnerTests` already take.
+/// checked-in corpus — the same route `InstrumentRegistryTests` already takes.
+///
+/// No embedder is constructed anywhere in this suite: retrieval is lexical-only since the
+/// 2026-09-03 ruling, which is also why these tests are synchronous.
 @Suite("422-R retrieval")
 struct MemoryRetrieverTests {
 
     // MARK: - The corpus
 
-    /// `meta` (provenance + the privacy filter the corpus chore applied) rides the same
-    /// file; `Decodable` ignores keys no property claims, so it is deliberately not
-    /// modelled here.
+    /// `meta` rides the same file; `Decodable` ignores keys no property claims, so it is
+    /// deliberately not modelled here.
     struct Corpus: Decodable {
         struct Turn: Decodable { let id: Int; let text: String }
-        struct Query: Decodable { let text: String; let relevant: Int? }
+        struct Query: Decodable {
+            let text: String
+            let relevant: Int?
+            /// `"adversarial"` / `"plain"` on no-answer queries, absent on answerable ones.
+            let queryClass: String?
+            enum CodingKeys: String, CodingKey {
+                case text, relevant
+                case queryClass = "class"
+            }
+        }
         let turns: [Turn]
         let queries: [Query]
     }
@@ -36,153 +52,111 @@ struct MemoryRetrieverTests {
         try JSONDecoder().decode(Corpus.self, from: Data(contentsOf: corpusURL))
     }
 
-    // MARK: - The embedder
-
-    /// The runtime's sentence embedder, acquired over a bounded window. 422-C measured the
-    /// variable to be ELAPSED TIME, not attempt count: the first call in a process reliably
-    /// returns nil and a cold run can stay nil for several back-to-back calls. Every corpus
-    /// number below is meaningless if this returns a service that never acquired — the
-    /// scorer would silently degrade to lexical-only and the run would report the mutation
-    /// arm's numbers under the hybrid arm's name. So the callers `#require` a real vector
-    /// before scoring anything.
-    private func acquiredEmbedder(budget: Duration = .seconds(3)) async -> (EmbeddingService, Double) {
-        let clock = ContinuousClock()
-        let start = clock.now
-        let service = EmbeddingService()
-        repeat {
-            if service.embed("remember that my dentist is on Friday") != nil { break }
-            try? await Task.sleep(for: .milliseconds(50))
-        } while clock.now - start < budget
-        return (service, Double((clock.now - start) / .milliseconds(1)))
-    }
-
-    /// Every corpus turn as a candidate, embedded by the live embedder. Distinct
-    /// `sessionID`s on purpose: adjacent-chunk de-duplication is pinned by its own test,
-    /// and it must not silently suppress corpus hits here.
-    private func candidates(_ corpus: Corpus, _ embedder: EmbeddingService) -> [MemoryCandidate] {
-        corpus.turns.map { turn in
-            MemoryCandidate(entryID: UUID(), sessionID: UUID(), chunkIndex: turn.id,
-                            text: turn.text, sentAt: Date(),
-                            embedderID: EmbeddingService.embedderID,
-                            vector: embedder.embed(turn.text) ?? [])
+    /// Distinct `sessionID`s on purpose: adjacent-chunk de-duplication is pinned by its own
+    /// test, and it must not silently suppress corpus hits here.
+    private func candidates(_ corpus: Corpus) -> [MemoryCandidate] {
+        corpus.turns.map {
+            MemoryCandidate(entryID: UUID(), sessionID: UUID(), chunkIndex: $0.id,
+                            text: $0.text, sentAt: Date())
         }
     }
 
-    /// One scoring pass over the whole corpus. Shared by the three bar tests so all three
-    /// numbers come off the same denominators and the same vectors.
+    // MARK: - One scoring pass, shared by the bar tests
+
     private struct CorpusScore {
-        let precisionAt1: Float, falseAdmitRate: Float, topThreeRecall: Float
-        let correct: Int, answerable: Int, admits: Int, noAnswer: Int, recalled: Int
+        let correct: Int, recalled: Int, answerable: Int
+        let adversarialAdmits: Int, adversarialTotal: Int
+        let plainAdmits: Int, plainTotal: Int
+
+        var precisionAt1: Float { Float(correct) / Float(answerable) }
+        var topThreeRecall: Float { Float(recalled) / Float(answerable) }
+        var adversarialRate: Float { Float(adversarialAdmits) / Float(adversarialTotal) }
+        var plainRate: Float { Float(plainAdmits) / Float(plainTotal) }
+
         var line: String {
             "422-R: p@1 \(correct)/\(answerable) = \(fmt(precisionAt1)) · "
-                + "false-admit \(admits)/\(noAnswer) = \(fmt(falseAdmitRate)) · "
-                + "top-3 recall \(recalled)/\(answerable) = \(fmt(topThreeRecall))"
+                + "top-3 recall \(recalled)/\(answerable) = \(fmt(topThreeRecall)) · "
+                + "false-admit adversarial \(adversarialAdmits)/\(adversarialTotal) = \(fmt(adversarialRate)), "
+                + "plain \(plainAdmits)/\(plainTotal) = \(fmt(plainRate))"
         }
         private func fmt(_ v: Float) -> String { String(format: "%.3f", v) }
     }
 
-    private func scoreCorpus() async throws -> CorpusScore {
+    private func scoreCorpus() throws -> CorpusScore {
         let corpus = try Self.loadCorpus()
-        let (embedder, ms) = await acquiredEmbedder()
-        let cands = candidates(corpus, embedder)
+        let cands = candidates(corpus)
+        var correct = 0, recalled = 0
+        var adversarialAdmits = 0, adversarialTotal = 0
+        var plainAdmits = 0, plainTotal = 0
 
-        // The cold-start guard. Without it a nil embedder reports lexical-only numbers as
-        // hybrid ones — the exact confusion mutation M-R exists to measure.
-        try #require(cands.first?.vector.isEmpty == false,
-                     "no turn vector after \(ms) ms — the corpus numbers would be lexical-only by accident")
-        let probe = try #require(embedder.embed(corpus.queries[0].text),
-                                 "no query vector after \(ms) ms")
-        #expect(probe.count == 512)
+        for query in corpus.queries {
+            let hits = MemoryRetriever.retrieve(query: query.text, candidates: cands)
+            guard let gold = query.relevant else {
+                let admitted = !hits.isEmpty
+                if query.queryClass == "plain" {
+                    plainTotal += 1
+                    if admitted { plainAdmits += 1 }
+                } else {
+                    adversarialTotal += 1
+                    if admitted { adversarialAdmits += 1 }
+                }
+                continue
+            }
+            if hits.first?.candidate.chunkIndex == gold { correct += 1 }
+            if hits.contains(where: { $0.candidate.chunkIndex == gold }) { recalled += 1 }
+        }
 
-        let answerable = corpus.queries.filter { $0.relevant != nil }
-        let noAnswer = corpus.queries.filter { $0.relevant == nil }
-        var correct = 0, recalled = 0, admits = 0
-        for query in answerable {
-            let hits = MemoryRetriever.retrieve(query: query.text,
-                                                queryVector: embedder.embed(query.text),
-                                                candidates: cands,
-                                                liveEmbedderID: EmbeddingService.embedderID)
-            if hits.first?.candidate.chunkIndex == query.relevant { correct += 1 }
-            if hits.contains(where: { $0.candidate.chunkIndex == query.relevant }) { recalled += 1 }
-        }
-        for query in noAnswer {
-            let hits = MemoryRetriever.retrieve(query: query.text,
-                                                queryVector: embedder.embed(query.text),
-                                                candidates: cands,
-                                                liveEmbedderID: EmbeddingService.embedderID)
-            if !hits.isEmpty { admits += 1 }
-        }
-        return CorpusScore(precisionAt1: Float(correct) / Float(answerable.count),
-                           falseAdmitRate: Float(admits) / Float(noAnswer.count),
-                           topThreeRecall: Float(recalled) / Float(answerable.count),
-                           correct: correct, answerable: answerable.count,
-                           admits: admits, noAnswer: noAnswer.count, recalled: recalled)
+        let answerable = corpus.queries.filter { $0.relevant != nil }.count
+        // Denominators are part of the bar. A corpus edit that silently dropped a class
+        // would otherwise turn a rate into a different measurement wearing the same name.
+        #expect(answerable == 75)
+        #expect(adversarialTotal == 12)
+        #expect(plainTotal == 20)
+
+        return CorpusScore(correct: correct, recalled: recalled, answerable: answerable,
+                           adversarialAdmits: adversarialAdmits, adversarialTotal: adversarialTotal,
+                           plainAdmits: plainAdmits, plainTotal: plainTotal)
     }
 
-    // MARK: - Bar 422-R, the three numbers
+    // MARK: - Bar 422-R
 
-    @Test func precisionAt1IsAtLeast0_80OnAnswerableQueries() async throws {
-        let s = try await scoreCorpus()
+    @Test func precisionAt1IsAtLeast0_80OnAnswerableQueries() throws {
+        let s = try scoreCorpus()
         print(s.line)
         #expect(s.precisionAt1 >= 0.80, "p@1 \(s.correct)/\(s.answerable)")
     }
 
-    @Test func falseAdmitRateIsAtMost0_10OnNoAnswerQueries() async throws {
-        let s = try await scoreCorpus()
-        print(s.line)
-        #expect(s.falseAdmitRate <= 0.10, "false admits \(s.admits)/\(s.noAnswer)")
-    }
-
-    @Test func topThreeRecallIsAtLeast0_90OnAnswerableQueries() async throws {
-        let s = try await scoreCorpus()
+    @Test func topThreeRecallIsAtLeast0_90OnAnswerableQueries() throws {
+        let s = try scoreCorpus()
         print(s.line)
         #expect(s.topThreeRecall >= 0.90, "top-3 recall \(s.recalled)/\(s.answerable)")
     }
 
-    // MARK: - Bar 422-C's scoring rule
-
-    /// A row whose `embedderID` is not the live embedder's is never scored: its vector came
-    /// out of a different model, so its cosine against a live query vector is a number with
-    /// no meaning. This candidate carries a NON-EMPTY vector on purpose — the empty-vector
-    /// case is the opposite ruling, pinned by the next test.
-    @Test func aRowWithAForeignEmbedderIDIsNeverScored() async throws {
-        let corpus = try Self.loadCorpus()
-        let (embedder, ms) = await acquiredEmbedder()
-        let vector = try #require(embedder.embed(corpus.turns[2].text),
-                                  "no vector after \(ms) ms — this arm needs a NON-empty foreign vector")
-        let foreign = MemoryCandidate(entryID: UUID(), sessionID: UUID(), chunkIndex: 2,
-                                      text: corpus.turns[2].text, sentAt: Date(),
-                                      embedderID: "some.other.embedder", vector: vector)
-        #expect(MemoryRetriever.retrieve(query: corpus.turns[2].text,
-                                         queryVector: embedder.embed(corpus.turns[2].text),
-                                         candidates: [foreign],
-                                         liveEmbedderID: EmbeddingService.embedderID).isEmpty)
+    /// The gated class. The adversarial rate is reported on the same line and deliberately
+    /// NOT asserted: Owen accepted that miss on 2026-09-03 after an exhaustive search showed
+    /// no configuration of this scorer reaches 0.10 on it without dropping p@1 to 0.560.
+    @Test func falseAdmitRateIsAtMost0_10OnPlainNoAnswerQueries() throws {
+        let s = try scoreCorpus()
+        print(s.line)
+        #expect(s.plainRate <= 0.10, "plain false admits \(s.plainAdmits)/\(s.plainTotal)")
     }
 
-    /// Rows with an EMPTY vector are normal, not corrupt: everything indexed before the
-    /// embedder acquired lands that way, and for a non-English user EVERY row does. They
-    /// carry `embedderID == ""` after M1's fix wave. Such a row must still be scored — on
-    /// the lexical term alone — or memory is dead for a whole class of user.
-    @Test func anEmptyVectorCandidateIsScoredLexicallyRatherThanDropped() async throws {
-        let (embedder, _) = await acquiredEmbedder()
-        let texts = ["My dentist is Dr. Patel on Lamar, appointments are usually Tuesday mornings.",
-                     "We decided to go with the blue paint for the hallway, not the grey.",
-                     "I usually run on Saturday mornings along the river trail.",
-                     "Our anniversary is October 14th, we got married in 2015.",
-                     "The dog's name is Biscuit and he takes his heart pill at 8pm.",
-                     "My car is due for an oil change at 42,000 miles."]
-        let unembedded = texts.enumerated().map { index, text in
-            MemoryCandidate(entryID: UUID(), sessionID: UUID(), chunkIndex: index, text: text,
-                            sentAt: Date(), embedderID: "", vector: [])
+    /// The `plain` class is DEFINED by zero content-token overlap with every turn, so this
+    /// pins the corpus rather than the scorer — and it is the test that keeps the plain
+    /// false-admit number honest. Under a lexical-only scorer that number is 0 BY
+    /// CONSTRUCTION; if a future tokenizer change (or a re-added semantic term) breaks the
+    /// zero-overlap property, the rate would start meaning something else entirely and this
+    /// test says so out loud instead of letting the bar quietly change definition.
+    @Test func everyPlainNoAnswerQuerySharesNoContentTokenWithAnyTurn() throws {
+        let corpus = try Self.loadCorpus()
+        let turnTokens = corpus.turns.reduce(into: Set<String>()) {
+            $0.formUnion(EmbeddingService.contentTokens($1.text))
         }
-        // A live query vector, so the arm proves the CANDIDATE's empty vector routes to the
-        // lexical term — not that a missing query vector does.
-        let hits = MemoryRetriever.retrieve(query: "who is my dentist",
-                                            queryVector: embedder.embed("who is my dentist"),
-                                            candidates: unembedded,
-                                            liveEmbedderID: EmbeddingService.embedderID)
-        #expect(hits.first?.candidate.chunkIndex == 0,
-                "an empty-vector row that lexically matches must be admitted, got \(hits.map(\.candidate.chunkIndex))")
+        for query in corpus.queries where query.queryClass == "plain" {
+            let shared = EmbeddingService.contentTokens(query.text).intersection(turnTokens)
+            #expect(shared.isEmpty,
+                    "plain query \(query.text.debugDescription) shares \(shared.sorted()) with a turn")
+        }
     }
 
     // MARK: - Top-k shape
@@ -190,14 +164,12 @@ struct MemoryRetrieverTests {
     /// Two chunks of one long turn are one memory, not two: admitting both spends the
     /// token budget twice on the same sentence. Distinct sessions are never adjacent even
     /// at the same chunk index.
-    @Test func adjacentChunksOfTheSameSessionAreDeDuplicated() async throws {
-        let (embedder, _) = await acquiredEmbedder()
+    @Test func adjacentChunksOfTheSameSessionAreDeDuplicated() {
         let session = UUID()
         let text = "We decided to go with the blue paint for the hallway, not the grey."
         func chunk(_ index: Int, _ sessionID: UUID, _ body: String) -> MemoryCandidate {
-            MemoryCandidate(entryID: UUID(), sessionID: sessionID, chunkIndex: index, text: body,
-                            sentAt: Date(), embedderID: EmbeddingService.embedderID,
-                            vector: embedder.embed(body) ?? [])
+            MemoryCandidate(entryID: UUID(), sessionID: sessionID, chunkIndex: index,
+                            text: body, sentAt: Date())
         }
         let candidates = [chunk(0, session, text), chunk(1, session, text),
                           chunk(0, UUID(), text),
@@ -205,9 +177,7 @@ struct MemoryRetrieverTests {
                           chunk(8, UUID(), "What year did the Berlin Wall come down?"),
                           chunk(9, UUID(), "Set a timer for twelve minutes.")]
         let hits = MemoryRetriever.retrieve(query: "which colour did we pick for the hallway",
-                                            queryVector: embedder.embed("which colour did we pick for the hallway"),
-                                            candidates: candidates,
-                                            liveEmbedderID: EmbeddingService.embedderID)
+                                            candidates: candidates)
         let sameSession = hits.filter { $0.candidate.sessionID == session }
         #expect(sameSession.count <= 1,
                 "adjacent chunks of one session must collapse, got \(sameSession.map(\.candidate.chunkIndex))")
