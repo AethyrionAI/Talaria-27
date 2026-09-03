@@ -63,6 +63,33 @@ struct MemoryInjectionTests {
 
     private let hitQuery = "who is my dentist on Pearl Street"
 
+    /// Grows one transcript until `reserving` stops fitting it, then reports
+    /// whether `plain` still fits **that exact transcript**.
+    ///
+    /// The whole point of the shape is that it asserts nothing about the
+    /// simulator's arithmetic. `contextSize` reads 0 here (#402) so the budget
+    /// floors at 1,024, and `measuredTokenCount` falls back to `count / 3` —
+    /// neither is the phone's number. A contrast between two backends over
+    /// the same bytes cancels all of that: whatever the budget is, the gap
+    /// between the two verdicts is the reserve and nothing else.
+    ///
+    /// Returns `nil` when `reserving` never stopped fitting — the pin did not
+    /// run, which callers must treat as a failure rather than a pass.
+    private static func slackContrast(
+        reserving: LocalChatBackend, plain: LocalChatBackend, prompt: String = "and now?"
+    ) async -> Bool? {
+        var transcript = ""
+        for _ in 1...120 {
+            transcript += "another sentence of ordinary history. "
+            let turns = [LocalChatBackend.TranscriptTurn(role: .user, text: transcript)]
+            if await reserving.fitsContext(
+                turns: turns, nextPrompt: prompt, hasImageInContext: false) { continue }
+            return await plain.fitsContext(
+                turns: turns, nextPrompt: prompt, hasImageInContext: false)
+        }
+        return nil
+    }
+
     private func compose(_ message: String, savedNote: String? = nil) -> LocalChatBackend.ComposedTurnInput {
         LocalChatBackend.composeTurnInput(
             message: message, attachments: [], imageInputEnabled: false, savedNote: savedNote)
@@ -235,34 +262,46 @@ struct MemoryInjectionTests {
     /// the flip point fails.
     @Test func fitsContextReservesThisTurnsBlockWhileMemoryIsOn() async throws {
         let store = try seededStore()   // no notes: instructions are identical either way
-        let on = makeBackend(memoryStore: store, isMemoryEnabled: { true })
-        let off = makeBackend(memoryStore: store, isMemoryEnabled: { false })
-        let prompt = "and now?"
+        let reserving = makeBackend(memoryStore: store, isMemoryEnabled: { true })
+        let plain = makeBackend(memoryStore: store, isMemoryEnabled: { false })
 
-        var transcript = ""
-        var flipped = false
-        for _ in 1...120 {
-            transcript += "another sentence of ordinary history. "
-            let turns = [LocalChatBackend.TranscriptTurn(role: .user, text: transcript)]
-            let onFits = await on.fitsContext(
-                turns: turns, nextPrompt: prompt, hasImageInContext: false)
-            guard !onFits else { continue }
-            // The memory-ON backend has stopped fitting. At this exact size
-            // the memory-OFF backend must still fit — the gap between them
-            // IS the reserved block.
-            let offFits = await off.fitsContext(
-                turns: turns, nextPrompt: prompt, hasImageInContext: false)
-            #expect(offFits, """
-                memory ON and memory OFF rejected the same transcript, so no block was \
-                reserved — this turn's own prefix will be injected into a session that \
-                had no room left for it
-                """)
-            flipped = true
-            break
-        }
-        #expect(flipped, "the transcript never outgrew the reserved budget — the pin never ran")
-        #expect(on.injectedMemoryTokensThisSession == 0,
+        let looseStillFits = await Self.slackContrast(reserving: reserving, plain: plain)
+        #expect(looseStillFits == true, """
+            memory ON and memory OFF rejected the same transcript, so no block was \
+            reserved — this turn's own prefix will be injected into a session that had \
+            no room left for it
+            """)
+        #expect(reserving.injectedMemoryTokensThisSession == 0,
                 "precondition: nothing was injected, so the ONLY difference is the reserve")
+    }
+
+    /// **RE-REVIEW FOLLOW-UP.** An UNWIRED backend takes no reserve.
+    ///
+    /// `memoryIsOn` defaults to `true` when no `isMemoryEnabled` closure was
+    /// injected — the honest default for the toggle, since
+    /// `UserSettings.memoryEnabled` defaults on. But a backend with **no
+    /// store** (container-creation failure, and every test and harness that
+    /// never wired one) can never retrieve, never compose a notes block and
+    /// never inject a prefix — so holding 800 tokens of the window open for
+    /// it is a pure tax with nothing on the other side of the trade.
+    ///
+    /// The contrast is against a backend with the SAME toggle and a real
+    /// store, so the only difference is whether a store exists at all. Note
+    /// what this does NOT change: toggle semantics are untouched — a nil
+    /// store already produced no retrieval, no notes and no prefix, and still
+    /// does. Only the reserve is gated.
+    @Test func aBackendWithNoStoreTakesNoReserve() async throws {
+        let store = try seededStore()
+        // Same toggle on both — `isMemoryEnabled` nil, i.e. the default-true
+        // path, which is exactly the shape that regressed.
+        let reserving = makeBackend(memoryStore: store, isMemoryEnabled: nil)
+        let unwired = makeBackend(memoryStore: nil, isMemoryEnabled: nil)
+
+        let looseStillFits = await Self.slackContrast(reserving: reserving, plain: unwired)
+        #expect(looseStillFits == true, """
+            a backend with NO STORE rejected the same transcript as one with a store, so \
+            it reserved a block for a prefix it can never produce
+            """)
     }
 
     /// And the reserve is not a permanent tax: with memory OFF the budget is

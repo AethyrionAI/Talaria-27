@@ -365,6 +365,21 @@ final class LocalChatBackend: HermesClientProtocol {
     /// `UserSettings.memoryEnabled`'s own documented default.
     private var memoryIsOn: Bool { isMemoryEnabled?() ?? true }
 
+    /// Whether memory can actually PUT something in this turn — the toggle
+    /// AND a store to read it from.
+    ///
+    /// Deliberately a SECOND predicate rather than a tightening of
+    /// `memoryIsOn`, because the two answer different questions. `memoryIsOn`
+    /// is the user's switch and it governs toggle SEMANTICS (no retrieval, no
+    /// notes block, no prefix) — those are already correct with a nil store,
+    /// which simply has nothing to give. This one governs the `fitsContext`
+    /// RESERVE, which is a bet about the future: it only makes sense to hold
+    /// 800 tokens open for a prefix that can exist. A backend with no store —
+    /// container-creation failure, and every test that never wired one — can
+    /// never inject anything, so reserving for it is a pure tax on the
+    /// context window with nothing on the other side of the trade.
+    private var memoryCanInject: Bool { memoryIsOn && memoryStore != nil }
+
     /// Identity of the notes set as it stands RIGHT NOW. Empty string means
     /// "no notes" — including the toggle-off and no-store cases, which is
     /// correct: with memory off the session must carry no notes block, and
@@ -1939,13 +1954,16 @@ final class LocalChatBackend: HermesClientProtocol {
         // guarantee the next prefix has somewhere to land is the trade —
         // rebuild a little early, never overflow mid-turn.
         //
-        // With memory OFF the reserve is not taken at all: no retrieval, no
-        // notes block, no prefix, so there is nothing to reserve for and the
-        // budget is byte-for-byte what it was before this lane.
+        // The reserve is not taken at all when memory cannot inject — the
+        // toggle OFF, or no store to read (container-creation failure, and
+        // every backend a test never wired one into). Either way there is no
+        // prefix to hold room for, and the budget is byte-for-byte what it
+        // was before this lane. See `memoryCanInject` for why that is a
+        // separate predicate from the toggle.
         let contextBudget = max(
             256,
             max(1024, contextSize - Self.responseHeadroomTokens(for: activeTier))
-                - (memoryIsOn ? MemoryBudget.memoryBlockTokens(contextSize: contextSize) : 0))
+                - (memoryCanInject ? MemoryBudget.memoryBlockTokens(contextSize: contextSize) : 0))
         // #422 bar 422-D: the prefixes already inside the LIVE session's
         // transcript. `turns` comes from `currentConversation`, which stores
         // the user's bare messages, so without this term the estimate is low
