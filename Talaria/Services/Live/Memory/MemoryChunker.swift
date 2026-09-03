@@ -4,6 +4,9 @@ import NaturalLanguage
 enum MemoryChunker {
     /// Verbatim chunks on sentence boundaries, each ≤ `maxWords`. A single
     /// sentence longer than the cap is split on word boundaries — still verbatim.
+    /// Verbatim is WORD-verbatim: words and their order are exact, but sentences
+    /// (and the words of an over-cap sentence) rejoin with a single space, so the
+    /// source's own whitespace — blank lines, tabs, runs — is not reproduced.
     static func chunk(_ text: String, maxWords: Int = 60) -> [String] {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
@@ -18,7 +21,7 @@ enum MemoryChunker {
         var chunks: [String] = [], current: [String] = [], currentWords = 0
         func flush() { if !current.isEmpty { chunks.append(current.joined(separator: " ")); current = []; currentWords = 0 } }
         for sentence in sentences {
-            let words = sentence.split(separator: " ").map(String.init)
+            let words = sentence.split(whereSeparator: \.isWhitespace).map(String.init)
             if words.count > maxWords {
                 flush()
                 for start in stride(from: 0, to: words.count, by: maxWords) {
