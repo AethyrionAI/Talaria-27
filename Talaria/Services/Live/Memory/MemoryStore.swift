@@ -129,6 +129,48 @@ final class MemoryStore {
         save()
     }
 
+    /// Rows that were stored WITHOUT a vector, oldest first, capped at `limit`.
+    ///
+    /// This is a repair queue, not a query surface. `MemoryIndexer.index` is
+    /// incremental — a message that already has rows is never revisited — so a
+    /// turn indexed while the embedder had not yet acquired its asset would
+    /// keep an empty vector for the life of the install, permanently
+    /// lexical-only because of a condition that lasted seconds.
+    ///
+    /// The predicate is `vector == empty` rather than a `vector.isEmpty` test:
+    /// the comparison is one SwiftData can push down to the store, so a large
+    /// index is not faulted row by row (and every blob materialised) on every
+    /// launch just to find the handful that need repair. Oldest first so the
+    /// repair walks history in the order the user lived it.
+    func entriesWithEmptyVector(limit: Int) -> [(entryID: UUID, text: String)] {
+        guard limit > 0 else { return [] }
+        let empty = Data()
+        var descriptor = FetchDescriptor<MemoryTurnIndexRecord>(
+            predicate: #Predicate { $0.vector == empty },
+            sortBy: [SortDescriptor(\.sentAt, order: .forward)])
+        descriptor.fetchLimit = limit
+        return fetch(descriptor, op: "entriesWithEmptyVector").map { ($0.entryID, $0.text) }
+    }
+
+    /// Writes a vector onto an existing row, leaving its TEXT untouched — the
+    /// text is the memory (ruling 1), the vector only scores it.
+    func updateVector(entryID: UUID, vector: Data, embedderID: String) {
+        let id = entryID
+        guard let row = fetch(FetchDescriptor<MemoryTurnIndexRecord>(
+            predicate: #Predicate { $0.entryID == id }), op: "updateVector").first else { return }
+        row.vector = vector
+        row.embedderID = embedderID
+        save()
+    }
+
+    /// The stored blob's size, so a caller (and a test) can tell a repaired row
+    /// from a stranded one without decoding. Nil when the row is gone.
+    func vectorByteCount(entryID: UUID) -> Int? {
+        let id = entryID
+        return fetch(FetchDescriptor<MemoryTurnIndexRecord>(
+            predicate: #Predicate { $0.entryID == id }), op: "vectorByteCount").first?.vector.count
+    }
+
     func indexCount() -> Int {
         (try? context.fetchCount(FetchDescriptor<MemoryTurnIndexRecord>())) ?? 0
     }

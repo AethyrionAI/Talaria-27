@@ -218,6 +218,10 @@ final class AppContainer {
     /// deterministically. (It no longer suppresses the splash — #309 Lane A
     /// deleted the clause that read it; see `shouldShowLaunchSplash`.)
     private(set) var backgroundLaunchRefreshTask: Task<Void, Never>?
+    /// #422 (bar 422-B): the one-shot launch backfill over stored local
+    /// sessions. Held so a second `makeDefault` in one process cannot start a
+    /// second walk over the same history.
+    private(set) var memoryBackfillTask: Task<Void, Never>?
     /// #136: bumped by every reset/supersede site — a background launch
     /// refresh only touches container state while its generation is current.
     private var launchRefreshGeneration = 0
@@ -1351,7 +1355,14 @@ final class AppContainer {
         container.memoryStore = memoryStore
         // The indexer builds its own embedder LAZILY (see MemoryIndexer), so
         // nothing NaturalLanguage-shaped is constructed until the first settle.
-        container.chatStore.memoryIndexer = memoryStore.map { MemoryIndexer(store: $0) }
+        // The master switch is a CLOSURE, not a captured Bool: the indexer is
+        // built once here and lives for the process, so reading the setting at
+        // construction would leave a mid-session flip inert until the next cold
+        // start (Owen's 09-02 ruling covers indexing as well as retrieval).
+        container.chatStore.memoryIndexer = memoryStore.map {
+            MemoryIndexer(store: $0, isEnabled: { settingsStore.settings.memoryEnabled })
+        }
+        container.startMemoryBackfill(settingsStore: settingsStore, localSessions: localSessionStore)
 
         // #14: attachment sends (the deliberately-backgroundable long path,
         // #38) ride a BGContinuedProcessingTask — system progress UI, and the
@@ -1953,6 +1964,56 @@ final class AppContainer {
         settingsStore.settings.motionCollectionEnabled = enabled
         if enabled { await permissionsStore.requestPermission(for: .motion) }
         await permissionsStore.reloadCapabilities()
+    }
+
+    /// #422 (bar 422-B): index the local sessions the settle seam never saw —
+    /// everything the user said before memory existed.
+    ///
+    /// **Not a BGTask.** #63's discretionary scheduling is exactly wrong for
+    /// this: the work is cheap, wants to happen soon, and has no deadline the
+    /// system can help with. One `.utility` Task, windowed, yielding between
+    /// windows, is the whole mechanism — it competes with nothing on the launch
+    /// path and simply stops when the process does.
+    ///
+    /// **Oldest-first, and that is what makes the cursor mean anything.**
+    /// `sessionSummaries()` is most-recent-first, so a cursor into it would
+    /// skip unread history the moment a new session appeared. Sorted by
+    /// `createdAt` ascending, a new session APPENDS and everything behind the
+    /// cursor stays where it was.
+    ///
+    /// Transcripts are loaded a window at a time rather than all at once: a
+    /// long history is the case this exists for, and holding every one of its
+    /// transcripts in memory to walk them once is the wrong trade.
+    func startMemoryBackfill(settingsStore: SettingsStore, localSessions: (any LocalSessionStoring)?) {
+        guard memoryBackfillTask == nil,
+              let localSessions,
+              let indexer = chatStore.memoryIndexer else { return }
+        // No `self` capture: the task is HELD by the container but does not
+        // hold it, so a container that goes away is not kept alive walking
+        // history nobody is looking at.
+        memoryBackfillTask = Task(priority: .utility) { @MainActor in
+            // Read INSIDE the task: the switch is the user's, and a backfill is
+            // indexing like any other (Owen, 09-02 — off stops both halves).
+            guard settingsStore.settings.memoryEnabled else { return }
+            let ordered = localSessions.sessionSummaries()
+                .sorted { $0.createdAt < $1.createdAt }
+                .map(\.id)
+            var cursor = min(max(0, settingsStore.settings.memoryBackfillCursor), ordered.count)
+            let window = 5
+            repeat {
+                let slice = ordered[cursor ..< min(cursor + window, ordered.count)]
+                let conversations = slice.compactMap { localSessions.conversation(withID: $0) }
+                var walked = 0
+                // The window is its own array, so `backfill` walks 0…slice.count
+                // and the absolute cursor advances by the SLICE's length —
+                // a summary whose transcript has gone missing must still be
+                // stepped over, or the pass parks on it forever.
+                indexer.backfill(conversations, cursor: &walked)
+                cursor += slice.count
+                settingsStore.settings.memoryBackfillCursor = cursor
+                await Task.yield()
+            } while cursor < ordered.count && !Task.isCancelled
+        }
     }
 
     /// #137 one-shot grandfathering — see SensorStreamingGrandfathering.
