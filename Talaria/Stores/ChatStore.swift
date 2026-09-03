@@ -567,6 +567,32 @@ final class ChatStore {
     /// Nil (tests, container-creation failure) simply doesn't index.
     var memoryIndexer: MemoryIndexer?
 
+    /// #422 Task 11: the local memory store, wired by AppContainer.
+    /// `sendMessage` writes an explicit "Remember that…" note through this
+    /// BEFORE any backend (local or a paired Hermes host) is asked to
+    /// answer — capture cannot live behind `LocalChatBackend`'s door because
+    /// a host turn never reaches it. Nil (tests, container-creation
+    /// failure) disables the whole path: no capture, no crash.
+    var memoryStore: MemoryStore?
+
+    /// #422 Task 11: the memory master switch, read live on every send —
+    /// same reasoning as `MemoryIndexer.isEnabled`, a closure rather than a
+    /// captured `Bool` so a mid-session flip takes effect on the very next
+    /// message. Nil defaults to enabled, matching
+    /// `UserSettings.memoryEnabled`'s own documented default.
+    var isMemoryEnabled: (@MainActor () -> Bool)?
+
+    /// #422 Task 11: the note the turn currently (or most recently) in
+    /// flight saved, if any. Reset at the top of every `sendMessage` call.
+    /// Fix round 1 (minor): widened to internal-read — Task 16 stamps the
+    /// reply `Message`'s `memoryProvenance` from it once that type merges in
+    /// from lane M4. Write access stays exclusive to this file; cleanup on
+    /// Undo/retry/regenerate no longer depends on this slot at all (fix
+    /// round 1, item 3) — it is keyed on `sourceMessageID` directly via
+    /// `MemoryStore.deleteNotes(withSourceMessageIDs:)`, which handles any
+    /// past turn's note, not just the most recent one.
+    private(set) var pendingSavedNoteID: UUID?
+
     /// #190B: a failed session open, surfaced as state the UI renders — the
     /// old catch logged and returned, which is how a deterministic dead tap
     /// stayed invisible on device while the suite ran green (#189/#191's
@@ -1143,6 +1169,26 @@ final class ChatStore {
         // hard-killed. See `cancelStreaming`'s doc.
         let continuedSend = attachments.isEmpty ? nil : beginContinuedSend?(displayContent)
         continuedSend?.onExpiration = { [weak self] in self?.cancelStreaming(hardStopHost: false) }
+
+        // #422 bar 422-E: the deterministic "Remember that…" capture — no
+        // model in the loop, and captured HERE, before the turn is
+        // dispatched to ANY backend. That placement (not inside
+        // `LocalChatBackend`) is deliberate: a paired Hermes host answers
+        // this turn just as often as the on-device brain does, and ruling 3
+        // forbids the memory module from ever being reached off the Hermes
+        // path — so capture cannot live behind a local-only door. `parse`
+        // still runs with the toggle off (its result is identical either
+        // way); only the WRITE is gated, per Owen's ruling that OFF stores
+        // nothing. `wasTruncated` rides straight from `parseResult` (fix
+        // round 1 minor) — never re-derived downstream from a length check.
+        pendingSavedNoteID = nil
+        if let (note, truncated) = ExplicitMemoryIntent.parseResult(trimmedContent),
+           isMemoryEnabled?() ?? true,
+           let memoryStore {
+            pendingSavedNoteID = memoryStore.insertNote(
+                note, sourceMessageID: clientMessageID, sourceSessionID: conversation?.id,
+                wasTruncated: truncated)
+        }
 
         let stream = hermesClient.sendStreaming(message: trimmedContent, attachments: attachments, clientMessageID: clientMessageID)
         var acceptedJobID: UUID?
@@ -2890,7 +2936,22 @@ final class ChatStore {
         // elsewhere in the thread — and when it did, the failed row had been
         // deleted and nothing was sent.
         let dispatched = await sendMessage(content, attachments: attachments)
-        guard !dispatched else { return }
+        guard !dispatched else {
+            // #422 Task 11 fix round 1 (Important, item 3): this row's
+            // removal never went through `truncateTranscript` (#279, this
+            // function's own doc), so that primitive's cleanup never ran —
+            // and the re-send above just captured a SECOND identical note
+            // under a FRESH clientMessageID if `content` matched
+            // `ExplicitMemoryIntent`. Purge the one tied to the row that no
+            // longer exists, or the store ends up with two rows for one
+            // "Remember that…". `message.id`, not `sourceMessage.id`: when
+            // they differ (retrying a failed ASSISTANT reply resends an
+            // EARLIER user turn that was never removed), no note was ever
+            // stamped with the assistant row's id, so this is a no-op —
+            // exactly the case where nothing should be purged.
+            memoryStore?.deleteNotes(withSourceMessageIDs: [message.id])
+            return
+        }
         restoreRetriedRow(removedRow, at: removedIndex, why: "the re-send was swallowed by a send guard")
     }
 
@@ -2901,7 +2962,9 @@ final class ChatStore {
     private func restoreRetriedRow(_ row: Message?, at index: Int?, why: String) {
         guard let row, let index else { return }
         chatLog.notice("retry: \(why, privacy: .public) — restoring the removed row at index \(index) (#279/#78)")
-        restoreTruncatedRows([row], at: index)
+        // Fix round 2 (a): no notes — this row's removal never went through
+        // `truncateTranscript` (#279), so it deleted none to restore.
+        restoreTruncatedRows([row], at: index, notes: [])
     }
 
     // MARK: - Transcript truncation (#78)
@@ -2939,14 +3002,53 @@ final class ChatStore {
     /// Returns the removed rows so a caller whose follow-up send never
     /// dispatches can put them back (`restoreTruncatedRows`).
     @discardableResult
-    func truncateTranscript(from index: Int, reason: String) -> [Message] {
-        guard var conv = conversation, conv.messages.indices.contains(index) else { return [] }
+    func truncateTranscript(from index: Int, reason: String) -> TruncatedTranscript {
+        guard var conv = conversation, conv.messages.indices.contains(index) else { return .empty }
         let removed = Array(conv.messages[index...])
         conv.messages.removeSubrange(index...)
         conversation = conv
         chatLog.notice("truncate [\(reason, privacy: .public)]: removed \(removed.count) row(s) from index \(index); \(conv.messages.count) remain (#78)")
         adoptLocalTranscript()
-        return removed
+        // #422 Task 11 (fix round 1, item 3) — Undo's (and regenerate's)
+        // side of the explicit-note path: a truncation that removes the
+        // turn which saved a note must remove the note with it, or the row
+        // outlives every trace of why it exists (ruling 2). Keyed on every
+        // removed row's own id rather than the single `pendingSavedNoteID`
+        // slot, so ANY past turn's note is cleaned up, not just the most
+        // recent one — a message's `id` is what `sendMessage` stamps as a
+        // note's `sourceMessageID`, and rows with no matching note are a
+        // harmless no-op.
+        //
+        // FINAL REVIEW item 2: the deleted notes are STASHED, not merely
+        // deleted. `regenerate` truncates in order to re-send, and when a
+        // send guard swallows the re-send it restores the rows — restoring
+        // the messages while leaving the notes gone is silent data loss: the
+        // user re-rolled a reply and lost a memory they had explicitly asked
+        // to keep, with no error and nothing on screen to notice. Overwritten
+        // by each truncation, which is correct: a truncation nobody restored
+        // is a truncation whose notes were meant to go.
+        //
+        // FIX ROUND 2 (a): the snapshots leave here as a VALUE, carried by the
+        // return. They used to sit in an instance field that
+        // `restoreTruncatedRows` consumed unconditionally — and that function
+        // also serves `restoreRetriedRow`, whose row removal never came
+        // through here at all (#279). So an /undo that deleted a note,
+        // followed by ANY later retry whose re-send was swallowed, resurrected
+        // it: the retry's restore drained a stash belonging to a truncation
+        // the user had deliberately not undone. A value cannot be picked up by
+        // a path that was never given it.
+        let deletedNotes = memoryStore?.deleteNotes(
+            withSourceMessageIDs: Set(removed.map(\.id))) ?? []
+        return TruncatedTranscript(rows: removed, notes: deletedNotes)
+    }
+
+    /// What a truncation removed: the transcript rows AND the explicit notes
+    /// those rows had saved, together, because putting one back without the
+    /// other is the data loss final-review item 2 found.
+    struct TruncatedTranscript {
+        let rows: [Message]
+        let notes: [MemoryNoteSnapshot]
+        static let empty = TruncatedTranscript(rows: [], notes: [])
     }
 
     /// Puts rows a truncation removed back where they were — the safety net
@@ -2955,7 +3057,25 @@ final class ChatStore {
     /// byte-identical re-roll left history destroyed in memory with nothing
     /// sent and nothing persisted). Id-deduped, so a partially-recovered
     /// transcript can't double a row.
-    private func restoreTruncatedRows(_ rows: [Message], at index: Int) {
+    ///
+    /// `notes` is a REQUIRED parameter with no default (fix round 2 (a)):
+    /// every caller has to say what it is restoring. `restoreRetriedRow`
+    /// passes `[]` because its row never went through `truncateTranscript`
+    /// and so deleted no notes — and when this was an instance field it
+    /// silently drained one belonging to a different, deliberate truncation.
+    private func restoreTruncatedRows(
+        _ rows: [Message], at index: Int, notes: [MemoryNoteSnapshot]
+    ) {
+        // FINAL REVIEW item 2: the notes come back with the rows, under
+        // their ORIGINAL ids — restored identity is what keeps lane M4's
+        // `Message.memoryProvenance` and every existing `MemoryUseRecord`
+        // pointing at a note that still exists. Done before the early
+        // returns below: whether the MESSAGE rows need restoring is a
+        // separate question from whether the NOTES do — a partially
+        // recovered transcript can already hold every row and still be
+        // missing the note.
+        memoryStore?.restoreNotes(notes)
+
         guard !rows.isEmpty, var conv = conversation else { return }
         let present = Set(conv.messages.map(\.id))
         let missing = rows.filter { !present.contains($0.id) }
@@ -3017,15 +3137,15 @@ final class ChatStore {
             return
         }
 
-        let removed = truncateTranscript(from: userIdx, reason: "regenerate")
+        let truncated = truncateTranscript(from: userIdx, reason: "regenerate")
         let dispatched = await sendMessage(content, attachments: attachments)
         guard !dispatched else { return }
         // A send guard swallowed the re-roll — in practice the duplicate
         // check, when an identical turn is still pending elsewhere in the
         // thread. Nothing was sent, so the truncation destroyed history for
         // nothing; put it back rather than leave the user short a turn.
-        chatLog.notice("regenerate: the re-send was swallowed by a send guard — restoring \(removed.count) truncated row(s) (#78)")
-        restoreTruncatedRows(removed, at: userIdx)
+        chatLog.notice("regenerate: the re-send was swallowed by a send guard — restoring \(truncated.rows.count) truncated row(s) (#78)")
+        restoreTruncatedRows(truncated.rows, at: userIdx, notes: truncated.notes)
     }
 
     /// The pieces a truncated user turn hands back to the composer.

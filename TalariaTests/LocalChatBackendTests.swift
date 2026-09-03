@@ -357,6 +357,44 @@ struct LocalChatBackendTests {
         #expect(prompt.contains("was not delivered"))
     }
 
+    // MARK: - #422 Task 11 fix round 1 — ComposedTurnInput.savedNote is a
+    // PASS-THROUGH parameter, never a re-derivation
+    //
+    // Round 1's CRITICAL finding: `composeTurnInput` used to derive
+    // `savedNote` itself via `ExplicitMemoryIntent.parse(message)` — text
+    // that merely LOOKS like a save attempt, not a fact about whether
+    // anything was actually written. That diverges from the truth on three
+    // reachable paths (toggle off, nil store, the voice pipeline's direct
+    // `sendStreaming` call), and a `nonisolated static` function has no
+    // MainActor access to the store to check anyway. The real derivation now
+    // lives in `savedNoteThisTurn(clientMessageID:)` — see
+    // `SavedNoteDerivationTests` — and these two tests pin only the
+    // PLUMBING: that `composeTurnInput`/`degradedTurnInput` carry whatever
+    // value they are handed through unchanged. They do not, and cannot,
+    // test where the value comes from.
+
+    @Test func composedTurnInputCarriesWhateverSavedNoteItIsGiven() {
+        let some = LocalChatBackend.composeTurnInput(
+            message: "hello", attachments: [], imageInputEnabled: false,
+            savedNote: "my sister lives in Austin")
+        #expect(some.savedNote == "my sister lives in Austin")
+
+        let none = LocalChatBackend.composeTurnInput(
+            message: "hello", attachments: [], imageInputEnabled: false, savedNote: nil)
+        #expect(none.savedNote == nil)
+    }
+
+    /// The guardrail image-degrade retry recomposes via `degradedTurnInput`
+    /// (see `GuardrailImageDegradeTests.theDegradeHasNoSecondComposeImplementation`
+    /// for the "one compose path" pin) — production reuses the FIRST leg's
+    /// already-derived `savedNote` rather than asking the store a second
+    /// time for an id that cannot have changed mid-turn.
+    @Test func degradedTurnInputForwardsSavedNoteThrough() {
+        let degraded = LocalChatBackend.degradedTurnInput(
+            message: "hello", attachments: [], savedNote: "my sister lives in Austin")
+        #expect(degraded.savedNote == "my sister lives in Austin")
+    }
+
     // MARK: History → transcript turns
 
     @Test func transcriptTurnsKeepDeliveredChatAndVoiceTurns() {

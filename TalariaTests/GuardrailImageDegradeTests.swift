@@ -92,7 +92,7 @@ struct GuardrailImageDegradeTests {
         let png = try Self.makePNGData()
         let attachments = [Self.imageAttachment(png)]
         let degraded = LocalChatBackend.degradedTurnInput(
-            message: "what does this say?", attachments: attachments)
+            message: "what does this say?", attachments: attachments, savedNote: nil)
 
         // The retry's input: zero image attachments, the honest placeholder.
         #expect(degraded.images.isEmpty)
@@ -102,14 +102,14 @@ struct GuardrailImageDegradeTests {
         // …and byte-identical to the compose-time fallback, which is what
         // "the SAME compose path" means operationally.
         let composeTime = LocalChatBackend.composeTurnInput(
-            message: "what does this say?", attachments: attachments, imageInputEnabled: false)
+            message: "what does this say?", attachments: attachments, imageInputEnabled: false, savedNote: nil)
         #expect(degraded.promptText == composeTime.promptText)
         #expect(composeTime.images.isEmpty)
 
         // The sighted arm is what it degrades FROM — if this stopped
         // differing, the pin above would be vacuous.
         let sighted = LocalChatBackend.composeTurnInput(
-            message: "what does this say?", attachments: attachments, imageInputEnabled: true)
+            message: "what does this say?", attachments: attachments, imageInputEnabled: true, savedNote: nil)
         #expect(sighted.images.count == 1)
         #expect(sighted.promptText != degraded.promptText)
     }
