@@ -255,6 +255,7 @@
 		54B2F585874181F300A86D0C /* BatteryReapEventKitProbeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B37699B2D4090F1A7924AA99 /* BatteryReapEventKitProbeTests.swift */; };
 		550A1BAA0BD8E11CF22B5973 /* RunTurnPhase.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDB6D170A1CF779CC5D6968C /* RunTurnPhase.swift */; };
 		56089F4C2AD934708B456E2D /* ConnectHostScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBB5A1CCC408BDFB491F80C7 /* ConnectHostScreen.swift */; };
+		56CDFF19556E4C5D5DC4F8C1 /* MemoryBudgetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 595190DC50657FDD8F06EAAF /* MemoryBudgetTests.swift */; };
 		57E2B573942BCA2EC78C8550 /* TurnReceiptsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8064CC89E452AB4576D02AAB /* TurnReceiptsTests.swift */; };
 		58A79513D2968FE0A9D5690E /* ThemeTextures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 639E35724ACC2C48AB542489 /* ThemeTextures.swift */; };
 		58EAE21B148EFB6CD6612474 /* Icon-SpringSprout@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C2CA32208388B8F40E1EF71 /* Icon-SpringSprout@3x.png */; };
@@ -644,6 +645,7 @@
 		FB320457FD3A51DBCEEE88FA /* LiveSpeechService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDF7D4D1DE78C68978B73F6E /* LiveSpeechService.swift */; };
 		FB42759C6395CE1AE7601D11 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 19B057142402EDCE3E248E9A /* PrivacyInfo.xcprivacy */; };
 		FBB9CF26CD2C9D8F844E9F28 /* TaskSkillsPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFD34FD8F83D55B0E3A824F7 /* TaskSkillsPicker.swift */; };
+		FBEDD6A0B7EBD9EE1B11CEBA /* MemoryBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B84C8BC8E965D31F19DA8F6F /* MemoryBudget.swift */; };
 		FCF494FA7680EABD16B87E26 /* HealthQueryCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF2F27035982B50A41364B24 /* HealthQueryCore.swift */; };
 		FD0C12BE7E32D0D8D1CD261E /* HermesWidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47A5F74DB08719B659A47C6 /* HermesWidgetData.swift */; };
 		FD770D93F0C4CBDACA2F2544 /* AppLockTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CE6B0DE5CE1DCD32DA50DFA /* AppLockTests.swift */; };
@@ -914,6 +916,7 @@
 		58B4BF576EF1055C45F7E0B3 /* SessionsHermesClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsHermesClient.swift; sourceTree = "<group>"; };
 		58ED77D1094E15E538EEEE59 /* VoiceSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSettingsScreen.swift; sourceTree = "<group>"; };
 		5947892A74BA10823951BC62 /* PermissionsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsStore.swift; sourceTree = "<group>"; };
+		595190DC50657FDD8F06EAAF /* MemoryBudgetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryBudgetTests.swift; sourceTree = "<group>"; };
 		59F7F29D1DB87BEA4BCCE4D5 /* VoiceMemoRecorderSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMemoRecorderSheet.swift; sourceTree = "<group>"; };
 		5A0EC64AD8E78D0B021F0588 /* ConnectHostCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectHostCopy.swift; sourceTree = "<group>"; };
 		5ABF6ED023952DF5A80472D3 /* SelectedIconHandoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectedIconHandoff.swift; sourceTree = "<group>"; };
@@ -1154,6 +1157,7 @@
 		B76E7696B16B5568AE4666F1 /* PrivacySettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacySettingsScreen.swift; sourceTree = "<group>"; };
 		B7B2AB9947B4855D05C531FF /* IconPreview-MidnightAquarium.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-MidnightAquarium.png"; sourceTree = "<group>"; };
 		B7CECEC242D4039ADB9F5150 /* LocalChatBackend+Battery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LocalChatBackend+Battery.swift"; sourceTree = "<group>"; };
+		B84C8BC8E965D31F19DA8F6F /* MemoryBudget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryBudget.swift; sourceTree = "<group>"; };
 		B91842CE9C8F9B0938C747E5 /* SSEEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSEEvent.swift; sourceTree = "<group>"; };
 		B9960B9FE16ABC4CAB81D357 /* MarkdownTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownTestSupport.swift; sourceTree = "<group>"; };
 		B9E1289205FE50BA0BEF7C4C /* DirectHealthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectHealthTests.swift; sourceTree = "<group>"; };
@@ -1570,6 +1574,7 @@
 				C7F5E3E734B6B0B778FE98DD /* MarkdownTableTests.swift */,
 				B9960B9FE16ABC4CAB81D357 /* MarkdownTestSupport.swift */,
 				702627A7DE49CBE9BA5CB769 /* MemoryBackfillRunnerTests.swift */,
+				595190DC50657FDD8F06EAAF /* MemoryBudgetTests.swift */,
 				99E0932203BD696F827FCAE1 /* MemoryChunkerTests.swift */,
 				ED58F2E5422339DF8CED0DFB /* MemoryIndexerTests.swift */,
 				13CD7DD53AE88B1A4E1A6670 /* MemoryStoreTests.swift */,
@@ -2052,6 +2057,7 @@
 			children = (
 				CEEF875206EB6D3AC0EB8FD7 /* EmbeddingService.swift */,
 				4EBB56C1E5FFBAC09AEDD2A3 /* MemoryBackfillRunner.swift */,
+				B84C8BC8E965D31F19DA8F6F /* MemoryBudget.swift */,
 				A0DB7D83DD19985030F3E326 /* MemoryChunker.swift */,
 				92E78786B93F42820F85C46A /* MemoryIndexer.swift */,
 				4FA0E80CFDC0A74F13BA28DF /* MemoryStore.swift */,
@@ -2833,6 +2839,7 @@
 				E027DB6E9CE70DF5FB1A5662 /* MarkdownParser.swift in Sources */,
 				35679D630CF36E84038F3A91 /* MediaServiceProtocol.swift in Sources */,
 				8CAD2F8EC815DFCFF3A369D4 /* MemoryBackfillRunner.swift in Sources */,
+				FBEDD6A0B7EBD9EE1B11CEBA /* MemoryBudget.swift in Sources */,
 				70D626AEF588EB10CF9BF0F8 /* MemoryChunker.swift in Sources */,
 				CF5108717F4C21EE587F726F /* MemoryIndexer.swift in Sources */,
 				029165AB0B326745F36A2147 /* MemoryStore.swift in Sources */,
@@ -3098,6 +3105,7 @@
 				2C0ADBCBDA8B4192FB8B83EA /* MarkdownTableTests.swift in Sources */,
 				B14D98A0969B463B26C78532 /* MarkdownTestSupport.swift in Sources */,
 				104F746B433E0ECCEA15BA23 /* MemoryBackfillRunnerTests.swift in Sources */,
+				56CDFF19556E4C5D5DC4F8C1 /* MemoryBudgetTests.swift in Sources */,
 				2524608509D1079F54EDC1B0 /* MemoryChunkerTests.swift in Sources */,
 				673BE08A3F8BD224534D7FED /* MemoryIndexerTests.swift in Sources */,
 				753E8983F8BB7CC2AB11DF66 /* MemoryStoreTests.swift in Sources */,
