@@ -335,7 +335,7 @@ struct NamingSweepTests {
 
     // MARK: - 422-N: local memory naming pins (bar 422-N)
     //
-    // Task 16 adds the memory SCREEN's own literals — not built yet, and
+    // Task 16 adds: the memory SCREEN's own literals — not built yet, and
     // deliberately NOT pinned here: "MEMORY", "WHAT TALARIA REMEMBERS", the
     // empty-state copy ("Talaria can draw on the N messages you've sent in
     // on-device chats"), and the honesty-correction notice ("Nothing was
@@ -367,7 +367,15 @@ struct NamingSweepTests {
     @Test func noAppMeaningHermesMemoryLiteralExists() throws {
         let sources = try Self.shippingSources()
 
-        for stale in ["\"Hermes Memory\"", "\"Hermes remembers"] {
+        for stale in [
+            "\"Hermes Memory\"",
+            // Deliberately NOT closed with a trailing `\"` — a PREFIX match on
+            // purpose, so it catches any completion of the phrase a copy
+            // writer might reach for ("Hermes remembers everything you tell
+            // it", "Hermes remembers what you said", …), not only the exact
+            // two words.
+            "\"Hermes remembers",
+        ] {
             let offenders = sources.filter { $0.text.contains(stale) }.map(\.path)
             #expect(offenders.isEmpty,
                     "an app-meaning memory literal exists: \(stale) in \(offenders)")
