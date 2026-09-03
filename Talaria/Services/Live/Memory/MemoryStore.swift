@@ -9,14 +9,11 @@ import os
     var chunkIndex: Int
     var text: String            // verbatim chunk — never paraphrased (ruling 1)
     var sentAt: Date
-    var embedderID: String      // rows with a foreign embedderID are never scored (422-C)
-    var vector: Data            // 512 × Float32 little-endian
     var isExcluded: Bool = false
     init(entryID: UUID, sessionID: UUID, messageID: UUID, chunkIndex: Int, text: String,
-         sentAt: Date, embedderID: String, vector: Data) {
+         sentAt: Date) {
         self.entryID = entryID; self.sessionID = sessionID; self.messageID = messageID
         self.chunkIndex = chunkIndex; self.text = text; self.sentAt = sentAt
-        self.embedderID = embedderID; self.vector = vector
     }
 }
 
@@ -27,13 +24,10 @@ import os
     var editedAt: Date?
     var sourceMessageID: UUID?
     var sourceSessionID: UUID?
-    var embedderID: String
-    var vector: Data
     init(noteID: UUID, text: String, createdAt: Date, sourceMessageID: UUID? = nil,
-         sourceSessionID: UUID? = nil, embedderID: String, vector: Data) {
+         sourceSessionID: UUID? = nil) {
         self.noteID = noteID; self.text = text; self.createdAt = createdAt
         self.sourceMessageID = sourceMessageID; self.sourceSessionID = sourceSessionID
-        self.embedderID = embedderID; self.vector = vector
     }
 }
 
@@ -99,7 +93,7 @@ final class MemoryStore {
         for chunk in chunks {
             let key = ChunkKey(messageID: chunk.messageID, chunkIndex: chunk.chunkIndex)
             if let row = byKey[key] {
-                row.text = chunk.text; row.vector = chunk.vector; row.embedderID = chunk.embedderID
+                row.text = chunk.text
             } else {
                 context.insert(chunk)
                 byKey[key] = chunk
@@ -119,7 +113,7 @@ final class MemoryStore {
     /// pointing at nothing.
     ///
     /// **Returns** the message ids that still have rows, so the caller can skip
-    /// re-chunking and re-embedding them. A message's content cannot change once
+    /// re-chunking them. A message's content cannot change once
     /// indexed — the only in-place message mutation targets priming rows, which
     /// never enter this store — so "already indexed" means "done", and the
     /// settle seam stops being quadratic over a thread's life.
@@ -147,58 +141,32 @@ final class MemoryStore {
         save()
     }
 
-    /// Rows that were stored WITHOUT a vector, oldest first, capped at `limit`.
+    /// The retrieval query surface: every row memory is allowed to draw on.
     ///
-    /// This is a repair QUEUE, not a query surface. `MemoryIndexer.index` is
-    /// incremental — a message that already has rows is never revisited — so a
-    /// turn indexed while the embedder had not yet acquired its asset would keep
-    /// an empty vector for the life of the install, permanently lexical-only
-    /// because of a condition that lasted seconds.
+    /// Excluded rows are filtered HERE rather than downstream, and that placement is the
+    /// point. A row that reaches the scorer at all can be ranked, injected and chipped, so
+    /// filtering later would quietly redefine "excluded" as "hidden from the memory list"
+    /// while the reply still drew on it. Exclusion is also not a delete — the row stays,
+    /// because Forget everything is the only thing that erases (Owen, 09-02).
     ///
-    /// **Returns the MODELS, not a snapshot**, and that is deliberate: the
-    /// repair writes each row's vector back, and re-fetching every row by
-    /// `entryID` to do so is one predicate fetch per row for objects the caller
-    /// is already holding. The rows belong to this store's private context and
-    /// this class is `@MainActor`, so they never cross an isolation boundary.
-    /// Pair every mutation with one `commitVectorRepairs()`.
-    ///
-    /// The predicate is `vector == empty` rather than a `vector.isEmpty` test:
-    /// the comparison is one SwiftData can push down to the store, so a large
-    /// index is not faulted row by row (and every blob materialised) on every
-    /// launch just to find the handful that need repair. Oldest first so the
-    /// repair walks history in the order the user lived it.
-    func emptyVectorRows(limit: Int) -> [MemoryTurnIndexRecord] {
-        guard limit > 0 else { return [] }
-        let empty = Data()
-        var descriptor = FetchDescriptor<MemoryTurnIndexRecord>(
-            predicate: #Predicate { $0.vector == empty },
-            sortBy: [SortDescriptor(\.sentAt, order: .forward)])
-        descriptor.fetchLimit = limit
-        return fetch(descriptor, op: "emptyVectorRows")
-    }
-
-    /// ONE save for a whole repair pass. Saving per row would put up to `limit`
-    /// SwiftData commits on the launch path to write a few kilobytes of blobs.
-    func commitVectorRepairs() { save() }
-
-    /// The stored blob's size, so a caller can tell a repaired row from a
-    /// stranded one without decoding, and by a route independent of the objects
-    /// the repair itself mutated. Nil when the row is gone.
-    // harness-visible
-    func vectorByteCount(entryID: UUID) -> Int? {
-        let id = entryID
-        return fetch(FetchDescriptor<MemoryTurnIndexRecord>(
-            predicate: #Predicate { $0.entryID == id }), op: "vectorByteCount").first?.vector.count
-    }
-
-    /// Every stored row's embedder id — `""` on a row that has no vector yet.
-    /// Whole-store rather than by id because the claim it exists to check is
-    /// about what the writer stamps, which is a property of all of them.
-    // harness-visible
-    func allEmbedderIDs() -> [String] {
+    /// Returns VALUES, not models. The scorer runs over the whole set and has no business
+    /// holding live SwiftData objects: a candidate is read once, ranked, and may outlive
+    /// the fetch that produced it.
+    func candidates() -> [MemoryCandidate] {
         fetch(FetchDescriptor<MemoryTurnIndexRecord>(
-            sortBy: [SortDescriptor(\.sentAt, order: .forward)]), op: "allEmbedderIDs")
-            .map(\.embedderID)
+            predicate: #Predicate { $0.isExcluded == false },
+            sortBy: [SortDescriptor(\.sentAt, order: .forward)]), op: "candidates")
+            .map { MemoryCandidate(entryID: $0.entryID, sessionID: $0.sessionID,
+                                   chunkIndex: $0.chunkIndex, text: $0.text, sentAt: $0.sentAt) }
+    }
+
+    /// Hide a single row from retrieval, or bring it back. A no-op when the row is gone.
+    func setExcluded(entryID: UUID, _ excluded: Bool) {
+        let id = entryID
+        guard let row = fetch(FetchDescriptor<MemoryTurnIndexRecord>(
+            predicate: #Predicate { $0.entryID == id }), op: "setExcluded").first else { return }
+        row.isExcluded = excluded
+        save()
     }
 
     func indexCount() -> Int {
