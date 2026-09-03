@@ -57,6 +57,12 @@ final class MemoryScreenModel {
     /// remembers nothing about them.
     static let unknownCount = "—"
 
+    /// `nonisolated` because `SourceRow` — a nested VALUE type, and therefore
+    /// outside this class's actor — builds its own words from them.
+    nonisolated static let dontUseThisLabel = "Don't use this"
+    nonisolated static let useAgainLabel = "Use again"
+    nonisolated static let excludedMarker = "Excluded"
+
     // MARK: Rows
 
     struct NoteRow: Identifiable, Equatable {
@@ -79,10 +85,34 @@ final class MemoryScreenModel {
         /// gone — the line then says so rather than rendering blank.
         let text: String?
         let sourceLine: String
+        /// Whether retrieval is currently forbidden to draw on this row.
+        ///
+        /// **The row has to SAY this** (fix round 1, Important item 3). Before
+        /// it did, *Don't use this* wrote the flag and then re-rendered an
+        /// identical row with an identical button: nothing confirmed the tap
+        /// landed, and nothing offered a way back. Exclusion is not a delete —
+        /// the words are still the user's and still quotable — so the row
+        /// stays and changes its state instead of disappearing.
+        let isExcluded: Bool
+
         /// Only an indexed turn that still exists can be excluded from
         /// retrieval: a note is deleted rather than excluded, and a row that
         /// is already gone has nothing left to hide.
-        var canExclude: Bool { kind == .entry && text != nil }
+        var isExcludable: Bool { kind == .entry && text != nil }
+        var canExclude: Bool { isExcludable && !isExcluded }
+        var canUseAgain: Bool { isExcludable && isExcluded }
+
+        /// The button's words, or `nil` when there is no action to offer.
+        var actionLabel: String? {
+            if canExclude { return MemoryScreenModel.dontUseThisLabel }
+            if canUseAgain { return MemoryScreenModel.useAgainLabel }
+            return nil
+        }
+
+        /// What the row says about itself, exclusion included.
+        var statusLine: String {
+            isExcluded ? "\(MemoryScreenModel.excludedMarker) · \(sourceLine)" : sourceLine
+        }
     }
 
     struct UseRow: Identifiable, Equatable {
@@ -90,6 +120,14 @@ final class MemoryScreenModel {
         let id: UUID
         let at: Date
         let sources: [SourceRow]
+        /// When the reply that used these memories was answered.
+        ///
+        /// The list is GROUPED by reply rather than flattened (fix round 1
+        /// minor): two replies can draw on the same memory, and a flat list
+        /// would show the identical row twice with nothing to tell them apart
+        /// — which reads as a duplicate-rendering bug rather than as two
+        /// occasions.
+        var usedLine: String { "Used on \(MemoryProvenanceSheetModel.dateLabel(at))" }
     }
 
     // MARK: Dependencies
@@ -107,6 +145,8 @@ final class MemoryScreenModel {
         /// `nil` = not knowable (no store), which renders as `—`.
         var indexCount: () -> Int? = { nil }
         var indexedMessageCount: () -> Int? = { nil }
+        /// The entry ids retrieval is currently forbidden to use.
+        var excludedEntryIDs: () -> Set<UUID> = { [] }
         var setExcluded: (UUID, Bool) -> Void = { _, _ in }
         var deleteNote: (UUID) -> Void = { _ in }
         var updateNote: (UUID, String) -> Void = { _, _ in }
@@ -135,22 +175,35 @@ final class MemoryScreenModel {
     /// The production wiring. A `nil` store is the container-creation-failure
     /// shape and stays a first-class state: nothing resolves, every count is
     /// unknown, and no write goes anywhere.
+    /// - Parameter forgetEverything: how to forget, WHOLE. Defaults to the
+    ///   store's own erase, which is right for a test and NOT right for the
+    ///   app: production passes `AppContainer.forgetLocalMemory`, which also
+    ///   parks the backfill cursor and stops an in-flight walk (fix round 1,
+    ///   Important item 2). Erasing the rows alone leaves a cursor pointing
+    ///   into the middle of the user's history, and the next launch walks the
+    ///   forgotten sessions straight back in.
     convenience init(store: MemoryStore?,
                      settingsStore: SettingsStore? = nil,
-                     hostConfigured: Bool = false) {
+                     hostConfigured: Bool = false,
+                     forgetEverything: (() -> Void)? = nil) {
         var dependencies = Dependencies()
         if let store {
             dependencies.notes = { store.allNotes() }
-            dependencies.uses = { store.recentUses() }
+            // UNBOUNDED, deliberately (fix round 1, Important item 1): the
+            // store's default page size is 20, and a list whose bar is "every
+            // `MemoryUseRecord`" cannot silently stop at a page boundary.
+            dependencies.uses = { store.recentUses(limit: nil) }
             dependencies.resolveEntry = { store.turnEntry(id: $0) }
             dependencies.resolveNote = { store.note(id: $0) }
             dependencies.indexCount = { store.indexCount() }
             dependencies.indexedMessageCount = { store.indexedMessageCount() }
+            dependencies.excludedEntryIDs = { store.excludedEntryIDs() }
             dependencies.setExcluded = { store.setExcluded(entryID: $0, $1) }
             dependencies.deleteNote = { store.deleteNote($0) }
             dependencies.updateNote = { store.updateNote($0, text: $1) }
             dependencies.forgetEverything = { store.forgetEverything() }
         }
+        if let forgetEverything { dependencies.forgetEverything = forgetEverything }
         if let settingsStore {
             // Read LIVE rather than captured, the same discipline as
             // `ChatStore.isMemoryEnabled`: the toggle the user just flipped on
@@ -186,8 +239,13 @@ final class MemoryScreenModel {
         dependencies.hostConfigured() ? Self.hostLine : nil
     }
 
+    /// **A real, READ zero** (fix round 1, Important item 4). It used to
+    /// coalesce an unknown count to 0, so a screen with no store at all said
+    /// `Nothing saved yet` and `—` in the same render: one half claiming the
+    /// store is empty, the other admitting we cannot see it. Unknown is not
+    /// empty, and the copy is a claim about the user's data.
     var isEmpty: Bool {
-        noteRows.isEmpty && useRows.isEmpty && (indexCount ?? 0) == 0
+        noteRows.isEmpty && useRows.isEmpty && indexCount == 0
     }
 
     /// Non-nil exactly when the screen has nothing to list, so the view can
@@ -201,6 +259,7 @@ final class MemoryScreenModel {
     func refresh() {
         indexCount = dependencies.indexCount()
         indexedMessageCount = dependencies.indexedMessageCount()
+        let excluded = dependencies.excludedEntryIDs()
         noteRows = dependencies.notes().map { note in
             NoteRow(
                 id: note.noteID,
@@ -213,13 +272,15 @@ final class MemoryScreenModel {
                 guard let entry = dependencies.resolveEntry(id) else { return Self.deletedRow(id, .entry) }
                 return SourceRow(
                     id: id, kind: .entry, text: entry.text,
-                    sourceLine: "From your chat on \(MemoryProvenanceSheetModel.dateLabel(entry.sentAt))")
+                    sourceLine: "From your chat on \(MemoryProvenanceSheetModel.dateLabel(entry.sentAt))",
+                    isExcluded: excluded.contains(id))
             }
             sources += use.noteIDs.map { id -> SourceRow in
                 guard let note = dependencies.resolveNote(id) else { return Self.deletedRow(id, .note) }
                 return SourceRow(
                     id: id, kind: .note, text: note.text,
-                    sourceLine: "You told me on \(MemoryProvenanceSheetModel.dateLabel(note.createdAt))")
+                    sourceLine: "You told me on \(MemoryProvenanceSheetModel.dateLabel(note.createdAt))",
+                    isExcluded: false)
             }
             return UseRow(id: use.replyMessageID, at: use.at, sources: sources)
         }
@@ -235,16 +296,32 @@ final class MemoryScreenModel {
         refresh()
     }
 
+    /// *Use again* — the way back. Exclusion is reversible by construction
+    /// (the row was never deleted), and a one-way switch on a list of one's
+    /// own memories is a trap: the user has no other route to that row.
+    func restoreEntry(_ entryID: UUID) {
+        dependencies.setExcluded(entryID, false)
+        refresh()
+    }
+
     func deleteNote(_ noteID: UUID) {
         dependencies.deleteNote(noteID)
         refresh()
     }
 
-    func updateNote(_ noteID: UUID, text: String) {
+    /// Edits a note. **Returns whether the edit was applied** (fix round 1
+    /// minor): an emptied edit is refused — deleting is the Delete action, and
+    /// a note whose text is blank is a row the user can never find again — but
+    /// a refusal that returned nothing let the sheet dismiss as though it had
+    /// saved. The caller now knows, and the sheet's Save is disabled on empty
+    /// so the refusal is visible before it happens rather than after.
+    @discardableResult
+    func updateNote(_ noteID: UUID, text: String) -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty else { return false }
         dependencies.updateNote(noteID, trimmed)
         refresh()
+        return true
     }
 
     func setMemoryEnabled(_ enabled: Bool) {
@@ -272,7 +349,8 @@ final class MemoryScreenModel {
         // The provenance sheet's own words, borrowed rather than re-spelled:
         // two surfaces saying the same thing about the same absence.
         SourceRow(id: id, kind: kind, text: nil,
-                  sourceLine: MemoryProvenanceSheetModel.deletedSourceLine)
+                  sourceLine: MemoryProvenanceSheetModel.deletedSourceLine,
+                  isExcluded: false)
     }
 }
 
@@ -321,7 +399,17 @@ struct MemoryScreen: View {
                 model = MemoryScreenModel(
                     store: container.memoryStore,
                     settingsStore: settingsStore,
-                    hostConfigured: container.hasGatewayCredentials)
+                    hostConfigured: container.hasGatewayCredentials,
+                    // NOT `store.forgetEverything()` — forgetting is also
+                    // parking the backfill cursor and stopping an in-flight
+                    // walk, or the erased history comes back on the next
+                    // launch (fix round 1, Important item 2).
+                    // Captured strongly on purpose: the environment holds the
+                    // container for this view's whole life, the container holds
+                    // no reference back to this model, and a `weak` capture here
+                    // only earns an ImplicitStrongCapture warning for a cycle
+                    // that does not exist.
+                    forgetEverything: { container.forgetLocalMemory() })
             }
             model?.refresh()
         }
@@ -420,9 +508,16 @@ struct MemoryScreen: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        model?.updateNote(note.id, text: editingText)
-                        editingNote = nil
+                        // The model refuses an emptied edit (deleting is the
+                        // Delete action). Only dismiss when it took.
+                        if model?.updateNote(note.id, text: editingText) == true {
+                            editingNote = nil
+                        }
                     }
+                    // Disabled rather than silently refused: the refusal is
+                    // visible BEFORE the tap, not after a sheet has closed on
+                    // an edit that never saved (fix round 1 minor).
+                    .disabled(editingText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }
@@ -440,10 +535,22 @@ struct MemoryScreen: View {
                 if model.useRows.isEmpty {
                     infoRow("No reply has drawn on memory yet")
                 } else {
-                    let sources = model.useRows.flatMap(\.sources)
-                    ForEach(Array(sources.enumerated()), id: \.offset) { index, source in
-                        sourceRow(model, source)
-                        if index < sources.count - 1 { divider }
+                    // Grouped by REPLY, not flattened: two replies can draw on
+                    // the same memory, and one flat list would render the same
+                    // row twice with nothing to tell them apart.
+                    ForEach(Array(model.useRows.enumerated()), id: \.element.id) { index, use in
+                        VStack(alignment: .leading, spacing: 0) {
+                            MonoLabel(use.usedLine, size: 9, weight: .medium,
+                                      tracking: Design.Tracking.monoWide,
+                                      color: Design.Colors.dimForeground)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, Design.Spacing.md)
+                                .padding(.top, Design.Spacing.sm)
+                            ForEach(use.sources) { source in
+                                sourceRow(model, source)
+                            }
+                        }
+                        if index < model.useRows.count - 1 { divider }
                     }
                 }
             }
@@ -462,21 +569,33 @@ struct MemoryScreen: View {
             if let text = source.text {
                 Text(text)
                     .font(Design.Typography.callout)
-                    .foregroundStyle(Design.Colors.foreground)
+                    .foregroundStyle(source.isExcluded
+                                     ? Design.Colors.mutedForeground
+                                     : Design.Colors.foreground)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             HStack(spacing: Design.Spacing.sm) {
-                MonoLabel(source.sourceLine, size: 9, weight: .medium,
+                MonoLabel(source.statusLine, size: 9, weight: .medium,
                           tracking: Design.Tracking.mono,
                           color: source.text == nil
                               ? Design.Colors.dimForeground
-                              : Design.Colors.mutedForeground)
+                              : source.isExcluded
+                                  ? Design.Brand.forgeText
+                                  : Design.Colors.mutedForeground)
                 Spacer(minLength: Design.Spacing.xs)
-                if source.canExclude {
-                    Button("Don't use this") { model.excludeEntry(source.id) }
-                        .font(Design.Typography.caption)
-                        .foregroundStyle(Design.Colors.dangerBrightText)
-                        .buttonStyle(.plain)
+                if let action = source.actionLabel {
+                    Button(action) {
+                        if source.isExcluded {
+                            model.restoreEntry(source.id)
+                        } else {
+                            model.excludeEntry(source.id)
+                        }
+                    }
+                    .font(Design.Typography.caption)
+                    .foregroundStyle(source.isExcluded
+                                     ? Design.Brand.accentBrightText
+                                     : Design.Colors.dangerBrightText)
+                    .buttonStyle(.plain)
                 }
             }
         }

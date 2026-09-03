@@ -223,9 +223,35 @@ final class MemoryStore {
     /// counting rows under that wording would quietly inflate the number the
     /// screen shows about their own data. `indexCount()` stays the row count
     /// for the INDEX readout beside it.
+    ///
+    /// `propertiesToFetch` is not a micro-optimisation here (fix round 1
+    /// minor): the Memory screen calls this on every refresh, on the
+    /// MainActor, and a bare fetch materialises the `text` of every indexed
+    /// chunk in the store to answer a question about ids.
     func indexedMessageCount() -> Int {
-        Set(fetch(FetchDescriptor<MemoryTurnIndexRecord>(), op: "indexedMessageCount")
-            .map(\.messageID)).count
+        var descriptor = FetchDescriptor<MemoryTurnIndexRecord>()
+        descriptor.propertiesToFetch = [\.messageID]
+        return Set(fetch(descriptor, op: "indexedMessageCount").map(\.messageID)).count
+    }
+
+    /// The entry ids currently hidden from retrieval.
+    ///
+    /// **The Memory screen's feedback loop, and it needs its own read
+    /// (fix round 1, Important item 3).** `turnEntry(id:)` resolves a row
+    /// whether or not it is excluded — correct for a provenance source line,
+    /// which must keep quoting a memory the user has since switched off — so
+    /// nothing the screen already had could tell the two states apart. With no
+    /// way to see the flag, *Don't use this* re-rendered the identical row and
+    /// the identical button: no confirmation that anything happened, and no
+    /// way back.
+    ///
+    /// Ids only, like `indexedMessageCount()`: this answers a membership
+    /// question and has no business loading anyone's sentences to do it.
+    func excludedEntryIDs() -> Set<UUID> {
+        var descriptor = FetchDescriptor<MemoryTurnIndexRecord>(
+            predicate: #Predicate { $0.isExcluded })
+        descriptor.propertiesToFetch = [\.entryID]
+        return Set(fetch(descriptor, op: "excludedEntryIDs").map(\.entryID))
     }
 
     /// How many explicit notes exist. Counted rather than fetched: the Memory
@@ -514,11 +540,18 @@ final class MemoryStore {
     /// The most recent use records, newest first — Task 16's RECENTLY USED
     /// list reads these, and a test reads them to prove a turn recorded what
     /// it drew on.
-    func recentUses(limit: Int = 20) -> [(replyMessageID: UUID, store: String,
+    ///
+    /// **`nil` means unbounded, and the Memory screen passes it** (fix round
+    /// 1, Important item 1). The default 20 is right for the stamp's lookup —
+    /// it wants one row, the newest — and wrong for a list whose bar is
+    /// "every `MemoryUseRecord`": a page size doubling as a list length caps
+    /// the screen at 20 with no marker, so a user with more history is told a
+    /// smaller truth about their own data and nothing on screen says so.
+    func recentUses(limit: Int? = 20) -> [(replyMessageID: UUID, store: String,
                                           entryIDs: [UUID], noteIDs: [UUID], at: Date)] {
         var descriptor = FetchDescriptor<MemoryUseRecord>(
             sortBy: [SortDescriptor(\.at, order: .reverse)])
-        descriptor.fetchLimit = max(0, limit)
+        descriptor.fetchLimit = limit.map { max(0, $0) }
         return fetch(descriptor, op: "recentUses").map {
             (replyMessageID: $0.replyMessageID, store: $0.store,
              entryIDs: $0.entryIDs, noteIDs: $0.noteIDs, at: $0.at)

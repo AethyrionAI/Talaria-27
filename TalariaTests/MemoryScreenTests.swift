@@ -172,6 +172,48 @@ struct MemoryScreenTests {
         #expect(sources.contains { $0.id == survivor && $0.canExclude })
     }
 
+    /// **Fix round 1, Important item 1.** The bar says *every*
+    /// `MemoryUseRecord`, and `recentUses()`'s default page size is 20 — a
+    /// number that is right for the provenance stamp's lookup and wrong for a
+    /// list. A cap here shows a user with more history a smaller truth about
+    /// their own data, with nothing on screen to say a page boundary was hit.
+    @Test func recentlyUsedIsNotCappedAtTheStoresDefaultPageSize() throws {
+        let store = try makeStore()
+        let entryID = index(store, "my dentist is Dr. Patel")
+        let replies = (0 ..< 25).map { i -> UUID in
+            let reply = UUID()
+            store.recordUse(replyMessageID: reply, entryIDs: [entryID], noteIDs: [],
+                            at: Date(timeIntervalSince1970: 1_000_000 + Double(i) * 60))
+            return reply
+        }
+
+        let model = MemoryScreenModel(store: store)
+        model.refresh()
+
+        #expect(model.useRows.count == 25,
+                "\(model.useRows.count) of 25 use records reached the screen")
+        #expect(Set(model.useRows.map(\.id)) == Set(replies), "and they are the same 25")
+        #expect(model.useRows.first?.id == replies.last, "still newest-first")
+    }
+
+    /// Fix round 1 minor: the list is grouped by REPLY and each group says
+    /// when. Two replies drawing on one memory would otherwise render the same
+    /// row twice with nothing to tell them apart.
+    @Test func everyUseGroupSaysWhenTheReplyUsedIt() throws {
+        let store = try makeStore()
+        let entryID = index(store, "my dentist is Dr. Patel")
+        let usedAt = Self.date("2026-09-01T09:00:00Z")
+        store.recordUse(replyMessageID: UUID(), entryIDs: [entryID], noteIDs: [], at: usedAt)
+        store.recordUse(replyMessageID: UUID(), entryIDs: [entryID], noteIDs: [],
+                        at: Self.date("2026-08-20T09:00:00Z"))
+
+        let model = MemoryScreenModel(store: store)
+        model.refresh()
+
+        #expect(model.useRows.count == 2, "one memory used twice is two occasions, not one row")
+        #expect(model.useRows.first?.usedLine == "Used on \(Self.rendered(usedAt))")
+    }
+
     // MARK: - Don't use this (bar 422-P: exclusion reaches RETRIEVAL, not just the list)
 
     @Test func dontUseThisExcludesTheEntryFromTheNextRetrievalOfTheSameQuery() throws {
@@ -195,6 +237,74 @@ struct MemoryScreenTests {
                 feeds the prompt is the exact failure ruling 2 exists to prevent
                 """)
         #expect(store.indexCount() == 2, "exclusion is not a delete — Forget everything is")
+    }
+
+    /// **Fix round 1, Important item 3 — the tap has to be VISIBLE.** Before
+    /// this, *Don't use this* wrote the flag and re-rendered a byte-identical
+    /// row: the same words, the same button, no confirmation, and no way back.
+    @Test func dontUseThisMarksTheRowExcludedAndOffersTheWayBack() throws {
+        let store = try makeStore()
+        let sentAt = Self.date("2026-08-14T09:30:00Z")
+        let dentist = index(store, "my dentist is Dr. Patel", sentAt: sentAt)
+        store.recordUse(replyMessageID: UUID(), entryIDs: [dentist], noteIDs: [])
+
+        let model = MemoryScreenModel(store: store)
+        model.refresh()
+
+        let before = try #require(model.useRows.first?.sources.first)
+        #expect(before.isExcluded == false)
+        #expect(before.actionLabel == "Don't use this")
+        #expect(before.statusLine == "From your chat on \(Self.rendered(sentAt))")
+
+        model.excludeEntry(dentist)
+
+        let excluded = try #require(model.useRows.first?.sources.first)
+        #expect(excluded.isExcluded, "the row must know it is excluded")
+        #expect(excluded.statusLine == "Excluded · From your chat on \(Self.rendered(sentAt))",
+                "the row says so — a re-render identical to the one before it reads as a dead tap")
+        #expect(excluded.actionLabel == "Use again",
+                "a one-way switch on your own memories is a trap: this row is the only route to it")
+        #expect(excluded.text == "my dentist is Dr. Patel",
+                "exclusion is not a delete — the words are still the user's and still quotable")
+    }
+
+    @Test func useAgainReturnsTheRowToRetrieval() throws {
+        let store = try makeStore()
+        let dentist = index(store, "my dentist is Dr. Patel")
+        index(store, "the car is due for a service in March")
+        store.recordUse(replyMessageID: UUID(), entryIDs: [dentist], noteIDs: [])
+        let query = "who is my dentist"
+
+        let model = MemoryScreenModel(store: store)
+        model.refresh()
+        model.excludeEntry(dentist)
+        #expect(!MemoryRetriever.retrieve(query: query, candidates: store.candidates())
+            .contains { $0.candidate.entryID == dentist }, "precondition: it really was excluded")
+
+        model.restoreEntry(dentist)
+
+        #expect(MemoryRetriever.retrieve(query: query, candidates: store.candidates())
+            .contains { $0.candidate.entryID == dentist },
+                "Use again must reach retrieval too, or the row lies about being back")
+        let row = try #require(model.useRows.first?.sources.first)
+        #expect(row.isExcluded == false)
+        #expect(row.actionLabel == "Don't use this")
+    }
+
+    /// A NOTE is deleted, never excluded — it must not offer either action, or
+    /// the button would write an exclusion flag onto an id no turn index holds.
+    @Test func aNoteRowOffersNoExclusionAction() throws {
+        let store = try makeStore()
+        let noteID = store.insertNote("I am allergic to penicillin",
+                                      sourceMessageID: nil, sourceSessionID: nil)
+        store.recordUse(replyMessageID: UUID(), entryIDs: [], noteIDs: [noteID])
+
+        let model = MemoryScreenModel(store: store)
+        model.refresh()
+
+        let row = try #require(model.useRows.first?.sources.first)
+        #expect(row.actionLabel == nil)
+        #expect(row.isExcluded == false)
     }
 
     // MARK: - INDEX
@@ -221,6 +331,29 @@ struct MemoryScreenTests {
         model.refresh()
         #expect(model.indexCountText == "—",
                 "no store is 'we cannot say', never 'nothing is stored'")
+    }
+
+    /// **Fix round 1, Important item 4 — the two halves of one render must
+    /// agree.** With no store, the INDEX line correctly says `—` ("we cannot
+    /// say") while the empty copy used to say `Nothing saved yet` ("we can, and
+    /// it is nothing") — a contradiction on screen at the same instant, and the
+    /// false half is the one that makes a claim about the user's data.
+    @Test func anUnknownCountIsNotAnEmptyStore() {
+        let model = MemoryScreenModel(store: nil)
+        model.refresh()
+        #expect(model.indexCount == nil)
+        #expect(model.isEmpty == false, "unknown is not empty")
+        #expect(model.emptyMessage == nil,
+                "the empty copy is a claim about the store — it needs a real, READ zero")
+    }
+
+    /// The same guard before anything is read at all: a model that has not
+    /// refreshed knows nothing and must claim nothing.
+    @Test func anUnreadModelClaimsNeitherEmptinessNorACount() throws {
+        let store = try makeStore()
+        let model = MemoryScreenModel(store: store)
+        #expect(model.emptyMessage == nil)
+        #expect(model.indexCountText == "—")
     }
 
     @Test func theIndexSummaryCountsMessagesNotChunks() throws {
@@ -299,6 +432,59 @@ struct MemoryScreenTests {
                 == "Nothing saved yet — say \"Remember that…\" or just keep chatting.",
                 "an emptied screen states its emptiness — a blank one reads as a broken render")
         #expect(model.indexSummary == nil, "there is no honest count sentence to draw")
+    }
+
+    // MARK: - Note edit / delete (fix round 1 minor: pinned, and the empty edit surfaced)
+
+    @Test func deletingANoteRemovesItFromTheStoreAndTheList() throws {
+        let store = try makeStore()
+        let keep = store.insertNote("I am allergic to penicillin",
+                                    sourceMessageID: nil, sourceSessionID: nil)
+        let doomed = store.insertNote("my dentist is Dr. Patel",
+                                      sourceMessageID: nil, sourceSessionID: nil)
+
+        let model = MemoryScreenModel(store: store)
+        model.refresh()
+        #expect(model.noteRows.count == 2)
+
+        model.deleteNote(doomed)
+
+        #expect(store.note(id: doomed) == nil, "the row is gone from the store, not just the list")
+        #expect(model.noteRows.map(\.id) == [keep], "and the list re-read rather than guessing")
+    }
+
+    @Test func editingANoteWritesTheUsersNewWordsAndStampsTheEdit() throws {
+        let store = try makeStore()
+        let id = store.insertNote("my dentist is Dr. Patel",
+                                  sourceMessageID: nil, sourceSessionID: nil)
+        let model = MemoryScreenModel(store: store)
+        model.refresh()
+
+        #expect(model.updateNote(id, text: "  my dentist is Dr. Okafor  "))
+
+        #expect(store.note(id: id)?.text == "my dentist is Dr. Okafor",
+                "stored trimmed, and verbatim otherwise — this path never re-words (ruling 1)")
+        let row = try #require(model.noteRows.first)
+        #expect(row.text == "my dentist is Dr. Okafor")
+        #expect(row.savedLine.contains("· edited"), "an edited note says so")
+    }
+
+    /// An emptied edit is REFUSED — deleting is the Delete action, and a note
+    /// with no text is a row the user can never find again. The refusal is
+    /// returned rather than swallowed, so the sheet cannot dismiss as though it
+    /// had saved (fix round 1 minor; the Save button is also disabled on empty).
+    @Test func anEmptiedEditIsRefusedAndSaysSo() throws {
+        let store = try makeStore()
+        let id = store.insertNote("my dentist is Dr. Patel",
+                                  sourceMessageID: nil, sourceSessionID: nil)
+        let model = MemoryScreenModel(store: store)
+        model.refresh()
+
+        #expect(model.updateNote(id, text: "   ") == false)
+
+        #expect(store.note(id: id)?.text == "my dentist is Dr. Patel", "the note is untouched")
+        #expect(model.noteRows.first?.savedLine.contains("· edited") == false,
+                "a refused edit must not stamp an edit date either")
     }
 
     // MARK: - The host line (ruling 3, said out loud on the one screen about memory)

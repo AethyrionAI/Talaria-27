@@ -417,4 +417,101 @@ struct MemoryBackfillRunnerTests {
         #expect(knobs.cursor == 2)
         #expect(memory.indexCount() > 0, "a negative cursor must not skip the corpus")
     }
+
+    // MARK: - Forget everything's other half (fix round 1, Important item 2)
+    //
+    // Owen's ruling: Forget everything is the ONLY eraser, and retention is
+    // never. Both halves of that are about THIS unit, because erasing the rows
+    // does not erase the promise the cursor makes. A forget performed while the
+    // backfill is unfinished leaves a cursor pointing into the middle of the
+    // user's history; the next `run()` walks the rest of it back in, days
+    // later, with nothing on screen to explain where the memories came from.
+
+    /// A forget with a STALE cursor: the next run must index nothing.
+    @Test func forgetParksTheCursorAtTheCorpusEndSoTheNextRunIndexesNothing() async throws {
+        let memory = try memoryStore()
+        let sessions = FakeSessionStore()
+        seed(sessions, count: 6)
+        let knobs = Knobs()
+        // The shape a real forget lands in: a first launch got two sessions in
+        // before the user erased everything.
+        knobs.cursor = 2
+
+        makeRunner(sessions, store: memory, knobs).cancelAndParkCursorAtCorpusEnd()
+        #expect(knobs.cursor == 6, "parked at the corpus END, never reset to 0")
+        #expect(knobs.written == [6], "and PERSISTED — an unparked cursor is re-read next launch")
+
+        // The next launch builds a FRESH runner (a new process would), which is
+        // the only thing standing between the user and their erased history.
+        await makeRunner(sessions, store: memory, knobs).run()
+
+        #expect(memory.indexCount() == 0, """
+            the next backfill walked \(sessions.readCount) forgotten session(s) back into the \
+            store — Forget everything is the only eraser, so nothing may re-index itself
+            """)
+        #expect(sessions.readCount == 0, "no transcript should even have been read")
+    }
+
+    /// A forget MID-RUN: the walk stops at the next conversation seam, and no
+    /// rows appear after it.
+    ///
+    /// The forget is fired from `onRead` — the runner is on the MainActor and
+    /// yields between conversations, so this is exactly where a user's tap
+    /// lands: after one transcript has been read, before the next.
+    @Test func forgetMidRunStopsTheWalkAndNoRowsAppearAfterIt() async throws {
+        let memory = try memoryStore()
+        let sessions = FakeSessionStore()
+        seed(sessions, count: 6)
+        let knobs = Knobs()
+        let runner = makeRunner(sessions, store: memory, knobs)
+
+        var forgotten = false
+        var countBeforeForget = 0
+        sessions.onRead = { reads in
+            // On the SECOND transcript read: the first conversation is fully
+            // indexed by now, so the erase has real rows to destroy and the
+            // "nothing comes back" assertion is about something.
+            guard reads == 2, !forgotten else { return }
+            forgotten = true
+            countBeforeForget = memory.indexCount()
+            // Production's order, from `AppContainer.forgetLocalMemory`:
+            // park + refuse first, erase second.
+            runner.cancelAndParkCursorAtCorpusEnd()
+            memory.forgetEverything()
+        }
+
+        await runner.run()
+
+        #expect(forgotten, "precondition: the forget really did fire mid-walk")
+        #expect(countBeforeForget > 0,
+                "precondition: a conversation was genuinely indexed before the erase")
+        #expect(memory.indexCount() == 0, """
+            \(memory.indexCount()) row(s) appeared AFTER the forget — the in-flight walk kept \
+            indexing into the store the user had just emptied
+            """)
+        #expect(sessions.readCount == 2,
+                "the walk stopped at the conversation the forget landed on, and read no further")
+        #expect(knobs.written == [6], """
+            the cancelled walk flushed its own smaller cursor over the park (\(knobs.written)) — \
+            which hands the next launch a licence to re-index the erased history
+            """)
+        #expect(knobs.cursor == 6)
+    }
+
+    /// A cancelled runner refuses to start at all — the launch task may not
+    /// have reached `run()` when the forget landed.
+    @Test func aCancelledRunnerNeverStarts() async throws {
+        let memory = try memoryStore()
+        let sessions = FakeSessionStore()
+        seed(sessions, count: 3)
+        let knobs = Knobs()
+        let runner = makeRunner(sessions, store: memory, knobs)
+
+        runner.cancelAndParkCursorAtCorpusEnd()
+        await runner.run()
+
+        #expect(memory.indexCount() == 0)
+        #expect(sessions.readCount == 0)
+        #expect(runner.isCancelled)
+    }
 }
