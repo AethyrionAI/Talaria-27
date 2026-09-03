@@ -53,7 +53,8 @@ struct ImageInputCompositionTests {
         let input = LocalChatBackend.composeTurnInput(
             message: "What is this?",
             attachments: [Self.imageAttachment(png)],
-            imageInputEnabled: true
+            imageInputEnabled: true,
+            savedNote: nil
         )
         #expect(input.images.count == 1)
         #expect(input.images.first?.label == "photo.png")
@@ -72,7 +73,8 @@ struct ImageInputCompositionTests {
         let input = LocalChatBackend.composeTurnInput(
             message: "Summarize, and what's in the photo?",
             attachments: [file, Self.imageAttachment(png)],
-            imageInputEnabled: true
+            imageInputEnabled: true,
+            savedNote: nil
         )
         #expect(input.images.count == 1)
         #expect(input.promptText.contains("===== BEGIN FILE: notes.md"))
@@ -89,7 +91,8 @@ struct ImageInputCompositionTests {
         let input = LocalChatBackend.composeTurnInput(
             message: "What is this?",
             attachments: [Self.imageAttachment(Data([0xFF, 0xD8, 0xFF]), name: "broken.jpg")],
-            imageInputEnabled: true
+            imageInputEnabled: true,
+            savedNote: nil
         )
         #expect(input.images.isEmpty)
         #expect(input.promptText.contains("broken.jpg"))
@@ -101,7 +104,8 @@ struct ImageInputCompositionTests {
         let input = LocalChatBackend.composeTurnInput(
             message: "What is this?",
             attachments: [Self.imageAttachment(png)],
-            imageInputEnabled: false
+            imageInputEnabled: false,
+            savedNote: nil
         )
         #expect(input.images.isEmpty)
         #expect(input.promptText.contains("photo.png"))

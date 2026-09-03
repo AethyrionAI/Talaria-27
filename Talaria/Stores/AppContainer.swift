@@ -720,7 +720,14 @@ final class AppContainer {
             persistence: persistence,
             intelligence: localIntelligence,
             sessionStore: localSessionStore,
-            isLocalThread: isLocalThread
+            isLocalThread: isLocalThread,
+            // #422 Task 11 fix round 1 (CRITICAL): the backend needs its own
+            // reference — `savedNoteThisTurn` answers "did this turn really
+            // write a memory" from the store, and cannot borrow ChatStore's
+            // copy across the `HermesClientProtocol` boundary. Same store,
+            // same toggle closure as ChatStore's own wiring above.
+            memoryStore: memoryStore,
+            isMemoryEnabled: { settingsStore.settings.memoryEnabled }
         )
         let chatBackendRouter = ChatBackendRouter(
             hermes: hermesClient,
@@ -1364,6 +1371,13 @@ final class AppContainer {
         container.chatStore.memoryIndexer = memoryStore.map {
             MemoryIndexer(store: $0, isEnabled: { settingsStore.settings.memoryEnabled })
         }
+        // #422 Task 11: the explicit "Remember that…" capture, wired the
+        // same way — ChatStore writes through this directly (a note is
+        // captured before ANY backend runs, never only on a settled local
+        // turn), so it needs its own reference rather than reaching through
+        // `memoryIndexer`.
+        container.chatStore.memoryStore = memoryStore
+        container.chatStore.isMemoryEnabled = { settingsStore.settings.memoryEnabled }
         container.startMemoryBackfill(settingsStore: settingsStore, localSessions: localSessionStore)
 
         // #14: attachment sends (the deliberately-backgroundable long path,
