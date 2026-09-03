@@ -567,6 +567,29 @@ final class ChatStore {
     /// Nil (tests, container-creation failure) simply doesn't index.
     var memoryIndexer: MemoryIndexer?
 
+    /// #422 Task 11: the local memory store, wired by AppContainer.
+    /// `sendMessage` writes an explicit "Remember that…" note through this
+    /// BEFORE any backend (local or a paired Hermes host) is asked to
+    /// answer — capture cannot live behind `LocalChatBackend`'s door because
+    /// a host turn never reaches it. Nil (tests, container-creation
+    /// failure) disables the whole path: no capture, no crash.
+    var memoryStore: MemoryStore?
+
+    /// #422 Task 11: the memory master switch, read live on every send —
+    /// same reasoning as `MemoryIndexer.isEnabled`, a closure rather than a
+    /// captured `Bool` so a mid-session flip takes effect on the very next
+    /// message. Nil defaults to enabled, matching
+    /// `UserSettings.memoryEnabled`'s own documented default.
+    var isMemoryEnabled: (@MainActor () -> Bool)?
+
+    /// #422 Task 11: the note the turn currently (or most recently) in
+    /// flight saved, if any — held only long enough for
+    /// `removeSavedNoteIfItsTurnWasRemoved` to undo the write if that same
+    /// turn is truncated away (Undo, retry, regenerate). Reset at the top of
+    /// every `sendMessage` call.
+    private var pendingSavedNoteID: UUID?
+    private var pendingSavedNoteMessageID: UUID?
+
     /// #190B: a failed session open, surfaced as state the UI renders — the
     /// old catch logged and returned, which is how a deterministic dead tap
     /// stayed invisible on device while the suite ran green (#189/#191's
@@ -1143,6 +1166,27 @@ final class ChatStore {
         // hard-killed. See `cancelStreaming`'s doc.
         let continuedSend = attachments.isEmpty ? nil : beginContinuedSend?(displayContent)
         continuedSend?.onExpiration = { [weak self] in self?.cancelStreaming(hardStopHost: false) }
+
+        // #422 bar 422-E: the deterministic "Remember that…" capture — no
+        // model in the loop, and captured HERE, before the turn is
+        // dispatched to ANY backend. That placement (not inside
+        // `LocalChatBackend`) is deliberate: a paired Hermes host answers
+        // this turn just as often as the on-device brain does, and ruling 3
+        // forbids the memory module from ever being reached off the Hermes
+        // path — so capture cannot live behind a local-only door. `parse`
+        // still runs with the toggle off (its result is identical either
+        // way); only the WRITE is gated, per Owen's ruling that OFF stores
+        // nothing.
+        pendingSavedNoteID = nil
+        pendingSavedNoteMessageID = nil
+        if let note = ExplicitMemoryIntent.parse(trimmedContent),
+           isMemoryEnabled?() ?? true,
+           let memoryStore {
+            let noteID = memoryStore.insertNote(
+                note, sourceMessageID: clientMessageID, sourceSessionID: conversation?.id)
+            pendingSavedNoteID = noteID
+            pendingSavedNoteMessageID = clientMessageID
+        }
 
         let stream = hermesClient.sendStreaming(message: trimmedContent, attachments: attachments, clientMessageID: clientMessageID)
         var acceptedJobID: UUID?
@@ -2946,7 +2990,28 @@ final class ChatStore {
         conversation = conv
         chatLog.notice("truncate [\(reason, privacy: .public)]: removed \(removed.count) row(s) from index \(index); \(conv.messages.count) remain (#78)")
         adoptLocalTranscript()
+        removeSavedNoteIfItsTurnWasRemoved(removed)
         return removed
+    }
+
+    /// #422 Task 11 — Undo's (and retry/regenerate's) side of the explicit-
+    /// note path: a truncation that removes the turn which saved a note must
+    /// remove the note with it, or the row outlives every trace of why it
+    /// exists (ruling 2 — every stored row keeps a resolvable source).
+    ///
+    /// Scoped to `pendingSavedNoteID` — the ONE note this ChatStore instance
+    /// knows was saved by the turn currently (or most recently) in flight, as
+    /// the brief specifies ("hold `pendingSavedNoteID` on the ChatStore for
+    /// the turn"). A note from an EARLIER turn than the one just removed is
+    /// not tracked here; deleting one of those is the Memory screen's job
+    /// (Task 16), not an automatic side effect of an unrelated truncation.
+    private func removeSavedNoteIfItsTurnWasRemoved(_ removed: [Message]) {
+        guard let noteID = pendingSavedNoteID, let noteMessageID = pendingSavedNoteMessageID,
+              removed.contains(where: { $0.id == noteMessageID || $0.clientMessageID == noteMessageID })
+        else { return }
+        memoryStore?.deleteNote(noteID)
+        pendingSavedNoteID = nil
+        pendingSavedNoteMessageID = nil
     }
 
     /// Puts rows a truncation removed back where they were — the safety net

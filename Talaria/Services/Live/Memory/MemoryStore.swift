@@ -173,6 +173,73 @@ final class MemoryStore {
         (try? context.fetchCount(FetchDescriptor<MemoryTurnIndexRecord>())) ?? 0
     }
 
+    // MARK: - Note CRUD (#422 Task 11 — the explicit "Remember that…" path)
+    //
+    // Every note that reaches here already arrived VERBATIM — captured by
+    // `ExplicitMemoryIntent.parse`, never re-worded here or anywhere else
+    // (ruling 1). This store's job is only to keep, resolve, edit and forget
+    // rows; it never authors or corrects their text.
+
+    /// Saves a new explicit note. Returns the new row's id so the caller can
+    /// stamp `Message.memoryProvenance` and, on Undo, remove the same row.
+    @discardableResult
+    func insertNote(_ text: String, sourceMessageID: UUID?, sourceSessionID: UUID?) -> UUID {
+        let id = UUID()
+        context.insert(MemoryNoteRecord(
+            noteID: id, text: text, createdAt: Date(),
+            sourceMessageID: sourceMessageID, sourceSessionID: sourceSessionID))
+        save()
+        return id
+    }
+
+    /// Removes a note — the explicit-note path's own undo (a `/undo` on the
+    /// turn that saved it) and the Memory screen's delete row alike. A no-op
+    /// when the row is already gone.
+    func deleteNote(_ noteID: UUID) {
+        let id = noteID
+        guard let row = fetch(FetchDescriptor<MemoryNoteRecord>(
+            predicate: #Predicate { $0.noteID == id }), op: "deleteNote").first else { return }
+        context.delete(row)
+        save()
+    }
+
+    /// Edits a note's text in place. `createdAt` is untouched; `editedAt` is
+    /// stamped so the Memory screen can show it was edited. The caller
+    /// supplies the user's own new words verbatim — this is a store write,
+    /// never a rewording (ruling 1). A no-op when the row is gone.
+    func updateNote(_ noteID: UUID, text: String) {
+        let id = noteID
+        guard let row = fetch(FetchDescriptor<MemoryNoteRecord>(
+            predicate: #Predicate { $0.noteID == id }), op: "updateNote").first else { return }
+        row.text = text
+        row.editedAt = Date()
+        save()
+    }
+
+    /// Every explicit note, newest first — the Memory screen's list and the
+    /// notes-block composer's source (`MemoryBudget.composeNotesBlock`, which
+    /// owns the newest-first ordering the caller must supply).
+    func allNotes() -> [(noteID: UUID, text: String, createdAt: Date, editedAt: Date?)] {
+        fetch(FetchDescriptor<MemoryNoteRecord>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]), op: "allNotes")
+            .map { (noteID: $0.noteID, text: $0.text, createdAt: $0.createdAt, editedAt: $0.editedAt) }
+    }
+
+    /// The explicit note behind a provenance `noteID`, or `nil` when the row
+    /// no longer exists (#422 ruling 2 — a resolvable source, or an honest
+    /// absence; never a placeholder invented here). Same shape independently
+    /// added by lane M4's provenance chip (task 15's `note(id:)`, read-only,
+    /// through the same `fetch(_:op:)`) — the two are expected to unify into
+    /// one definition when the lanes merge.
+    func note(id: UUID) -> (text: String, createdAt: Date)? {
+        let noteID = id
+        var descriptor = FetchDescriptor<MemoryNoteRecord>(
+            predicate: #Predicate { $0.noteID == noteID })
+        descriptor.fetchLimit = 1
+        guard let row = fetch(descriptor, op: "note").first else { return nil }
+        return (row.text, row.createdAt)
+    }
+
     /// Fetch with a diagnostic. A swallowed `try?` here is not benign: a failed
     /// fetch in `upsertTurnChunks` silently DUPLICATES a row instead of updating
     /// it, and one in `deleteSession` leaves the doomed session's rows dangling —

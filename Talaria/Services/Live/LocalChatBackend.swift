@@ -583,7 +583,12 @@ final class LocalChatBackend: HermesClientProtocol {
                 let guarded = honestyGuardedReply(
                     modelText: collapsed,
                     settledText: content,
-                    recorder: toolCallRecorder)
+                    recorder: toolCallRecorder,
+                    // #422 Task 11 / bar 422-H: the deterministic note path
+                    // already wrote the row (ChatStore, before this turn was
+                    // dispatched) — the same fact this turn's own compose
+                    // step derived from the same message.
+                    savedNote: turnInput.savedNote != nil)
                 // #408-D: the same settle point, for the same reason — after
                 // the model's text has settled, appended so the answer
                 // survives verbatim. Identity on every turn that did not
@@ -852,7 +857,9 @@ final class LocalChatBackend: HermesClientProtocol {
                 let guarded = honestyGuardedReply(
                     modelText: latestFull,
                     settledText: settled,
-                    recorder: toolCallRecorder)
+                    recorder: toolCallRecorder,
+                    // #422 Task 11 / bar 422-H: see `send`'s identical call.
+                    savedNote: turnInput.savedNote != nil)
                 // #408-D: same settle point, same append rule — see `send`.
                 let noted = Self.replyNotingGuardrailImageDegrade(
                     guarded, degradedImageCount: degradedImageCount)
@@ -2192,9 +2199,17 @@ final class LocalChatBackend: HermesClientProtocol {
     /// on EXACTLY ONE side — as a `TurnImage` when the arm is enabled and
     /// the bytes decode, else as the honest placeholder inside `promptText`
     /// (390-B's fallback, which is also the ONLY route for history images).
+    ///
+    /// - `savedNote`: **#422 Task 11.** The verbatim text
+    ///   `ExplicitMemoryIntent.parse` matched in THIS turn's raw message, or
+    ///   `nil` when it did not match a "Remember that…" shape. Deliberately
+    ///   the raw note text, not the composed prompt prefix —
+    ///   `MemoryBudget.justSavedPrefix(_:)` is Task 10's call to make, at its
+    ///   one door (`makeTurnPrompt`); this only exposes the fact.
     struct ComposedTurnInput {
         let promptText: String
         let images: [TurnImage]
+        let savedNote: String?
     }
 
     /// #390-F DISCHARGED 2026-08-25: ON since the flip PR that also
@@ -2250,7 +2265,14 @@ final class LocalChatBackend: HermesClientProtocol {
         }
         return ComposedTurnInput(
             promptText: composePrompt(message: message, attachments: textBound),
-            images: images
+            images: images,
+            // #422 Task 11: deterministic, no model in the loop — the same
+            // pure parse ChatStore runs to decide whether to WRITE a note.
+            // Computed from the same `message` this composition already
+            // takes, so every leg of a turn (including the guardrail
+            // image-degrade retry's `degradedTurnInput`, which forwards
+            // here unmodified) re-derives the identical answer.
+            savedNote: ExplicitMemoryIntent.parse(message)
         )
     }
 

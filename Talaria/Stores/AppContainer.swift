@@ -1364,6 +1364,13 @@ final class AppContainer {
         container.chatStore.memoryIndexer = memoryStore.map {
             MemoryIndexer(store: $0, isEnabled: { settingsStore.settings.memoryEnabled })
         }
+        // #422 Task 11: the explicit "Remember that…" capture, wired the
+        // same way — ChatStore writes through this directly (a note is
+        // captured before ANY backend runs, never only on a settled local
+        // turn), so it needs its own reference rather than reaching through
+        // `memoryIndexer`.
+        container.chatStore.memoryStore = memoryStore
+        container.chatStore.isMemoryEnabled = { settingsStore.settings.memoryEnabled }
         container.startMemoryBackfill(settingsStore: settingsStore, localSessions: localSessionStore)
 
         // #14: attachment sends (the deliberately-backgroundable long path,

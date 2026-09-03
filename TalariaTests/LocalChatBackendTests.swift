@@ -357,6 +357,61 @@ struct LocalChatBackendTests {
         #expect(prompt.contains("was not delivered"))
     }
 
+    // MARK: - #422 Task 11 — the explicit-note capture rides ComposedTurnInput
+    //
+    // `composeTurnInput` is the "per-turn input" both `send` and `streamTurn`
+    // build BEFORE any model call, and `degradedTurnInput`'s image retry
+    // reuses it unmodified — so deriving `savedNote` here (deterministically,
+    // from the same `message` text) reaches every leg of a turn for free,
+    // with no protocol change and no new parameter threaded through five
+    // other `HermesClientProtocol` conformers. This does NOT compose the
+    // prompt text — `makeTurnPrompt` is untouched — it only EXPOSES the fact
+    // for Task 10's door to consume, per the controller notes.
+
+    @Test func composedTurnInputCarriesTheSavedNoteVerbatim() {
+        let input = LocalChatBackend.composeTurnInput(
+            message: "Remember that my sister lives in Austin", attachments: [], imageInputEnabled: false)
+        #expect(input.savedNote == "my sister lives in Austin")
+    }
+
+    @Test func composedTurnInputSavedNoteIsNilForAnOrdinaryMessage() {
+        let input = LocalChatBackend.composeTurnInput(
+            message: "What's the weather like?", attachments: [], imageInputEnabled: false)
+        #expect(input.savedNote == nil)
+    }
+
+    @Test func composedTurnInputSavedNoteIsNilForAReminderShape() {
+        // The same discriminator ExplicitMemoryIntentTests pins at the
+        // parser level, re-asserted at the composed-input level so a future
+        // change to EITHER seam is caught here too.
+        let input = LocalChatBackend.composeTurnInput(
+            message: "Remember to call mom", attachments: [], imageInputEnabled: false)
+        #expect(input.savedNote == nil)
+    }
+
+    /// The just-saved prefix Task 10 will compose into the prompt: this pins
+    /// that the value `composeTurnInput` exposes is exactly what
+    /// `MemoryBudget.justSavedPrefix` needs to produce the right sentence —
+    /// proving the two pieces compose correctly without this task reaching
+    /// into `makeTurnPrompt` (Task 10's one door).
+    @Test func theSavedNoteComposesIntoTheJustSavedPrefix() throws {
+        let input = LocalChatBackend.composeTurnInput(
+            message: "Remember that my sister lives in Austin", attachments: [], imageInputEnabled: false)
+        let note = try #require(input.savedNote)
+        #expect(MemoryBudget.justSavedPrefix(note)
+            == "The user just asked you to remember this and it HAS been saved: \"my sister lives in Austin\"")
+    }
+
+    /// The guardrail image-degrade retry recomposes via `degradedTurnInput`,
+    /// which forwards to `composeTurnInput` unmodified (see
+    /// `GuardrailImageDegradeTests.theDegradeHasNoSecondComposeImplementation`)
+    /// — so the same message re-derives the same `savedNote` on that leg too.
+    @Test func degradedTurnInputCarriesTheSameSavedNote() {
+        let degraded = LocalChatBackend.degradedTurnInput(
+            message: "Remember that my sister lives in Austin", attachments: [])
+        #expect(degraded.savedNote == "my sister lives in Austin")
+    }
+
     // MARK: History → transcript turns
 
     @Test func transcriptTurnsKeepDeliveredChatAndVoiceTurns() {
