@@ -99,7 +99,13 @@ final class MemoryIndexer {
                     chunkIndex: i,
                     text: chunk,
                     sentAt: message.timestamp,
-                    embedderID: EmbeddingService.embedderID,
+                    // A row with no vector has no embedder either, and saying
+                    // otherwise is a trap for the scorer M2 builds: `embedderID`
+                    // is what tells retrieval a row's vector is comparable to
+                    // the query's, so stamping the current id onto an EMPTY
+                    // blob invites a cosine against nothing. Empty means empty;
+                    // `reEmbedStrandedRows` stamps the real id when it fills one.
+                    embedderID: vector.isEmpty ? "" : EmbeddingService.embedderID,
                     vector: vector
                 ))
             }
@@ -162,13 +168,38 @@ final class MemoryIndexer {
     /// vectorise is skipped and retried on a later pass — cheap, and
     /// self-limiting at this cap — but a MISSING embedder stops the pass
     /// outright, because every remaining row would fail the same way.
-    // harness-visible
-    func reEmbedStrandedRows(limit: Int = 200, yieldStride: Int = 20) async -> Int {
+    ///
+    /// **The liveness guard.** This method holds live SwiftData models across
+    /// `await Task.yield()`, and the settle seam it yields to can delete one of
+    /// them: `reconcileSession` reaps the rows of a message the user retried or
+    /// undid, and saves. Writing to a model whose row is gone is the
+    /// `NSObjectInaccessibleException` family — an ObjC exception Swift cannot
+    /// catch, so a hard crash on the launch path rather than a loggable error —
+    /// and short of that it can resurrect a row the user just deleted.
+    ///
+    /// **`isDeleted` alone is NOT enough, measured 2026-09-03 on sim 24A5423a.**
+    /// With the reconcile fired between two rows, the deleted models read back
+    /// `isDeleted == false` and `modelContext == nil`: after the delete is
+    /// SAVED the object is unregistered rather than flagged, so the flag is only
+    /// true in the window between `context.delete` and `save()`. Both halves are
+    /// therefore checked — `isDeleted` for the pre-save window, a nil
+    /// `modelContext` for the post-save one — and the check is re-done after
+    /// every resume, that being the only point at which the world can change.
+    /// The pinning test is `theRepairPassSurvivesItsRowsBeingDeletedDuringAYield`;
+    /// with only the `isDeleted` half it repairs 3 rows instead of 1.
+    ///
+    /// `onYield` is a test seam: `Task.yield()` alone gives a test no way to run
+    /// code at the one instant that matters. Production never passes it.
+    func reEmbedStrandedRows(limit: Int = 200,
+                             yieldStride: Int = 20,
+                             // harness-visible
+                             onYield: (@MainActor () -> Void)? = nil) async -> Int {
         guard isEnabled() else { return 0 }
         let stranded = store.emptyVectorRows(limit: limit)
         guard !stranded.isEmpty else { return 0 }   // …so no embedder is built for an empty queue
         var repaired = 0
         for (offset, row) in stranded.enumerated() {
+            guard !row.isDeleted, row.modelContext != nil else { continue }
             if let vector = embedder.embed(row.text) {
                 row.vector = EmbeddingService.encode(vector)
                 row.embedderID = EmbeddingService.embedderID
@@ -176,7 +207,10 @@ final class MemoryIndexer {
             } else if !embedder.isAvailable {
                 break
             }
-            if (offset + 1) % yieldStride == 0 { await Task.yield() }
+            if (offset + 1) % yieldStride == 0 {
+                await Task.yield()
+                onYield?()
+            }
         }
         if repaired > 0 { store.commitVectorRepairs() }
         return repaired

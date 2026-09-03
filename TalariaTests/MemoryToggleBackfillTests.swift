@@ -298,6 +298,85 @@ struct MemoryToggleBackfillTests {
         #expect(store.emptyVectorRows(limit: 0).isEmpty, "a zero limit must fetch nothing")
     }
 
+    /// **A crash guard, pinned deterministically.** `reEmbedStrandedRows` holds
+    /// live SwiftData models across `await Task.yield()`, and the thing it yields
+    /// to can delete one of them: `reconcileSession` reaps the rows of a message
+    /// the user retried or undid, and saves. Writing to a model whose row is gone
+    /// raises `NSObjectInaccessibleException` — an ObjC exception Swift cannot
+    /// catch, so it is a hard crash on the launch path, not a loggable error.
+    ///
+    /// `Task.yield()` alone gives a test no way to run code at the single instant
+    /// that matters, so `onYield` (production never passes it) fires the reconcile
+    /// exactly between two rows.
+    ///
+    /// **This test corrected the fix.** The guard was first written as
+    /// `!row.isDeleted`, and this fixture repaired 3 rows instead of 1 — no
+    /// crash, but every reaped row written to anyway. Instrumented, the deleted
+    /// models read `isDeleted == false, modelContext == nil`: after a SAVED
+    /// delete the object is unregistered, not flagged. So the flag alone is
+    /// blind to exactly this case, and the guard checks both.
+    @Test func theRepairPassSurvivesItsRowsBeingDeletedDuringAYield() async throws {
+        let real = try await realEmbedder()
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let sessionID = UUID()
+        let thread = Conversation(id: sessionID, title: "t", messages: [
+            userTurn("My dentist is Dr. Patel."),
+            userTurn("My dog is called Biscuit."),
+            userTurn("I park on Oak Street."),
+        ])
+        MemoryIndexer(store: store, makeEmbedder: nullEmbedder).index(thread)
+        #expect(store.emptyVectorRows(limit: 10).count >= 3, "the fixture needs rows on both sides of a yield")
+
+        let repaired = await MemoryIndexer(store: store, makeEmbedder: { EmbeddingService(acquire: { real }) })
+            .reEmbedStrandedRows(limit: 10, yieldStride: 1, onYield: {
+                // The settle seam, arriving mid-pass: every row of this session
+                // loses its source message and is reaped.
+                _ = store.reconcileSession(sessionID, liveMessageIDs: [])
+            })
+
+        #expect(repaired == 1, "exactly the row repaired before the delete may be counted, got \(repaired)")
+        #expect(store.indexCount() == 0, "the reconcile must really have removed the rows")
+    }
+
+    // MARK: - What a vectorless row claims about itself
+
+    /// A row with no vector has no embedder either. `embedderID` is what tells
+    /// retrieval a stored vector is comparable to the query's, so stamping the
+    /// current id onto an EMPTY blob sets a trap for the scorer M2 builds — it
+    /// would read as "scored by the live embedder" and invite a cosine against
+    /// nothing. The repair stamps the real id at the moment it fills the vector,
+    /// and this pins both halves of that.
+    @Test func aRowWithoutAVectorCarriesNoEmbedderIDUntilItIsRepaired() async throws {
+        let real = try await realEmbedder()
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+
+        MemoryIndexer(store: store, makeEmbedder: nullEmbedder).index(conversation([userTurn()]))
+        #expect(store.indexCount() == 1, "this fixture is a single row on purpose")
+        #expect(store.allEmbedderIDs() == [""],
+                "a vectorless row must not claim an embedder, got \(store.allEmbedderIDs())")
+
+        _ = await MemoryIndexer(store: store, makeEmbedder: { EmbeddingService(acquire: { real }) })
+            .reEmbedStrandedRows()
+
+        #expect(store.allEmbedderIDs() == [EmbeddingService.embedderID],
+                "the repair must stamp the embedder it actually used")
+        #expect(store.emptyVectorRows(limit: 1).isEmpty, "no row may still be stranded")
+    }
+
+    /// The positive control: a row that DID get a vector carries the real id from
+    /// the moment it is written, with no repair involved. Without this, an
+    /// indexer that stamped `""` on everything would satisfy the test above.
+    @Test func aRowWithAVectorCarriesTheEmbedderIDImmediately() async throws {
+        let real = try await realEmbedder()
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+
+        MemoryIndexer(store: store, makeEmbedder: { EmbeddingService(acquire: { real }) })
+            .index(conversation([userTurn()]))
+
+        #expect(store.allEmbedderIDs() == [EmbeddingService.embedderID])
+        #expect(store.emptyVectorRows(limit: 10).isEmpty, "the fixture must have embedded")
+    }
+
     /// A repair pass with no embedder must leave the rows exactly as they are —
     /// never blank an embedderID or drop a row it could not score.
     @Test func theRepairPassLeavesRowsAloneWhenNoEmbedderArrives() async throws {

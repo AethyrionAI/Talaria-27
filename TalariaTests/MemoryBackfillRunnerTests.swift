@@ -16,16 +16,28 @@ private final class Knobs {
     /// sessions and stamped four cursors has burned the user's history even if
     /// the final number looks unremarkable.
     private(set) var written: [Int] = []
-    /// Flip `enabled` off once this many cursor writes have landed — the user
-    /// reaching for the switch while the backfill is walking. The trigger is a
-    /// cursor write rather than a timer so both arms of the RED/GREEN pair see
-    /// the flip at exactly the same point in the walk.
-    var disableAfterWrites: Int?
-
     func write(_ value: Int) {
         cursor = value
         written.append(value)
-        if let n = disableAfterWrites, written.count >= n { enabled = false }
+    }
+
+    /// The INDEXER's read of the same switch, counted.
+    ///
+    /// Counting it is how a test flips the toggle strictly BETWEEN
+    /// conversations: the indexer reads the switch twice per conversation
+    /// (`backfill`, then `index`), so disabling after the second read lands the
+    /// flip in the gap where a user's tap actually lands — after one
+    /// conversation is fully indexed and before the next is looked at. The
+    /// current call returns the value it had BEFORE the flip, so the
+    /// conversation in flight is not half-processed.
+    var disableAfterIndexerReads: Int?
+    private(set) var indexerReads = 0
+
+    func indexerEnabled() -> Bool {
+        let current = enabled
+        indexerReads += 1
+        if let n = disableAfterIndexerReads, indexerReads >= n { enabled = false }
+        return current
     }
 }
 
@@ -134,7 +146,8 @@ struct MemoryBackfillRunnerTests {
                             _ knobs: Knobs,
                             repairLimit: Int = 200) -> MemoryBackfillRunner {
         makeRunner(sessions,
-                   MemoryIndexer(store: store, makeEmbedder: nullEmbedder, isEnabled: { knobs.enabled }),
+                   MemoryIndexer(store: store, makeEmbedder: nullEmbedder,
+                                 isEnabled: { knobs.indexerEnabled() }),
                    knobs, repairLimit: repairLimit)
     }
 
@@ -170,7 +183,9 @@ struct MemoryBackfillRunnerTests {
         let sessions = FakeSessionStore()
         seed(sessions, count: 4)
         let knobs = Knobs()
-        knobs.disableAfterWrites = 1
+        // Two indexer reads per conversation, so this flips the switch after the
+        // FIRST conversation is fully indexed and before the second is looked at.
+        knobs.disableAfterIndexerReads = 2
 
         await makeRunner(sessions, store: memory, knobs).run()
 
@@ -180,6 +195,8 @@ struct MemoryBackfillRunnerTests {
                 "the cursor read \(knobs.cursor), marking \(4 - knobs.cursor) unindexed session(s) as done forever")
         #expect(knobs.written == [1],
                 "only conversations that were actually indexed may be persisted, got \(knobs.written)")
+        #expect(sessions.readCount == 1,
+                "the toggle must be re-read BEFORE the next transcript is loaded — \(sessions.readCount) were read")
 
         // …and the user turns memory back on. The skipped history must still be
         // reachable: the run resumes from 1 and finishes the corpus.
@@ -291,6 +308,103 @@ struct MemoryBackfillRunnerTests {
 
         #expect(knobs.cursor == 3, "the walk must clear a missing transcript, not park on it")
         #expect(memory.indexCount() > 0, "the readable sessions must still have been indexed")
+    }
+
+    // MARK: - what the walk COSTS
+
+    /// Every `writeCursor` re-encodes the whole `UserSettings` blob and
+    /// invalidates its observers, so writing once per conversation put that cost
+    /// on a loop. The cursor is now persisted every 10 conversations plus a flush
+    /// at the end — and the exact sequence is the pin, because "fewer writes" is
+    /// satisfied by a runner that writes once and loses 24 conversations of
+    /// progress on a kill.
+    @Test func theCursorIsPersistedInBatchesNotPerConversation() async throws {
+        let memory = try memoryStore()
+        let sessions = FakeSessionStore()
+        seed(sessions, count: 25)
+        let knobs = Knobs()
+
+        await makeRunner(sessions, store: memory, knobs).run()
+
+        #expect(knobs.written == [10, 20, 25],
+                "expected two full batches then a closing flush, got \(knobs.written)")
+        #expect(knobs.cursor == 25)
+    }
+
+    /// The flush is what makes batching safe. A walk cut short must still
+    /// persist the conversations it DID index, or the next launch re-walks work
+    /// the user already paid for — costly, though never duplicating (bar 422-A).
+    @Test func aWalkCutShortStillPersistsTheProgressItMade() async throws {
+        let memory = try memoryStore()
+        let sessions = FakeSessionStore()
+        seed(sessions, count: 25)
+        let knobs = Knobs()
+        // Two indexer reads per conversation: stop after the third.
+        knobs.disableAfterIndexerReads = 6
+
+        await makeRunner(sessions, store: memory, knobs).run()
+
+        #expect(knobs.cursor == 3, "three conversations were indexed")
+        #expect(knobs.written == [3],
+                "an exit below the batch size must still flush, got \(knobs.written)")
+    }
+
+    /// A sim-side cost reading for the launch backfill, printed rather than
+    /// asserted: a threshold here would be a flake on a shared box, and the
+    /// number belongs in the report where its runtime can be stated with it
+    /// (#398-A — a rate without the build it was measured on is ambiguous).
+    /// The corpus is the real 422-R turn set, so the text lengths are the ones
+    /// the chunker and embedder will actually meet.
+    @Test func backfillTimingProbe() async throws {
+        let real = try await realEmbedder()
+        let corpus = try Self.corpusTurns()
+        let memory = try memoryStore()
+        let sessions = FakeSessionStore()
+
+        let conversationCount = 50
+        for i in 0 ..< conversationCount {
+            let a = corpus[(i * 2) % corpus.count]
+            let b = corpus[(i * 2 + 1) % corpus.count]
+            let conversation = Conversation(id: UUID(), title: "probe \(i)", messages: [
+                Message(sender: .user, content: a),
+                Message(sender: .hermes, content: "Noted."),
+                Message(sender: .user, content: b),
+            ])
+            sessions.add(conversation, createdAt: Date(timeIntervalSince1970: 1_000 + Double(i)))
+        }
+
+        let knobs = Knobs()
+        let runner = makeRunner(
+            sessions,
+            MemoryIndexer(store: memory, makeEmbedder: { EmbeddingService(acquire: { real }) }),
+            knobs)
+
+        let clock = ContinuousClock()
+        let start = clock.now
+        await runner.run()
+        let ms = Double((clock.now - start) / .milliseconds(1))
+
+        print("422-B backfill: \(conversationCount) conversations / \(memory.indexCount()) rows "
+              + "in \(String(format: "%.0f", ms)) ms on "
+              + ProcessInfo.processInfo.operatingSystemVersionString)
+
+        #expect(knobs.cursor == conversationCount, "the probe must have walked the whole corpus")
+        #expect(memory.indexCount() >= conversationCount, "…and indexed it")
+        #expect(memory.emptyVectorRows(limit: 1).isEmpty, "a real embedder must leave nothing stranded")
+    }
+
+    /// The 422-R corpus's turn texts, read from the repo.
+    private static func corpusTurns() throws -> [String] {
+        struct Corpus: Decodable { struct Turn: Decodable { let text: String }; let turns: [Turn] }
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // TalariaTests/
+            .deletingLastPathComponent()   // repo root
+            .appendingPathComponent("planning/reports/2026-09-02-422-retrieval-corpus.json")
+        let data = try #require(try? Data(contentsOf: url),
+                                "cannot read the 422-R corpus — this probe did not run")
+        let texts = try JSONDecoder().decode(Corpus.self, from: data).turns.map(\.text)
+        #expect(texts.count >= 100, "the probe needs 100 turns, the corpus has \(texts.count)")
+        return texts
     }
 
     // MARK: - (c) the repair pass runs ONCE per run

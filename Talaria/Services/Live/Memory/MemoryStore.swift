@@ -75,16 +75,34 @@ final class MemoryStore {
         }
     }
 
+    /// Insert-or-update keyed on `messageID × chunkIndex`, in ONE fetch.
+    ///
+    /// It used to be one predicate fetch PER CHUNK, which put a round trip on
+    /// every sentence of every turn — paid on the settle seam the user is
+    /// waiting on, and again for every conversation of the launch backfill. One
+    /// fetch over the batch's message ids answers the same question.
+    ///
+    /// The in-memory index also makes the batch dedup itself: two chunks sharing
+    /// a key now resolve against each other rather than against whatever a fetch
+    /// does or does not see of an unsaved insert.
     func upsertTurnChunks(_ chunks: [MemoryTurnIndexRecord]) {
+        guard !chunks.isEmpty else { return }
+        let messageIDs = Array(Set(chunks.map(\.messageID)))
+        let existing = fetch(FetchDescriptor<MemoryTurnIndexRecord>(
+            predicate: #Predicate { messageIDs.contains($0.messageID) }), op: "upsertTurnChunks")
+
+        struct ChunkKey: Hashable { let messageID: UUID; let chunkIndex: Int }
+        var byKey = Dictionary(
+            existing.map { (ChunkKey(messageID: $0.messageID, chunkIndex: $0.chunkIndex), $0) },
+            uniquingKeysWith: { first, _ in first })
+
         for chunk in chunks {
-            let messageID = chunk.messageID, index = chunk.chunkIndex
-            let existing = fetch(FetchDescriptor<MemoryTurnIndexRecord>(
-                predicate: #Predicate { $0.messageID == messageID && $0.chunkIndex == index }),
-                op: "upsertTurnChunks")
-            if let row = existing.first {
+            let key = ChunkKey(messageID: chunk.messageID, chunkIndex: chunk.chunkIndex)
+            if let row = byKey[key] {
                 row.text = chunk.text; row.vector = chunk.vector; row.embedderID = chunk.embedderID
             } else {
                 context.insert(chunk)
+                byKey[key] = chunk
             }
         }
         save()
@@ -163,13 +181,24 @@ final class MemoryStore {
     /// SwiftData commits on the launch path to write a few kilobytes of blobs.
     func commitVectorRepairs() { save() }
 
-    /// The stored blob's size, so a caller (and a test) can tell a repaired row
-    /// from a stranded one without decoding, and by a route independent of the
-    /// objects the repair itself mutated. Nil when the row is gone.
+    /// The stored blob's size, so a caller can tell a repaired row from a
+    /// stranded one without decoding, and by a route independent of the objects
+    /// the repair itself mutated. Nil when the row is gone.
+    // harness-visible
     func vectorByteCount(entryID: UUID) -> Int? {
         let id = entryID
         return fetch(FetchDescriptor<MemoryTurnIndexRecord>(
             predicate: #Predicate { $0.entryID == id }), op: "vectorByteCount").first?.vector.count
+    }
+
+    /// Every stored row's embedder id — `""` on a row that has no vector yet.
+    /// Whole-store rather than by id because the claim it exists to check is
+    /// about what the writer stamps, which is a property of all of them.
+    // harness-visible
+    func allEmbedderIDs() -> [String] {
+        fetch(FetchDescriptor<MemoryTurnIndexRecord>(
+            sortBy: [SortDescriptor(\.sentAt, order: .forward)]), op: "allEmbedderIDs")
+            .map(\.embedderID)
     }
 
     func indexCount() -> Int {

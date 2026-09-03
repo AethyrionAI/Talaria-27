@@ -218,9 +218,13 @@ final class AppContainer {
     /// deterministically. (It no longer suppresses the splash — #309 Lane A
     /// deleted the clause that read it; see `shouldShowLaunchSplash`.)
     private(set) var backgroundLaunchRefreshTask: Task<Void, Never>?
-    /// #422 (bar 422-B): the one-shot launch backfill over stored local
-    /// sessions. Held so a second `makeDefault` in one process cannot start a
-    /// second walk over the same history.
+    /// #422 (bar 422-B): the launch backfill over stored local sessions.
+    ///
+    /// Held so that ONE container starts at most one walk — this is per
+    /// instance, not per process, so a second `AppContainer` (a test container,
+    /// or a rebuild of the graph) starts its own. That is tolerable rather than
+    /// desirable: the walk is idempotent, so two of them cost duplicate WORK and
+    /// no duplicate rows (bar 422-A).
     private(set) var memoryBackfillTask: Task<Void, Never>?
     /// #136: bumped by every reset/supersede site — a background launch
     /// refresh only touches container state while its generation is current.

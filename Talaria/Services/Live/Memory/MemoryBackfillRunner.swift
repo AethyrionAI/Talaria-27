@@ -14,8 +14,15 @@ import Foundation
 /// **Not a BGTask.** #63's discretionary scheduling is exactly wrong for this:
 /// the work is cheap, wants to happen soon, and has no deadline the system can
 /// help with. One `.utility` task yielding after every conversation is the whole
-/// mechanism — it competes with nothing on the launch path and simply stops when
-/// the process does.
+/// mechanism, and it simply stops when the process does.
+///
+/// **It does NOT compete with nothing.** Every step of it — the store reads, the
+/// chunking, the embedding — runs on the MainActor, so it is on the same thread
+/// as the UI and the `.utility` priority buys ordering, not parallelism. That is
+/// why the unit of work is ONE conversation with a yield after it rather than a
+/// window, and why the cursor is written every `cursorWriteStride` conversations
+/// instead of every one: each write JSON-encodes the whole `UserSettings` blob
+/// and invalidates every observer of it.
 @MainActor
 final class MemoryBackfillRunner {
     private let sessions: any LocalSessionStoring
@@ -28,8 +35,20 @@ final class MemoryBackfillRunner {
     /// How many repair passes this runner has made, and how many rows they
     /// wrote. Observable because "the repair runs once per run" is a claim about
     /// a call that leaves no other trace once the queue is empty.
+    // harness-visible
     private(set) var repairPasses = 0
+    // harness-visible
     private(set) var repairedRows = 0
+
+    /// Conversations per persisted cursor. Every write re-encodes the entire
+    /// settings blob and invalidates its observers, so writing per conversation
+    /// put that cost on a loop. Batching is safe in exactly one direction: a
+    /// cursor that lags reality costs a re-walk of at most this many
+    /// conversations on the next launch, and a re-walk costs WORK, never
+    /// duplicate rows (upsert keys on `messageID × chunkIndex`, bar 422-A). A
+    /// cursor that RAN AHEAD would skip history silently, which is why nothing
+    /// here ever writes a cursor for work that did not happen.
+    private let cursorWriteStride = 10
 
     init(sessions: any LocalSessionStoring,
          indexer: MemoryIndexer,
@@ -48,8 +67,9 @@ final class MemoryBackfillRunner {
     /// Walks the stored sessions from the persisted cursor, then repairs
     /// stranded vectors ONCE.
     ///
-    /// **The cursor advances only for work that actually happened.** That is the
-    /// whole safety property: a cursor is a promise that everything behind it is
+    /// **The cursor advances only for work that actually happened**, and is
+    /// PERSISTED in batches of `cursorWriteStride` plus a flush at every exit.
+    /// That is the whole safety property: a cursor is a promise that everything behind it is
     /// indexed, so stamping it for a conversation the indexer refused converts a
     /// paused backfill into permanently skipped history — silently, and with no
     /// way to notice from outside. The toggle is therefore re-read at the top of
@@ -61,31 +81,38 @@ final class MemoryBackfillRunner {
         let ordered = orderedSessionIDs()
 
         // A stored cursor can outrun its corpus — a settings blob outliving the
-        // sessions it counted. Clamp, and PERSIST the clamp: an unpersisted
-        // repair leaves the bad value to be re-read on every future launch.
-        // Clamping is safe in a way worth stating: re-walking history costs
-        // WORK, never duplicate rows, because upsert keys on
-        // `messageID × chunkIndex` (bar 422-A). The dangerous direction is a
-        // cursor left too HIGH, which skips history and says nothing.
+        // sessions it counted. Clamp, and PERSIST the clamp immediately: an
+        // unpersisted repair leaves the bad value to be re-read on every future
+        // launch.
         var cursor = min(max(0, readCursor()), ordered.count)
         if cursor != readCursor() { writeCursor(cursor) }
 
+        var unwritten = 0
+        func flushCursor() {
+            guard unwritten > 0 else { return }
+            writeCursor(cursor)
+            unwritten = 0
+        }
+
         while cursor < ordered.count {
-            guard isEnabled() else { return }
+            guard isEnabled() else { return flushCursor() }
             if let conversation = sessions.conversation(withID: ordered[cursor]) {
                 var walked = 0
                 indexer.backfill([conversation], cursor: &walked, budget: 1)
-                guard walked == 1 else { return }
+                guard walked == 1 else { return flushCursor() }
             }
             // A summary whose transcript no longer reads back is STEPPED OVER:
             // there is nothing to index, and parking on it would spin forever.
             cursor += 1
-            writeCursor(cursor)
+            unwritten += 1
+            if unwritten >= cursorWriteStride { flushCursor() }
             // One conversation per hop. The whole point of `budget: 1` is that
-            // the main thread is never held for a window of transcripts — this
-            // runs at `.utility` behind everything the user can see.
+            // the main thread is never held for a window of transcripts.
             await Task.yield()
         }
+        // Every early exit above flushes too: progress the user actually paid
+        // for must survive, or a paused backfill re-walks it on the next launch.
+        flushCursor()
 
         guard isEnabled() else { return }
         repairPasses += 1
