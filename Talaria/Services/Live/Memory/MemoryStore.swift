@@ -32,7 +32,15 @@ import os
     /// fact as one the cap truncated, and Task 16's notice must be honest
     /// about which happened. `false` for every note written before this
     /// column existed (a legacy row was, by definition, never marked cut).
-    var wasTruncated: Bool
+    ///
+    /// **The `= false` is the migration, not a style choice** (Task 11's
+    /// review finding, landed with Task 10). SwiftData's lightweight
+    /// migration can add a new NON-OPTIONAL column only when the property
+    /// carries a default; without one, opening an existing `TalariaMemory`
+    /// file whose rows predate the column fails container creation — and
+    /// `MemoryStore.make` turns that into "memory disabled", silently, for
+    /// exactly the users who had already saved notes.
+    var wasTruncated: Bool = false
     init(noteID: UUID, text: String, createdAt: Date, sourceMessageID: UUID? = nil,
          sourceSessionID: UUID? = nil, wasTruncated: Bool = false) {
         self.noteID = noteID; self.text = text; self.createdAt = createdAt
@@ -313,6 +321,55 @@ final class MemoryStore {
         descriptor.fetchLimit = 1
         guard let row = fetch(descriptor, op: "noteForSourceMessageID").first else { return nil }
         return (row.noteID, row.text)
+    }
+
+    // MARK: - Use records (#422 Task 10 — what a reply actually drew on)
+
+    /// Records that the reply `replyMessageID` was generated with these
+    /// memories in its context. One row per reply, keyed on the reply's id.
+    ///
+    /// **Why the store and not just the message.** Ruling 2 wants a chip on
+    /// every reply that drew on memory, and the chip's ids have to survive a
+    /// relaunch, a cache reload and the `.finished` slot swap. Lane M4 adds
+    /// `Message.memoryProvenance` (its type, not this branch's) and will stamp
+    /// the same fact onto the message; until then this row IS the record, and
+    /// it is the RECENTLY USED list's source either way.
+    ///
+    /// Fetch-then-update rather than a bare insert: `replyMessageID` is
+    /// `@Attribute(.unique)`, and a retried turn can settle twice on one id.
+    /// Writing nothing when the ids are empty is deliberate — "this reply drew
+    /// on nothing" is the absence of a row, never a row full of empty arrays
+    /// that the RECENTLY USED list would then have to filter back out.
+    func recordUse(replyMessageID: UUID, entryIDs: [UUID], noteIDs: [UUID], at: Date = Date()) {
+        guard !entryIDs.isEmpty || !noteIDs.isEmpty else { return }
+        let id = replyMessageID
+        var descriptor = FetchDescriptor<MemoryUseRecord>(
+            predicate: #Predicate { $0.replyMessageID == id })
+        descriptor.fetchLimit = 1
+        if let row = fetch(descriptor, op: "recordUse").first {
+            row.entryIDs = entryIDs
+            row.noteIDs = noteIDs
+            row.at = at
+        } else {
+            context.insert(MemoryUseRecord(
+                replyMessageID: replyMessageID, store: "local",
+                entryIDs: entryIDs, noteIDs: noteIDs, at: at))
+        }
+        save()
+    }
+
+    /// The most recent use records, newest first — Task 16's RECENTLY USED
+    /// list reads these, and a test reads them to prove a turn recorded what
+    /// it drew on.
+    func recentUses(limit: Int = 20) -> [(replyMessageID: UUID, store: String,
+                                          entryIDs: [UUID], noteIDs: [UUID], at: Date)] {
+        var descriptor = FetchDescriptor<MemoryUseRecord>(
+            sortBy: [SortDescriptor(\.at, order: .reverse)])
+        descriptor.fetchLimit = max(0, limit)
+        return fetch(descriptor, op: "recentUses").map {
+            (replyMessageID: $0.replyMessageID, store: $0.store,
+             entryIDs: $0.entryIDs, noteIDs: $0.noteIDs, at: $0.at)
+        }
     }
 
     /// Fetch with a diagnostic. A swallowed `try?` here is not benign: a failed

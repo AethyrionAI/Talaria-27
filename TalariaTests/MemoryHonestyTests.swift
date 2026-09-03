@@ -343,9 +343,16 @@ struct MemoryHonestyTests {
     // Read the live source, in the shape of
     // `GuardrailImageDegradeTests.theDegradeHasNoSecondComposeImplementation`.
 
+    /// **Window widened 6,000 → 7,500 by #422 Task 10** (the injection lane),
+    /// which inserted the memory-prefix compose into `send` above this call
+    /// and pushed the match to 5,966…6,003 — three characters past the old
+    /// limit, so the pin failed for a reason that had nothing to do with its
+    /// claim. Worth knowing about every prefix-window pin in this file: their
+    /// failure mode when the function GROWS is a false RED, and the repair is
+    /// the window, never the assertion.
     @Test("fix round 1: send() passes the real savedNote expression, not a hardcoded false")
     func sendWitnessesTheRealSavedNoteExpression() throws {
-        let body = try Self.backendFunctionBody(from: "func send(", limit: 6000)
+        let body = try Self.backendFunctionBody(from: "func send(", limit: 7500)
         #expect(body.contains("savedNote: turnInput.savedNote != nil"),
                 "send()'s honestyGuardedReply call must wire the STORE-derived value, not a stand-in")
     }

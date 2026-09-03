@@ -191,6 +191,108 @@ final class LocalChatBackend: HermesClientProtocol {
     /// defaults to enabled.
     private let isMemoryEnabled: (@MainActor () -> Bool)?
 
+    // MARK: - #422 Task 10 (bar 422-D): injected-memory accounting
+    //
+    // The hazard this state exists for is one asymmetry. A memory prefix is
+    // prepended to the PROMPT, so it enters the live `LanguageModelSession`'s
+    // own transcript and stays there for the rest of the session — but
+    // `appendUserMessage` stores the user's BARE message, so
+    // `currentConversation` (the source `fitsContext` and `sessionBlueprint`
+    // both read) never knows the prefix happened. Left unaccounted, the fit
+    // estimate drifts low by the sum of every prefix injected since the last
+    // rebuild, and the first thing that notices is the model, mid-turn, as
+    // the #26 overflow — the retry this lane must never provoke.
+
+    /// Tokens of memory prefix injected into the LIVE session's transcript
+    /// since it was last built. Reset by `rebuildSession`, because a rebuild
+    /// replays from `currentConversation`, which carries no prefixes.
+    private(set) var injectedMemoryTokensThisSession = 0  // harness-visible
+
+    /// Rebuild the session once the accumulation passes this. Deliberately
+    /// far below the window: the point is to rebuild while there is still
+    /// room for the NEXT turn's prefix plus its answer, not to rebuild at the
+    /// edge of an overflow we are already inside.
+    nonisolated static let injectedMemoryRebuildTokens = 1_500
+
+    /// The accumulation that forces a rebuild, for a given prompt budget.
+    ///
+    /// **1,500 is the phone's number and it is not a coincidence** — the
+    /// on-device window is 8,192 with 1,024 of reply headroom, so the budget
+    /// is 7,168, a quarter of which is 1,792, and the flat cap wins: this
+    /// returns exactly 1,500 there, as bar 422-D pins.
+    ///
+    /// The quarter-of-budget arm exists for every SMALLER window, where a
+    /// flat 1,500 would be a threshold the session could never reach before
+    /// the transcript itself overflowed — which is the same failure as having
+    /// no accounting at all, only harder to see. Same ground rule as every
+    /// other budget in this file: read the window at runtime, never hardcode
+    /// a device's number and hope.
+    nonisolated static func injectedMemoryRebuildThreshold(contextBudget: Int) -> Int {
+        min(injectedMemoryRebuildTokens, max(128, contextBudget / 4))
+    }
+
+    /// The live threshold for THIS backend's active tier.
+    func injectedMemoryRebuildThreshold() async -> Int {  // harness-visible
+        Self.injectedMemoryRebuildThreshold(
+            contextBudget: max(1024, await activeContextSize() - Self.responseHeadroomTokens(for: activeTier)))
+    }
+
+    /// How many rebuilds the accumulation above caused. Counted rather than
+    /// only logged, for the same reason `toolDecodeRetryCount` is: a
+    /// mitigation that hides how often it fires is a mitigation nobody can
+    /// falsify.
+    private(set) var memoryAccountingRebuildCount = 0  // harness-visible
+    /// How many rebuilds the explicit-notes set changing caused — the pin for
+    /// "once per note change, never per turn."
+    private(set) var memoryNotesRebuildCount = 0  // harness-visible
+    /// How many times `rebuildForOverflowRetry` ran. The #26 retry is the
+    /// thing the accounting exists to keep at zero.
+    private(set) var overflowRetryCount = 0  // harness-visible
+    /// How many times this backend actually ran a retrieval — the toggle-OFF
+    /// bar's witness (a rate of zero is only meaningful next to a counter
+    /// that can move).
+    private(set) var memoryRetrievalCount = 0  // harness-visible
+    /// The prompt the ROUTER was handed for the current turn. Bar 422-D's
+    /// first half: the router must classify the user's own words, never the
+    /// memory prefix, so this is recorded at the routing call site and
+    /// compared byte-for-byte against the un-prefixed compose output.
+    private(set) var lastRoutedPrompt: String?  // harness-visible
+
+    /// Identity of the explicit-notes set the LIVE session's instructions
+    /// carry. `nil` until a session is built. Compared against
+    /// `currentNotesFingerprint()` on every turn; a mismatch is the ONLY
+    /// thing that rebuilds for notes, which is what keeps the rebuild
+    /// once-per-change rather than once-per-turn.
+    private var sessionNotesFingerprint: String?
+
+    /// The composed notes block, cached against the fingerprint it was built
+    /// from. Recomposing per turn would spend a tokenizer round trip on text
+    /// that changes only when the user saves, edits or deletes a note.
+    private var notesBlockCache: (fingerprint: String, text: String, noteIDs: [UUID])?
+
+    /// What THIS turn's prompt drew on, held until the reply settles and has
+    /// an id to key it to. Cleared by `recordMemoryUse`.
+    private var pendingMemoryUse: (entryIDs: [UUID], noteIDs: [UUID])?
+
+    /// The memories the last settled reply drew on.
+    ///
+    /// **This is the branch's provenance surface, and it is deliberately not
+    /// `Message.memoryProvenance`** — that type belongs to lane M4 and does
+    /// not exist here. ChatStore reads the durable half from
+    /// `MemoryStore.recentUses(limit:)`, keyed on the reply's `id`; this
+    /// property is the same fact without a store round trip, for the turn
+    /// that just finished.
+    private(set) var lastMemoryUse: MemoryUse?  // harness-visible
+
+    /// The ids one reply drew on. `replyMessageID` is the `Message.id`
+    /// `send` returns / `streamTurn` yields on `.finished`, which ChatStore's
+    /// resolved-slot swap preserves.
+    struct MemoryUse: Sendable, Equatable {
+        let replyMessageID: UUID
+        let entryIDs: [UUID]
+        let noteIDs: [UUID]
+    }
+
     init(
         persistence: any AppPersistenceStoreProtocol,
         intelligence: LocalIntelligenceService,
@@ -235,6 +337,206 @@ final class LocalChatBackend: HermesClientProtocol {
     func savedNoteThisTurn(clientMessageID: UUID) -> String? {  // harness-visible
         guard isMemoryEnabled?() ?? true else { return nil }
         return memoryStore?.note(forSourceMessageID: clientMessageID)?.text
+    }
+
+    // MARK: - #422 Task 10 (bar 422-D): memory injection
+    //
+    // Two destinations, and the split is the design rather than a convenience.
+    //
+    // **Explicit notes go to the INSTRUCTIONS.** They are standing facts the
+    // user asked to be held, they do not depend on what this turn asks, and
+    // an instructions block is the one part of a session that survives every
+    // turn without being re-sent. Putting them in the prompt instead would
+    // re-pay their cost on every turn and let a long conversation drift away
+    // from them.
+    //
+    // **Retrieved turns go to the PROMPT of the turn that retrieved them**,
+    // through `composeTurnInput`/`makeTurnPrompt` — #390's one door. They are
+    // an answer to THIS question; a hit that stayed in the instructions would
+    // still be quoted at the model ten turns after it stopped being relevant.
+    //
+    // Nothing here re-words anything (ruling 1). The only shortening is
+    // `MemoryBudget`'s truncation, and the only text this file adds is
+    // `MemoryBudget`'s own pinned preambles.
+
+    /// Whether memory may read anything at all this turn — the master switch,
+    /// read LIVE (a closure, not a captured Bool) so a mid-session flip takes
+    /// effect on the very next turn. Nil defaults to enabled, matching
+    /// `UserSettings.memoryEnabled`'s own documented default.
+    private var memoryIsOn: Bool { isMemoryEnabled?() ?? true }
+
+    /// Identity of the notes set as it stands RIGHT NOW. Empty string means
+    /// "no notes" — including the toggle-off and no-store cases, which is
+    /// correct: with memory off the session must carry no notes block, and
+    /// flipping the toggle therefore reads as a change and rebuilds.
+    private func currentNotesFingerprint() -> String {
+        guard memoryIsOn, let memoryStore else { return "" }
+        return memoryStore.allNotes().prefix(MemoryBudget.maxNotes)
+            .map { "\($0.noteID.uuidString)@\(($0.editedAt ?? $0.createdAt).timeIntervalSince1970)" }
+            .joined(separator: "|")
+    }
+
+    /// The explicit-notes block for the instructions, plus the ids it
+    /// carries. Cached against the fingerprint so the tokenizer runs only
+    /// when the notes actually changed.
+    private func memoryNotesBlock() async -> (text: String, noteIDs: [UUID]) {
+        let fingerprint = currentNotesFingerprint()
+        if let cache = notesBlockCache, cache.fingerprint == fingerprint {
+            return (cache.text, cache.noteIDs)
+        }
+        guard memoryIsOn, let memoryStore else {
+            notesBlockCache = (fingerprint, "", [])
+            return ("", [])
+        }
+        let rows = Array(memoryStore.allNotes().prefix(MemoryBudget.maxNotes))
+        guard !rows.isEmpty else {
+            notesBlockCache = (fingerprint, "", [])
+            return ("", [])
+        }
+        let text = await MemoryBudget.composeNotesBlock(
+            rows.map { (text: $0.text, createdAt: $0.createdAt) },
+            using: intelligence)
+        let block = (text: text, noteIDs: rows.map(\.noteID))
+        notesBlockCache = (fingerprint, block.text, block.noteIDs)
+        return block
+    }
+
+    /// The instructions a session built for this turn would carry: the
+    /// persona for this turn's belt, plus the explicit-notes block.
+    ///
+    /// ONE definition, read by `sessionBlueprint` (which builds the session)
+    /// and `fitsContext` (which decides whether to keep it). A second
+    /// estimate here is exactly the drift that makes a fit check lie.
+    ///
+    /// An EMPTY base is left empty: #196's `-noinstr` cells carry no
+    /// instructions entry at all, and appending a notes block would silently
+    /// convert such a cell into an instructions-bearing session mid-run.
+    /// Production instructions are never empty.
+    private func instructionsWithMemoryNotes(hasImageInContext: Bool) async -> String {
+        let base = effectiveInstructionsText(hasImageInContext: hasImageInContext)
+        let notes = await memoryNotesBlock().text
+        guard !base.isEmpty, !notes.isEmpty else { return base }
+        return base + "\n\n" + notes
+    }
+
+    /// This turn's prompt, with the memory prefix in front of it — the ONE
+    /// place a retrieved memory reaches the model.
+    ///
+    /// **Called AFTER `preparedSession`, and that order is the bar** (422-D):
+    /// the router classifies the user's own words, and the fit check sizes
+    /// the turn the user actually sent. A prefix in either would let a
+    /// retrieved memory decide whether the turn gets a tool belt.
+    ///
+    /// Order inside the prefix: the just-saved notice first (it is a fact
+    /// about THIS turn, and the model has to not contradict it), then the
+    /// retrieved quotes or — only for a question ABOUT the store — the
+    /// honest "nothing matches" line. An ordinary question that retrieves
+    /// nothing gets NO prefix at all: silence is the correct answer to "what
+    /// is 15% of 80", and a notice there would teach the model to talk about
+    /// its memory on turns that never asked.
+    /// Composed ONCE per turn and accounted ONCE — the `savedNote`
+    /// discipline, for the same reason: the #408 guardrail leg recomposes
+    /// the turn input, and a prefix recomputed there would run a second
+    /// retrieval and charge the window twice for one turn's memories.
+    /// `prefixed(_:with:)` is what re-applies it to the recomposed input.
+    func memoryPrefix(for input: ComposedTurnInput) async -> String {  // harness-visible
+        let prompt = input.promptText
+        var pieces: [String] = []
+        if let savedNote = input.savedNote {
+            pieces.append(MemoryBudget.justSavedPrefix(savedNote))
+        }
+
+        var entryIDs: [UUID] = []
+        let noteIDs = await memoryNotesBlock().noteIDs
+        if memoryIsOn, let memoryStore, !MemoryRetriever.shouldSkip(prompt) {
+            memoryRetrievalCount += 1
+            let hits = MemoryRetriever.retrieve(query: prompt, candidates: memoryStore.candidates())
+            if hits.isEmpty {
+                if MemoryRetriever.isMemoryShapedQuestion(prompt) {
+                    pieces.append(MemoryBudget.noMemoriesMatch)
+                }
+            } else {
+                let admitted = await admittedHitsBlock(hits)
+                if !admitted.block.isEmpty {
+                    pieces.append(admitted.block)
+                    entryIDs = admitted.entryIDs
+                }
+            }
+        }
+
+        // Recorded even when nothing was PREFIXED: a reply produced while the
+        // notes block sat in the instructions drew on those notes, and ruling
+        // 2 chips it. `nil` is the honest "this reply drew on nothing".
+        pendingMemoryUse = (entryIDs.isEmpty && noteIDs.isEmpty) ? nil : (entryIDs, noteIDs)
+
+        guard !pieces.isEmpty else { return "" }
+        let prefix = pieces
+            .map { $0.trimmingCharacters(in: .newlines) }
+            .joined(separator: "\n\n") + "\n\n"
+        injectedMemoryTokensThisSession += await intelligence.measuredTokenCount(of: prefix)
+        Self.logger.notice("memory: injected \(entryIDs.count, privacy: .public) hit(s) + \(noteIDs.count, privacy: .public) note(s); ~\(self.injectedMemoryTokensThisSession, privacy: .public) prefix tok in this session (#422)")
+        return prefix
+    }
+
+    /// The composed turn input with this turn's memory prefix in front of
+    /// its text. Images and `savedNote` ride through untouched — the prefix
+    /// is text, and #390's one door still assembles the Prompt.
+    nonisolated static func prefixed(  // harness-visible
+        _ input: ComposedTurnInput, with memoryPrefix: String
+    ) -> ComposedTurnInput {
+        guard !memoryPrefix.isEmpty else { return input }
+        return ComposedTurnInput(
+            promptText: memoryPrefix + input.promptText,
+            images: input.images,
+            savedNote: input.savedNote
+        )
+    }
+
+    /// Head-trims the hits and drops the lowest-ranked ones until the block
+    /// fits what the notes left of `memoryBlockTokens`.
+    ///
+    /// The cap is shared with the notes on purpose: `memoryBlockTokens` is
+    /// what local memory may spend of the window IN TOTAL, so a user with
+    /// eight notes has less room for retrieved turns, not a second budget.
+    /// Dropping from the TAIL is what makes the cap a ranking decision rather
+    /// than a truncation of the best hit.
+    private func admittedHitsBlock(_ hits: [MemoryHit]) async -> (block: String, entryIDs: [UUID]) {
+        let blockBudget = MemoryBudget.memoryBlockTokens(contextSize: await activeContextSize())
+        let notes = await memoryNotesBlock().text
+        let notesTokens = notes.isEmpty ? 0 : await intelligence.measuredTokenCount(of: notes)
+        let hitsBudget = max(0, blockBudget - notesTokens)
+
+        let trimmed = await MemoryBudget.trimmedHits(
+            hits.map { (text: $0.candidate.text, sentAt: $0.candidate.sentAt) },
+            using: intelligence)
+        var kept = Array(zip(hits.map(\.candidate.entryID), trimmed))
+        while !kept.isEmpty {
+            let block = MemoryBudget.composeHitsPrefix(kept.map(\.1))
+            if await MemoryBudget.fits(block, in: hitsBudget, using: intelligence) {
+                return (block, kept.map(\.0))
+            }
+            kept.removeLast()
+        }
+        return ("", [])
+    }
+
+    /// Keys this turn's drawn-on ids to the reply that used them, at the
+    /// reply's settle point on both turn paths.
+    ///
+    /// The durable half is the store row — `Message.memoryProvenance` is lane
+    /// M4's type and cannot be stamped from this branch, so ChatStore reads
+    /// the ids back by the reply's id (`MemoryStore.recentUses`), or off
+    /// `lastMemoryUse` for the turn that just finished.
+    func recordMemoryUse(replyMessageID: UUID) {  // harness-visible
+        guard let use = pendingMemoryUse else {
+            lastMemoryUse = nil
+            return
+        }
+        pendingMemoryUse = nil
+        lastMemoryUse = MemoryUse(
+            replyMessageID: replyMessageID, entryIDs: use.entryIDs, noteIDs: use.noteIDs)
+        memoryStore?.recordUse(
+            replyMessageID: replyMessageID, entryIDs: use.entryIDs, noteIDs: use.noteIDs)
     }
 
     /// Installs the device tool belt (#28). Invalidates the live session so
@@ -565,6 +867,11 @@ final class LocalChatBackend: HermesClientProtocol {
         )
         let prompt = turnInput.promptText
         var liveSession = await preparedSession(nextPrompt: prompt, attachments: attachments, excludingClientMessageID: clientMessageID)
+        // #422 bar 422-D: memory joins the turn AFTER routing and the fit
+        // check, and rides #390's one door. Composed once here; the #408
+        // degrade leg re-applies THIS prefix rather than retrieving again.
+        let memoryPrefix = await memoryPrefix(for: turnInput)
+        turnInput = Self.prefixed(turnInput, with: memoryPrefix)
         appendUserMessage(message: message, attachments: attachments, clientMessageID: clientMessageID)
 
         // #225: fresh tool budget for this turn.
@@ -648,6 +955,9 @@ final class LocalChatBackend: HermesClientProtocol {
                     guarded, degradedImageCount: degradedImageCount)
                 let reply = Message(sender: .hermes, content: noted, status: .delivered)
                 appendAssistantMessage(reply, usage: usage)
+                // #422 bar 422-D / ruling 2: key this turn's drawn-on ids to
+                // the reply that used them, at the settle point.
+                recordMemoryUse(replyMessageID: reply.id)
                 return reply
             } catch {
                 if !didToolPhaseCutRetry, Self.isToolPhaseCut(error) {
@@ -703,7 +1013,12 @@ final class LocalChatBackend: HermesClientProtocol {
                     // #422 fix round 1: reuse the ALREADY-DERIVED savedNote —
                     // same message, same clientMessageID, same turn, so the
                     // store answer cannot have changed between legs.
-                    turnInput = Self.degradedTurnInput(message: message, attachments: attachments, savedNote: turnInput.savedNote)
+                    // #422 bar 422-D: re-apply THIS turn's already-composed
+                    // memory prefix — same reason `savedNote` is reused, and
+                    // a second retrieval here would charge the window twice.
+                    turnInput = Self.prefixed(
+                        Self.degradedTurnInput(message: message, attachments: attachments, savedNote: turnInput.savedNote),
+                        with: memoryPrefix)
                     Self.logger.notice("send: on-device guardrail declined a sighted turn — retrying once with \(degradedImageCount, privacy: .public) image(s) demoted to the OCR placeholder (#408)")
                     // The declined prompt may already sit in the live
                     // session's transcript, and retrying on it would hand the
@@ -814,6 +1129,10 @@ final class LocalChatBackend: HermesClientProtocol {
         )
         let prompt = turnInput.promptText
         var liveSession = await preparedSession(nextPrompt: prompt, attachments: attachments, excludingClientMessageID: clientMessageID)
+        // #422 bar 422-D: see `send`'s identical call — memory joins the turn
+        // AFTER routing and the fit check, through #390's one door.
+        let memoryPrefix = await memoryPrefix(for: turnInput)
+        turnInput = Self.prefixed(turnInput, with: memoryPrefix)
         appendUserMessage(message: message, attachments: attachments, clientMessageID: clientMessageID)
 
         // #225: fresh tool budget for this turn.
@@ -927,6 +1246,8 @@ final class LocalChatBackend: HermesClientProtocol {
                 if !emittedReasoning.isEmpty { reply.reasoning = emittedReasoning }
                 let usage = currentTokenUsage()
                 appendAssistantMessage(reply, usage: usage)
+                // #422 bar 422-D / ruling 2: see `send`'s identical call.
+                recordMemoryUse(replyMessageID: reply.id)
                 if didTripRepetitionBreaker {
                     // The abandoned session's internal transcript state is
                     // unknowable — rebuild the next turn from OUR message
@@ -983,7 +1304,12 @@ final class LocalChatBackend: HermesClientProtocol {
                     // #422 fix round 1: reuse the ALREADY-DERIVED savedNote —
                     // same message, same clientMessageID, same turn, so the
                     // store answer cannot have changed between legs.
-                    turnInput = Self.degradedTurnInput(message: message, attachments: attachments, savedNote: turnInput.savedNote)
+                    // #422 bar 422-D: re-apply THIS turn's already-composed
+                    // memory prefix — same reason `savedNote` is reused, and
+                    // a second retrieval here would charge the window twice.
+                    turnInput = Self.prefixed(
+                        Self.degradedTurnInput(message: message, attachments: attachments, savedNote: turnInput.savedNote),
+                        with: memoryPrefix)
                     Self.logger.notice("streamTurn: on-device guardrail declined a sighted turn — retrying once with \(degradedImageCount, privacy: .public) image(s) demoted to the OCR placeholder (#408)")
                     session = nil
                     liveSession = await rebuildSession(attachments: attachments, excludingClientMessageID: clientMessageID, forceCondense: false)
@@ -1214,6 +1540,13 @@ final class LocalChatBackend: HermesClientProtocol {
             // #257: ONE generation carries both fields — the gate Bool and
             // the capability-question Bool. The append decision is frozen
             // here, at route time (see `turnAppendsCapabilityAnswer`).
+            // #422 bar 422-D: the router sees the user's OWN words. The
+            // memory prefix is composed after this call returns
+            // (`memoryPrefixedTurnInput`), so a retrieved memory can never
+            // decide whether this turn gets a tool belt. Recorded rather
+            // than merely true-by-reading: the spy is what makes the
+            // ordering falsifiable.
+            lastRoutedPrompt = nextPrompt
             let route = await routeTurn(
                 prompt: nextPrompt, context: priorAssistantTurn, hasImage: hasImage)
             turnRoutedToolless = !route.needsDeviceTool
@@ -1227,8 +1560,25 @@ final class LocalChatBackend: HermesClientProtocol {
         }
         if let session {
             let offered = effectiveOfferedTools(hasImageInContext: hasImage)
+            let notesFingerprint = currentNotesFingerprint()
             if offered.map(\.name) != sessionToolNames {
                 Self.logger.notice("preparedSession: offered tool set changed for this turn — recreating the session (#176)")
+            } else if notesFingerprint != sessionNotesFingerprint {
+                // #422 bar 422-D: the notes block lives in the INSTRUCTIONS,
+                // and a session is stuck with the instructions it was born
+                // with — so a saved, edited or deleted note has to rebuild.
+                // Gated on the fingerprint rather than on "a note exists", so
+                // this fires ONCE per change and never per turn.
+                memoryNotesRebuildCount += 1
+                Self.logger.notice("preparedSession: the explicit-notes set changed — rebuilding so the instructions carry it (#422)")
+            } else if injectedMemoryTokensThisSession > 0,
+                      injectedMemoryTokensThisSession >= (await injectedMemoryRebuildThreshold()) {
+                // #422 bar 422-D: prefixes have accumulated inside the live
+                // session's own transcript, where `currentConversation`
+                // cannot see them. Rebuild from the (prefix-free) history
+                // before the drift reaches the model as a #26 overflow.
+                memoryAccountingRebuildCount += 1
+                Self.logger.notice("preparedSession: ~\(self.injectedMemoryTokensThisSession, privacy: .public) tok of memory prefix have accumulated in this session — rebuilding before the window overflows (#422)")
             } else {
                 let turns = Self.transcriptTurns(
                     from: currentConversation?.messages ?? [],
@@ -1267,6 +1617,23 @@ final class LocalChatBackend: HermesClientProtocol {
             forceCondense: forceCondense
         )
         condensedMemory = blueprint.condensedMemory
+        // #422 bar 422-D: the fresh session replays `currentConversation`,
+        // which holds the user's bare messages — every prefix injected into
+        // the OLD session's transcript is gone with it, so the accounting
+        // starts over. The fingerprint is read here, alongside the blueprint
+        // that just composed the block, so the session and the identity we
+        // will compare it against can never describe different note sets.
+        //
+        // Known and accepted residual: a MID-TURN rebuild (the #229 overflow
+        // retry, #232's phase cut, #197's decode retry, #408's degrade) resets
+        // the counter while this turn's prefix is about to be re-sent into the
+        // fresh session — so that one prefix goes unaccounted until the next
+        // turn's `memoryPrefix` call. It is one turn of undercount on paths
+        // that are already shedding far more than a prefix's worth of context
+        // (a disarmed belt, a forced condensation), and re-adding it here
+        // would double-count every ORDINARY rebuild, which is the common case.
+        injectedMemoryTokensThisSession = 0
+        sessionNotesFingerprint = currentNotesFingerprint()
         let offered = effectiveOfferedTools(hasImageInContext: hasImage)
         let fresh = makeSession(from: blueprint, offering: offered)
         session = fresh
@@ -1288,6 +1655,10 @@ final class LocalChatBackend: HermesClientProtocol {
         attachments: [PendingAttachment],
         excludingClientMessageID: UUID?
     ) async -> LanguageModelSession {
+        // #422 bar 422-D: counted, not merely logged. The injected-token
+        // accounting exists to keep this number at zero on memory turns, and
+        // a mitigation nobody can count is a mitigation nobody can falsify.
+        overflowRetryCount += 1
         turnRoutedToolless = true
         return await rebuildSession(
             attachments: attachments,
@@ -1432,7 +1803,12 @@ final class LocalChatBackend: HermesClientProtocol {
         hasImageInContext: Bool,
         forceCondense: Bool
     ) async -> SessionBlueprint {
-        let baseInstructions = effectiveInstructionsText(hasImageInContext: hasImageInContext)
+        // #422 bar 422-D: the explicit-notes block rides the INSTRUCTIONS,
+        // and it is folded in HERE rather than at the concatenation below so
+        // that both exits carry it — the cheap byte-bound early return as
+        // well as the condensing path — and so every budget number computed
+        // from `baseInstructions` already counts what the notes cost.
+        let baseInstructions = await instructionsWithMemoryNotes(hasImageInContext: hasImageInContext)
         // Budget from the model at RUNTIME — never hardcoded (#26 ground rule).
         let contextBudget = max(1024, await activeContextSize() - Self.responseHeadroomTokens(for: activeTier))
 
@@ -1508,14 +1884,34 @@ final class LocalChatBackend: HermesClientProtocol {
     /// Whether instructions + full history + the next prompt fit the runtime
     /// context budget. Byte count is a safe upper bound for token count, so
     /// the tokenizer only runs once histories actually get long.
-    private func fitsContext(turns: [TranscriptTurn], nextPrompt: String, hasImageInContext: Bool) async -> Bool {
-        let baseInstructions = effectiveInstructionsText(hasImageInContext: hasImageInContext)
+    func fitsContext(turns: [TranscriptTurn], nextPrompt: String, hasImageInContext: Bool) async -> Bool {  // harness-visible
+        // #422 bar 422-D: the SAME instructions `sessionBlueprint` would
+        // build (notes included) — a fit check reading a different
+        // instructions text than the session carries is the drift that makes
+        // "it fits" a guess.
+        let baseInstructions = await instructionsWithMemoryNotes(hasImageInContext: hasImageInContext)
         let contextBudget = max(1024, await activeContextSize() - Self.responseHeadroomTokens(for: activeTier))
+        // #422 bar 422-D: the prefixes already inside the LIVE session's
+        // transcript. `turns` comes from `currentConversation`, which stores
+        // the user's bare messages, so without this term the estimate is low
+        // by everything memory has injected since the last rebuild — and the
+        // first thing to notice would be the model, as the #26 overflow.
+        //
+        // Yes, a TOKEN count is being added to a BYTE total here, and it is
+        // sound in the only direction that matters: every token is at least
+        // one byte, so the real token total is still ≤ `byteTotal`, and the
+        // fast path's guarantee ("inside the budget in bytes ⇒ inside it in
+        // tokens") survives. The alternative — omitting it from the cheap
+        // bound — would let the fast path return `true` for a session the
+        // slow path would have rejected, which is the one outcome this term
+        // exists to prevent.
         let byteTotal = baseInstructions.utf8.count
             + nextPrompt.utf8.count
+            + injectedMemoryTokensThisSession
             + turns.reduce(0) { $0 + $1.text.utf8.count }
         if byteTotal <= contextBudget { return true }
-        var tokens = await intelligence.measuredTokenCount(of: baseInstructions)
+        var tokens = injectedMemoryTokensThisSession
+        tokens += await intelligence.measuredTokenCount(of: baseInstructions)
         tokens += await intelligence.measuredTokenCount(of: nextPrompt)
         for turn in turns {
             tokens += await intelligence.measuredTokenCount(of: turn.text)
