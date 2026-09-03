@@ -55,14 +55,16 @@ enum LexicalTokenizer {
     /// and un-doubling after `ing`/`ed` so "running" and "run" meet.
     static func stem(_ word: String) -> String {
         var current = word
-        // Bounded purely as a belt: each pass drops at least one character, so a
-        // five-character word cannot survive more than a handful.
-        for _ in 0 ..< 8 {
+        while true {
             let next = stemOnce(current)
-            if next == current { return current }
+            // Every rule strictly SHORTENS (`ies`→`y` is net −2, the rest drop 2–3 and
+            // may undouble one more), so a result that is not shorter is the fixpoint.
+            // Looping on that invariant rather than a fixed iteration count makes
+            // returning a non-fixpoint structurally impossible, and termination follows
+            // from the length strictly decreasing.
+            guard next.count < current.count else { return current }
             current = next
         }
-        return current
     }
 
     private static func stemOnce(_ word: String) -> String {

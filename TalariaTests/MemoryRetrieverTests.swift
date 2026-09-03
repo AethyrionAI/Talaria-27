@@ -215,13 +215,50 @@ struct MemoryRetrieverTests {
 
     // MARK: - A store too small for a distribution
 
-    /// Relative admission is arithmetically impossible on a tiny store, and this is the
-    /// FIRST-RUN path: with the sample standard deviation the largest z attainable over
-    /// `n` values is `(n-1)/√n`, which does not reach 1.5 until n = 4. So a store holding
-    /// one, two or three rows admitted NOTHING — the user saves their first memory, asks
-    /// about it, and is told nothing is there, however perfectly it matches.
+    /// Rows that all answer "when is my dentist appointment" equally (overlap 1.0), so the
+    /// score distribution is a flat pair against zeros — the case the fixed `count < 4`
+    /// threshold missed.
+    private func dentistRows(total: Int, matching: Int = 2) -> [MemoryCandidate] {
+        let matches = ["My dentist is Dr. Patel on Lamar, appointments are usually Tuesday mornings.",
+                       "The dentist appointment got moved to the afternoon."]
+        let noise = ["Set a timer for twelve minutes.", "What's the square root of 144?",
+                     "Play some rain sounds to help me focus.", "How far away is the moon from Earth?",
+                     "Suggest a name for a new houseplant.", "Convert 5 miles to kilometers for me.",
+                     "What year did the Berlin Wall come down?", "Mute notifications for the next hour."]
+        return (0 ..< total).map { i in
+            let text = i < matching ? matches[i % matches.count] : noise[(i - matching) % noise.count]
+            // Descending `sentAt`, so the FIRST match is the newest and the tie-break puts
+            // it first — the assertion on order is then about the scorer, not about luck.
+            return MemoryCandidate(entryID: UUID(), sessionID: UUID(), chunkIndex: i, text: text,
+                                   sentAt: Date(timeIntervalSince1970: 10_000 - Double(i)))
+        }
+    }
+
+    /// Relative admission is arithmetically impossible on a small store, and this is the
+    /// FIRST-RUN path. With the sample standard deviation the largest attainable z is a
+    /// function of how many rows SHARE the top score: for a single outlier it is (n−1)/√n
+    /// (reaching 1.5 at n = 4), but for TWO equally-matching rows it is 0.87 · 1.10 · 1.29 ·
+    /// 1.46 at n = 4 · 5 · 6 · 7 — under 1.5 until n = 8. A fixed `count < 4` threshold
+    /// therefore only moved the cliff: a five-row store with two dentist rows still
+    /// retrieved nothing.
     ///
-    /// RED before the small-store branch: all three cases return an empty array.
+    /// So the rule is the general shape rather than a count: when relative admission admits
+    /// NOTHING and the store is smaller than 8 rows, the anchor admits on its own.
+    ///
+    /// RED before that change: n = 5 and n = 7 return an empty array.
+    @Test func aSmallStoreWithTwoEquallyMatchingRowsRetrievesBoth() throws {
+        for total in [5, 7] {
+            let rows = dentistRows(total: total)
+            let hits = MemoryRetriever.retrieve(query: "when is my dentist appointment",
+                                                candidates: rows)
+            #expect(hits.count == 2, "a \(total)-row store with two matches must return both, got \(hits.count)")
+            #expect(hits.map(\.candidate.text) == [rows[0].text, rows[1].text],
+                    "best first, then newest — got \(hits.map(\.candidate.text))")
+        }
+    }
+
+    /// The single-outlier cases the first fix already covered, kept: one perfect match in a
+    /// one-, two- or three-row store.
     @Test func aStoreWithFewerThanFourRowsStillRetrievesAPerfectMatch() throws {
         let dentist = "My dentist is Dr. Patel on Lamar, appointments are usually Tuesday mornings."
         let noise = ["Set a timer for twelve minutes.", "What's the square root of 144?"]
@@ -234,7 +271,7 @@ struct MemoryRetrieverTests {
                                             sentAt: Date(timeIntervalSince1970: 2_000 + Double(i))))
             }
             let hits = MemoryRetriever.retrieve(query: "who is my dentist", candidates: rows)
-            #expect(hits.count == 1, "a \(count)-row store must still answer, got \(hits.count) hits")
+            #expect(hits.count == 1, "a \(count)-row store must still answer, got \(hits.count)")
             #expect(hits.first?.candidate.text == dentist)
         }
     }
@@ -247,6 +284,31 @@ struct MemoryRetrieverTests {
                                 text: $0.element, sentAt: Date(timeIntervalSince1970: 1_000))
             }
         #expect(MemoryRetriever.retrieve(query: "who is my dentist", candidates: rows).isEmpty)
+    }
+
+    /// At n ≥ 8 the fallback is off and the relative rule alone governs. Two matches among
+    /// eight non-matching rows reach z = 1.897, so they are admitted BY the relative rule —
+    /// the fallback is not what returns them, and the boundary is therefore not a cliff in
+    /// the other direction either.
+    @Test func atEightRowsOrMoreTheRelativeRuleAdmitsOnItsOwn() {
+        let rows = dentistRows(total: 10)
+        let hits = MemoryRetriever.retrieve(query: "when is my dentist appointment", candidates: rows)
+        #expect(hits.count == 2)
+        #expect(hits.map(\.candidate.text) == [rows[0].text, rows[1].text])
+    }
+
+    /// …and what the relative rule yields on a FLAT distribution at n ≥ 8, pinned as the
+    /// behaviour it is rather than assumed. Ten rows that all match equally have sd = 0:
+    /// nothing stands out, so nothing is admitted, and the small-store fallback deliberately
+    /// does not rescue it — at ten rows "everything matches equally" is a reason to stay
+    /// silent rather than to inject ten identical memories.
+    @Test func aFlatDistributionAtEightRowsOrMoreAdmitsNothing() {
+        let text = "My dentist is Dr. Patel on Lamar, appointments are usually Tuesday mornings."
+        let rows = (0 ..< 10).map { i in
+            MemoryCandidate(entryID: UUID(), sessionID: UUID(), chunkIndex: i, text: text,
+                            sentAt: Date(timeIntervalSince1970: 10_000 - Double(i)))
+        }
+        #expect(MemoryRetriever.retrieve(query: "when is my dentist appointment", candidates: rows).isEmpty)
     }
 
     // MARK: - Determinism
@@ -288,6 +350,7 @@ struct MemoryRetrieverTests {
         #expect(MemoryRetriever.shouldSkip("another one"))
         #expect(MemoryRetriever.shouldSkip("say that again"))
         #expect(MemoryRetriever.shouldSkip("another  one"), "internal whitespace must normalize too")
+        #expect(MemoryRetriever.shouldSkip("another one ."), "a detached trailing stop must not defeat the set")
         #expect(!MemoryRetriever.shouldSkip("where does my sister live"))
         #expect(!MemoryRetriever.shouldSkip("who is my dentist"))
         #expect(!MemoryRetriever.shouldSkip("what do I collect"))

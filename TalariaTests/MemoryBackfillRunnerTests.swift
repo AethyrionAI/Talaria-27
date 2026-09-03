@@ -397,7 +397,10 @@ struct MemoryBackfillRunnerTests {
         await runner.run()
 
         #expect(knobs.cursor == 2, "a cursor past the end must land ON the end, not stay past it")
-        #expect(memory.indexCount() == 0, "the run must still finish — a bad cursor is not a crash")
+        #expect(knobs.written.contains(2),
+                "the clamp must be PERSISTED — an unpersisted one is re-read on every future launch")
+        #expect(memory.indexCount() == 0,
+                "a clamped cursor sits at the end, so there is no history left to walk")
     }
 
     /// The mirror case: a negative cursor must not index below zero, and must

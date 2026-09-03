@@ -58,6 +58,9 @@ enum MemoryRetriever {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "[\\p{P}\\p{S}]+$", with: "", options: .regularExpression)
             .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            // Trim AGAIN: stripping "another one ." leaves a trailing space that the set
+            // lookup would not forgive.
+            .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
         if anaphoricFollowUps.contains(normalized) { return true }
         // Nothing content-bearing to search on at all (punctuation, an emoji, stop words).
@@ -113,26 +116,37 @@ enum MemoryRetriever {
                       score: LexicalTokenizer.lexicalOverlap(query: query, chunk: candidate.text))
         }
 
-        // **A store too small for a distribution.** With the sample standard deviation the
-        // largest z attainable over `n` values is `(n-1)/√n`, which does not reach the
-        // default 1.5 until n = 4 — so on a one-, two- or three-row store the relative
-        // rule admitted NOTHING, however perfectly a row matched. That is the FIRST-RUN
-        // path: the user saves their first memory, asks about it, and is told there is
-        // nothing there. Below the threshold the anchor alone decides; it is not an open
-        // door, because a row still has to share a content token to score above zero.
-        let admissible: [MemoryHit]
-        if scored.count < 4 {
-            admissible = scored.filter { $0.score > 0 }
-        } else {
-            let scores = scored.map(\.score)
-            let mean = scores.reduce(0, +) / Float(scores.count)
-            let variance = scores.reduce(Float(0)) { $0 + ($1 - mean) * ($1 - mean) }
-                / Float(max(scores.count - 1, 1))
-            let sd = variance.squareRoot()
-            // A flat distribution has no standout — a hundred identical rows. Admitting
-            // the arbitrary maximum of a flat set is the false-admit this guard refuses.
-            guard sd > 0 else { return [] }
+        // Relative admission: `z` standard deviations above this query's own mean.
+        var admissible: [MemoryHit] = []
+        let scores = scored.map(\.score)
+        let mean = scores.reduce(0, +) / Float(scores.count)
+        let variance = scores.reduce(Float(0)) { $0 + ($1 - mean) * ($1 - mean) }
+            / Float(max(scores.count - 1, 1))
+        let sd = variance.squareRoot()
+        if sd > 0 {
             admissible = scored.filter { $0.score > 0 && ($0.score - mean) / sd >= z }
+        }
+
+        // **A store too small for a distribution**, and this is the FIRST-RUN path: the
+        // user saves their first memories, asks about them, and is told there is nothing
+        // there.
+        //
+        // The ceiling on z is a function of how many rows SHARE the top score, not of the
+        // store's size alone. For a single outlier it is (n−1)/√n, which reaches the
+        // default 1.5 at n = 4 — but for TWO equally-matching rows it is 0.87 · 1.10 ·
+        // 1.29 · 1.46 at n = 4 · 5 · 6 · 7, and does not clear 1.5 until n = 8. A fixed
+        // `count < 4` guard therefore only MOVED the cliff: a five-row store holding two
+        // dentist rows still retrieved nothing.
+        //
+        // So the fallback is stated as the general shape instead of a count — when the
+        // relative rule admits NOTHING and the store is too small for it to have had a
+        // fair chance, the anchor admits on its own. It is not an open door: a row must
+        // still share a content token to score above zero, and top-k still applies.
+        // Above the threshold the relative rule governs alone, flat distributions
+        // included — at eight rows "everything matches equally" is a reason to stay
+        // silent, not to inject eight identical memories.
+        if admissible.isEmpty && scored.count < 8 {
+            admissible = scored.filter { $0.score > 0 }
         }
 
         // **The tie-break is part of the answer, not a detail.** `sorted(by:)` is not

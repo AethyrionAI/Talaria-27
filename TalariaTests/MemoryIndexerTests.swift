@@ -191,12 +191,18 @@ struct MemoryIndexerTests {
     /// already-indexed skip the work is quadratic over a thread's life — every past
     /// chunk re-chunked and re-fetched on every settle, synchronously, on the MainActor.
     ///
-    /// This used to COUNT the embed calls, which was the honest instrument while an
-    /// embedder existed. It no longer does (the embedder was deleted from the shape,
-    /// 2026-09-03), and a row count cannot replace it — the upsert is idempotent, so a
-    /// re-chunk-everything indexer and a skipping one write identical rows. So the pin is
-    /// re-pointed at the mechanism the skip actually rides: `reconcileSession` names the
-    /// messages already stored, and `index` consults exactly that set.
+    /// **Finding a failing instrument for this took three attempts, and the first two
+    /// were vacuous.** Counting embed calls worked until the embedder was deleted
+    /// (2026-09-03). `reconcileSession`'s already-indexed set then looked like a
+    /// replacement and is not: it reports which messages HAVE rows, which is true whether
+    /// or not they were just re-chunked. Neither is a row count — the upsert is idempotent,
+    /// so a re-chunk-everything indexer and a skipping one write the same rows.
+    ///
+    /// What discriminates is TAMPERING. A row's text is overwritten out of band, then the
+    /// thread is re-indexed. The skip means u1 is never re-chunked, so nothing is written
+    /// over the tampered row and it survives. Delete `&& !alreadyIndexed.contains(message.id)`
+    /// from `MemoryIndexer.index` and u1 IS re-chunked, the upsert matches on
+    /// `(messageID, chunkIndex)` and `row.text = chunk.text` restores the original — RED.
     @Test func reIndexingAGrownThreadIndexesOnlyTheNewMessage() throws {
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
         let indexer = MemoryIndexer(store: store)
@@ -205,22 +211,27 @@ struct MemoryIndexerTests {
         let u1 = msg(.user, "My dentist is Dr. Patel. Her office is on Oak Street. I see her in May.")
         let h1 = msg(.hermes, "Noted.")
         let u2 = msg(.user, "My dog is called Biscuit.")
-        let live = Set([u1.id, h1.id, u2.id])
 
         indexer.index(conversation(sessionID, [u1, h1]))
-        #expect(store.reconcileSession(sessionID, liveMessageIDs: live) == [u1.id],
-                "after the first pass only u1 is stored — h1 is an assistant turn")
+        let u1Rows = MemoryChunker.chunk(u1.content).count
+        #expect(store.indexCount() == u1Rows)
+
+        // Overwrite u1's first chunk out of band. Only a re-chunk of u1 can undo this.
+        let tampered = "TAMPERED — no message in this conversation contains this sentence."
+        store.upsertTurnChunks([MemoryTurnIndexRecord(
+            entryID: UUID(), sessionID: sessionID, messageID: u1.id, chunkIndex: 0,
+            text: tampered, sentAt: u1.timestamp)])
+        try #require(store.candidates().contains { $0.text == tampered },
+                     "the tamper must land, or the pin below proves nothing")
+        #expect(store.indexCount() == u1Rows, "the tamper is an UPDATE, not an insert")
 
         indexer.index(conversation(sessionID, [u1, h1, u2]))
-        #expect(store.reconcileSession(sessionID, liveMessageIDs: live) == [u1.id, u2.id],
-                "the second pass must add u2 and leave u1's rows alone")
 
-        // …and the rows are the same as a single full pass would have produced.
-        let oneShot = try #require(MemoryStore.make(inMemoryOnly: true))
-        MemoryIndexer(store: oneShot).index(conversation(sessionID, [u1, h1, u2]))
-        #expect(store.indexCount() == oneShot.indexCount())
-        #expect(store.indexCount() == MemoryChunker.chunk(u1.content).count
-                                    + MemoryChunker.chunk(u2.content).count)
+        #expect(store.candidates().contains { $0.text == tampered },
+                "re-indexing a grown thread must not re-chunk u1 — that skip is what keeps the settle seam linear")
+        #expect(store.candidates().contains { $0.text == u2.content },
+                "…and the new message must actually have been indexed")
+        #expect(store.indexCount() == u1Rows + MemoryChunker.chunk(u2.content).count)
     }
 
     /// Ruling 2 (visibility) in its negative form: every stored row must have a
