@@ -78,8 +78,9 @@ final class MemoryStore {
     func upsertTurnChunks(_ chunks: [MemoryTurnIndexRecord]) {
         for chunk in chunks {
             let messageID = chunk.messageID, index = chunk.chunkIndex
-            let existing = (try? context.fetch(FetchDescriptor<MemoryTurnIndexRecord>(
-                predicate: #Predicate { $0.messageID == messageID && $0.chunkIndex == index }))) ?? []
+            let existing = fetch(FetchDescriptor<MemoryTurnIndexRecord>(
+                predicate: #Predicate { $0.messageID == messageID && $0.chunkIndex == index }),
+                op: "upsertTurnChunks")
             if let row = existing.first {
                 row.text = chunk.text; row.vector = chunk.vector; row.embedderID = chunk.embedderID
             } else {
@@ -90,14 +91,28 @@ final class MemoryStore {
     }
 
     func deleteSession(_ sessionID: UUID) {
-        let rows = (try? context.fetch(FetchDescriptor<MemoryTurnIndexRecord>(
-            predicate: #Predicate { $0.sessionID == sessionID }))) ?? []
+        let rows = fetch(FetchDescriptor<MemoryTurnIndexRecord>(
+            predicate: #Predicate { $0.sessionID == sessionID }), op: "deleteSession")
         rows.forEach(context.delete)
         save()
     }
 
     func indexCount() -> Int {
         (try? context.fetchCount(FetchDescriptor<MemoryTurnIndexRecord>())) ?? 0
+    }
+
+    /// Fetch with a diagnostic. A swallowed `try?` here is not benign: a failed
+    /// fetch in `upsertTurnChunks` silently DUPLICATES a row instead of updating
+    /// it, and one in `deleteSession` leaves the doomed session's rows dangling —
+    /// the exact invariant bar 422-A protects. Behaviour on failure is unchanged
+    /// (empty result); only the silence is.
+    private func fetch<T: PersistentModel>(_ descriptor: FetchDescriptor<T>, op: String) -> [T] {
+        do {
+            return try context.fetch(descriptor)
+        } catch {
+            Self.logger.error("memory fetch failed (\(op, privacy: .public)): \(error.localizedDescription, privacy: .public)")
+            return []
+        }
     }
 
     private func save() {
