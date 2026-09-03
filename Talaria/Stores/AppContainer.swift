@@ -56,6 +56,12 @@ final class AppContainer {
     /// #26/#31: the on-device brain, kept for the standalone availability
     /// state (and the #30 PCC tier). Nil in bare test containers.
     private(set) var localChatBackend: LocalChatBackend?
+    /// #422: the on-device memory index — its OWN SwiftData container, never
+    /// the session store's (ruling 3 made structural: no host row can live
+    /// here). Held on the container because retrieval, the Memory screen and
+    /// Forget-everything all read the same store the settle seam writes. Nil
+    /// when the container failed to create, and in bare test containers.
+    private(set) var memoryStore: MemoryStore?
     /// #97: the pin/archive overlay for server-session rows, consumed by the
     /// sessions drawer + conversation search. Nil in bare test containers
     /// that construct stores directly.
@@ -212,6 +218,14 @@ final class AppContainer {
     /// deterministically. (It no longer suppresses the splash — #309 Lane A
     /// deleted the clause that read it; see `shouldShowLaunchSplash`.)
     private(set) var backgroundLaunchRefreshTask: Task<Void, Never>?
+    /// #422 (bar 422-B): the launch backfill over stored local sessions.
+    ///
+    /// Held so that ONE container starts at most one walk — this is per
+    /// instance, not per process, so a second `AppContainer` (a test container,
+    /// or a rebuild of the graph) starts its own. That is tolerable rather than
+    /// desirable: the walk is idempotent, so two of them cost duplicate WORK and
+    /// no duplicate rows (bar 422-A).
+    private(set) var memoryBackfillTask: Task<Void, Never>?
     /// #136: bumped by every reset/supersede site — a background launch
     /// refresh only touches container state while its generation is current.
     private var launchRefreshGeneration = 0
@@ -676,6 +690,11 @@ final class AppContainer {
         // failure) degrades sessions to the pre-#190 single slot — logged in
         // the store, never a boot crash.
         let localSessionStore = SwiftDataLocalSessionStore.make()
+        // #422: the local memory index, built exactly like the session store
+        // above and for the same reason — a nil store (container-creation
+        // failure) is logged in the store and degrades to "no memory", never a
+        // boot crash. Separate container by ruling 3.
+        let memoryStore = MemoryStore.make()
         // #190: the ONE standalone-thread discriminator, shared by the
         // legacy-cache adoption + live-row listing (backend) and the
         // walk-away persist (ChatStore). No configured host means every
@@ -1332,6 +1351,23 @@ final class AppContainer {
         container.chatStore.localSessions = localSessionStore
         container.chatStore.isLocalSessionThread = isLocalThread
 
+        // #422 (bar 422-B): the memory index rides the SAME settle seam as the
+        // store-membership upsert just above — that seam is where a turn has
+        // already been judged local-origin, which is the only kind of turn
+        // ruling 3 lets into this store. No store, no indexer: the seam then
+        // behaves exactly as it did before this lane.
+        container.memoryStore = memoryStore
+        // The indexer builds its own embedder LAZILY (see MemoryIndexer), so
+        // nothing NaturalLanguage-shaped is constructed until the first settle.
+        // The master switch is a CLOSURE, not a captured Bool: the indexer is
+        // built once here and lives for the process, so reading the setting at
+        // construction would leave a mid-session flip inert until the next cold
+        // start (Owen's 09-02 ruling covers indexing as well as retrieval).
+        container.chatStore.memoryIndexer = memoryStore.map {
+            MemoryIndexer(store: $0, isEnabled: { settingsStore.settings.memoryEnabled })
+        }
+        container.startMemoryBackfill(settingsStore: settingsStore, localSessions: localSessionStore)
+
         // #14: attachment sends (the deliberately-backgroundable long path,
         // #38) ride a BGContinuedProcessingTask — system progress UI, and the
         // run survives the user leaving the app.
@@ -1932,6 +1968,29 @@ final class AppContainer {
         settingsStore.settings.motionCollectionEnabled = enabled
         if enabled { await permissionsStore.requestPermission(for: .motion) }
         await permissionsStore.reloadCapabilities()
+    }
+
+    /// #422 (bar 422-B): kick off the launch backfill over stored local sessions
+    /// — everything the user said before memory existed.
+    ///
+    /// Deliberately thin. The cursor arithmetic lives in `MemoryBackfillRunner`,
+    /// where it is tested; this is construction and a task, and nothing else.
+    /// An earlier version kept the walk inline here and had three defects nobody
+    /// could see from outside — that is what the extraction is for.
+    func startMemoryBackfill(settingsStore: SettingsStore, localSessions: (any LocalSessionStoring)?) {
+        guard memoryBackfillTask == nil,
+              let localSessions,
+              let indexer = chatStore.memoryIndexer else { return }
+        let runner = MemoryBackfillRunner(
+            sessions: localSessions,
+            indexer: indexer,
+            isEnabled: { settingsStore.settings.memoryEnabled },
+            readCursor: { settingsStore.settings.memoryBackfillCursor },
+            writeCursor: { settingsStore.settings.memoryBackfillCursor = $0 })
+        // No `self` capture: the task is HELD by the container but does not hold
+        // it, so a container that goes away is not kept alive walking history
+        // nobody is looking at.
+        memoryBackfillTask = Task(priority: .utility) { @MainActor in await runner.run() }
     }
 
     /// #137 one-shot grandfathering — see SensorStreamingGrandfathering.

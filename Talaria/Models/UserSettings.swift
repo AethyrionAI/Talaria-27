@@ -375,6 +375,28 @@ struct UserSettings: Codable, Hashable, Sendable {
     /// a no-op on every value this build can produce and remains as the guard
     /// for the next narrowing.
     var approvalMode: ApprovalMode
+    /// #422 (bar 422-B): the on-device memory master switch.
+    ///
+    /// **Default ON**, like `privateCloudEnabled` and unlike
+    /// `spotlightIndexingEnabled`, and for the same reason as the former: the
+    /// memory index is the feature rather than a side-channel, and nothing
+    /// leaves the device — the rows live in their own local SwiftData
+    /// container that ruling 3 forbids a host row from entering.
+    ///
+    /// **Owen's ruling (2026-09-02) is two claims.** OFF stops **retrieval AND
+    /// indexing** — a turn taken while it is off is never remembered — and the
+    /// index is **KEPT**: this switch is not an eraser, Forget everything is,
+    /// so flipping back ON restores what the app already learned instead of
+    /// starting the user from nothing.
+    var memoryEnabled: Bool
+    /// #422: how far the launch backfill has walked the stored local sessions
+    /// (oldest-first, so a newly-created session appends rather than shifting
+    /// the ones behind the cursor). Persisted because the pass is interruptible
+    /// by construction — the user leaves the app, or the OS suspends it — and a
+    /// backfill that restarts from zero on every launch either never finishes a
+    /// long history or re-reads it forever. Re-indexing is idempotent (bar
+    /// 422-A), so a stale cursor costs work, never duplicate rows.
+    var memoryBackfillCursor: Int
 
     init(
         userName: String = "User",
@@ -407,7 +429,9 @@ struct UserSettings: Codable, Hashable, Sendable {
         appLockEnabled: Bool = false,
         appLockGracePeriod: AppLockGracePeriod = .immediate,
         voiceSensitivity: VoiceSensitivity = .normal,
-        approvalMode: ApprovalMode = .manual
+        approvalMode: ApprovalMode = .manual,
+        memoryEnabled: Bool = true,
+        memoryBackfillCursor: Int = 0
     ) {
         self.userName = userName
         self.avatarInitials = avatarInitials
@@ -440,6 +464,8 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.appLockGracePeriod = appLockGracePeriod
         self.voiceSensitivity = voiceSensitivity
         self.approvalMode = approvalMode
+        self.memoryEnabled = memoryEnabled
+        self.memoryBackfillCursor = memoryBackfillCursor
     }
 
     // #400: encode is SYNTHESIZED from this enum — do not write a
@@ -482,6 +508,8 @@ struct UserSettings: Codable, Hashable, Sendable {
         case appLockGracePeriod
         case voiceSensitivity
         case approvalMode
+        case memoryEnabled
+        case memoryBackfillCursor
     }
 
     init(from decoder: Decoder) throws {
@@ -533,6 +561,12 @@ struct UserSettings: Codable, Hashable, Sendable {
         // round-trips (224-1A); junk still degrades to `.manual`.
         approvalMode = ApprovalMode.resolved(
             (try? container.decodeIfPresent(ApprovalMode.self, forKey: .approvalMode)) ?? nil)
+        // #422: absent means "a blob written before memory existed". `true`,
+        // not `false` — decoding to OFF would silently switch the feature off
+        // for every install that predates it, the migration hazard
+        // `autoConnectOnLaunch`'s own `?? true` was written to avoid.
+        memoryEnabled = try container.decodeIfPresent(Bool.self, forKey: .memoryEnabled) ?? true
+        memoryBackfillCursor = try container.decodeIfPresent(Int.self, forKey: .memoryBackfillCursor) ?? 0
     }
 
     // #400: no hand-written encode(to:) — see the comment at CodingKeys.
