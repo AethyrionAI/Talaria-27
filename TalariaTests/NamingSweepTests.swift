@@ -332,4 +332,95 @@ struct NamingSweepTests {
         #expect(!Conversation.isPlaceholderTitle(""),
                 "an empty title is not the placeholder")
     }
+
+    // MARK: - 422-N: local memory naming pins (bar 422-N)
+    //
+    // Task 16 adds the memory SCREEN's own literals — not built yet, and
+    // deliberately NOT pinned here: "MEMORY", "WHAT TALARIA REMEMBERS", the
+    // empty-state copy ("Talaria can draw on the N messages you've sent in
+    // on-device chats"), and the honesty-correction notice ("Nothing was
+    // saved to memory. Talaria only remembers what you ask it to with
+    // \"Remember that\u{2026}\" \u{2014} the reply above is inaccurate.").
+
+    /// **(a)/(b) — the memory chip's own labels, already shipped by Tasks
+    /// 14/15.** `.local`'s two labels are Talaria-meaning (the local brain
+    /// remembered something); `.host`'s label is host-meaning, exactly like
+    /// `theHostBrainLabelStaysHermes` above — the host's own memory tool ran,
+    /// and saying so is correct, not a naming-sweep miss.
+    @Test func memoryChipNamingLiteralsSurviveTheSweep() throws {
+        let sources = try Self.shippingSources()
+
+        for expected in ["\"ON-DEVICE MEMORY\"", "\"SAVED TO MEMORY\""] {
+            #expect(sources.contains { $0.text.contains(expected) },
+                    "a Talaria-meaning memory literal vanished from the shipping targets: \(expected)")
+        }
+        #expect(sources.contains { $0.text.contains("\"HERMES MEMORY\"") },
+                "the host-meaning memory literal vanished — \"HERMES MEMORY\" names the HOST's memory tool and must stay")
+    }
+
+    /// **(c) — no app-meaning "Hermes Memory" / "Hermes remembers" literal.**
+    /// The local brain's own memory is Talaria's, never the host's; a chip or
+    /// a screen that spelled either phrase would claim the on-device store
+    /// belongs to Hermes, exactly the collapse `theLocalAndHostChipsAreNever
+    /// TheSameWords` already guards at the view-model level. This extends the
+    /// guard to raw source text, the same shape as `oldAppMeaningLiteralsAreGone`.
+    @Test func noAppMeaningHermesMemoryLiteralExists() throws {
+        let sources = try Self.shippingSources()
+
+        for stale in ["\"Hermes Memory\"", "\"Hermes remembers"] {
+            let offenders = sources.filter { $0.text.contains(stale) }.map(\.path)
+            #expect(offenders.isEmpty,
+                    "an app-meaning memory literal exists: \(stale) in \(offenders)")
+        }
+    }
+
+    /// **(d)/(e)/(f) — the PCC policy sentence names memory, identically, in
+    /// its two homes.** `docs/privacy.html` is the published policy (a
+    /// GitHub Pages root — merging this PR publishes it, which is why the PR
+    /// is held for Owen's read); `ConnectHostCopy.privateCloudPolicySentence`
+    /// is the app's copy of the same disclosure, rendered by
+    /// `PrivateCloudSettingsScreen`. RED before the copy edit lands in both
+    /// places.
+    ///
+    /// `docs/privacy.html` spells the em dash as the `&mdash;` entity (the
+    /// file's standing typographic convention — see the `&ldquo;`/`&rdquo;`/
+    /// `&beta;` entities beside it) and, like every paragraph in that file,
+    /// hand-wraps its prose across source lines — a browser collapses that
+    /// whitespace on render, but a raw `.contains` does not. Byte-identical
+    /// is checked on the DECODED, WHITESPACE-COLLAPSED sentence, not the raw
+    /// file bytes, so this pin cannot be satisfied by two prose strings that
+    /// merely overlap — it requires the exact same words in the exact same
+    /// order, dash included — while tolerating the file's own line wrapping.
+    @Test func pccPolicySentenceNamesMemoryInBothHomes() throws {
+        let memoryClause =
+            "any notes you asked Talaria to remember and any earlier messages Talaria retrieves for that request"
+        let fullSentence =
+            "Your request leaves the device \u{2014} including any images you attached to that message and, if you have memory turned on, \(memoryClause)."
+
+        let policyHTML = try Self.read("docs/privacy.html")
+        let policyHTMLNormalized = Self.collapsedWhitespace(
+            policyHTML.replacingOccurrences(of: "&mdash;", with: "\u{2014}"))
+        #expect(policyHTMLNormalized.contains(memoryClause),
+                "docs/privacy.html's PCC paragraph does not name memory")
+
+        let appCopy = try Self.read("Talaria/Features/Settings/ConnectHostCopy.swift")
+        let appCopyNormalized = Self.collapsedWhitespace(appCopy)
+        #expect(appCopyNormalized.contains(memoryClause),
+                "the app's PCC copy (ConnectHostCopy.privateCloudPolicySentence) does not name memory")
+
+        #expect(policyHTMLNormalized.contains(fullSentence),
+                "docs/privacy.html's PCC sentence has drifted from the pinned wording")
+        #expect(appCopyNormalized.contains(fullSentence),
+                "ConnectHostCopy.privateCloudPolicySentence has drifted from the pinned wording")
+    }
+
+    /// Collapses any run of whitespace (including newlines) to a single
+    /// space — a browser does the same to hand-wrapped HTML prose on render,
+    /// so this is what makes "byte-identical" a claim about the WORDS rather
+    /// than an accident of how a source file happens to be wrapped.
+    private static func collapsedWhitespace(_ text: String) -> String {
+        text.components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
 }

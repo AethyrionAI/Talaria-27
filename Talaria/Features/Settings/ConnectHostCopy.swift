@@ -88,6 +88,18 @@ enum ConnectHostCopy {
     /// chat: no banner, no nag, no empty host slot.
     static let notNow = "Not now"
 
+    // MARK: Private Cloud policy (#422-N)
+
+    /// **Byte-identical to `docs/privacy.html`'s PCC paragraph** (modulo that
+    /// file's `&mdash;` entity for this same em dash) — `NamingSweepTests`
+    /// pins the parity so the two homes cannot drift apart. Read by
+    /// `PrivateCloudSettingsScreen`; this is the ONLY place the sentence
+    /// lives in the app. #422 ruling: memory IS injected on PCC turns, and
+    /// this is the disclosure that makes that true on the screen where the
+    /// user elects the tier.
+    static let privateCloudPolicySentence =
+        "Your request leaves the device — including any images you attached to that message and, if you have memory turned on, any notes you asked Talaria to remember and any earlier messages Talaria retrieves for that request."
+
     // MARK: Wizard — step 1, connect (design A2/A3)
 
     static let scanTitle = "SCAN YOUR HOST"

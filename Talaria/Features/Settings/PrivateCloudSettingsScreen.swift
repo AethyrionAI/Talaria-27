@@ -82,6 +82,12 @@ struct PrivateCloudSettingsScreen: View {
                  : "Off — nothing is sent to Apple's servers. Local turns run on-device only.")
                 .font(Design.Typography.caption)
                 .foregroundStyle(Design.Colors.secondaryForeground)
+            // #422-N: the policy disclosure, byte-identical to docs/privacy.html —
+            // shown regardless of the toggle state, since it describes what
+            // happens the moment this tier is selected.
+            Text(ConnectHostCopy.privateCloudPolicySentence)
+                .font(Design.Typography.caption)
+                .foregroundStyle(Design.Colors.secondaryForeground)
             if settingsStore.settings.privateCloudEnabled,
                let status = container.localChatBackend?.privateCloudStatus() {
                 PrivateCloudQuotaRow(status: status) {
