@@ -583,12 +583,15 @@ final class ChatStore {
     var isMemoryEnabled: (@MainActor () -> Bool)?
 
     /// #422 Task 11: the note the turn currently (or most recently) in
-    /// flight saved, if any — held only long enough for
-    /// `removeSavedNoteIfItsTurnWasRemoved` to undo the write if that same
-    /// turn is truncated away (Undo, retry, regenerate). Reset at the top of
-    /// every `sendMessage` call.
-    private var pendingSavedNoteID: UUID?
-    private var pendingSavedNoteMessageID: UUID?
+    /// flight saved, if any. Reset at the top of every `sendMessage` call.
+    /// Fix round 1 (minor): widened to internal-read — Task 16 stamps the
+    /// reply `Message`'s `memoryProvenance` from it once that type merges in
+    /// from lane M4. Write access stays exclusive to this file; cleanup on
+    /// Undo/retry/regenerate no longer depends on this slot at all (fix
+    /// round 1, item 3) — it is keyed on `sourceMessageID` directly via
+    /// `MemoryStore.deleteNotes(withSourceMessageIDs:)`, which handles any
+    /// past turn's note, not just the most recent one.
+    private(set) var pendingSavedNoteID: UUID?
 
     /// #190B: a failed session open, surfaced as state the UI renders — the
     /// old catch logged and returned, which is how a deterministic dead tap
@@ -1176,16 +1179,15 @@ final class ChatStore {
         // path — so capture cannot live behind a local-only door. `parse`
         // still runs with the toggle off (its result is identical either
         // way); only the WRITE is gated, per Owen's ruling that OFF stores
-        // nothing.
+        // nothing. `wasTruncated` rides straight from `parseResult` (fix
+        // round 1 minor) — never re-derived downstream from a length check.
         pendingSavedNoteID = nil
-        pendingSavedNoteMessageID = nil
-        if let note = ExplicitMemoryIntent.parse(trimmedContent),
+        if let (note, truncated) = ExplicitMemoryIntent.parseResult(trimmedContent),
            isMemoryEnabled?() ?? true,
            let memoryStore {
-            let noteID = memoryStore.insertNote(
-                note, sourceMessageID: clientMessageID, sourceSessionID: conversation?.id)
-            pendingSavedNoteID = noteID
-            pendingSavedNoteMessageID = clientMessageID
+            pendingSavedNoteID = memoryStore.insertNote(
+                note, sourceMessageID: clientMessageID, sourceSessionID: conversation?.id,
+                wasTruncated: truncated)
         }
 
         let stream = hermesClient.sendStreaming(message: trimmedContent, attachments: attachments, clientMessageID: clientMessageID)
@@ -2934,7 +2936,22 @@ final class ChatStore {
         // elsewhere in the thread — and when it did, the failed row had been
         // deleted and nothing was sent.
         let dispatched = await sendMessage(content, attachments: attachments)
-        guard !dispatched else { return }
+        guard !dispatched else {
+            // #422 Task 11 fix round 1 (Important, item 3): this row's
+            // removal never went through `truncateTranscript` (#279, this
+            // function's own doc), so that primitive's cleanup never ran —
+            // and the re-send above just captured a SECOND identical note
+            // under a FRESH clientMessageID if `content` matched
+            // `ExplicitMemoryIntent`. Purge the one tied to the row that no
+            // longer exists, or the store ends up with two rows for one
+            // "Remember that…". `message.id`, not `sourceMessage.id`: when
+            // they differ (retrying a failed ASSISTANT reply resends an
+            // EARLIER user turn that was never removed), no note was ever
+            // stamped with the assistant row's id, so this is a no-op —
+            // exactly the case where nothing should be purged.
+            memoryStore?.deleteNotes(withSourceMessageIDs: [message.id])
+            return
+        }
         restoreRetriedRow(removedRow, at: removedIndex, why: "the re-send was swallowed by a send guard")
     }
 
@@ -2990,28 +3007,17 @@ final class ChatStore {
         conversation = conv
         chatLog.notice("truncate [\(reason, privacy: .public)]: removed \(removed.count) row(s) from index \(index); \(conv.messages.count) remain (#78)")
         adoptLocalTranscript()
-        removeSavedNoteIfItsTurnWasRemoved(removed)
+        // #422 Task 11 (fix round 1, item 3) — Undo's (and regenerate's)
+        // side of the explicit-note path: a truncation that removes the
+        // turn which saved a note must remove the note with it, or the row
+        // outlives every trace of why it exists (ruling 2). Keyed on every
+        // removed row's own id rather than the single `pendingSavedNoteID`
+        // slot, so ANY past turn's note is cleaned up, not just the most
+        // recent one — a message's `id` is what `sendMessage` stamps as a
+        // note's `sourceMessageID`, and rows with no matching note are a
+        // harmless no-op.
+        memoryStore?.deleteNotes(withSourceMessageIDs: Set(removed.map(\.id)))
         return removed
-    }
-
-    /// #422 Task 11 — Undo's (and retry/regenerate's) side of the explicit-
-    /// note path: a truncation that removes the turn which saved a note must
-    /// remove the note with it, or the row outlives every trace of why it
-    /// exists (ruling 2 — every stored row keeps a resolvable source).
-    ///
-    /// Scoped to `pendingSavedNoteID` — the ONE note this ChatStore instance
-    /// knows was saved by the turn currently (or most recently) in flight, as
-    /// the brief specifies ("hold `pendingSavedNoteID` on the ChatStore for
-    /// the turn"). A note from an EARLIER turn than the one just removed is
-    /// not tracked here; deleting one of those is the Memory screen's job
-    /// (Task 16), not an automatic side effect of an unrelated truncation.
-    private func removeSavedNoteIfItsTurnWasRemoved(_ removed: [Message]) {
-        guard let noteID = pendingSavedNoteID, let noteMessageID = pendingSavedNoteMessageID,
-              removed.contains(where: { $0.id == noteMessageID || $0.clientMessageID == noteMessageID })
-        else { return }
-        memoryStore?.deleteNote(noteID)
-        pendingSavedNoteID = nil
-        pendingSavedNoteMessageID = nil
     }
 
     /// Puts rows a truncation removed back where they were — the safety net

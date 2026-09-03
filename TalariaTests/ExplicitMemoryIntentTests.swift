@@ -88,4 +88,41 @@ struct ExplicitMemoryIntentTests {
         #expect(ExplicitMemoryIntent.parse("Remember that My Sister Lives In AUSTIN")
             == "My Sister Lives In AUSTIN", "ruling 1 — no re-casing, no paraphrase")
     }
+
+    /// Fix round 1 minor: the 7th trigger form was in `triggers` from the
+    /// start but had no test asserting it matches on its own.
+    @Test func doNotForgetThatIsRecognizedOnItsOwn() {
+        #expect(ExplicitMemoryIntent.parse("Do not forget that my sister lives in Austin")
+            == "my sister lives in Austin")
+    }
+
+    // MARK: - Apostrophe variants (fix round 1, Important item 4)
+    //
+    // `"don't forget that "` is spelled with a straight `'`, but iOS Smart
+    // Punctuation and dictation both type the curly U+2019 — so the trigger
+    // as written was UNREACHABLE from real device input. These pins fail
+    // against the pre-fix parser (a plain `hasPrefix` on the un-folded,
+    // lowercased text) and pass once apostrophe-folding is applied to the
+    // MATCH only.
+
+    @Test func aCurlyApostropheInTheTriggerStillMatches() {
+        #expect(ExplicitMemoryIntent.parse("Don\u{2019}t forget that my sister lives in Austin")
+            == "my sister lives in Austin")
+    }
+
+    /// The other curly-quote-adjacent variant `ActionClaimDetector` folds —
+    /// same list, same reason (the two files must not silently drift apart
+    /// on which characters count as "an apostrophe").
+    @Test func aGraveAccentStandingInForAnApostropheStillMatches() {
+        #expect(ExplicitMemoryIntent.parse("Don\u{00B4}t forget that my sister lives in Austin")
+            == "my sister lives in Austin")
+    }
+
+    /// **Matching only, never rewriting.** A curly apostrophe INSIDE the
+    /// note's own words (not the trigger) must survive verbatim — folding it
+    /// to straight would be exactly the paraphrase ruling 1 forbids.
+    @Test func aCurlyApostropheInsideTheNoteItselfIsStoredVerbatim() {
+        #expect(ExplicitMemoryIntent.parse("Remember that my sister\u{2019}s address is 12 Elm Street")
+            == "my sister\u{2019}s address is 12 Elm Street")
+    }
 }

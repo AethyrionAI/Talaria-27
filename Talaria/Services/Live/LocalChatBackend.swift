@@ -176,17 +176,65 @@ final class LocalChatBackend: HermesClientProtocol {
     /// One-shot legacy adoption gate (#190 Phase 3) — see
     /// `adoptLegacySingleSlotIfNeeded`.
     private var didAttemptLegacyAdoption = false
+    /// #422 Task 11 fix round 1 (CRITICAL): the local memory store, injected
+    /// the same way AppContainer wires `ChatStore.memoryIndexer` — Task 10
+    /// needs it for retrieval anyway, and THIS fix needs it so
+    /// `savedNoteThisTurn` can answer "did this turn really write a memory"
+    /// from the STORE rather than by re-parsing the message text. Nil
+    /// (tests, container-creation failure) means every turn honestly reads
+    /// as having saved nothing.
+    private let memoryStore: MemoryStore?
+    /// #422 Task 11 fix round 1: the memory master switch, read live on
+    /// every call — same discipline as `MemoryIndexer.isEnabled` /
+    /// `ChatStore.isMemoryEnabled`, a closure rather than a captured `Bool`
+    /// so a mid-session flip takes effect on the very next turn. Nil
+    /// defaults to enabled.
+    private let isMemoryEnabled: (@MainActor () -> Bool)?
 
     init(
         persistence: any AppPersistenceStoreProtocol,
         intelligence: LocalIntelligenceService,
         sessionStore: (any LocalSessionStoring)? = nil,
-        isLocalThread: @escaping @MainActor (Conversation) -> Bool = { _ in true }
+        isLocalThread: @escaping @MainActor (Conversation) -> Bool = { _ in true },
+        memoryStore: MemoryStore? = nil,
+        isMemoryEnabled: (@MainActor () -> Bool)? = nil
     ) {
         self.persistence = persistence
         self.intelligence = intelligence
         self.sessionStore = sessionStore
         self.isLocalThread = isLocalThread
+        self.memoryStore = memoryStore
+        self.isMemoryEnabled = isMemoryEnabled
+    }
+
+    /// **#422 Task 11 fix round 1 (CRITICAL, bar 422-E/422-H).** Whether THIS
+    /// turn's send actually wrote a memory — read from the STORE, never
+    /// re-derived from the message text.
+    ///
+    /// The bug this replaces: `ComposedTurnInput.savedNote` used to be
+    /// `ExplicitMemoryIntent.parse(message)`, which answers "does this text
+    /// LOOK like a save attempt" — a different question from "was anything
+    /// saved", and the two diverge on three reachable paths:
+    /// - the memory toggle OFF (ChatStore's capture parses the text but
+    ///   does not write, per Owen's ruling);
+    /// - a nil `memoryStore` (container-creation failure) — nothing was
+    ///   ever written anywhere;
+    /// - the voice pipeline (`NativeVoicePipelineService` calls
+    ///   `backend.sendStreaming` directly with a FRESH `clientMessageID`,
+    ///   bypassing `ChatStore.sendMessage`'s capture entirely).
+    ///
+    /// On all three the old code would have silenced bar 422-H's honesty
+    /// guard on a genuine fabrication ("Got it, I'll remember that" with
+    /// nothing stored) and, once Task 10 injects the prompt, told the model
+    /// a note "HAS been saved" that never was.
+    ///
+    /// `clientMessageID` is the id ChatStore's capture stamps as a note's
+    /// `sourceMessageID` — the same id `send`/`streamTurn` already carry for
+    /// this turn, so nothing new crosses the `HermesClientProtocol`
+    /// boundary.
+    func savedNoteThisTurn(clientMessageID: UUID) -> String? {  // harness-visible
+        guard isMemoryEnabled?() ?? true else { return nil }
+        return memoryStore?.note(forSourceMessageID: clientMessageID)?.text
     }
 
     /// Installs the device tool belt (#28). Invalidates the live session so
@@ -508,9 +556,12 @@ final class LocalChatBackend: HermesClientProtocol {
         // image cost is invisible to the counter either way.
         // #408: `var` because the guardrail arm below re-composes it ONCE,
         // with the images demoted — the only thing in this turn that may.
+        // #422 fix round 1: `savedNote` is read from the STORE, not the
+        // text — see `savedNoteThisTurn`.
         var turnInput = Self.composeTurnInput(
             message: message, attachments: attachments,
-            imageInputEnabled: turnImageInputEnabled()
+            imageInputEnabled: turnImageInputEnabled(),
+            savedNote: savedNoteThisTurn(clientMessageID: clientMessageID)
         )
         let prompt = turnInput.promptText
         var liveSession = await preparedSession(nextPrompt: prompt, attachments: attachments, excludingClientMessageID: clientMessageID)
@@ -649,7 +700,10 @@ final class LocalChatBackend: HermesClientProtocol {
                     // the tier sighted, and the one that completes.
                     didGuardrailImageDegrade = true
                     degradedImageCount = turnInput.images.count
-                    turnInput = Self.degradedTurnInput(message: message, attachments: attachments)
+                    // #422 fix round 1: reuse the ALREADY-DERIVED savedNote —
+                    // same message, same clientMessageID, same turn, so the
+                    // store answer cannot have changed between legs.
+                    turnInput = Self.degradedTurnInput(message: message, attachments: attachments, savedNote: turnInput.savedNote)
                     Self.logger.notice("send: on-device guardrail declined a sighted turn — retrying once with \(degradedImageCount, privacy: .public) image(s) demoted to the OCR placeholder (#408)")
                     // The declined prompt may already sit in the live
                     // session's transcript, and retrying on it would hand the
@@ -751,9 +805,12 @@ final class LocalChatBackend: HermesClientProtocol {
         // #390: composed ONCE, before the retry loop — see `send`.
         // #408: `var` for the same reason it is there — the guardrail arm
         // below re-composes it ONCE, with the images demoted.
+        // #422 fix round 1: `savedNote` is read from the STORE, not the
+        // text — see `savedNoteThisTurn`.
         var turnInput = Self.composeTurnInput(
             message: message, attachments: attachments,
-            imageInputEnabled: turnImageInputEnabled()
+            imageInputEnabled: turnImageInputEnabled(),
+            savedNote: savedNoteThisTurn(clientMessageID: clientMessageID)
         )
         let prompt = turnInput.promptText
         var liveSession = await preparedSession(nextPrompt: prompt, attachments: attachments, excludingClientMessageID: clientMessageID)
@@ -923,7 +980,10 @@ final class LocalChatBackend: HermesClientProtocol {
                     // #390-B's placeholder and the turn is re-run once.
                     didGuardrailImageDegrade = true
                     degradedImageCount = turnInput.images.count
-                    turnInput = Self.degradedTurnInput(message: message, attachments: attachments)
+                    // #422 fix round 1: reuse the ALREADY-DERIVED savedNote —
+                    // same message, same clientMessageID, same turn, so the
+                    // store answer cannot have changed between legs.
+                    turnInput = Self.degradedTurnInput(message: message, attachments: attachments, savedNote: turnInput.savedNote)
                     Self.logger.notice("streamTurn: on-device guardrail declined a sighted turn — retrying once with \(degradedImageCount, privacy: .public) image(s) demoted to the OCR placeholder (#408)")
                     session = nil
                     liveSession = await rebuildSession(attachments: attachments, excludingClientMessageID: clientMessageID, forceCondense: false)
@@ -2200,12 +2260,20 @@ final class LocalChatBackend: HermesClientProtocol {
     /// the bytes decode, else as the honest placeholder inside `promptText`
     /// (390-B's fallback, which is also the ONLY route for history images).
     ///
-    /// - `savedNote`: **#422 Task 11.** The verbatim text
-    ///   `ExplicitMemoryIntent.parse` matched in THIS turn's raw message, or
-    ///   `nil` when it did not match a "Remember that…" shape. Deliberately
-    ///   the raw note text, not the composed prompt prefix —
-    ///   `MemoryBudget.justSavedPrefix(_:)` is Task 10's call to make, at its
-    ///   one door (`makeTurnPrompt`); this only exposes the fact.
+    /// - `savedNote`: **#422 Task 11, fix round 1.** The verbatim text of
+    ///   the note THIS TURN actually wrote, or `nil` when it wrote none —
+    ///   an explicit PARAMETER now, not derived inside `composeTurnInput`
+    ///   (a `nonisolated static` function has no MainActor access to the
+    ///   store). The caller (`send`/`streamTurn`) computes it via
+    ///   `savedNoteThisTurn(clientMessageID:)`, which reads the STORE —
+    ///   re-deriving it from the message text alone was the bug: text that
+    ///   merely LOOKS like a save attempt is not the same fact as a note
+    ///   that was actually written (the toggle off, a nil store, and the
+    ///   voice pipeline's direct `sendStreaming` call all produce matching
+    ///   text with nothing saved). Deliberately the raw note text, not the
+    ///   composed prompt prefix — `MemoryBudget.justSavedPrefix(_:)` is
+    ///   Task 10's call to make, at its one door (`makeTurnPrompt`); this
+    ///   only carries the fact.
     struct ComposedTurnInput {
         let promptText: String
         let images: [TurnImage]
@@ -2248,10 +2316,17 @@ final class LocalChatBackend: HermesClientProtocol {
     /// placeholder (390-B). CURRENT-TURN attachments only, by signature:
     /// nothing here reads history, which is what keeps 390-A's rule true
     /// at the source rather than by filtering.
+    ///
+    /// `savedNote` (fix round 1): the caller's ALREADY-DERIVED answer to
+    /// "did this turn write a memory" — see `savedNoteThisTurn`. No default:
+    /// every call site must say explicitly, so a new one cannot silently
+    /// regress to "nil means nothing was saved" being the accidental
+    /// default rather than a checked answer.
     nonisolated static func composeTurnInput(
         message: String,
         attachments: [PendingAttachment],
-        imageInputEnabled: Bool
+        imageInputEnabled: Bool,
+        savedNote: String?
     ) -> ComposedTurnInput {
         var images: [TurnImage] = []
         var textBound: [PendingAttachment] = []
@@ -2266,13 +2341,7 @@ final class LocalChatBackend: HermesClientProtocol {
         return ComposedTurnInput(
             promptText: composePrompt(message: message, attachments: textBound),
             images: images,
-            // #422 Task 11: deterministic, no model in the loop — the same
-            // pure parse ChatStore runs to decide whether to WRITE a note.
-            // Computed from the same `message` this composition already
-            // takes, so every leg of a turn (including the guardrail
-            // image-degrade retry's `degradedTurnInput`, which forwards
-            // here unmodified) re-derives the identical answer.
-            savedNote: ExplicitMemoryIntent.parse(message)
+            savedNote: savedNote
         )
     }
 
@@ -2938,9 +3007,9 @@ final class LocalChatBackend: HermesClientProtocol {
     /// instruments) builds a text-only `Prompt` and cannot raise this class
     /// on an image. A THIRD image-carrying turn path would need its own arm.
     nonisolated static func degradedTurnInput(
-        message: String, attachments: [PendingAttachment]
+        message: String, attachments: [PendingAttachment], savedNote: String?
     ) -> ComposedTurnInput {
-        composeTurnInput(message: message, attachments: attachments, imageInputEnabled: false)
+        composeTurnInput(message: message, attachments: attachments, imageInputEnabled: false, savedNote: savedNote)
     }
 
     /// #408-D: what the reply says happened.

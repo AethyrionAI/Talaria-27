@@ -24,10 +24,20 @@ import os
     var editedAt: Date?
     var sourceMessageID: UUID?
     var sourceSessionID: UUID?
+    /// #422 Task 11 fix round 1 (minor): whether `ExplicitMemoryIntent`'s
+    /// 500-char cap actually cut this note. Stored at capture time — from
+    /// `parseResult(_:).truncated` — rather than re-derived downstream from
+    /// `text.count == 500`, per the controller's ruling: a note that
+    /// happens to be exactly 500 characters long on its own is not the same
+    /// fact as one the cap truncated, and Task 16's notice must be honest
+    /// about which happened. `false` for every note written before this
+    /// column existed (a legacy row was, by definition, never marked cut).
+    var wasTruncated: Bool
     init(noteID: UUID, text: String, createdAt: Date, sourceMessageID: UUID? = nil,
-         sourceSessionID: UUID? = nil) {
+         sourceSessionID: UUID? = nil, wasTruncated: Bool = false) {
         self.noteID = noteID; self.text = text; self.createdAt = createdAt
         self.sourceMessageID = sourceMessageID; self.sourceSessionID = sourceSessionID
+        self.wasTruncated = wasTruncated
     }
 }
 
@@ -182,12 +192,16 @@ final class MemoryStore {
 
     /// Saves a new explicit note. Returns the new row's id so the caller can
     /// stamp `Message.memoryProvenance` and, on Undo, remove the same row.
+    /// `wasTruncated` should be `ExplicitMemoryIntent.parseResult(_:)`'s own
+    /// `truncated` flag, captured at insert time (fix round 1 minor) — never
+    /// re-derived downstream from `text.count == 500`.
     @discardableResult
-    func insertNote(_ text: String, sourceMessageID: UUID?, sourceSessionID: UUID?) -> UUID {
+    func insertNote(_ text: String, sourceMessageID: UUID?, sourceSessionID: UUID?, wasTruncated: Bool = false) -> UUID {
         let id = UUID()
         context.insert(MemoryNoteRecord(
             noteID: id, text: text, createdAt: Date(),
-            sourceMessageID: sourceMessageID, sourceSessionID: sourceSessionID))
+            sourceMessageID: sourceMessageID, sourceSessionID: sourceSessionID,
+            wasTruncated: wasTruncated))
         save()
         return id
     }
@@ -200,6 +214,32 @@ final class MemoryStore {
         guard let row = fetch(FetchDescriptor<MemoryNoteRecord>(
             predicate: #Predicate { $0.noteID == id }), op: "deleteNote").first else { return }
         context.delete(row)
+        save()
+    }
+
+    /// **#422 Task 11 fix round 1 (Important, item 3).** Removes every note
+    /// whose `sourceMessageID` is in `ids` — the "the row's source is gone"
+    /// rule `reconcileSession` already applies to indexed turn chunks
+    /// (ruling 2), extended to explicit notes. Called from BOTH
+    /// `ChatStore.truncateTranscript` (Undo/regenerate's range removal) and
+    /// `ChatStore.retryMessage` (which removes its single row OUTSIDE
+    /// `truncateTranscript`, #279, and then re-sends the same text — without
+    /// this call the re-send's fresh capture would leave the ORIGINAL note
+    /// orphaned instead of replaced). Passing an id that owns no note is a
+    /// harmless no-op — callers pass every removed row's id, not just the
+    /// ones known in advance to have one.
+    ///
+    /// A full-table scan-then-filter, not a `#Predicate` membership test:
+    /// `sourceMessageID` is `UUID?`, and `Set<UUID>.contains` on an optional
+    /// column is the kind of predicate shape worth not gambling on. Note
+    /// counts are a person's own "remember that…" list — never large enough
+    /// for this to be a real cost.
+    func deleteNotes(withSourceMessageIDs ids: Set<UUID>) {
+        guard !ids.isEmpty else { return }
+        let doomed = fetch(FetchDescriptor<MemoryNoteRecord>(), op: "deleteNotes")
+            .filter { row in row.sourceMessageID.map(ids.contains) ?? false }
+        guard !doomed.isEmpty else { return }
+        doomed.forEach(context.delete)
         save()
     }
 
@@ -219,10 +259,24 @@ final class MemoryStore {
     /// Every explicit note, newest first — the Memory screen's list and the
     /// notes-block composer's source (`MemoryBudget.composeNotesBlock`, which
     /// owns the newest-first ordering the caller must supply).
-    func allNotes() -> [(noteID: UUID, text: String, createdAt: Date, editedAt: Date?)] {
+    ///
+    /// Secondary sort by `noteID` (fix round 1 minor): `createdAt` alone is
+    /// not a TOTAL order — two notes saved within the same storage-precision
+    /// tick sort arbitrarily against each other on repeat calls otherwise.
+    /// The tiebreak is applied in Swift, after the fetch, because
+    /// `SortDescriptor` needs `Comparable` and `UUID` isn't; sorting by its
+    /// string form is a stable, if not semantically meaningful, second key —
+    /// its only job is making repeat calls agree with themselves.
+    func allNotes() -> [(noteID: UUID, text: String, createdAt: Date, editedAt: Date?, wasTruncated: Bool)] {
         fetch(FetchDescriptor<MemoryNoteRecord>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]), op: "allNotes")
-            .map { (noteID: $0.noteID, text: $0.text, createdAt: $0.createdAt, editedAt: $0.editedAt) }
+            .sorted {
+                $0.createdAt != $1.createdAt
+                    ? $0.createdAt > $1.createdAt
+                    : $0.noteID.uuidString < $1.noteID.uuidString
+            }
+            .map { (noteID: $0.noteID, text: $0.text, createdAt: $0.createdAt,
+                    editedAt: $0.editedAt, wasTruncated: $0.wasTruncated) }
     }
 
     /// The explicit note behind a provenance `noteID`, or `nil` when the row
@@ -238,6 +292,27 @@ final class MemoryStore {
         descriptor.fetchLimit = 1
         guard let row = fetch(descriptor, op: "note").first else { return nil }
         return (row.text, row.createdAt)
+    }
+
+    /// **#422 Task 11 fix round 1 (CRITICAL, item 1).** The note whose
+    /// `sourceMessageID` matches — what
+    /// `LocalChatBackend.savedNoteThisTurn(clientMessageID:)` reads to
+    /// answer "did THIS turn's message really write a memory" from the
+    /// STORE, never by re-parsing the message text (the defect: a re-parse
+    /// says yes on three paths where nothing was actually saved — the
+    /// toggle off, a nil store, and the voice pipeline, which calls
+    /// `sendStreaming` directly and never reaches ChatStore's capture at
+    /// all). `sourceMessageID` is unique per turn by construction (one
+    /// explicit note per send), so the first row a fetch returns is the
+    /// only one that could exist; nil is the honest "nothing was saved"
+    /// answer, never a placeholder.
+    func note(forSourceMessageID sourceMessageID: UUID) -> (noteID: UUID, text: String)? {
+        let id = sourceMessageID
+        var descriptor = FetchDescriptor<MemoryNoteRecord>(
+            predicate: #Predicate { $0.sourceMessageID == id })
+        descriptor.fetchLimit = 1
+        guard let row = fetch(descriptor, op: "noteForSourceMessageID").first else { return nil }
+        return (row.noteID, row.text)
     }
 
     /// Fetch with a diagnostic. A swallowed `try?` here is not benign: a failed

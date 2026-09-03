@@ -123,12 +123,104 @@ struct MemoryNotesStoreTests {
     @Test func allNotesOrdersNewestFirst() throws {
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
         let first = store.insertNote("said first", sourceMessageID: nil, sourceSessionID: nil)
-        // SwiftData timestamps at insert time — force a real gap so the
-        // ordering assertion cannot pass by clock-resolution luck.
-        Thread.sleep(forTimeInterval: 0.01)
         let second = store.insertNote("said second", sourceMessageID: nil, sourceSessionID: nil)
 
         let all = store.allNotes()
         #expect(all.map(\.noteID) == [second, first], "newest first — the notes-block composer relies on this order")
+    }
+
+    // MARK: - wasTruncated (fix round 1 minor) — captured at insert time,
+    // never re-derived downstream from a length check
+
+    @Test func wasTruncatedDefaultsToFalse() throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let id = store.insertNote("an ordinary note", sourceMessageID: nil, sourceSessionID: nil)
+
+        #expect(store.allNotes().first { $0.noteID == id }?.wasTruncated == false)
+    }
+
+    @Test func wasTruncatedIsStoredWhenTrue() throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let id = store.insertNote(
+            String(repeating: "x", count: 500), sourceMessageID: nil, sourceSessionID: nil, wasTruncated: true)
+
+        #expect(store.allNotes().first { $0.noteID == id }?.wasTruncated == true,
+                "Task 16's notice reads this flag, never text.count == 500")
+    }
+
+    // MARK: - note(forSourceMessageID:) — #422 fix round 1 (CRITICAL), the
+    // read `LocalChatBackend.savedNoteThisTurn` uses
+
+    @Test func noteForSourceMessageIDResolvesTheInsertedNote() throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let sourceID = UUID()
+        let noteID = store.insertNote("my sister lives in Austin", sourceMessageID: sourceID, sourceSessionID: nil)
+
+        let resolved = try #require(store.note(forSourceMessageID: sourceID))
+        #expect(resolved.noteID == noteID)
+        #expect(resolved.text == "my sister lives in Austin")
+    }
+
+    @Test func noteForSourceMessageIDResolvesToNilWhenNoRowMatches() throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        store.insertNote("unrelated", sourceMessageID: UUID(), sourceSessionID: nil)
+
+        #expect(store.note(forSourceMessageID: UUID()) == nil)
+    }
+
+    @Test func noteForSourceMessageIDIsNilWhenTheSourceWasNeverStamped() throws {
+        // `sourceMessageID` defaults to nil (e.g. a Memory-screen-authored
+        // note, once that exists) — must never accidentally match a lookup.
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        store.insertNote("no source at all", sourceMessageID: nil, sourceSessionID: nil)
+
+        #expect(store.note(forSourceMessageID: UUID()) == nil)
+    }
+
+    // MARK: - deleteNotes(withSourceMessageIDs:) — #422 fix round 1 (Important,
+    // item 3), the "source is gone" cleanup ChatStore's truncateTranscript and
+    // retryMessage both call
+
+    @Test func deleteNotesRemovesEveryMatchingRow() throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let sourceA = UUID(), sourceB = UUID(), sourceKept = UUID()
+        store.insertNote("note A", sourceMessageID: sourceA, sourceSessionID: nil)
+        store.insertNote("note B", sourceMessageID: sourceB, sourceSessionID: nil)
+        let kept = store.insertNote("note kept", sourceMessageID: sourceKept, sourceSessionID: nil)
+
+        store.deleteNotes(withSourceMessageIDs: [sourceA, sourceB])
+
+        let remaining = store.allNotes()
+        #expect(remaining.count == 1)
+        #expect(remaining.first?.noteID == kept)
+    }
+
+    @Test func deleteNotesWithNoMatchingRowsIsANoOp() throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let kept = store.insertNote("note kept", sourceMessageID: UUID(), sourceSessionID: nil)
+
+        store.deleteNotes(withSourceMessageIDs: [UUID(), UUID()])
+
+        #expect(store.allNotes().map(\.noteID) == [kept])
+    }
+
+    @Test func deleteNotesWithAnEmptySetIsANoOp() throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let kept = store.insertNote("note kept", sourceMessageID: UUID(), sourceSessionID: nil)
+
+        store.deleteNotes(withSourceMessageIDs: [])
+
+        #expect(store.allNotes().map(\.noteID) == [kept])
+    }
+
+    /// A row with no `sourceMessageID` at all (nil) must never match — the
+    /// filter unwraps the optional and only compares REAL values.
+    @Test func deleteNotesNeverMatchesARowWithNoSource() throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let kept = store.insertNote("no source", sourceMessageID: nil, sourceSessionID: nil)
+
+        store.deleteNotes(withSourceMessageIDs: [UUID()])
+
+        #expect(store.allNotes().map(\.noteID) == [kept])
     }
 }

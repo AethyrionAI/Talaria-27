@@ -331,4 +331,64 @@ struct MemoryHonestyTests {
         #expect(licensed == reply)
         #expect(backend.honestyGuardFireCount == 1, "only the unlicensed call fired")
     }
+
+    // MARK: - Fix round 1 (Important, item 2): the ACTUAL call sites, witnessed
+    //
+    // `theProductionOverloadCarriesSavedNote` above proves the OVERLOAD wires
+    // `savedNote` through correctly — but nothing pinned that `send` and
+    // `streamTurn` actually PASS a real expression at their own call sites.
+    // Hardcoding either to `savedNote: false` (silently reverting the round-1
+    // fix) keeps every other test in the suite green, because none of them
+    // drive a real `send`/`streamTurn` turn (the sim cannot generate, #324).
+    // Read the live source, in the shape of
+    // `GuardrailImageDegradeTests.theDegradeHasNoSecondComposeImplementation`.
+
+    @Test("fix round 1: send() passes the real savedNote expression, not a hardcoded false")
+    func sendWitnessesTheRealSavedNoteExpression() throws {
+        let body = try Self.backendFunctionBody(from: "func send(", limit: 6000)
+        #expect(body.contains("savedNote: turnInput.savedNote != nil"),
+                "send()'s honestyGuardedReply call must wire the STORE-derived value, not a stand-in")
+    }
+
+    @Test("fix round 1: streamTurn() passes the real savedNote expression, not a hardcoded false")
+    func streamTurnWitnessesTheRealSavedNoteExpression() throws {
+        let body = try Self.backendFunctionBody(from: "func streamTurn(", limit: 10000)
+        #expect(body.contains("savedNote: turnInput.savedNote != nil"),
+                "streamTurn()'s honestyGuardedReply call must wire the STORE-derived value, not a stand-in")
+    }
+
+    /// Also pins that BOTH `composeTurnInput` calls in `send`/`streamTurn`
+    /// feed `savedNoteThisTurn(clientMessageID:)` in — the other half of
+    /// the round-1 fix (`ComposedTurnInput.savedNote` reading the STORE,
+    /// never re-deriving from the text).
+    @Test("fix round 1: both turn paths derive savedNote from the STORE, not the text")
+    func bothTurnPathsDeriveSavedNoteFromTheStore() throws {
+        let sendBody = try Self.backendFunctionBody(from: "func send(", limit: 1500)
+        let streamBody = try Self.backendFunctionBody(from: "func streamTurn(", limit: 3500)
+        for body in [sendBody, streamBody] {
+            #expect(body.contains("savedNoteThisTurn(clientMessageID:"),
+                    "composeTurnInput's savedNote argument must come from the store read, not ExplicitMemoryIntent.parse")
+        }
+    }
+
+    // MARK: - source helpers (mirrors GuardrailImageDegradeTests' pattern)
+
+    private static func backendSource() throws -> String {
+        let path = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Talaria/Services/Live/LocalChatBackend.swift")
+        return try #require(
+            try? String(contentsOf: path, encoding: .utf8),
+            "LocalChatBackend.swift unreadable — these pins must fail loudly, not vacuously"
+        )
+    }
+
+    private static func backendFunctionBody(from anchor: String, limit: Int) throws -> String {
+        let source = try backendSource()
+        let range = try #require(
+            source.range(of: anchor),
+            "\(anchor) is gone — re-point this pin at its successor")
+        return String(source[range.upperBound...].prefix(limit))
+    }
 }

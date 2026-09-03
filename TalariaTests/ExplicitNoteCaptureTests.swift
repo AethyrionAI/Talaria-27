@@ -195,4 +195,58 @@ struct ExplicitNoteCaptureTests {
 
         #expect(store.allNotes().isEmpty)
     }
+
+    // MARK: - Retry does not duplicate the note (fix round 1, Important item 3)
+    //
+    // `ChatStore.retryMessage` removes its single row with a bare
+    // `messages.remove(at:)` — deliberately NOT `truncateTranscript` (#279,
+    // the function's own doc) — so `truncateTranscript`'s cleanup never ran
+    // for it. The re-send that follows captures a SECOND identical note
+    // under a fresh `clientMessageID`, orphaning the first. The fix keys
+    // cleanup on `sourceMessageID` directly (`MemoryStore.deleteNotes(
+    // withSourceMessageIDs:)`), called from `retryMessage` itself right
+    // where the re-send actually lands.
+
+    @Test func retryingTheTurnThatSavedANoteLeavesExactlyOne() async throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let (chatStore, _) = makeChatStore(memoryStore: store)
+
+        _ = await chatStore.sendMessage("Remember that my sister lives in Austin")
+        #expect(store.allNotes().count == 1)
+
+        let userMessage = try #require(chatStore.conversation?.messages.first { $0.sender.isUserAuthored })
+        await chatStore.retryMessage(userMessage)
+
+        #expect(store.allNotes().count == 1, "a retry must not leave a duplicate note behind")
+        #expect(store.allNotes().first?.text == "my sister lives in Austin")
+    }
+
+    @Test func retryingATurnThatSavedNoNoteStaysEmpty() async throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let (chatStore, _) = makeChatStore(memoryStore: store)
+
+        _ = await chatStore.sendMessage("What's the weather like?")
+        let userMessage = try #require(chatStore.conversation?.messages.first { $0.sender.isUserAuthored })
+        await chatStore.retryMessage(userMessage)
+
+        #expect(store.allNotes().isEmpty)
+    }
+
+    /// Retrying a DIFFERENT turn than the one that saved a note must not
+    /// touch the unrelated note — the cleanup is keyed on the retried row's
+    /// OWN id, not a blanket sweep.
+    @Test func retryingAnUnrelatedTurnDoesNotTouchAnEarlierNote() async throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let (chatStore, _) = makeChatStore(memoryStore: store)
+
+        _ = await chatStore.sendMessage("Remember that my sister lives in Austin")
+        #expect(store.allNotes().count == 1)
+
+        _ = await chatStore.sendMessage("What's the weather like?")
+        let secondUserMessage = try #require(chatStore.conversation?.messages.last { $0.sender.isUserAuthored })
+        await chatStore.retryMessage(secondUserMessage)
+
+        #expect(store.allNotes().count == 1, "retrying the unrelated later turn must not touch the earlier note")
+        #expect(store.allNotes().first?.text == "my sister lives in Austin")
+    }
 }

@@ -720,7 +720,14 @@ final class AppContainer {
             persistence: persistence,
             intelligence: localIntelligence,
             sessionStore: localSessionStore,
-            isLocalThread: isLocalThread
+            isLocalThread: isLocalThread,
+            // #422 Task 11 fix round 1 (CRITICAL): the backend needs its own
+            // reference — `savedNoteThisTurn` answers "did this turn really
+            // write a memory" from the store, and cannot borrow ChatStore's
+            // copy across the `HermesClientProtocol` boundary. Same store,
+            // same toggle closure as ChatStore's own wiring above.
+            memoryStore: memoryStore,
+            isMemoryEnabled: { settingsStore.settings.memoryEnabled }
         )
         let chatBackendRouter = ChatBackendRouter(
             hermes: hermesClient,
