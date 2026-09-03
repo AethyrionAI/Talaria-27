@@ -332,6 +332,125 @@ struct MemoryHonestyTests {
         #expect(backend.honestyGuardFireCount == 1, "only the unlicensed call fired")
     }
 
+    // MARK: - The guard is QUIET while memory is OFF (Owen, 2026-09-03)
+    //
+    // The correction's own words are "Talaria only remembers what you ask it
+    // to…" — a statement about a feature the user has switched off. With
+    // memory off the app made no promise, so there is nothing to correct the
+    // model against, and appending the notice would advertise a disabled
+    // feature every time the model said something conversational. There is
+    // deliberately NO off-state string: silence is the ruling.
+
+    @Test("Owen 09-03: memory OFF leaves a memory claim byte-untouched")
+    func aMemoryClaimIsUncorrectedWhileMemoryIsOff() {
+        let backend = makeBackend()
+        let reply = "Got it, I'll remember that."
+        let out = backend.honestyGuardedReply(
+            modelText: reply, settledText: reply, executedToolNames: [],
+            savedNote: false, memoryEnabled: false)
+
+        #expect(out == reply, "memory is OFF — the app promised nothing, so it corrects nothing")
+        #expect(backend.honestyGuardFireCount == 0, "a claim left alone is not a fire")
+    }
+
+    /// The contrast that makes the pin above mean something: the SAME reply,
+    /// the same absent row, memory ON — corrected, exactly as before.
+    @Test("Owen 09-03: memory ON still corrects the same claim")
+    func theSameClaimIsStillCorrectedWhileMemoryIsOn() {
+        let backend = makeBackend()
+        let reply = "Got it, I'll remember that."
+        let out = backend.honestyGuardedReply(
+            modelText: reply, settledText: reply, executedToolNames: [],
+            savedNote: false, memoryEnabled: true)
+
+        #expect(out != reply, "memory is ON and nothing was stored — this is the fabrication")
+        #expect(backend.honestyGuardFireCount == 1)
+    }
+
+    /// Scoped to memory claims ALONE. Every other kind is about a DEVICE
+    /// action, and the memory toggle has nothing to say about whether an
+    /// alarm was really set.
+    ///
+    /// The string is #336's fabricated-alarm row (`.firstPersonCreation`),
+    /// deliberately — the first draft of this test used *"I'll set a reminder
+    /// for 8 PM"*, which this very suite already pins as an OFFER that fires
+    /// nothing at all (#338-A), so it would have passed for the wrong reason
+    /// on a detector that had gone silent everywhere.
+    @Test("Owen 09-03: the OFF toggle silences ONLY the memory tier")
+    func theOffToggleDoesNotSilenceDeviceClaims() {
+        let backend = makeBackend()
+        let reply = "I\u{2019}ve set the alarm for 6:30."
+        let out = backend.honestyGuardedReply(
+            modelText: reply, settledText: reply, executedToolNames: [],
+            savedNote: false, memoryEnabled: false)
+
+        #expect(out != reply, "a fabricated ALARM is not the memory toggle's business")
+        #expect(backend.lastHonestyGuardClaim?.kind == .firstPersonCreation)
+        #expect(backend.honestyGuardFireCount == 1)
+    }
+
+    // MARK: - KNOWN LIMITS (final review, item 3)
+    //
+    // These are MISSES, asserted as misses. The comment on
+    // `memoryFirstPersonPatterns` used to claim the future frame covered
+    // "I'll note that"; it does not — `memoryWriteVerbs` holds the past
+    // participles `noted`/`saved` only, so the bare infinitives are in no verb
+    // set and these forms fall through.
+    //
+    // They are recorded rather than fixed because widening the verb set is
+    // not obviously an improvement: bare `save` + a memory noun fires on
+    // "I'll save that file", "I'll save that for later" and "I'll save that
+    // setting", and #338's weighting says a guard that fires on an honest
+    // reply is worse than one that stays quiet. Closing the gap needs the
+    // OBJECT disambiguated, not the verb widened.
+    //
+    // Asserting a limit is how it stops being a surprise: if someone later
+    // widens the verbs, these go RED and the trade gets re-decided on
+    // purpose rather than discovered on a device evening.
+
+    @Test("KNOWN LIMIT: \"I'll note that.\" is not detected (bare infinitive)")
+    func theBareInfinitiveNoteIsAKnownMiss() {
+        #expect(ActionClaimDetector.unfulfilledClaim(
+            in: "I'll note that.", executedToolNames: [], savedNote: false) == nil,
+                "documented gap — see memoryFirstPersonPatterns' KNOWN LIMIT note")
+    }
+
+    @Test("KNOWN LIMIT: \"I'll save that to memory.\" is not detected (bare infinitive)")
+    func theBareInfinitiveSaveIsAKnownMiss() {
+        #expect(ActionClaimDetector.unfulfilledClaim(
+            in: "I'll save that to memory.", executedToolNames: [], savedNote: false) == nil,
+                "documented gap — bare `save` + `that` would fire on \"I'll save that file\"")
+    }
+
+    @Test("KNOWN LIMIT: a bare \"Noted.\" is not detected (no first-person subject)")
+    func aBareNotedIsAKnownMiss() {
+        #expect(ActionClaimDetector.unfulfilledClaim(
+            in: "Noted.", executedToolNames: [], savedNote: false) == nil,
+                "every first-person pattern requires a subject; a bare participle has none")
+    }
+
+    /// The opposite kind of limit — an OVER-reach, and the more uncomfortable
+    /// of the two. *"That has been saved to your reminders."* is a claim about
+    /// REMINDERS, but the passive memory pattern's subject step accepts the
+    /// bare `that`, so it takes the memory copy and the reply is corrected
+    /// with *"Nothing was saved to memory"* instead of the reminder wording.
+    ///
+    /// Recorded, not fixed, and deliberately so: the tier ordering that
+    /// decides which correction wins is #338's, not this lane's, and changing
+    /// it under a memory ticket would move behaviour for every device claim.
+    /// Asserted at the KIND level so the day someone re-orders the tiers this
+    /// row says what changed.
+    @Test("KNOWN LIMIT: a reminders claim phrased with a bare \"that\" takes the memory copy")
+    func aRemindersClaimWithABareThatTakesTheMemoryCorrection() {
+        let claim = ActionClaimDetector.unfulfilledClaim(
+            in: "That has been saved to your reminders.",
+            executedToolNames: [], savedNote: false)
+        #expect(claim?.kind == .memoryCreation, """
+            documented over-reach: the passive memory pattern's subject step accepts a \
+            bare "that", so a REMINDER fabrication is answered with the MEMORY correction
+            """)
+    }
+
     // MARK: - Fix round 1 (Important, item 2): the ACTUAL call sites, witnessed
     //
     // `theProductionOverloadCarriesSavedNote` above proves the OVERLOAD wires
@@ -343,23 +462,21 @@ struct MemoryHonestyTests {
     // Read the live source, in the shape of
     // `GuardrailImageDegradeTests.theDegradeHasNoSecondComposeImplementation`.
 
-    /// **Window widened 6,000 → 7,500 by #422 Task 10** (the injection lane),
-    /// which inserted the memory-prefix compose into `send` above this call
-    /// and pushed the match to 5,966…6,003 — three characters past the old
-    /// limit, so the pin failed for a reason that had nothing to do with its
-    /// claim. Worth knowing about every prefix-window pin in this file: their
-    /// failure mode when the function GROWS is a false RED, and the repair is
-    /// the window, never the assertion.
+    /// *(Historical: this pin's window was a character count until the #422
+    /// final review. Task 10's insert pushed the match three characters past
+    /// it — a false RED — and a SHRINKING `send` would have spilled the
+    /// window into `streamTurn` for a false GREEN. `backendFunctionBody` now
+    /// bounds at the next `func`.)*
     @Test("fix round 1: send() passes the real savedNote expression, not a hardcoded false")
     func sendWitnessesTheRealSavedNoteExpression() throws {
-        let body = try Self.backendFunctionBody(from: "func send(", limit: 7500)
+        let body = try Self.backendFunctionBody(from: "func send(")
         #expect(body.contains("savedNote: turnInput.savedNote != nil"),
                 "send()'s honestyGuardedReply call must wire the STORE-derived value, not a stand-in")
     }
 
     @Test("fix round 1: streamTurn() passes the real savedNote expression, not a hardcoded false")
     func streamTurnWitnessesTheRealSavedNoteExpression() throws {
-        let body = try Self.backendFunctionBody(from: "func streamTurn(", limit: 10000)
+        let body = try Self.backendFunctionBody(from: "func streamTurn(")
         #expect(body.contains("savedNote: turnInput.savedNote != nil"),
                 "streamTurn()'s honestyGuardedReply call must wire the STORE-derived value, not a stand-in")
     }
@@ -370,8 +487,8 @@ struct MemoryHonestyTests {
     /// never re-deriving from the text).
     @Test("fix round 1: both turn paths derive savedNote from the STORE, not the text")
     func bothTurnPathsDeriveSavedNoteFromTheStore() throws {
-        let sendBody = try Self.backendFunctionBody(from: "func send(", limit: 1500)
-        let streamBody = try Self.backendFunctionBody(from: "func streamTurn(", limit: 3500)
+        let sendBody = try Self.backendFunctionBody(from: "func send(")
+        let streamBody = try Self.backendFunctionBody(from: "func streamTurn(")
         for body in [sendBody, streamBody] {
             #expect(body.contains("savedNoteThisTurn(clientMessageID:"),
                     "composeTurnInput's savedNote argument must come from the store read, not ExplicitMemoryIntent.parse")
@@ -391,11 +508,29 @@ struct MemoryHonestyTests {
         )
     }
 
-    private static func backendFunctionBody(from anchor: String, limit: Int) throws -> String {
+    /// One function's body, bounded at the NEXT method declaration rather
+    /// than by a character count (final-review item 4).
+    ///
+    /// The count was wrong in both directions. When `send` GROWS the window
+    /// stops covering it and the pin fails for a reason unrelated to its
+    /// claim — which happened, three characters over, during #422 Task 10.
+    /// When `send` SHRINKS the window spills into `sendStreaming` and
+    /// `streamTurn`, whose identical line would then satisfy a pin that is
+    /// supposed to be asserting something about `send` — a false GREEN on the
+    /// round-1 CRITICAL fix, which is much worse than the false red.
+    ///
+    /// `\n    func ` is the four-space method indent this file uses
+    /// throughout, so the bound lands on the next member declaration; nothing
+    /// at that indent appears inside a body. Falls back to the rest of the
+    /// file when a function is last, which is safe — the anchor is still what
+    /// scopes the search.
+    private static func backendFunctionBody(from anchor: String) throws -> String {
         let source = try backendSource()
         let range = try #require(
             source.range(of: anchor),
             "\(anchor) is gone — re-point this pin at its successor")
-        return String(source[range.upperBound...].prefix(limit))
+        let rest = source[range.upperBound...]
+        guard let next = rest.range(of: "\n    func ") else { return String(rest) }
+        return String(rest[..<next.lowerBound])
     }
 }
