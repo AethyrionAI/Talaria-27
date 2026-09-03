@@ -487,17 +487,32 @@ struct NamingSweepTests {
         let policy = Self.collapsedWhitespace(
             try Self.read("docs/privacy.html")
                 .replacingOccurrences(of: "&mdash;", with: "\u{2014}")
-                .replacingOccurrences(of: "&rarr;", with: "\u{2192}"))
+                .replacingOccurrences(of: "&rarr;", with: "\u{2192}")
+                .replacingOccurrences(of: "&beta;", with: "\u{03B2}"))
 
         for clause in [
-            "keeps an on-device index of your own messages from on-device chats",
+            "keeps an on-device index of your own messages from your local chats",
             "any notes you asked it to remember",
+            // **The corrected sentence, and the pin moved onto it.** The first
+            // draft of this paragraph said the index and notes "never leave
+            // your iPhone" \u{2014} false on the Private Cloud \u{03B2} path,
+            // where the notes block and every retrieved chunk ride the prompt
+            // to Apple's servers (`LocalChatBackend.memoryPrefix` has no tier
+            // gate), and flatly contradicted this document's OWN PCC paragraph
+            // twenty lines above. Pinning it made the falsehood load-bearing:
+            // the suite would have defended the wrong sentence.
+            "They stay on your iPhone unless you choose Private Cloud \u{03B2}, where a request carries the notes and any retrieved messages to Apple's Private Cloud Compute",
             "Turning the memory switch off stops both new indexing and any use of what is already stored",
             "Forget everything</strong>, under Settings \u{2192} Sessions \u{2192} Memory, erases the on-device memory index and every remembered note",
         ] {
             #expect(policy.contains(clause),
                     "the published policy no longer describes local memory: \(clause)")
         }
+
+        #expect(!policy.contains("never leave your iPhone"), """
+            the policy claims local memory never leaves the device \u{2014} it does, on every \
+            Private Cloud \u{03B2} turn, exactly as this file's own PCC paragraph says
+            """)
     }
 
     /// **I1 — the effective date revises with the change**, which is the file's

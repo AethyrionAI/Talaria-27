@@ -70,6 +70,18 @@ struct ChatStoreMergeCompletenessTests {
     /// goes red.
     private static let carriedButNotPersisted: Set<String> = ["codeDiff", "toolActivity"]
 
+    /// Client-only fields that are neither coding keys NOR carried by the
+    /// merge — named here so "unclassified" means "nobody has looked at it"
+    /// rather than "we ran out of lists".
+    ///
+    /// `isStreaming` is transient by design: a reloaded row is not streaming.
+    /// **`recoveredForPrompt` is a real gap, filed rather than fixed here** —
+    /// it is client-only and IS dropped by a refresh, which is the #235 family
+    /// one level down and outside this lane's scope. Writing it down is the
+    /// point: the field was invisible to every check in the repo until this
+    /// suite enumerated `Message`.
+    private static let notPersistedAndNotCarried: Set<String> = ["recoveredForPrompt", "isStreaming"]
+
     /// The body of `mergeConversationMetadata`, as text.
     private static func mergeSource() throws -> String {
         let path = repoRoot.appendingPathComponent("Talaria/Stores/ChatStore.swift")
@@ -78,9 +90,17 @@ struct ChatStoreMergeCompletenessTests {
         let start = try #require(source.range(of: marker),
                                  "mergeConversationMetadata was renamed — this check did not run")
         let rest = source[start.upperBound...]
-        // Up to the next method at the same indentation.
-        let end = rest.range(of: "\n    private func ") ?? rest.range(of: "\n    func ")
-        return String(end.map { rest[..<$0.lowerBound] } ?? rest)
+        // Up to the next member at the same indentation — the EARLIEST of
+        // them, not the first marker that happens to match. Two markers were
+        // not enough: `nonisolated` and `static` members also end the function,
+        // and missing one lets the "body" run on into unrelated code, where a
+        // field name can appear for reasons that have nothing to do with the
+        // merge. An over-reaching extract makes this check pass by accident.
+        let end = ["\n    private func ", "\n    func ", "\n    nonisolated ", "\n    static ",
+                   "\n    private static ", "\n    private var ", "\n    var "]
+            .compactMap { rest.range(of: $0)?.lowerBound }
+            .min()
+        return String(end.map { rest[..<$0] } ?? rest)
     }
 
     /// **Every field is accounted for.** A new `Message` field fails here until
@@ -131,7 +151,9 @@ struct ChatStoreMergeCompletenessTests {
     /// partition above would silently stop covering it.
     @Test func theUnpersistedCarriedFieldsAreStillUnpersisted() {
         let all = Set(Message.CodingKeys.allCases.map(\.stringValue))
-        let nowPersisted = Self.carriedButNotPersisted.intersection(all)
+        let nowPersisted = Self.carriedButNotPersisted
+            .union(Self.notPersistedAndNotCarried)
+            .intersection(all)
         #expect(nowPersisted.isEmpty, """
             \(nowPersisted.sorted()) gained a coding key — move it into carriedByMerge so the \
             server-owned/carried partition keeps covering every persisted field
