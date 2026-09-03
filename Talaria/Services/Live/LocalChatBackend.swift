@@ -1723,11 +1723,52 @@ final class LocalChatBackend: HermesClientProtocol {
         "⚠️ **Nothing was created.** No reminder, alarm, or event was written to your "
         + "device — the reply above is inaccurate."
 
-    /// Appends the correction to a settled reply. Pure, so the exact composition
+    /// **#422 bar 422-H — the same correction, for the memory artifact.**
+    ///
+    /// A SECOND constant rather than a widening of the one above, because the
+    /// action copy names the wrong subject: telling a user *"No reminder,
+    /// alarm, or event was written to your device"* after the model promised
+    /// to remember their sister's address is a true sentence about something
+    /// they did not ask for, and reads as a non-sequitur rather than a
+    /// correction.
+    ///
+    /// It keeps every property Owen ruled on for the action copy (#338): it
+    /// does not blame the user, it does not promise that asking again will
+    /// work, and it names which text to distrust. It adds one thing the action
+    /// copy does not need — **what to say instead**, because unlike a reminder
+    /// there is no card the user could have tapped, so the honest reply has to
+    /// point at the affordance that does work.
+    ///
+    /// Wording pinned by the #422 plan's naming rule (CLAUDE.md, Owen
+    /// 2026-08-27): the outward identity is TALARIA on every phone-facing
+    /// surface.
+    nonisolated static let memoryCorrectionNotice =
+        "⚠️ **Nothing was saved to memory.** Talaria only remembers what you ask "
+        + "it to with \"Remember that…\" — the reply above is inaccurate."
+
+    /// The correction that belongs to a claim. One switch, so a new kind
+    /// cannot silently inherit copy that names the wrong artifact.
+    nonisolated static func correctionNotice(
+        for kind: ActionClaimDetector.ClaimKind
+    ) -> String {
+        switch kind {
+        case .memoryCreation: memoryCorrectionNotice
+        case .firstPersonCreation, .passiveCompletion, .presentStateSet,
+             .presentStateOn, .impersonatedCard: honestyCorrectionNotice
+        }
+    }
+
+    /// Appends a correction to a settled reply. Pure, so the exact composition
     /// is testable without a model.
+    nonisolated static func appendingCorrection(_ notice: String, to text: String) -> String {
+        guard !text.isEmpty else { return notice }
+        return text + "\n\n" + notice
+    }
+
+    /// The action correction's composition, unchanged and still named — #338's
+    /// tests pin this spelling.
     nonisolated static func appendingHonestyCorrection(to text: String) -> String {
-        guard !text.isEmpty else { return honestyCorrectionNotice }
-        return text + "\n\n" + honestyCorrectionNotice
+        appendingCorrection(honestyCorrectionNotice, to: text)
     }
 
     /// #338-E's log line — pure and pinned by test, because it is the grep key
@@ -1759,21 +1800,28 @@ final class LocalChatBackend: HermesClientProtocol {
     /// path gains no throw; #338: the model's text is never rewritten or
     /// deleted). On a normal successful turn this is an identity function —
     /// bar 338-D's "adds no user-visible change to a normal turn".
+    ///   - savedNote: whether the explicit-note path really wrote a memory
+    ///     THIS turn (#422 bar 422-H). The one fact that licenses a
+    ///     `memoryCreation` claim, and it licenses nothing else. Default
+    ///     `false` — the strict reading, so every existing caller keeps the
+    ///     behaviour it had.
     func honestyGuardedReply(  // harness-visible
         modelText: String,
         settledText: String,
         executedToolNames: [String],
-        priorActionToolExecutedInConversation: Bool = false
+        priorActionToolExecutedInConversation: Bool = false,
+        savedNote: Bool = false
     ) -> String {
         guard let claim = ActionClaimDetector.unfulfilledClaim(
             in: modelText,
             executedToolNames: executedToolNames,
-            priorActionToolExecutedInConversation: priorActionToolExecutedInConversation
+            priorActionToolExecutedInConversation: priorActionToolExecutedInConversation,
+            savedNote: savedNote
         ) else { return settledText }
         honestyGuardFireCount += 1
         lastHonestyGuardClaim = claim
         Self.logger.notice("\(Self.honestyGuardLogLine(kind: claim.kind, executedCalls: executedToolNames.count, fireCount: self.honestyGuardFireCount), privacy: .public)")
-        return Self.appendingHonestyCorrection(to: settledText)
+        return Self.appendingCorrection(Self.correctionNotice(for: claim.kind), to: settledText)
     }
 
     /// **The production entry point** — the overload both turn paths call, and
@@ -1785,14 +1833,16 @@ final class LocalChatBackend: HermesClientProtocol {
     func honestyGuardedReply(  // harness-visible
         modelText: String,
         settledText: String,
-        recorder: TurnToolCallRecorder
+        recorder: TurnToolCallRecorder,
+        savedNote: Bool = false
     ) -> String {
         honestyGuardedReply(
             modelText: modelText,
             settledText: settledText,
             executedToolNames: recorder.executedToolNames,
             priorActionToolExecutedInConversation:
-                toolRelay?.actionToolExecutedThisConversation ?? false)
+                toolRelay?.actionToolExecutedThisConversation ?? false,
+            savedNote: savedNote)
     }
 
     // MARK: - Conversation bookkeeping
