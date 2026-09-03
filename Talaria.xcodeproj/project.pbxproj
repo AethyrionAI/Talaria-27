@@ -619,7 +619,6 @@
 		F2969766D6DC6CC091C7ADC2 /* SubsystemHero.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C9D8DBBA9993CD9C037B997 /* SubsystemHero.swift */; };
 		F2C9BA7640227E2C6F785B37 /* IPadAdaptationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2D99D44859390A04BE71DF5 /* IPadAdaptationTests.swift */; };
 		F359407C861A4FD4363468A8 /* HermesBrandIconRedrawTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ED1F671C97A9A773083B7E8 /* HermesBrandIconRedrawTests.swift */; };
-		F3A711EF7CF4D6F7B0C2DE30 /* MemoryStore+Lookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AF01107B567F8380CF1D0B7 /* MemoryStore+Lookup.swift */; };
 		F3FD47CEF18E418FE942DC8B /* IconPreview-DeepField.png in Resources */ = {isa = PBXBuildFile; fileRef = B6A3FBA7A6250BBC0DA91EEB /* IconPreview-DeepField.png */; };
 		F4A9033B8674DE5B87C9EF71 /* TaskDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F24AAADA601692857BDEEE1D /* TaskDetailScreen.swift */; };
 		F4C3E47537B356BF328AE318 /* ApprovalModeCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F07CEE067A8CBEF04205E50D /* ApprovalModeCore.swift */; };
@@ -778,7 +777,6 @@
 		19F4A85186CCFD7152BA59C6 /* CronJobsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronJobsStoreTests.swift; sourceTree = "<group>"; };
 		1AC3767C82EFB9610099B54F /* TaskEditSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEditSheet.swift; sourceTree = "<group>"; };
 		1AC7566763F5B0895D8BD665 /* HostFailurePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostFailurePresentation.swift; sourceTree = "<group>"; };
-		1AF01107B567F8380CF1D0B7 /* MemoryStore+Lookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MemoryStore+Lookup.swift"; sourceTree = "<group>"; };
 		1C1F6BBA55BF217D40902D37 /* BatteryResultsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryResultsScreen.swift; sourceTree = "<group>"; };
 		1C2A6A4225D5F4614D927788 /* ModelsPickerModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelsPickerModelTests.swift; sourceTree = "<group>"; };
 		1C4B0DE180CF1E349DE0C137 /* ThemeCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeCatalogTests.swift; sourceTree = "<group>"; };
@@ -2068,7 +2066,6 @@
 				92E78786B93F42820F85C46A /* MemoryIndexer.swift */,
 				7CA4821240C8F5FC54172483 /* MemoryProvenance.swift */,
 				4FA0E80CFDC0A74F13BA28DF /* MemoryStore.swift */,
-				1AF01107B567F8380CF1D0B7 /* MemoryStore+Lookup.swift */,
 			);
 			path = Memory;
 			sourceTree = "<group>";
@@ -2852,7 +2849,6 @@
 				CF5108717F4C21EE587F726F /* MemoryIndexer.swift in Sources */,
 				705576FBFE8F05CE37331E76 /* MemoryProvenance.swift in Sources */,
 				533C63211F370BB1D659E583 /* MemoryProvenanceChip.swift in Sources */,
-				F3A711EF7CF4D6F7B0C2DE30 /* MemoryStore+Lookup.swift in Sources */,
 				029165AB0B326745F36A2147 /* MemoryStore.swift in Sources */,
 				98DA61FB7F3A7EE097879610 /* Message.swift in Sources */,
 				A32A517B2F8FA405A87CAE2E /* MessageBubble.swift in Sources */,

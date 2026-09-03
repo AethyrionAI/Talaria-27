@@ -55,15 +55,7 @@ import os
 final class MemoryStore {
     private static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "MemoryStore")
     private let container: ModelContainer
-    /// The private context — NEVER `mainContext` (iOS 27 SIGTRAP).
-    ///
-    /// Internal rather than `private` only because Swift's `private` is
-    /// FILE-scoped and `MemoryStore+Lookup.swift` is a separate file (kept
-    /// separate so the provenance lookup does not sit in the way of this
-    /// file's schema edits). Treat it as private: everything outside this
-    /// class goes through a named method.
-    // lookup-visible
-    let context: ModelContext
+    private let context: ModelContext   // private context — NEVER mainContext (iOS 27 SIGTRAP)
 
     private init(container: ModelContainer) {
         self.container = container
@@ -211,6 +203,53 @@ final class MemoryStore {
 
     func indexCount() -> Int {
         (try? context.fetchCount(FetchDescriptor<MemoryTurnIndexRecord>())) ?? 0
+    }
+
+    // MARK: - Provenance lookup (#422 ruling 2)
+    //
+    // Resolving the ids a `MemoryProvenance` value carries back into the words
+    // the user actually wrote, so the provenance sheet shows a source rather
+    // than an identifier.
+    //
+    // Both read ONLY `text` / `sentAt` / `createdAt`. A source line quotes the
+    // user's own words and says when they were said; the scoring columns are no
+    // part of that question, and reading them here would tie the one surface the
+    // user sees to a retrieval implementation that is still moving.
+    //
+    // Both return `nil` rather than a placeholder for a row that is gone.
+    // Missing is a real answer — `reconcileSession` deletes the rows of a
+    // message the user retried, undid or regenerated away — and the caller
+    // renders it as `source deleted`. Manufacturing a stand-in row here would
+    // put that decision in the store, where the view could no longer tell a
+    // real memory from a hole.
+    //
+    // They go through `fetch(_:op:)` like every other read. A bare
+    // `try? context.fetch` would make a FAILED fetch indistinguishable from a
+    // deleted row, and the user-visible consequence is worse here than
+    // anywhere else in this class: the sheet would say "source deleted" about
+    // a memory that still exists, in the one surface ruling 2 built to be
+    // trustworthy — silently, and only for the user whose store is unhappy.
+
+    /// The indexed turn chunk behind a provenance `entryID`, or `nil` when the
+    /// row no longer exists.
+    func turnEntry(id: UUID) -> (text: String, sentAt: Date)? {
+        let entryID = id
+        var descriptor = FetchDescriptor<MemoryTurnIndexRecord>(
+            predicate: #Predicate { $0.entryID == entryID })
+        descriptor.fetchLimit = 1
+        guard let row = fetch(descriptor, op: "turnEntry").first else { return nil }
+        return (row.text, row.sentAt)
+    }
+
+    /// The explicit note behind a provenance `noteID`, or `nil` when the row no
+    /// longer exists.
+    func note(id: UUID) -> (text: String, createdAt: Date)? {
+        let noteID = id
+        var descriptor = FetchDescriptor<MemoryNoteRecord>(
+            predicate: #Predicate { $0.noteID == noteID })
+        descriptor.fetchLimit = 1
+        guard let row = fetch(descriptor, op: "note").first else { return nil }
+        return (row.text, row.createdAt)
     }
 
     /// Fetch with a diagnostic. A swallowed `try?` here is not benign: a failed

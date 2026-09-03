@@ -228,16 +228,17 @@ struct MemoryProvenanceTests {
         #expect(resolved.sentAt == Self.sentAt)
     }
 
-    @Test func theStoreResolvesAnExplicitNoteByItsNoteID() throws {
-        let store = try #require(MemoryStore.make(inMemoryOnly: true))
-        let noteID = UUID()
-        try Self.insertNote(noteID: noteID, text: "I am allergic to penicillin",
-                            createdAt: Self.sentAt, into: store)
-
-        let resolved = try #require(store.note(id: noteID))
-        #expect(resolved.text == "I am allergic to penicillin")
-        #expect(resolved.createdAt == Self.sentAt)
-    }
+    /// ⚠️ OWED: `note(id:)`'s POSITIVE path has no store-level pin, because
+    /// nothing in the tree writes a `MemoryNoteRecord` yet — the note writer is
+    /// a later task in this lane. Seeding one here would have meant either a
+    /// test-only writer on `MemoryStore` or reaching into its private context,
+    /// and a test-only production API is the smell this fix round removed
+    /// elsewhere. **Whichever task adds the note writer must add the pin**:
+    /// write a note, then `#expect(store.note(id:)?.text == …)`.
+    ///
+    /// What IS covered meanwhile: the nil path below (same method), the whole
+    /// note branch of the sheet through injected resolvers (four tests above),
+    /// and the identically-shaped `turnEntry(id:)` positive path.
 
     @Test func anIDTheStoreHasNeverSeenResolvesToNil() throws {
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
@@ -271,26 +272,16 @@ struct MemoryProvenanceTests {
 
     // MARK: - Row construction helpers
     //
-    // ⚠️ These two spell `embedderID:`/`vector:` because the CURRENT record
-    // initialisers require them. They are the only such references in this
-    // lane, they are confined to the test fixtures, and when the lexical-only
-    // schema lands they take the same one-line edit as the fixtures in
-    // MemoryStoreTests / MemoryIndexerTests / MemoryBackfillRunnerTests.
-    // Nothing in MemoryStore+Lookup or MemoryProvenanceChip reads either
-    // column.
+    // ⚠️ This one spells `embedderID:`/`vector:` because the CURRENT record
+    // initialiser requires them. It is the only such reference in this lane,
+    // it is confined to a test fixture, and when the lexical-only schema lands
+    // it takes the same one-line edit as the fixtures in MemoryStoreTests /
+    // MemoryIndexerTests / MemoryBackfillRunnerTests. Neither `turnEntry(id:)`
+    // nor `note(id:)` nor MemoryProvenanceChip reads either column.
 
     private static func turnChunk(entryID: UUID, text: String, sentAt: Date) -> MemoryTurnIndexRecord {
         MemoryTurnIndexRecord(entryID: entryID, sessionID: UUID(), messageID: UUID(),
                               chunkIndex: 0, text: text, sentAt: sentAt,
                               embedderID: "test", vector: Data())
-    }
-
-    /// Notes have no store writer yet (that is a later task in this lane), so
-    /// the fixture inserts through the store's own context.
-    private static func insertNote(noteID: UUID, text: String, createdAt: Date,
-                                   into store: MemoryStore) throws {
-        store.context.insert(MemoryNoteRecord(noteID: noteID, text: text, createdAt: createdAt,
-                                              embedderID: "test", vector: Data()))
-        try store.context.save()
     }
 }

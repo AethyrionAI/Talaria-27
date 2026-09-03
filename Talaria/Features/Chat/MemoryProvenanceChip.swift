@@ -38,6 +38,12 @@ struct MemoryProvenanceChipModel: Equatable {
     /// every pre-#422 cached row decodes to (`decodeIfPresent`, the #42
     /// silent-wipe rule), and a chip on those would assert a memory the reply
     /// never had.
+    ///
+    /// Production expresses the same rule as an `if let` at the call site,
+    /// which is the right SwiftUI shape — a view that renders nothing should
+    /// not be built. This spelling exists so the rule can be ASSERTED as a
+    /// value rather than inferred from a view body.
+    // harness-visible
     static func model(for provenance: MemoryProvenance?) -> MemoryProvenanceChipModel? {
         provenance.map(MemoryProvenanceChipModel.init(provenance:))
     }
@@ -86,8 +92,8 @@ struct MemoryProvenanceSheetModel: Equatable {
             // save is usually the whole of that turn's memory activity, with
             // nothing injected alongside it. Skipped when the same note also
             // rode the injected set: one memory, one row.
-            let noteIDs = noteIDs + (savedNoteID.map { noteIDs.contains($0) ? [] : [$0] } ?? [])
-            rows += noteIDs.map { id -> Row in
+            let listedNoteIDs = noteIDs + (savedNoteID.map { noteIDs.contains($0) ? [] : [$0] } ?? [])
+            rows += listedNoteIDs.map { id -> Row in
                 guard let note = resolveNote(id) else { return Self.deletedRow }
                 return Row(sourceLine: "You told me on \(Self.dateLabel(note.createdAt))",
                            text: note.text)
@@ -142,6 +148,13 @@ struct MemoryProvenanceChip: View {
         Button { isSourcesPresented = true } label: {
             MonoLabel(model.label, size: 8, tracking: Design.Tracking.mono,
                       color: Design.Colors.dimForeground)
+                // #42: the longest label in this footer row — 16 characters
+                // for the on-device form, 29 for the host one, sharing a line
+                // with the timestamp, the brain tag and the read-aloud toggle.
+                // Without this it character-wraps under pressure ("ON-DEVI" /
+                // "CE MEMO"), which is the exact rendering that rule exists
+                // to forbid.
+                .hudSingleLine()
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
