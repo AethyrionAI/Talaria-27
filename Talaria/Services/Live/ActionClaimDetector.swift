@@ -458,8 +458,25 @@ enum ActionClaimDetector {
     /// is unchanged here: a guard that fires on an honest offer trains the
     /// user to ignore it.
     private static let memoryFirstPersonPatterns: [TokenPattern] = [
-        // THE FUTURE FRAME — "I'll remember that", "I'll note that". A promise
-        // to store, and the only frame in which `remember` is a claim.
+        // THE FUTURE FRAME — "I'll remember that". A promise to store, and
+        // the only frame in which `remember` is a claim.
+        //
+        // ⚠️ KNOWN LIMIT, and this comment used to claim otherwise (final
+        // review, 2026-09-03): it does NOT cover *"I'll note that"* or
+        // *"I'll save that to memory"*. `memoryWriteVerbs` holds the past
+        // participles `noted`/`saved` only — the bare infinitives `note` and
+        // `save` are in no verb set here, so those forms MISS, as does a bare
+        // *"Noted."* with no first-person subject at all.
+        //
+        // That is a deliberate under-reach rather than an oversight waiting
+        // to be fixed. Bare `save` + a memory noun fires on *"I'll save that
+        // file"*, *"I'll save that for later"* and *"I'll save that setting"*
+        // — ordinary, honest sentences — and #338's weighting is explicit
+        // that a guard firing on an honest reply is worse than one that stays
+        // quiet: it trains the user to ignore the correction. Closing the gap
+        // needs the object disambiguated, not the verb widened.
+        // `MemoryHonestyTests` asserts all three misses as KNOWN LIMITS, so
+        // the gap is measured rather than assumed.
         .init(steps: [["i'll"], memoryPromiseVerbs.union(memoryWriteVerbs), memoryNouns], maxGap: 1),
         // "I will remember that" — the auxiliary is a required step, which is
         // what excludes "I can remember that".

@@ -196,6 +196,88 @@ struct ExplicitNoteCaptureTests {
         #expect(store.allNotes().isEmpty)
     }
 
+    // MARK: - Regenerate restores the note when the re-send is swallowed
+    //         (FINAL REVIEW item 2 — silent data loss)
+
+    /// **The defect.** `regenerateReply` truncates the transcript in order to
+    /// re-send, and `truncateTranscript` deletes the notes those turns saved.
+    /// When a send guard swallows the re-send — in practice the duplicate
+    /// check, when an identical turn is still pending elsewhere in the thread
+    /// — `restoreTruncatedRows` puts the MESSAGES back but used to leave the
+    /// note deleted. The user re-rolled a reply and silently lost a memory
+    /// they had explicitly asked to keep: no error, nothing on screen, and
+    /// the transcript looks untouched because the rows came back.
+    ///
+    /// The transcript is built directly rather than driven through two sends,
+    /// because the swallow needs a `.sending` row that OUTLIVES the
+    /// truncation — an earlier identical turn, above `userIdx`. That is the
+    /// real shape (#78's residual) and it is not reachable by settling sends.
+    @Test func regeneratingWithASwallowedResendKeepsTheNote() async throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let (chatStore, _) = makeChatStore(memoryStore: store)
+        let text = "Remember that my sister lives in Austin"
+
+        let producingID = UUID()
+        let noteID = store.insertNote(
+            "my sister lives in Austin", sourceMessageID: producingID, sourceSessionID: nil)
+        #expect(store.allNotes().count == 1)
+
+        // An earlier, still-pending copy of the same turn: this is what makes
+        // `sendMessage` return false, and it survives the truncation because
+        // it sits ABOVE the producing turn.
+        let stuck = Message(
+            id: UUID(), clientMessageID: UUID(), sender: .user, content: text, status: .sending)
+        let producing = Message(
+            id: producingID, clientMessageID: producingID, sender: .user,
+            content: text, status: .delivered)
+        let reply = Message(sender: .hermes, content: "Got it.", status: .delivered)
+        chatStore.conversation = Conversation(
+            title: "Hermes", messages: [stuck, producing, reply])
+
+        await chatStore.regenerateReply(reply)
+
+        #expect(store.allNotes().count == 1, """
+            the re-send was swallowed and the rows were restored, but the note was not — \
+            the user re-rolled a reply and silently lost a memory they asked to keep
+            """)
+        #expect(store.note(id: noteID) != nil, """
+            the note came back under a DIFFERENT id — every memoryProvenance and \
+            MemoryUseRecord naming the old one now resolves to nothing (ruling 2)
+            """)
+        #expect(store.allNotes().first?.text == "my sister lives in Austin",
+                "restored verbatim")
+    }
+
+    /// The restore must not resurrect a note the user really did undo: a
+    /// truncation that is NOT followed by a restore leaves the row deleted,
+    /// and a later restore of a DIFFERENT truncation must not bring it back.
+    @Test func aPlainUndoStillRemovesTheNoteForGood() async throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let (chatStore, _) = makeChatStore(memoryStore: store)
+
+        _ = await chatStore.sendMessage("Remember that my sister lives in Austin")
+        #expect(store.allNotes().count == 1)
+        let messages = try #require(chatStore.conversation?.messages)
+        let lastUserIdx = try #require(messages.lastIndex { $0.sender.isUserAuthored })
+        chatStore.truncateTranscript(from: lastUserIdx, reason: "/undo")
+        #expect(store.allNotes().isEmpty)
+
+        // A later regenerate whose re-send IS swallowed must restore only its
+        // OWN truncation's notes — the stash is per-truncation, not a
+        // graveyard.
+        let stuck = Message(
+            id: UUID(), clientMessageID: UUID(), sender: .user,
+            content: "something else", status: .sending)
+        let producing = Message(sender: .user, content: "something else", status: .delivered)
+        let reply = Message(sender: .hermes, content: "ok", status: .delivered)
+        chatStore.conversation = Conversation(
+            title: "Hermes", messages: [stuck, producing, reply])
+        await chatStore.regenerateReply(reply)
+
+        #expect(store.allNotes().isEmpty,
+                "an undone note must stay undone — the stash belongs to one truncation")
+    }
+
     // MARK: - Retry does not duplicate the note (fix round 1, Important item 3)
     //
     // `ChatStore.retryMessage` removes its single row with a bare

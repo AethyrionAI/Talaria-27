@@ -3016,9 +3016,23 @@ final class ChatStore {
         // recent one — a message's `id` is what `sendMessage` stamps as a
         // note's `sourceMessageID`, and rows with no matching note are a
         // harmless no-op.
-        memoryStore?.deleteNotes(withSourceMessageIDs: Set(removed.map(\.id)))
+        //
+        // FINAL REVIEW item 2: the deleted notes are STASHED, not merely
+        // deleted. `regenerate` truncates in order to re-send, and when a
+        // send guard swallows the re-send it restores the rows — restoring
+        // the messages while leaving the notes gone is silent data loss: the
+        // user re-rolled a reply and lost a memory they had explicitly asked
+        // to keep, with no error and nothing on screen to notice. Overwritten
+        // by each truncation, which is correct: a truncation nobody restored
+        // is a truncation whose notes were meant to go.
+        truncatedNoteStash = memoryStore?.deleteNotes(
+            withSourceMessageIDs: Set(removed.map(\.id))) ?? []
         return removed
     }
+
+    /// Notes the most recent `truncateTranscript` deleted, held only until
+    /// that truncation is either restored or superseded. See item 2 above.
+    private var truncatedNoteStash: [MemoryNoteSnapshot] = []
 
     /// Puts rows a truncation removed back where they were — the safety net
     /// for a caller that truncated in order to re-send and then didn't send
@@ -3027,6 +3041,18 @@ final class ChatStore {
     /// sent and nothing persisted). Id-deduped, so a partially-recovered
     /// transcript can't double a row.
     private func restoreTruncatedRows(_ rows: [Message], at index: Int) {
+        // FINAL REVIEW item 2: the notes come back with the rows, under
+        // their ORIGINAL ids — restored identity is what keeps lane M4's
+        // `Message.memoryProvenance` and every existing `MemoryUseRecord`
+        // pointing at a note that still exists. Done before the early
+        // returns below: whether the MESSAGE rows need restoring is a
+        // separate question from whether the NOTES do (a partially recovered
+        // transcript can already hold every row and still be missing the
+        // note), and a stash left unconsumed would outlive its truncation.
+        let notes = truncatedNoteStash
+        truncatedNoteStash = []
+        memoryStore?.restoreNotes(notes)
+
         guard !rows.isEmpty, var conv = conversation else { return }
         let present = Set(conv.messages.map(\.id))
         let missing = rows.filter { !present.contains($0.id) }

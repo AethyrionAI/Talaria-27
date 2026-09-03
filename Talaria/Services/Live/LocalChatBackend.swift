@@ -434,6 +434,46 @@ final class LocalChatBackend: HermesClientProtocol {
         return base + "\n\n" + notes
     }
 
+    /// The token budget a session's instructions + history + next prompt must
+    /// fit — the runtime window less the reply headroom, less one memory
+    /// block while memory can inject.
+    ///
+    /// **ONE definition, read by `fitsContext` AND `sessionBlueprint`, and
+    /// that is the whole point of it being a function** (final-review item 1).
+    /// They were computed separately, and the two disagreed by exactly the
+    /// reserve — which produced a band rather than an off-by-one. Between
+    /// 6,368 and 7,168 tokens on the phone, `fitsContext` said "does not fit"
+    /// and `verbatimSplitIndex` — reading the LARGER budget — returned 0, so
+    /// `preparedSession` logged *"condensing older turns (#26)"*, rebuilt, and
+    /// condensed NOTHING. The next turn did it again: a full prefill of the
+    /// whole transcript, every turn, for a 4–8 turn band, announced by a log
+    /// line that was false. The invariant this restores is simple — **if the
+    /// fit check says no, the rebuild that follows must actually change
+    /// something.**
+    ///
+    /// **Why the reserve exists at all:** `injectedMemoryTokensThisSession`
+    /// covers turns 1…N−1 — the prefixes already in the live transcript. It
+    /// cannot cover turn N's, because both callers run BEFORE retrieval (bar
+    /// 422-D's own ordering: the router and the fit check see the user's bare
+    /// words). So one whole `memoryBlockTokens` — the most this turn could
+    /// possibly spend — is held back unconditionally while memory can inject,
+    /// because at this point nobody yet knows whether the turn will retrieve.
+    /// Paying up to 800 of the phone's 7,168 tokens to guarantee the next
+    /// prefix has somewhere to land is the trade: condense a little early,
+    /// never overflow mid-turn.
+    ///
+    /// Nothing is reserved when memory cannot inject — the toggle OFF, or no
+    /// store to read. Either way there is no prefix to hold room for and the
+    /// budget is byte-for-byte what it was before this lane. See
+    /// `memoryCanInject` for why that is a separate predicate from the toggle.
+    private func promptBudget() async -> Int {
+        let contextSize = await activeContextSize()
+        let reserve = memoryCanInject
+            ? MemoryBudget.memoryBlockTokens(contextSize: contextSize)
+            : 0
+        return max(256, max(1024, contextSize - Self.responseHeadroomTokens(for: activeTier)) - reserve)
+    }
+
     /// This turn's prompt, with the memory prefix in front of it — the ONE
     /// place a retrieved memory reaches the model.
     ///
@@ -454,8 +494,17 @@ final class LocalChatBackend: HermesClientProtocol {
     /// the turn input, and a prefix recomputed there would run a second
     /// retrieval and charge the window twice for one turn's memories.
     /// `prefixed(_:with:)` is what re-applies it to the recomposed input.
-    func memoryPrefix(for input: ComposedTurnInput) async -> String {  // harness-visible
-        let prompt = input.promptText
+    ///
+    /// `query` is the user's OWN message text, not `input.promptText`
+    /// (final-review item 5). The composed prompt carries inlined attachment
+    /// bodies and image placeholders, and a pasted file is the pathological
+    /// case: a few thousand words of someone else's prose would dominate the
+    /// lexical overlap and retrieve memories about the ATTACHMENT rather than
+    /// about the question — and, being content-bearing, would also defeat
+    /// `shouldSkip` on a turn whose actual message is a bare "summarise
+    /// this". Retrieval is a question about what the user asked.
+    func memoryPrefix(for input: ComposedTurnInput, query: String) async -> String {  // harness-visible
+        let prompt = query
         var pieces: [String] = []
         // The just-saved notice is a fact about THIS turn and is never
         // trimmed — it quotes the user's own words back (≤ 500 chars by
@@ -915,7 +964,7 @@ final class LocalChatBackend: HermesClientProtocol {
         // #422 bar 422-D: memory joins the turn AFTER routing and the fit
         // check, and rides #390's one door. Composed once here; the #408
         // degrade leg re-applies THIS prefix rather than retrieving again.
-        let memoryPrefix = await memoryPrefix(for: turnInput)
+        let memoryPrefix = await memoryPrefix(for: turnInput, query: message)
         turnInput = Self.prefixed(turnInput, with: memoryPrefix)
         appendUserMessage(message: message, attachments: attachments, clientMessageID: clientMessageID)
 
@@ -1176,7 +1225,7 @@ final class LocalChatBackend: HermesClientProtocol {
         var liveSession = await preparedSession(nextPrompt: prompt, attachments: attachments, excludingClientMessageID: clientMessageID)
         // #422 bar 422-D: see `send`'s identical call — memory joins the turn
         // AFTER routing and the fit check, through #390's one door.
-        let memoryPrefix = await memoryPrefix(for: turnInput)
+        let memoryPrefix = await memoryPrefix(for: turnInput, query: message)
         turnInput = Self.prefixed(turnInput, with: memoryPrefix)
         appendUserMessage(message: message, attachments: attachments, clientMessageID: clientMessageID)
 
@@ -1854,8 +1903,12 @@ final class LocalChatBackend: HermesClientProtocol {
         // well as the condensing path — and so every budget number computed
         // from `baseInstructions` already counts what the notes cost.
         let baseInstructions = await instructionsWithMemoryNotes(hasImageInContext: hasImageInContext)
-        // Budget from the model at RUNTIME — never hardcoded (#26 ground rule).
-        let contextBudget = max(1024, await activeContextSize() - Self.responseHeadroomTokens(for: activeTier))
+        // Budget from the model at RUNTIME — never hardcoded (#26 ground
+        // rule) — and through the SAME function `fitsContext` reads, memory
+        // reserve included (final-review item 1). When these two disagreed,
+        // the gap between them was a band in which the fit check rejected a
+        // transcript that this budget then declined to condense.
+        let contextBudget = await promptBudget()
 
         // Cheap upper bound first: every token is at least one UTF-8 byte, so
         // a byte total inside the budget can never overflow it — skip the
@@ -1935,35 +1988,7 @@ final class LocalChatBackend: HermesClientProtocol {
         // instructions text than the session carries is the drift that makes
         // "it fits" a guess.
         let baseInstructions = await instructionsWithMemoryNotes(hasImageInContext: hasImageInContext)
-        let contextSize = await activeContextSize()
-        // #422 bar 422-D, FIX ROUND 1: reserve room for THIS turn's prefix.
-        //
-        // `injectedMemoryTokensThisSession` covers turns 1…N−1 — the prefixes
-        // already in the live transcript. It cannot cover turn N's, because
-        // this check runs BEFORE retrieval (bar 422-D's own ordering: the
-        // router and the fit check see the user's bare words). So every
-        // generation used to carry one unaccounted prefix — ~330 tokens
-        // typically, ~460 with a just-saved notice, two of them on a retry
-        // leg that reset the counter — against 1,024 tokens of reply
-        // headroom.
-        //
-        // The reserve is one whole `memoryBlockTokens`: the most this turn
-        // could possibly spend, taken unconditionally while memory is ON
-        // because at this point nobody knows yet whether the turn will
-        // retrieve. Paying up to 800 tokens of the phone's 7,168 to
-        // guarantee the next prefix has somewhere to land is the trade —
-        // rebuild a little early, never overflow mid-turn.
-        //
-        // The reserve is not taken at all when memory cannot inject — the
-        // toggle OFF, or no store to read (container-creation failure, and
-        // every backend a test never wired one into). Either way there is no
-        // prefix to hold room for, and the budget is byte-for-byte what it
-        // was before this lane. See `memoryCanInject` for why that is a
-        // separate predicate from the toggle.
-        let contextBudget = max(
-            256,
-            max(1024, contextSize - Self.responseHeadroomTokens(for: activeTier))
-                - (memoryCanInject ? MemoryBudget.memoryBlockTokens(contextSize: contextSize) : 0))
+        let contextBudget = await promptBudget()
         // #422 bar 422-D: the prefixes already inside the LIVE session's
         // transcript. `turns` comes from `currentConversation`, which stores
         // the user's bare messages, so without this term the estimate is low
@@ -2346,7 +2371,8 @@ final class LocalChatBackend: HermesClientProtocol {
         settledText: String,
         executedToolNames: [String],
         priorActionToolExecutedInConversation: Bool = false,
-        savedNote: Bool = false
+        savedNote: Bool = false,
+        memoryEnabled: Bool = true
     ) -> String {
         guard let claim = ActionClaimDetector.unfulfilledClaim(
             in: modelText,
@@ -2354,6 +2380,25 @@ final class LocalChatBackend: HermesClientProtocol {
             priorActionToolExecutedInConversation: priorActionToolExecutedInConversation,
             savedNote: savedNote
         ) else { return settledText }
+        // **#422 bar 422-H — OWEN'S RULING, 2026-09-03: the guard is QUIET on
+        // memory claims while memory is OFF.**
+        //
+        // The correction's own words are *"Talaria only remembers what you
+        // ask it to…"* — a statement about a feature the user has switched
+        // off. With memory off the app made no promise to keep, so there is
+        // nothing to correct the model against; appending the notice would
+        // advertise a disabled feature at the user every time the model said
+        // something conversational, which is #338's own failure mode (a
+        // correction the user learns to ignore). There is deliberately NO
+        // off-state string: silence is the ruling, not a different sentence.
+        //
+        // Scoped to `.memoryCreation` alone. Every other claim kind is about
+        // a DEVICE action — a reminder, an alarm, a calendar event — and the
+        // memory toggle has nothing to do with whether those ran.
+        if claim.kind == .memoryCreation, !memoryEnabled {
+            Self.logger.notice("honesty guard: memory claim left uncorrected — memory is OFF, so the app promised nothing (#422)")
+            return settledText
+        }
         honestyGuardFireCount += 1
         lastHonestyGuardClaim = claim
         Self.logger.notice("\(Self.honestyGuardLogLine(kind: claim.kind, executedCalls: executedToolNames.count, fireCount: self.honestyGuardFireCount), privacy: .public)")
@@ -2385,7 +2430,12 @@ final class LocalChatBackend: HermesClientProtocol {
             executedToolNames: recorder.executedToolNames,
             priorActionToolExecutedInConversation:
                 toolRelay?.actionToolExecutedThisConversation ?? false,
-            savedNote: savedNote)
+            savedNote: savedNote,
+            // #422 bar 422-H (Owen, 2026-09-03): read LIVE here, alongside
+            // the recorder and the relay latch, for the reason this overload
+            // exists — both turn paths get the ruling without either call
+            // site having to remember it.
+            memoryEnabled: memoryIsOn)
     }
 
     // MARK: - Conversation bookkeeping

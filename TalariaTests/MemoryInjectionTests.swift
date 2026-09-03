@@ -114,7 +114,7 @@ struct MemoryInjectionTests {
 
         _ = await backend.preparedSession(
             nextPrompt: input.promptText, attachments: [], excludingClientMessageID: nil)
-        let prefix = await backend.memoryPrefix(for: input)
+        let prefix = await backend.memoryPrefix(for: input, query: input.promptText)
         let prefixed = LocalChatBackend.prefixed(input, with: prefix)
 
         #expect(backend.lastRoutedPrompt == input.promptText,
@@ -133,9 +133,7 @@ struct MemoryInjectionTests {
     /// pattern as `MemoryHonestyTests`/`GuardrailImageDegradeTests`.)
     @Test func bothTurnPathsPrefixMemoryAfterPreparingTheSession() throws {
         for anchor in ["func send(", "func streamTurn("] {
-            // 4,000 chars: `streamTurn`'s `#if DEBUG` forced-trip block sits
-            // between its signature and the call, ~3,100 chars in.
-            let body = try Self.backendFunctionBody(from: anchor, limit: 4000)
+            let body = try Self.backendFunctionBody(from: anchor)
             let prepared = try #require(
                 body.range(of: "await preparedSession(nextPrompt:"),
                 "\(anchor) no longer calls preparedSession — re-point this pin")
@@ -173,7 +171,7 @@ struct MemoryInjectionTests {
             _ = await backend.preparedSession(
                 nextPrompt: input.promptText, attachments: [],
                 excludingClientMessageID: nil)
-            let prefix = await backend.memoryPrefix(for: input)
+            let prefix = await backend.memoryPrefix(for: input, query: input.promptText)
             if !prefix.hasPrefix(MemoryBudget.hitsPreamble) { everyTurnCarriedHits = false }
             // The turn lands in history as the user's BARE words — which is
             // exactly the asymmetry the accounting exists to close.
@@ -224,7 +222,7 @@ struct MemoryInjectionTests {
         // would be a pin on this Mac's arithmetic, not on the term.
         var flippedAfter: Int?
         for injection in 1...40 {
-            _ = await backend.memoryPrefix(for: compose(hitQuery))
+            _ = await backend.memoryPrefix(for: compose(hitQuery), query: hitQuery)
             let fits = await backend.fitsContext(
                 turns: [], nextPrompt: "and now?", hasImageInContext: false)
             if !fits { flippedAfter = injection; break }
@@ -315,6 +313,106 @@ struct MemoryInjectionTests {
         #expect(await off.fitsContext(turns: [], nextPrompt: "and now?", hasImageInContext: false))
     }
 
+    /// **FINAL REVIEW item 1 — the reserve is mirrored in `sessionBlueprint`.**
+    ///
+    /// `fitsContext` reserved the memory block; `sessionBlueprint`'s budget did
+    /// not. The gap between them was not an off-by-one but a BAND — 6,368 to
+    /// 7,168 tokens on the phone — in which `fitsContext` returned `false`,
+    /// `preparedSession` logged *"condensing older turns (#26)"*, and
+    /// `verbatimSplitIndex`, reading the LARGER budget, returned 0 so nothing
+    /// condensed. The next turn repeated it: a full prefill of the whole
+    /// transcript, every turn, for 4–8 turns, announced by a log line that was
+    /// false. The invariant restored is **if the fit check says no, the
+    /// rebuild that follows must actually change something.**
+    ///
+    /// Pinned as a CONTRAST at the flip point — the transcript length where
+    /// the memory-ON blueprint first condenses, asserting the memory-OFF
+    /// blueprint does not condense the same turns. That is the reserve
+    /// arriving in `sessionBlueprint` and nothing else, and it needs none of
+    /// the simulator's numbers.
+    ///
+    /// One caveat worth stating rather than hiding: on the simulator
+    /// `sessionBlueprint`'s `available` is floored at 512, which compresses
+    /// the ON/OFF gap from a full block to ~50 tokens. The contrast still
+    /// holds, but the BAND itself does not close completely here the way it
+    /// does on the phone (7,168 − 450 instructions leaves the floor
+    /// irrelevant). The floor is pre-existing #26 behaviour, not this fix.
+    @Test func theBlueprintCondensesEarlierWhenMemoryReservesItsBlock() async throws {
+        let store = try seededStore()
+        let on = makeBackend(memoryStore: store, isMemoryEnabled: { true })
+        let off = makeBackend(memoryStore: store, isMemoryEnabled: { false })
+
+        // Two turns, because the newest is always kept — a one-turn history
+        // is unsplittable and could never condense whatever the budget says.
+        // The SECOND stays tiny so growth moves only the condensable side.
+        var history = ""
+        var flip: [LocalChatBackend.TranscriptTurn]?
+        for _ in 1...200 {
+            history += "another sentence of history. "
+            let turns = [
+                LocalChatBackend.TranscriptTurn(role: .user, text: history),
+                LocalChatBackend.TranscriptTurn(role: .assistant, text: "ok"),
+            ]
+            let blueprint = await on.sessionBlueprint(
+                for: turns, hasImageInContext: false, forceCondense: false)
+            if blueprint.condensedMemory != nil { flip = turns; break }
+        }
+        let turns = try #require(flip, "the ON blueprint never condensed — this pin did not run")
+
+        // At this exact length: ON condenses, and the fit check that sent us
+        // here had already rejected it — the two now agree.
+        let onBlueprint = await on.sessionBlueprint(
+            for: turns, hasImageInContext: false, forceCondense: false)
+        #expect(onBlueprint.condensedMemory != nil)
+        #expect(onBlueprint.verbatimTurns.count < turns.count,
+                "condensing means fewer turns replayed verbatim, not just a non-nil field")
+        #expect(await on.fitsContext(turns: turns, nextPrompt: "and now?", hasImageInContext: false) == false,
+                "the fit check must already have rejected what the blueprint now condenses")
+
+        // Same turns, no reserve: still fits whole. The gap between these two
+        // verdicts IS the mirrored reserve.
+        let offBlueprint = await off.sessionBlueprint(
+            for: turns, hasImageInContext: false, forceCondense: false)
+        #expect(offBlueprint.condensedMemory == nil, """
+            memory ON and memory OFF condensed at the same transcript length, so \
+            sessionBlueprint is not reserving the block — the band is back: fitsContext \
+            rejects, the rebuild condenses nothing, and every turn pays a full prefill
+            """)
+    }
+
+    /// **FINAL REVIEW item 5 — retrieval runs on the user's MESSAGE.**
+    ///
+    /// The query used to be `input.promptText`, which carries inlined
+    /// attachment bodies. A pasted file is the pathological case: a few
+    /// thousand words of someone else's prose dominate the lexical overlap,
+    /// so the turn retrieves memories about the ATTACHMENT rather than about
+    /// the question.
+    @Test func retrievalQueriesOnTheMessageNotTheAttachment() async throws {
+        let store = try seededStore()
+        let backend = makeBackend(memoryStore: store)
+
+        // The attachment is all about the sourdough row; the message asks
+        // about the dentist. Whichever text drives retrieval decides which
+        // memory comes back — which is what makes this discriminating.
+        let pasted = String(
+            repeating: "sourdough starter fridge back sourdough starter fridge ", count: 60)
+        let attachment = PendingAttachment(
+            kind: .file, fileName: "notes.txt", mimeType: "text/plain",
+            data: Data(pasted.utf8), localStoragePath: nil, thumbnailData: nil)
+        let input = LocalChatBackend.composeTurnInput(
+            message: hitQuery, attachments: [attachment],
+            imageInputEnabled: false, savedNote: nil)
+        #expect(input.promptText.contains("sourdough"),
+                "precondition: the composed prompt must actually carry the attachment text")
+
+        let prefix = await backend.memoryPrefix(for: input, query: hitQuery)
+
+        #expect(prefix.contains("my dentist is Doctor Ramirez on Pearl Street"),
+                "retrieval must answer the question the user asked")
+        #expect(!prefix.contains("the sourdough starter lives in the back of the fridge"),
+                "the pasted attachment must not decide which memory is recalled")
+    }
+
     // MARK: - (d) Notes rebuild once per change, never per turn
 
     /// **422-D: two notes, exactly one rebuild each — and none on the turns
@@ -381,7 +479,7 @@ struct MemoryInjectionTests {
         let backend = makeBackend(memoryStore: store, isMemoryEnabled: { false })
 
         let input = compose(hitQuery)
-        let prefix = await backend.memoryPrefix(for: input)
+        let prefix = await backend.memoryPrefix(for: input, query: input.promptText)
         let blueprint = await backend.sessionBlueprint(
             for: [], hasImageInContext: false, forceCondense: false)
 
@@ -399,7 +497,7 @@ struct MemoryInjectionTests {
     @Test func theRetrievalCounterMovesWhenMemoryIsOn() async throws {
         let store = try seededStore()
         let backend = makeBackend(memoryStore: store)
-        _ = await backend.memoryPrefix(for: compose(hitQuery))
+        _ = await backend.memoryPrefix(for: compose(hitQuery), query: hitQuery)
         #expect(backend.memoryRetrievalCount == 1)
     }
 
@@ -409,7 +507,7 @@ struct MemoryInjectionTests {
         let backend = makeBackend(memoryStore: try seededStore())
         let input = compose(hitQuery)
         let prompt = LocalChatBackend.prefixed(
-            input, with: await backend.memoryPrefix(for: input)).promptText
+            input, with: await backend.memoryPrefix(for: input, query: input.promptText)).promptText
 
         #expect(prompt.hasPrefix(MemoryBudget.hitsPreamble))
         #expect(prompt.contains("my dentist is Doctor Ramirez on Pearl Street"),
@@ -433,7 +531,7 @@ struct MemoryInjectionTests {
         let backend = makeBackend(memoryStore: store)
         let input = compose("what do you remember about my kayaking permits")
         let prompt = LocalChatBackend.prefixed(
-            input, with: await backend.memoryPrefix(for: input)).promptText
+            input, with: await backend.memoryPrefix(for: input, query: input.promptText)).promptText
 
         #expect(prompt.hasPrefix(MemoryBudget.noMemoriesMatch))
         #expect(prompt.hasSuffix(input.promptText))
@@ -453,7 +551,7 @@ struct MemoryInjectionTests {
         let backend = makeBackend(memoryStore: store)
         let input = compose("what is 15% of 80")
 
-        let prefix = await backend.memoryPrefix(for: input)
+        let prefix = await backend.memoryPrefix(for: input, query: input.promptText)
         #expect(prefix.isEmpty)
         #expect(backend.injectedMemoryTokensThisSession == 0)
     }
@@ -464,7 +562,7 @@ struct MemoryInjectionTests {
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
         let backend = makeBackend(memoryStore: store)
         let input = compose("what do you remember about my dentist")
-        let prefix = await backend.memoryPrefix(for: input)
+        let prefix = await backend.memoryPrefix(for: input, query: input.promptText)
         #expect(prefix.hasPrefix(MemoryBudget.noMemoriesMatch))
     }
 
@@ -487,7 +585,7 @@ struct MemoryInjectionTests {
         let savedNote = backend.savedNoteThisTurn(clientMessageID: clientMessageID)
         let input = compose("remember that my sister lives in Austin", savedNote: savedNote)
         let prompt = LocalChatBackend.prefixed(
-            input, with: await backend.memoryPrefix(for: input)).promptText
+            input, with: await backend.memoryPrefix(for: input, query: input.promptText)).promptText
 
         #expect(prompt.hasPrefix(MemoryBudget.justSavedPrefix("my sister lives in Austin")))
         #expect(prompt.hasSuffix(input.promptText))
@@ -500,7 +598,7 @@ struct MemoryInjectionTests {
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
         let backend = makeBackend(memoryStore: store)
         let input = compose("remember that my sister lives in Austin", savedNote: nil)
-        let prefix = await backend.memoryPrefix(for: input)
+        let prefix = await backend.memoryPrefix(for: input, query: input.promptText)
         #expect(!prefix.contains("HAS been saved"))
     }
 
@@ -528,7 +626,7 @@ struct MemoryInjectionTests {
         let backend = makeBackend(memoryStore: store)
         let intelligence = LocalIntelligenceService()
 
-        let prefix = await backend.memoryPrefix(for: compose(hitQuery))
+        let prefix = await backend.memoryPrefix(for: compose(hitQuery), query: hitQuery)
         #expect(!prefix.isEmpty, "precondition: this must retrieve")
         let tokens = await intelligence.measuredTokenCount(of: prefix)
         #expect(tokens <= MemoryBudget.memoryBlockTokens(contextSize: 0),
@@ -561,7 +659,7 @@ struct MemoryInjectionTests {
         let savedNote = String(repeating: "a", count: 499) + "z"
         #expect(savedNote.count == 500)
         let input = compose(hitQuery, savedNote: savedNote)
-        let prefix = await backend.memoryPrefix(for: input)
+        let prefix = await backend.memoryPrefix(for: input, query: input.promptText)
 
         #expect(prefix.hasPrefix(MemoryBudget.justSavedPrefix(savedNote)),
                 "the notice is carried VERBATIM and first — it is never the thing that gives way")
@@ -583,7 +681,7 @@ struct MemoryInjectionTests {
         store.insertNote("my sister lives in Austin", sourceMessageID: UUID(), sourceSessionID: nil)
         let backend = makeBackend(memoryStore: store)
 
-        _ = await backend.memoryPrefix(for: compose(hitQuery))
+        _ = await backend.memoryPrefix(for: compose(hitQuery), query: hitQuery)
         let replyID = UUID()
         backend.recordMemoryUse(replyMessageID: replyID)
 
@@ -606,7 +704,7 @@ struct MemoryInjectionTests {
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
         let backend = makeBackend(memoryStore: store)
 
-        _ = await backend.memoryPrefix(for: compose("what is 15% of 80"))
+        _ = await backend.memoryPrefix(for: compose("what is 15% of 80"), query: "what is 15% of 80")
         backend.recordMemoryUse(replyMessageID: UUID())
 
         #expect(backend.lastMemoryUse == nil)
@@ -631,7 +729,12 @@ struct MemoryInjectionTests {
 
     // MARK: - source helpers (mirrors MemoryHonestyTests' pattern)
 
-    private static func backendFunctionBody(from anchor: String, limit: Int) throws -> String {
+    /// One function's body, bounded at the NEXT method declaration rather
+    /// than by a character count (final-review item 4). A character window
+    /// fails as a false RED when the function grows and — far worse here — as
+    /// a false GREEN when it shrinks, because `streamTurn` carries the
+    /// identical pair of lines this pin is asserting about `send`.
+    private static func backendFunctionBody(from anchor: String) throws -> String {
         let path = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
@@ -643,6 +746,8 @@ struct MemoryInjectionTests {
         let range = try #require(
             source.range(of: anchor),
             "\(anchor) is gone — re-point this pin at its successor")
-        return String(source[range.upperBound...].prefix(limit))
+        let rest = source[range.upperBound...]
+        guard let next = rest.range(of: "\n    func ") else { return String(rest) }
+        return String(rest[..<next.lowerBound])
     }
 }

@@ -61,6 +61,29 @@ import os
     }
 }
 
+/// A note lifted out of the store whole, so it can be put back whole.
+///
+/// Exists for exactly one job (final-review item 2): `regenerate` truncates the
+/// transcript — which deletes the notes those turns saved — and then, if a send
+/// guard swallows the re-send, restores the rows. Restoring the MESSAGES while
+/// leaving the notes deleted is silent data loss: the user asked to re-roll a
+/// reply and lost a memory they had explicitly asked to keep, with no error and
+/// nothing on screen to notice.
+///
+/// Carries `noteID` because identity has to survive the round trip. A note
+/// restored under a fresh id would break every `Message.memoryProvenance`
+/// pointing at the old one (lane M4) and every `MemoryUseRecord` that already
+/// named it — ruling 2's "resolvable source" would resolve to nothing.
+struct MemoryNoteSnapshot: Sendable, Equatable {
+    let noteID: UUID
+    let text: String
+    let createdAt: Date
+    let editedAt: Date?
+    let sourceMessageID: UUID?
+    let sourceSessionID: UUID?
+    let wasTruncated: Bool
+}
+
 /// The local memory store — a SEPARATE container from `TalariaLocalSessions`
 /// (#422 ruling 3 made structural: no host row can ever live here).
 @MainActor
@@ -242,13 +265,58 @@ final class MemoryStore {
     /// column is the kind of predicate shape worth not gambling on. Note
     /// counts are a person's own "remember that…" list — never large enough
     /// for this to be a real cost.
-    func deleteNotes(withSourceMessageIDs ids: Set<UUID>) {
-        guard !ids.isEmpty else { return }
+    ///
+    /// **Returns what it deleted** (final-review item 2), so a caller that
+    /// truncated in order to re-send can put the notes back when the send is
+    /// swallowed. Discardable: /undo and edit-and-resend genuinely mean it.
+    @discardableResult
+    func deleteNotes(withSourceMessageIDs ids: Set<UUID>) -> [MemoryNoteSnapshot] {
+        guard !ids.isEmpty else { return [] }
         let doomed = fetch(FetchDescriptor<MemoryNoteRecord>(), op: "deleteNotes")
             .filter { row in row.sourceMessageID.map(ids.contains) ?? false }
-        guard !doomed.isEmpty else { return }
+        guard !doomed.isEmpty else { return [] }
+        let snapshots = doomed.map {
+            MemoryNoteSnapshot(
+                noteID: $0.noteID, text: $0.text, createdAt: $0.createdAt,
+                editedAt: $0.editedAt, sourceMessageID: $0.sourceMessageID,
+                sourceSessionID: $0.sourceSessionID, wasTruncated: $0.wasTruncated)
+        }
         doomed.forEach(context.delete)
         save()
+        return snapshots
+    }
+
+    /// Puts deleted notes back, IDENTITY INCLUDED (final-review item 2).
+    ///
+    /// The counterpart to `deleteNotes(withSourceMessageIDs:)`'s return value:
+    /// `ChatStore.restoreTruncatedRows` calls it when a truncation that was
+    /// meant to precede a re-send ends up preceding nothing. `createdAt` and
+    /// `editedAt` are restored as they were — the note was never re-written,
+    /// only briefly absent, and stamping it "saved just now" would misdate a
+    /// memory in the Memory screen's own list.
+    ///
+    /// Idempotent by id: a note already present is skipped rather than
+    /// duplicated, so a partially-recovered transcript cannot double a row —
+    /// the same rule `restoreTruncatedRows` applies to messages.
+    func restoreNotes(_ snapshots: [MemoryNoteSnapshot]) {
+        guard !snapshots.isEmpty else { return }
+        let ids = snapshots.map(\.noteID)
+        let present = Set(fetch(FetchDescriptor<MemoryNoteRecord>(
+            predicate: #Predicate { ids.contains($0.noteID) }), op: "restoreNotes").map(\.noteID))
+        var restored = 0
+        for snapshot in snapshots where !present.contains(snapshot.noteID) {
+            let row = MemoryNoteRecord(
+                noteID: snapshot.noteID, text: snapshot.text, createdAt: snapshot.createdAt,
+                sourceMessageID: snapshot.sourceMessageID,
+                sourceSessionID: snapshot.sourceSessionID,
+                wasTruncated: snapshot.wasTruncated)
+            row.editedAt = snapshot.editedAt
+            context.insert(row)
+            restored += 1
+        }
+        guard restored > 0 else { return }
+        save()
+        Self.logger.notice("restored \(restored, privacy: .public) explicit note(s) after a swallowed re-send (#422)")
     }
 
     /// Edits a note's text in place. `createdAt` is untouched; `editedAt` is
