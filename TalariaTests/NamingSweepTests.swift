@@ -335,12 +335,10 @@ struct NamingSweepTests {
 
     // MARK: - 422-N: local memory naming pins (bar 422-N)
     //
-    // Task 16 adds: the memory SCREEN's own literals — not built yet, and
-    // deliberately NOT pinned here: "MEMORY", "WHAT TALARIA REMEMBERS", the
-    // empty-state copy ("Talaria can draw on the N messages you've sent in
-    // on-device chats"), and the honesty-correction notice ("Nothing was
-    // saved to memory. Talaria only remembers what you ask it to with
-    // \"Remember that\u{2026}\" \u{2014} the reply above is inaccurate.").
+    // Task 16 ADDED the memory SCREEN's own literals — see
+    // `theMemoryScreensOwnWordsAreTalarias` and
+    // `theHonestyCorrectionNamesTalariaNotTheHost` below. The comment that
+    // stood here listed them as "not built yet"; they ship now.
 
     /// **(a)/(b) — the memory chip's own labels, already shipped by Tasks
     /// 14/15.** `.local`'s two labels are Talaria-meaning (the local brain
@@ -356,6 +354,63 @@ struct NamingSweepTests {
         }
         #expect(sources.contains { $0.text.contains("\"HERMES MEMORY\"") },
                 "the host-meaning memory literal vanished — \"HERMES MEMORY\" names the HOST's memory tool and must stay")
+    }
+
+    /// **Task 16 — the MEMORY screen's own words.** The screen is the one
+    /// surface whose whole subject is what the APP remembers, so a "Hermes"
+    /// anywhere in its Talaria-meaning copy would be the naming ruling
+    /// failing at its loudest point. Pinned as source literals (not through
+    /// the type) for the same reason the chip labels are: a rename that also
+    /// moved the constant would satisfy a `MemoryScreenModel.title ==` check
+    /// while the shipping string changed.
+    @Test @MainActor func theMemoryScreensOwnWordsAreTalarias() throws {
+        let sources = try Self.shippingSources()
+
+        for expected in [
+            "\"MEMORY\"",
+            "\"WHAT TALARIA REMEMBERS\"",
+            "Nothing saved yet — say \\\"Remember that…\\\" or just keep chatting.",
+            "you've sent in on-device chats",
+        ] {
+            #expect(sources.contains { $0.text.contains(expected) },
+                    "a Memory-screen literal vanished from the shipping targets: \(expected)")
+        }
+
+        // The model's own values, so a screen that ships the strings above in
+        // some OTHER file cannot satisfy the pin while rendering nothing.
+        #expect(MemoryScreenModel.title == "MEMORY")
+        #expect(MemoryScreenModel.subtitle == "WHAT TALARIA REMEMBERS")
+        #expect(!MemoryScreenModel.subtitle.contains("Hermes"))
+        #expect(!MemoryScreenModel.emptyCopy.contains("Hermes"))
+        #expect(!MemoryScreenModel.truncationNotice.contains("Hermes"))
+    }
+
+    /// **Task 16 — the host line is the one place this screen says Hermes,
+    /// and it is host-meaning.** Same shape as `theHostBrainLabelStaysHermes`:
+    /// the sentence is ABOUT the host's own memory (Honcho, Hindsight), which
+    /// is exactly what ruling 3 needs said out loud. Asserted together with
+    /// the Talaria-meaning pins above so a sweep cannot "fix" one by breaking
+    /// the other.
+    @Test @MainActor func theHostMemoryLineStaysHostMeaning() {
+        #expect(MemoryScreenModel.hostLine.contains("Hermes host"),
+                """
+                the line names the HOST's memory — renaming it to Talaria would claim the \
+                on-device store belongs to the host, which is ruling 3 inverted
+                """)
+        #expect(MemoryScreenModel.hostLine.contains("Talaria never reads or merges it"))
+    }
+
+    /// **Task 16 — the honesty correction.** Shipped by lane M3
+    /// (`LocalChatBackend`), pinned here because it is the one sentence the
+    /// app says about its own memory when a reply got it wrong: it must name
+    /// TALARIA, never the host.
+    @Test func theHonestyCorrectionNamesTalariaNotTheHost() throws {
+        let sources = try Self.shippingSources()
+        let clause = "Talaria only remembers what you ask "
+        #expect(sources.contains { $0.text.contains("Nothing was saved to memory") },
+                "the honesty correction left the shipping targets")
+        #expect(sources.contains { $0.text.contains(clause) },
+                "the honesty correction no longer names Talaria as the one that remembers")
     }
 
     /// **(c) — no app-meaning "Hermes Memory" / "Hermes remembers" literal.**

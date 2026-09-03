@@ -214,6 +214,55 @@ final class MemoryStore {
         (try? context.fetchCount(FetchDescriptor<MemoryTurnIndexRecord>())) ?? 0
     }
 
+    /// How many distinct MESSAGES the index covers, which is not the same
+    /// number as `indexCount()` and must not be reported as if it were.
+    ///
+    /// A turn is chunked (`MemoryChunker`), so one long message can hold
+    /// several rows. The Memory screen's summary sentence says *messages*, in
+    /// the user's own vocabulary — they wrote messages, not chunks — and
+    /// counting rows under that wording would quietly inflate the number the
+    /// screen shows about their own data. `indexCount()` stays the row count
+    /// for the INDEX readout beside it.
+    func indexedMessageCount() -> Int {
+        Set(fetch(FetchDescriptor<MemoryTurnIndexRecord>(), op: "indexedMessageCount")
+            .map(\.messageID)).count
+    }
+
+    /// How many explicit notes exist. Counted rather than fetched: the Memory
+    /// screen's Forget-everything pin and the notes budget both want the
+    /// number, not the rows.
+    func noteCount() -> Int {
+        (try? context.fetchCount(FetchDescriptor<MemoryNoteRecord>())) ?? 0
+    }
+
+    /// **Forget everything — the ONLY eraser (#422, Owen 2026-09-02).**
+    ///
+    /// Retention is never: no row ages out, and the memory toggle deliberately
+    /// KEEPS the index when it is switched off. So this is the single place a
+    /// memory is destroyed, and it must destroy all of it — every indexed turn
+    /// chunk, every explicit note, and every use record.
+    ///
+    /// All three entities, one save. Leaving the use records behind would be
+    /// the worst possible half-job: the RECENTLY USED list would survive the
+    /// erase, still naming ids, and every one of them would resolve to
+    /// `source deleted` — a screen that keeps a ghost of the memories the user
+    /// just asked it to forget. Ruling 2 in reverse.
+    ///
+    /// Three fetch-and-delete loops rather than a bulk `delete(model:)`: the
+    /// counts here are one person's own memories, and an ordinary delete goes
+    /// through the same context (and the same `save()` diagnostic) as every
+    /// other write in this class.
+    func forgetEverything() {
+        fetch(FetchDescriptor<MemoryTurnIndexRecord>(), op: "forgetEverything.turns")
+            .forEach(context.delete)
+        fetch(FetchDescriptor<MemoryNoteRecord>(), op: "forgetEverything.notes")
+            .forEach(context.delete)
+        fetch(FetchDescriptor<MemoryUseRecord>(), op: "forgetEverything.uses")
+            .forEach(context.delete)
+        save()
+        Self.logger.notice("forgetEverything: local memory erased at the user's request (#422)")
+    }
+
     // MARK: - Provenance lookup (#422 ruling 2)
     //
     // Resolving the ids a `MemoryProvenance` value carries back into the words

@@ -583,15 +583,49 @@ final class ChatStore {
     var isMemoryEnabled: (@MainActor () -> Bool)?
 
     /// #422 Task 11: the note the turn currently (or most recently) in
-    /// flight saved, if any. Reset at the top of every `sendMessage` call.
-    /// Fix round 1 (minor): widened to internal-read — Task 16 stamps the
-    /// reply `Message`'s `memoryProvenance` from it once that type merges in
-    /// from lane M4. Write access stays exclusive to this file; cleanup on
+    /// flight saved, if any. Reset at the top of every `sendMessage` call and
+    /// CONSUMED at the settle point by `takeMemoryProvenance(forReplyID:)`,
+    /// which stamps it onto the reply's `memoryProvenance` (Task 16 — that
+    /// type has since merged in from lane M4, so the slot is no longer
+    /// read-only-for-later). Write access stays exclusive to this file; cleanup on
     /// Undo/retry/regenerate no longer depends on this slot at all (fix
     /// round 1, item 3) — it is keyed on `sourceMessageID` directly via
     /// `MemoryStore.deleteNotes(withSourceMessageIDs:)`, which handles any
     /// past turn's note, not just the most recent one.
     private(set) var pendingSavedNoteID: UUID?
+
+    /// **#422 Task 16 / ruling 2 — the reply provenance stamp.**
+    ///
+    /// Reads back what this turn drew on and hands it to the settling reply,
+    /// then CONSUMES `pendingSavedNoteID` so the next reply cannot inherit a
+    /// `SAVED TO MEMORY` chip for a note it never saved. Called from both
+    /// `.finished` arms; exactly one of them runs per turn.
+    ///
+    /// **Why the store and not the backend's own `lastMemoryUse`.** That
+    /// property is the same fact for the turn that just finished and nothing
+    /// else — it is nil for a HOST turn (which still saves notes, through
+    /// `sendMessage`'s capture) and gone by the next relaunch. The stamp has
+    /// to outlive both: a chip that renders once and vanishes when the
+    /// transcript reloads is worse than no chip, because it makes the
+    /// provenance surface itself untrustworthy.
+    ///
+    /// Keyed on the reply's own `Message.id`, which is what
+    /// `LocalChatBackend.recordMemoryUse` records against and what survives
+    /// the placeholder slot swap.
+    ///
+    /// Returns `nil` — no chip — when the turn drew on nothing and saved
+    /// nothing. That is the common case by a wide margin, and a stamp that
+    /// fired unconditionally would put a memory claim on every reply in the
+    /// app.
+    private func takeMemoryProvenance(forReplyID replyID: UUID) -> MemoryProvenance? {
+        let savedNoteID = pendingSavedNoteID
+        pendingSavedNoteID = nil
+        let use = memoryStore?.recentUses(limit: 20).first { $0.replyMessageID == replyID }
+        guard use != nil || savedNoteID != nil else { return nil }
+        return .local(entryIDs: use?.entryIDs ?? [],
+                      noteIDs: use?.noteIDs ?? [],
+                      savedNoteID: savedNoteID)
+    }
 
     /// #190B: a failed session open, surfaced as state the UI renders — the
     /// old catch logged and returned, which is how a deterministic dead tap
@@ -1508,6 +1542,12 @@ final class ChatStore {
                            resolved.brain == nil || resolved.brain == ChatBackendRouter.Brain.hermes.rawValue {
                             resolved.servingModel = self.activeModelName
                         }
+                        // #422 ruling 2: what this reply drew on, stamped
+                        // onto the message itself. See
+                        // `takeMemoryProvenance(forReplyID:)` — the store row
+                        // is keyed on THIS id, which is why the stamp happens
+                        // on the resolved copy rather than the placeholder.
+                        resolved.memoryProvenance = self.takeMemoryProvenance(forReplyID: resolved.id)
                         // #120: a mid-stream conversation merge (the 2s relay
                         // poll, a refresh) can already have adopted this reply
                         // from a backend that appends it before yielding
@@ -1543,6 +1583,10 @@ final class ChatStore {
                            resolved.brain == nil || resolved.brain == ChatBackendRouter.Brain.hermes.rawValue {
                             resolved.servingModel = self.activeModelName
                         }
+                        // #422 ruling 2 — the same stamp on the arm that
+                        // lost its placeholder. Both arms, or a recovery would
+                        // silently drop the chip.
+                        resolved.memoryProvenance = self.takeMemoryProvenance(forReplyID: resolved.id)
                         if conv.messages.contains(where: { $0.id == resolved.id }) {
                             // #120: a mid-stream merge already adopted this row.
                             ledger.finalDelivery = .alreadyPresent

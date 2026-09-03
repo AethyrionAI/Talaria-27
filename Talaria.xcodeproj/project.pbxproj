@@ -357,6 +357,7 @@
 		833F59688DD58FD56BEF8802 /* HermesLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37C4631361E43482328C012F /* HermesLiveActivity.swift */; };
 		835FE1F3B6871E5A4015A5CC /* CarPlayVoiceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D347133A2D2AA45285B7CD /* CarPlayVoiceManager.swift */; };
 		844C28B6544240045C725683 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1EAB9C98E5FE27B257BF2EA /* ShareSheet.swift */; };
+		84910211701ED7F0569C741E /* MemoryScreenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7C05991BB8F0A0B50394D61 /* MemoryScreenTests.swift */; };
 		8561A63423E007C0C15733DB /* LocalChatBackend+SurfaceProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93AD88967C9611D3386FE53D /* LocalChatBackend+SurfaceProbe.swift */; };
 		85765F4F456277D1E0F815F4 /* DeviceActionToolsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8F094AAF1D10D4CEB5D7431 /* DeviceActionToolsTests.swift */; };
 		858337452B25F5B1F1806AEE /* LiveCameraOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A98E68D1390AD8BF008416C4 /* LiveCameraOverlay.swift */; };
@@ -436,6 +437,7 @@
 		A0E8E2227CF55B1CC7DCD785 /* IconPreview-Default.png in Resources */ = {isa = PBXBuildFile; fileRef = F0DD777FA8C7A1E450D9343F /* IconPreview-Default.png */; };
 		A12ADA550ED9B8308C66C21C /* InboxItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 798846A846FE8EC91E40117C /* InboxItem.swift */; };
 		A1CE1388F456CFEF6EC0EA94 /* AppearanceSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = C226310D52EB40A7356747B7 /* AppearanceSettingsScreen.swift */; };
+		A27A230A6C9F9E94765FE410 /* MemoryScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FE1A76E0E7AE4B69CA6A6C8 /* MemoryScreen.swift */; };
 		A282849F7EFF8BCB6802349E /* ThemeChannels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 827F37EE72AFCBAF188EBF43 /* ThemeChannels.swift */; };
 		A32A517B2F8FA405A87CAE2E /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57CF6F188E6A3E52F6D1204B /* MessageBubble.swift */; };
 		A375A40E07AAA8684814C4B8 /* ArtifactMirrorItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ADD8ABACDF9EF301175F43B /* ArtifactMirrorItem.swift */; };
@@ -1000,6 +1002,7 @@
 		6DF4B2F289BFF10048D304C8 /* MonetizationGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonetizationGateTests.swift; sourceTree = "<group>"; };
 		6E47F426E5F7560C5850EAF8 /* MockSecureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockSecureStore.swift; sourceTree = "<group>"; };
 		6E49B2094965500D4F7FEEC4 /* ChartSpec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartSpec.swift; sourceTree = "<group>"; };
+		6FE1A76E0E7AE4B69CA6A6C8 /* MemoryScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryScreen.swift; sourceTree = "<group>"; };
 		702627A7DE49CBE9BA5CB769 /* MemoryBackfillRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryBackfillRunnerTests.swift; sourceTree = "<group>"; };
 		702A19893A5899378A79E179 /* ToolConfirmationCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolConfirmationCard.swift; sourceTree = "<group>"; };
 		705D5719310AF183CF384014 /* CapabilityRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilityRegistry.swift; sourceTree = "<group>"; };
@@ -1143,6 +1146,7 @@
 		A6DABD8EE1467EE669FF3FD2 /* SessionStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStats.swift; sourceTree = "<group>"; };
 		A6EED40F681E2DA9D3C5E857 /* IconPreview-MoltenForge.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-MoltenForge.png"; sourceTree = "<group>"; };
 		A7966AEDE93C3C43683A5F83 /* MockHermesHostService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockHermesHostService.swift; sourceTree = "<group>"; };
+		A7C05991BB8F0A0B50394D61 /* MemoryScreenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryScreenTests.swift; sourceTree = "<group>"; };
 		A88AB9163181C0B8A64A98F2 /* Icon-Terminal@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-Terminal@3x.png"; sourceTree = "<group>"; };
 		A8B0819CCDD35E5401F1BFC3 /* MarkdownChartTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownChartTests.swift; sourceTree = "<group>"; };
 		A933916A6EFB3A25618640A2 /* IconPreview-ComicFunnies.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-ComicFunnies.png"; sourceTree = "<group>"; };
@@ -1613,6 +1617,7 @@
 				4C69C87EA805677354049851 /* MemoryProvenanceCodingTests.swift */,
 				128F8C802DF26A26CF424312 /* MemoryProvenanceTests.swift */,
 				4D73B92BE165FC11A7F984EB /* MemoryRetrieverTests.swift */,
+				A7C05991BB8F0A0B50394D61 /* MemoryScreenTests.swift */,
 				13CD7DD53AE88B1A4E1A6670 /* MemoryStoreTests.swift */,
 				AC5F72B1BC961FAFD6B02DC6 /* MemoryStructuralPinsTests.swift */,
 				CD231D013699A6B7C189623A /* MemoryToggleBackfillTests.swift */,
@@ -2180,6 +2185,7 @@
 				5A0EC64AD8E78D0B021F0588 /* ConnectHostCopy.swift */,
 				CBB5A1CCC408BDFB491F80C7 /* ConnectHostScreen.swift */,
 				D4BC51686A9E81353B562BC7 /* DeveloperSettingsScreen.swift */,
+				6FE1A76E0E7AE4B69CA6A6C8 /* MemoryScreen.swift */,
 				E4397D4FA2DBFEF4C5B15923 /* ModelsSettingsScreen.swift */,
 				9F2351D78A8E43CA90F5A982 /* ModelTransitionOverlay.swift */,
 				B76E7696B16B5568AE4666F1 /* PrivacySettingsScreen.swift */,
@@ -2888,6 +2894,7 @@
 				705576FBFE8F05CE37331E76 /* MemoryProvenance.swift in Sources */,
 				533C63211F370BB1D659E583 /* MemoryProvenanceChip.swift in Sources */,
 				52A1BABB5734B81E793924D6 /* MemoryRetriever.swift in Sources */,
+				A27A230A6C9F9E94765FE410 /* MemoryScreen.swift in Sources */,
 				029165AB0B326745F36A2147 /* MemoryStore.swift in Sources */,
 				98DA61FB7F3A7EE097879610 /* Message.swift in Sources */,
 				A32A517B2F8FA405A87CAE2E /* MessageBubble.swift in Sources */,
@@ -3162,6 +3169,7 @@
 				9D6BBFA11CC142FCEBAA1168 /* MemoryProvenanceCodingTests.swift in Sources */,
 				E40441F6772DFDE69ABDB5FF /* MemoryProvenanceTests.swift in Sources */,
 				ED623B05F04BD3E74B80C2EC /* MemoryRetrieverTests.swift in Sources */,
+				84910211701ED7F0569C741E /* MemoryScreenTests.swift in Sources */,
 				753E8983F8BB7CC2AB11DF66 /* MemoryStoreTests.swift in Sources */,
 				655AAF046447FE9DA1B5B845 /* MemoryStructuralPinsTests.swift in Sources */,
 				0F4F072B4196637F8F470592 /* MemoryToggleBackfillTests.swift in Sources */,

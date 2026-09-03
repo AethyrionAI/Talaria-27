@@ -102,6 +102,11 @@ enum SettingsSearchIndex {
 
             // SESSIONS
             SettingsSearchEntry("Show Empty Sessions", ["empty sessions"], .sessions),
+            // #422: the MEMORY screen lives UNDER Sessions (Owen's ruling — no
+            // eleventh deck card), so search lands on the Sessions page and the
+            // detail owes the rest of the route.
+            SettingsSearchEntry("Memory", ["remember", "notes", "what talaria remembers"],
+                                .sessions, detail: "Sessions → Memory"),
             SettingsSearchEntry("Send While Streaming", ["queue", "steer", "mid-turn send"], .sessions),
             SettingsSearchEntry("Export Conversations", ["export chat", "download", "json"], .sessions),
             SettingsSearchEntry("Clear Conversation", ["clear chat", "delete conversation"], .sessions),

@@ -64,6 +64,7 @@ struct SessionsSettingsScreen: View {
                     }
                     statsRow
                     shelfSection
+                    memorySection
                     midTurnSendSection
                     recentSection
                     manageSection
@@ -154,6 +155,48 @@ struct SessionsSettingsScreen: View {
                     .foregroundStyle(Design.Colors.secondaryForeground)
             }
             .padding(Design.Spacing.md)
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.lg,
+                borderColor: Design.Colors.accentTint(0.12),
+                fill: Design.Colors.background.opacity(0.5),
+                innerGlow: false
+            )
+        }
+    }
+
+    /// #422 bar 422-P: the way in to the MEMORY screen.
+    ///
+    /// A row here rather than an eleventh deck card — Owen's ruling, and the
+    /// deck-order pins (`deckOrderIsTenAndStable`) hold it. Sessions is the
+    /// right neighbour: what the app remembers is made of the messages this
+    /// screen already governs.
+    private var memorySection: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            MonoLabel("// Memory", size: 10, tracking: Design.Tracking.monoXWide,
+                      color: Design.Colors.mutedForeground)
+
+            NavigationLink {
+                MemoryScreen()
+            } label: {
+                HStack(spacing: Design.Spacing.sm) {
+                    VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                        Text("Memory")
+                            .font(Design.Typography.callout)
+                            .foregroundStyle(Design.Colors.foreground)
+                        Text("Notes you asked Talaria to keep, and what its replies drew on.")
+                            .font(Design.Typography.caption)
+                            .foregroundStyle(Design.Colors.secondaryForeground)
+                    }
+                    Spacer(minLength: Design.Spacing.xs)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Design.Colors.accentTint(0.7))
+                }
+                .padding(.horizontal, Design.Spacing.md)
+                .padding(.vertical, Design.Spacing.sm)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
             .hudPanel(
                 cornerRadius: Design.CornerRadius.lg,
                 borderColor: Design.Colors.accentTint(0.12),
