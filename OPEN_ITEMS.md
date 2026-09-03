@@ -2471,7 +2471,7 @@ Logged 2026-07-20 (Session V launch sweep).
 > **✅ 138-O-E — MAX ARM MET ON THE LOG (2026-09-02 19:59, home, corded `log collect`, build 3211, speakerphone, preset `normal`; archive `~/Desktop/talaria-138o-gate.logarchive`, copy under `~/.talaria-instrument-runs/20260902-138o-gate-collect/`).** One session, four user turns (6/29/62/28 chars, all latin), four assistant playbacks. At EVERY `audio.started` the gate armed and released — `uplink muted 800ms` / `uplink restored` pairs at 811 · 803 · 818 · 806 ms — **zero `BARGE-IN`, zero `audio.cleared`, zero phantom bubbles**, every `speech_started` in state=listening (Owen's real turns). Against the pre-gate speakerphone base rate at this volume (5 of 7 first utterances dirty, 08-26 archives): **0/4 vs 5/7, Fisher one-sided p≈0.045.** The felt verdict ("it doesn't interrupt itself") is now the measured one for the LOUD arm.
 > **The card's positive-control clause was WRONG and is corrected here:** `#138 onset gate: speech_started suppressed Nms` fires only when the server's trip RACES the mute — with a source-side track mute that engages at `audio.started`, the server receives silence for the window and never sends a `speech_started`, so a perfect gate produces ZERO suppressed lines by construction. Absence is not INVALID; it is the gate working. The honest positive controls are (a) the muted/restored pair at every playback (present ×4), and (b) the pre-gate base rate on the same route. The suppressed line stays as a race witness. Runbook card re-cut accordingly.
 > **Still owed on 138-O-E: the LOW arm** — three starts at ~2 bars (this morning's pre-gate low session was 1/1 dirty at +0.58/+0.60 s, so the gate's window is exactly where those trips lived). Then #138 closes as FIXED-with-a-gate.
-> **Rides free: 419-B's device confirmation — MET.** `audio.stopped after 2280ms` · `3558ms` · `7180ms` — the counter is non-zero on device for the first time in this entry's history. Filed as an archive pointer under #419.
+> **Rides free: 419-B's device confirmation — MET.** `audio.stopped after 2280ms` · `3558ms` · `7180ms` — the counter is non-zero on device for the first time in this entry's history. Filed as a dated block under live #419 (which is now CLOSEABLE).
 
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
 
@@ -11390,6 +11390,8 @@ family).
 > changes no behaviour the user could have observed — there is nothing here
 > for a device pass to confirm, which is why no device bar was registered
 > and none is owed. **What it removes is a lie the runbooks kept believing.**
+
+> **✅ 2026-09-02 19:59 — 419-B DEVICE CONFIRMATION MET.** Build 3211, corded `log collect`, one realtime session: `#138 audio.stopped after 2280ms` · `3558ms` · `7180ms` on three natural playback ends — the counter reads real elapsed time on device for the first time in this entry's history (every prior archive printed 0). The fix (`finalizeAssistantText` no longer zeroes the stamp, PR #410 `02cad7bf`) is confirmed where it matters, and a real barge-in would now send a true `audio_end_ms`. Evidence: `~/.talaria-instrument-runs/20260902-138o-gate-collect/`. **CLOSEABLE — nothing owed; archive move rides the next sweep.**
 
 ## 421. 🔴 "OJAMD'S GATEWAY IS DOWN" IS FALSE — THE HOST IS UP AND HEALTHY, AND THE PHONE'S OJAMD PROFILE CANNOT DIAL IT — **MEASURED 2026-08-31 from the Mac. Two independent reasons the profile cannot work as configured; which one is live is one screenshot away.**
 
