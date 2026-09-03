@@ -226,6 +226,20 @@ final class AppContainer {
     /// desirable: the walk is idempotent, so two of them cost duplicate WORK and
     /// no duplicate rows (bar 422-A).
     private(set) var memoryBackfillTask: Task<Void, Never>?
+    /// #422 (fix round 1, Important item 2): the runner behind that task.
+    ///
+    /// Held because Forget everything has to reach it — the erase is only half
+    /// the job, and the other half (park the cursor, stop the walk) is the
+    /// runner's own `cancelAndParkCursorAtCorpusEnd()`. Cancelling the TASK
+    /// alone would not do it: a cancelled Task's `Task.yield()` returns
+    /// normally, so the walk would carry on writing rows into the store that
+    /// was just emptied.
+    private(set) var memoryBackfillRunner: MemoryBackfillRunner?
+    /// #422: the local session store, kept for the same reason — a forget on a
+    /// launch that never started a backfill (no indexer yet, or no task) still
+    /// has to park the cursor past the corpus, or the NEXT launch's runner
+    /// reads a stale one and walks the erased history back in.
+    private var memoryBackfillSessions: (any LocalSessionStoring)?
     /// #136: bumped by every reset/supersede site — a background launch
     /// refresh only touches container state while its generation is current.
     private var launchRefreshGeneration = 0
@@ -1990,6 +2004,15 @@ final class AppContainer {
     /// An earlier version kept the walk inline here and had three defects nobody
     /// could see from outside — that is what the extraction is for.
     func startMemoryBackfill(settingsStore: SettingsStore, localSessions: (any LocalSessionStoring)?) {
+        // Recorded BEFORE the guard, and that ordering is the whole point
+        // (#422 final review, I5): `forgetLocalMemory`'s no-runner fallback
+        // reads exactly these two, and assigning them alongside the runner —
+        // i.e. only on the path that also produces a runner — made the
+        // fallback unreachable dead code. A launch that never starts a walk
+        // (no indexer yet, no local store wired) is precisely the launch whose
+        // stale cursor the fallback exists to park.
+        memoryBackfillSessions = localSessions
+        memoryBackfillCursorWriter = { settingsStore.settings.memoryBackfillCursor = $0 }
         guard memoryBackfillTask == nil,
               let localSessions,
               let indexer = chatStore.memoryIndexer else { return }
@@ -1999,10 +2022,54 @@ final class AppContainer {
             isEnabled: { settingsStore.settings.memoryEnabled },
             readCursor: { settingsStore.settings.memoryBackfillCursor },
             writeCursor: { settingsStore.settings.memoryBackfillCursor = $0 })
+        memoryBackfillRunner = runner
         // No `self` capture: the task is HELD by the container but does not hold
         // it, so a container that goes away is not kept alive walking history
         // nobody is looking at.
         memoryBackfillTask = Task(priority: .utility) { @MainActor in await runner.run() }
+    }
+
+    /// #422: how to persist the backfill cursor, captured from the same
+    /// `SettingsStore` the runner writes through. Set alongside the runner so
+    /// the no-runner forget path below has a route to the same key.
+    private var memoryBackfillCursorWriter: ((Int) -> Void)?
+
+    /// **#422 Forget everything, whole (fix round 1, Important item 2).**
+    ///
+    /// The screen calls THIS, not `MemoryStore.forgetEverything()` directly,
+    /// because erasing the rows is only part of forgetting. Owen ruled that
+    /// Forget everything is the only eraser and that retention is never — so
+    /// history the user erased must not come back, and there are two ways it
+    /// could:
+    ///
+    ///  1. **A stale cursor.** The launch backfill may not have finished (or
+    ///     may never have started). Its cursor points into the middle of the
+    ///     user's history, and the next `run()` walks the rest of it back in.
+    ///  2. **A walk in flight.** The runner is between conversations on this
+    ///     same actor; left alone it resumes and writes rows into the store
+    ///     that was just emptied.
+    ///
+    /// Order matters and is asserted by the runner's own tests: park + refuse
+    /// FIRST, erase second.
+    ///
+    /// The task is cancelled too, and it is worth being exact about what that
+    /// does. `Task.yield()` is the walk's ONLY suspension point, and it returns
+    /// normally on a cancelled task — the runner checks no cancellation flag of
+    /// the Task's own — so `Task.cancel()` alone stops nothing here. The
+    /// runner's `isCancelled` is what ends the walk; cancelling the task is
+    /// defence in depth against a future suspension point that does honour it.
+    func forgetLocalMemory() {
+        if let memoryBackfillRunner {
+            memoryBackfillRunner.cancelAndParkCursorAtCorpusEnd()
+        } else if let memoryBackfillCursorWriter, let memoryBackfillSessions {
+            // No runner this launch — but a future one would read the same
+            // stale cursor, so park it anyway. Same number, same ordering
+            // (a count does not depend on the sort), read from the same store.
+            memoryBackfillCursorWriter(memoryBackfillSessions.sessionSummaries().count)
+        }
+        memoryBackfillTask?.cancel()
+        memoryBackfillTask = nil
+        memoryStore?.forgetEverything()
     }
 
     /// #137 one-shot grandfathering — see SensorStreamingGrandfathering.

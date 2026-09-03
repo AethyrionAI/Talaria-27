@@ -557,6 +557,22 @@ struct SettingsSearchTests {
         #expect(verbose.first?.subsystem == .developer, "\"verbose\" must land on DEVELOPER")
     }
 
+    /// **#422 bar 422-P.** The MEMORY screen has no deck tile of its own
+    /// (Owen ruled it lives under SESSIONS), so search is the only way to
+    /// reach it by name — and the words a person types about their own data
+    /// are not the ones in the row title. All four must land.
+    @Test func theMemoryScreenIsFindableByTheWordsPeopleUseForIt() {
+        for query in ["memory", "remember", "notes", "what talaria remembers"] {
+            let hits = SettingsSearchIndex.matches(query: query, visible: allVisible)
+            #expect(hits.contains { $0.title == "Memory" && $0.subsystem == .sessions },
+                    "\"\(query)\" does not reach the Memory screen")
+        }
+        let row = SettingsSearchIndex.matches(query: "memory", visible: allVisible)
+            .first { $0.title == "Memory" }
+        #expect(row?.detail == "Sessions → Memory",
+                "search lands on the deck page, so the row owes the rest of the route")
+    }
+
     @Test func garbageAndEmptyQueriesMatchNothing() {
         #expect(SettingsSearchIndex.matches(query: "xyzzy-no-such-setting", visible: allVisible).isEmpty)
         #expect(SettingsSearchIndex.matches(query: "", visible: allVisible).isEmpty)

@@ -55,6 +55,17 @@ struct PrivateCloudSettingsScreen: View {
         .toolbarVisibility(.hidden, for: .navigationBar)
     }
 
+    /// **#422-N fix round 1: the policy sentence must not render while the
+    /// tier is OFF.** It rendered unconditionally right after the OFF-state
+    /// blurb ("Off — nothing is sent to Apple's servers…"), so the screen
+    /// said nothing is sent and, on the very next line, that the request
+    /// leaves the device — a contradiction, not a disclosure. The sentence
+    /// describes what a PCC turn does; it has nothing to say while the tier
+    /// is off. Static (not inlined into the `if`) so the rule is
+    /// unit-testable without a view (M-17's reasoning, same file family as
+    /// `UplinkSettingsScreen.unkeyedNudgeVisible`).
+    static func showsPolicySentence(isOn: Bool) -> Bool { isOn }
+
     /// **#395: the hard opt-out for the Private Cloud tier.** Moved from the
     /// Models screen by #395-D; the write to `privateCloudEnabled` must not
     /// exist anywhere else.
@@ -82,6 +93,15 @@ struct PrivateCloudSettingsScreen: View {
                  : "Off — nothing is sent to Apple's servers. Local turns run on-device only.")
                 .font(Design.Typography.caption)
                 .foregroundStyle(Design.Colors.secondaryForeground)
+            // #422-N: the policy disclosure, byte-identical to docs/privacy.html —
+            // shown ONLY while the tier is ON (Self.showsPolicySentence), reading
+            // the SAME toggle state the blurb above reads. Rendering it while OFF
+            // would contradict the OFF-state blurb on the line right above it.
+            if Self.showsPolicySentence(isOn: settingsStore.settings.privateCloudEnabled) {
+                Text(ConnectHostCopy.privateCloudPolicySentence)
+                    .font(Design.Typography.caption)
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+            }
             if settingsStore.settings.privateCloudEnabled,
                let status = container.localChatBackend?.privateCloudStatus() {
                 PrivateCloudQuotaRow(status: status) {

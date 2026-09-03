@@ -126,6 +126,13 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
     /// Separates priming spend from metered chat turns in the session totals.
     /// False for everything else (and absent in pre-#90 caches).
     var isContextPriming: Bool
+    /// #422: how this reply came to draw on memory — the local entries and
+    /// notes that were injected (and the note the turn saved, if any), or the
+    /// host memory tools that were observed running. Drives the transcript
+    /// chip. OPTIONAL ON PURPOSE — the same #42 silent-wipe reasoning
+    /// `ToolActivity.provenance` documents: nil is "this reply drew on no
+    /// memory", which is also what every pre-#422 cached row decodes to.
+    var memoryProvenance: MemoryProvenance?
     var isStreaming: Bool
     var voiceSessionDuration: TimeInterval?
     var attachments: [MessageAttachment]
@@ -155,7 +162,8 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         isContextPriming: Bool = false,
         isStreaming: Bool = false,
         voiceSessionDuration: TimeInterval? = nil,
-        attachments: [MessageAttachment] = []
+        attachments: [MessageAttachment] = [],
+        memoryProvenance: MemoryProvenance? = nil
     ) {
         self.id = id
         self.clientMessageID = clientMessageID
@@ -177,9 +185,16 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         self.isStreaming = isStreaming
         self.voiceSessionDuration = voiceSessionDuration
         self.attachments = attachments
+        self.memoryProvenance = memoryProvenance
     }
 
-    enum CodingKeys: String, CodingKey {
+    /// `CaseIterable` so `ChatStoreMergeCompletenessTests` can enumerate every
+    /// field and require each one to be either server-owned or carried through
+    /// `ChatStore.mergeConversationMetadata` (#422 final review, C1). Adding a
+    /// client-only field without teaching the merge about it silently deletes
+    /// it on the next refresh — that is exactly how `memoryProvenance` shipped
+    /// a chip that never rendered.
+    enum CodingKeys: String, CodingKey, CaseIterable {
         case id, clientMessageID, sender, content, timestamp, jobID, status, attachments, toolActivities
         case voiceSessionDuration
         case reasoning, reasoningSummary
@@ -187,6 +202,7 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         case hostReportedFailure
         case usage, turnDuration, servingModel
         case isContextPriming
+        case memoryProvenance
     }
 
     init(from decoder: Decoder) throws {
@@ -219,6 +235,10 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         servingModel = try container.decodeIfPresent(String.self, forKey: .servingModel)
         // Context-transplant notice (#90); absent in pre-#90 caches.
         isContextPriming = try container.decodeIfPresent(Bool.self, forKey: .isContextPriming) ?? false
+        // Memory provenance (#422); absent on every reply that drew on no
+        // memory, and in every pre-#422 cache.
+        memoryProvenance = try container.decodeIfPresent(
+            MemoryProvenance.self, forKey: .memoryProvenance)
         isStreaming = false
         // Persisted with the message (#1) so the voice-session banner keeps its
         // duration across relaunch; absent in older caches.
@@ -251,6 +271,7 @@ struct Message: Codable, Identifiable, Hashable, Sendable {
         if isContextPriming {
             try container.encode(isContextPriming, forKey: .isContextPriming)
         }
+        try container.encodeIfPresent(memoryProvenance, forKey: .memoryProvenance)
     }
 }
 

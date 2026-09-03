@@ -85,7 +85,7 @@ struct MemoryToggleBackfillTests {
 
         enabled = true
         indexer.index(conversation([userTurn()]))
-        #expect(store.indexCount() > 0, "the very same indexer must honour a flip back ON")
+        #expect(try #require(store.indexCount()) > 0, "the very same indexer must honour a flip back ON")
     }
 
     /// The KEPT half of Owen's ruling. Switching memory off is not an erasure —
@@ -98,7 +98,7 @@ struct MemoryToggleBackfillTests {
         let indexer = MemoryIndexer(store: store, isEnabled: { enabled })
 
         indexer.index(conversation([userTurn()]))
-        let banked = store.indexCount()
+        let banked = try #require(store.indexCount())
         #expect(banked > 0)
 
         enabled = false
@@ -127,7 +127,7 @@ struct MemoryToggleBackfillTests {
         MemoryIndexer(store: oneShot)
             .backfill(corpus, cursor: &oneShotCursor)
         #expect(oneShotCursor == corpus.count, "an unbudgeted pass must consume the whole corpus")
-        #expect(oneShot.indexCount() > 0)
+        #expect(try #require(oneShot.indexCount()) > 0)
 
         // …and now the same corpus, killed after 2 conversations and resumed.
         let resumed = try #require(MemoryStore.make(inMemoryOnly: true))
@@ -135,9 +135,9 @@ struct MemoryToggleBackfillTests {
         var cursor = 0
         indexer.backfill(corpus, cursor: &cursor, budget: 2)
         #expect(cursor == 2, "the budget must stop the pass exactly where it says")
-        let afterKill = resumed.indexCount()
+        let afterKill = try #require(resumed.indexCount())
         #expect(afterKill > 0, "a partial pass must have done real work")
-        #expect(afterKill < oneShot.indexCount(), "…and must not have finished the corpus")
+        #expect(afterKill < (try #require(oneShot.indexCount())), "…and must not have finished the corpus")
 
         indexer.backfill(corpus, cursor: &cursor)
         #expect(cursor == corpus.count)
@@ -155,7 +155,7 @@ struct MemoryToggleBackfillTests {
 
         var cursor = 0
         indexer.backfill(corpus, cursor: &cursor)
-        let first = store.indexCount()
+        let first = try #require(store.indexCount())
 
         var replay = 0
         indexer.backfill(corpus, cursor: &replay)

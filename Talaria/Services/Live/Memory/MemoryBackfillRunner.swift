@@ -40,6 +40,10 @@ final class MemoryBackfillRunner {
     /// here ever writes a cursor for work that did not happen.
     private let cursorWriteStride = 10
 
+    /// Set by `cancelAndParkCursorAtCorpusEnd()`. Checked at the top of `run()`
+    /// and once per conversation, which is the same seam the toggle is read on.
+    private(set) var isCancelled = false
+
     init(sessions: any LocalSessionStoring,
          indexer: MemoryIndexer,
          isEnabled: @escaping () -> Bool,
@@ -64,7 +68,7 @@ final class MemoryBackfillRunner {
     /// indexer's own refusal is honoured through `walked`, because the switch can
     /// flip between the two checks.
     func run() async {
-        guard isEnabled() else { return }
+        guard isEnabled(), !isCancelled else { return }
         let ordered = orderedSessionIDs()
 
         // A stored cursor can outrun its corpus — a settings blob outliving the
@@ -82,8 +86,23 @@ final class MemoryBackfillRunner {
         }
 
         while cursor < ordered.count {
+            // **Cancel returns WITHOUT flushing, and that asymmetry is the
+            // point.** Every other exit flushes because progress the user paid
+            // for must survive. A cancel is a Forget everything, which has
+            // ALREADY parked the cursor at the corpus end — flushing this
+            // walk's smaller local cursor here would overwrite that park and
+            // hand the next launch a licence to re-index the history the user
+            // just erased.
+            guard !isCancelled else { return }
             guard isEnabled() else { return flushCursor() }
             if let conversation = sessions.conversation(withID: ordered[cursor]) {
+                // Checked AGAIN after the transcript load, and this one is not
+                // belt-and-braces: loading a transcript is where the walk
+                // spends its time, so it is where a Forget everything actually
+                // lands. Without this the conversation in flight would be
+                // indexed INTO the store the user just emptied — a row that
+                // appears after the erase, which is the whole failure.
+                guard !isCancelled else { return }
                 var walked = 0
                 indexer.backfill([conversation], cursor: &walked, budget: 1)
                 guard walked == 1 else { return flushCursor() }
@@ -100,6 +119,33 @@ final class MemoryBackfillRunner {
         // Every early exit above flushes too: progress the user actually paid
         // for must survive, or a paused backfill re-walks it on the next launch.
         flushCursor()
+    }
+
+    /// **Forget everything's other half (fix round 1, Important item 2 —
+    /// Owen's ruling: Forget everything is the ONLY eraser, and retention is
+    /// never).**
+    ///
+    /// Erasing the rows is not enough on its own. `memoryBackfillCursor` is a
+    /// promise that everything BEHIND it is indexed, so a forget performed on
+    /// a launch whose backfill had not finished leaves a cursor pointing into
+    /// the middle of the user's history — and the very next `run()` walks the
+    /// rest of it back into the store. The memories come back, days later,
+    /// with nothing on screen to explain it. Same for a walk in flight: it is
+    /// between conversations on the MainActor and would carry on writing rows
+    /// into the store that was just emptied.
+    ///
+    /// So this does both, in the order that is safe: park FIRST (the cursor is
+    /// written before anything can race it), then refuse to walk. Parked at
+    /// the corpus END — the count of sessions in THIS runner's own walk order,
+    /// never a reset to 0, because 0 would schedule a full re-index of exactly
+    /// the history being forgotten.
+    ///
+    /// The write goes through the runner's existing `writeCursor` seam, which
+    /// production wires to `SettingsStore` — so no caller, and in particular
+    /// not the Memory screen, needs its own route to the settings blob.
+    func cancelAndParkCursorAtCorpusEnd() {
+        writeCursor(orderedSessionIDs().count)
+        isCancelled = true
     }
 
     /// The walk order, and the cursor's whole meaning.

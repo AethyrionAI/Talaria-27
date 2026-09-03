@@ -332,4 +332,207 @@ struct NamingSweepTests {
         #expect(!Conversation.isPlaceholderTitle(""),
                 "an empty title is not the placeholder")
     }
+
+    // MARK: - 422-N: local memory naming pins (bar 422-N)
+    //
+    // Task 16 ADDED the memory SCREEN's own literals — see
+    // `theMemoryScreensOwnWordsAreTalarias` and
+    // `theHonestyCorrectionNamesTalariaNotTheHost` below. The comment that
+    // stood here listed them as "not built yet"; they ship now.
+
+    /// **(a)/(b) — the memory chip's own labels, already shipped by Tasks
+    /// 14/15.** `.local`'s two labels are Talaria-meaning (the local brain
+    /// remembered something); `.host`'s label is host-meaning, exactly like
+    /// `theHostBrainLabelStaysHermes` above — the host's own memory tool ran,
+    /// and saying so is correct, not a naming-sweep miss.
+    @Test func memoryChipNamingLiteralsSurviveTheSweep() throws {
+        let sources = try Self.shippingSources()
+
+        for expected in ["\"ON-DEVICE MEMORY\"", "\"SAVED TO MEMORY\""] {
+            #expect(sources.contains { $0.text.contains(expected) },
+                    "a Talaria-meaning memory literal vanished from the shipping targets: \(expected)")
+        }
+        #expect(sources.contains { $0.text.contains("\"HERMES MEMORY\"") },
+                "the host-meaning memory literal vanished — \"HERMES MEMORY\" names the HOST's memory tool and must stay")
+    }
+
+    /// **Task 16 — the MEMORY screen's own words.** The screen is the one
+    /// surface whose whole subject is what the APP remembers, so a "Hermes"
+    /// anywhere in its Talaria-meaning copy would be the naming ruling
+    /// failing at its loudest point. Pinned as source literals (not through
+    /// the type) for the same reason the chip labels are: a rename that also
+    /// moved the constant would satisfy a `MemoryScreenModel.title ==` check
+    /// while the shipping string changed.
+    @Test @MainActor func theMemoryScreensOwnWordsAreTalarias() throws {
+        let sources = try Self.shippingSources()
+
+        for expected in [
+            "\"MEMORY\"",
+            "\"WHAT TALARIA REMEMBERS\"",
+            "Nothing saved yet — say \\\"Remember that…\\\" or just keep chatting.",
+            "you've sent in on-device chats",
+        ] {
+            #expect(sources.contains { $0.text.contains(expected) },
+                    "a Memory-screen literal vanished from the shipping targets: \(expected)")
+        }
+
+        // The model's own values, so a screen that ships the strings above in
+        // some OTHER file cannot satisfy the pin while rendering nothing.
+        #expect(MemoryScreenModel.title == "MEMORY")
+        #expect(MemoryScreenModel.subtitle == "WHAT TALARIA REMEMBERS")
+        #expect(!MemoryScreenModel.subtitle.contains("Hermes"))
+        #expect(!MemoryScreenModel.emptyCopy.contains("Hermes"))
+        #expect(!MemoryScreenModel.truncationNotice.contains("Hermes"))
+    }
+
+    /// **Task 16 — the host line is the one place this screen says Hermes,
+    /// and it is host-meaning.** Same shape as `theHostBrainLabelStaysHermes`:
+    /// the sentence is ABOUT the host's own memory (Honcho, Hindsight), which
+    /// is exactly what ruling 3 needs said out loud. Asserted together with
+    /// the Talaria-meaning pins above so a sweep cannot "fix" one by breaking
+    /// the other.
+    @Test @MainActor func theHostMemoryLineStaysHostMeaning() {
+        #expect(MemoryScreenModel.hostLine.contains("Hermes host"),
+                """
+                the line names the HOST's memory — renaming it to Talaria would claim the \
+                on-device store belongs to the host, which is ruling 3 inverted
+                """)
+        #expect(MemoryScreenModel.hostLine.contains("Talaria never reads or merges it"))
+    }
+
+    /// **Task 16 — the honesty correction.** Shipped by lane M3
+    /// (`LocalChatBackend`), pinned here because it is the one sentence the
+    /// app says about its own memory when a reply got it wrong: it must name
+    /// TALARIA, never the host.
+    @Test func theHonestyCorrectionNamesTalariaNotTheHost() throws {
+        let sources = try Self.shippingSources()
+        let clause = "Talaria only remembers what you ask "
+        #expect(sources.contains { $0.text.contains("Nothing was saved to memory") },
+                "the honesty correction left the shipping targets")
+        #expect(sources.contains { $0.text.contains(clause) },
+                "the honesty correction no longer names Talaria as the one that remembers")
+    }
+
+    /// **(c) — no app-meaning "Hermes Memory" / "Hermes remembers" literal.**
+    /// The local brain's own memory is Talaria's, never the host's; a chip or
+    /// a screen that spelled either phrase would claim the on-device store
+    /// belongs to Hermes, exactly the collapse `theLocalAndHostChipsAreNever
+    /// TheSameWords` already guards at the view-model level. This extends the
+    /// guard to raw source text, the same shape as `oldAppMeaningLiteralsAreGone`.
+    @Test func noAppMeaningHermesMemoryLiteralExists() throws {
+        let sources = try Self.shippingSources()
+
+        for stale in [
+            "\"Hermes Memory\"",
+            // Deliberately NOT closed with a trailing `\"` — a PREFIX match on
+            // purpose, so it catches any completion of the phrase a copy
+            // writer might reach for ("Hermes remembers everything you tell
+            // it", "Hermes remembers what you said", …), not only the exact
+            // two words.
+            "\"Hermes remembers",
+        ] {
+            let offenders = sources.filter { $0.text.contains(stale) }.map(\.path)
+            #expect(offenders.isEmpty,
+                    "an app-meaning memory literal exists: \(stale) in \(offenders)")
+        }
+    }
+
+    /// **(d)/(e)/(f) — the PCC policy sentence names memory, identically, in
+    /// its two homes.** `docs/privacy.html` is the published policy (a
+    /// GitHub Pages root — merging this PR publishes it, which is why the PR
+    /// is held for Owen's read); `ConnectHostCopy.privateCloudPolicySentence`
+    /// is the app's copy of the same disclosure, rendered by
+    /// `PrivateCloudSettingsScreen`. RED before the copy edit lands in both
+    /// places.
+    ///
+    /// `docs/privacy.html` spells the em dash as the `&mdash;` entity (the
+    /// file's standing typographic convention — see the `&ldquo;`/`&rdquo;`/
+    /// `&beta;` entities beside it) and, like every paragraph in that file,
+    /// hand-wraps its prose across source lines — a browser collapses that
+    /// whitespace on render, but a raw `.contains` does not. Byte-identical
+    /// is checked on the DECODED, WHITESPACE-COLLAPSED sentence, not the raw
+    /// file bytes, so this pin cannot be satisfied by two prose strings that
+    /// merely overlap — it requires the exact same words in the exact same
+    /// order, dash included — while tolerating the file's own line wrapping.
+    @Test func pccPolicySentenceNamesMemoryInBothHomes() throws {
+        let memoryClause =
+            "any notes you asked Talaria to remember and any earlier messages Talaria retrieves for that request"
+        let fullSentence =
+            "Your request leaves the device \u{2014} including any images you attached to that message and, if you have memory turned on, \(memoryClause)."
+
+        let policyHTML = try Self.read("docs/privacy.html")
+        let policyHTMLNormalized = Self.collapsedWhitespace(
+            policyHTML.replacingOccurrences(of: "&mdash;", with: "\u{2014}"))
+        #expect(policyHTMLNormalized.contains(memoryClause),
+                "docs/privacy.html's PCC paragraph does not name memory")
+
+        let appCopy = try Self.read("Talaria/Features/Settings/ConnectHostCopy.swift")
+        let appCopyNormalized = Self.collapsedWhitespace(appCopy)
+        #expect(appCopyNormalized.contains(memoryClause),
+                "the app's PCC copy (ConnectHostCopy.privateCloudPolicySentence) does not name memory")
+
+        #expect(policyHTMLNormalized.contains(fullSentence),
+                "docs/privacy.html's PCC sentence has drifted from the pinned wording")
+        #expect(appCopyNormalized.contains(fullSentence),
+                "ConnectHostCopy.privateCloudPolicySentence has drifted from the pinned wording")
+    }
+
+    /// **#422 final review, I2 — the published policy describes the app it
+    /// ships with.** `docs/privacy.html` is a GitHub Pages root, so merging
+    /// this PR publishes it; a policy that does not mention the on-device
+    /// memory index is a privacy document that omits the one feature that
+    /// stores the user's own words. Whitespace-collapsed for the same reason
+    /// the PCC sentence is: the file hand-wraps its prose.
+    @Test func thePolicyDescribesTheOnDeviceMemoryStore() throws {
+        let policy = Self.collapsedWhitespace(
+            try Self.read("docs/privacy.html")
+                .replacingOccurrences(of: "&mdash;", with: "\u{2014}")
+                .replacingOccurrences(of: "&rarr;", with: "\u{2192}")
+                .replacingOccurrences(of: "&beta;", with: "\u{03B2}"))
+
+        for clause in [
+            "keeps an on-device index of your own messages from your local chats",
+            "any notes you asked it to remember",
+            // **The corrected sentence, and the pin moved onto it.** The first
+            // draft of this paragraph said the index and notes "never leave
+            // your iPhone" \u{2014} false on the Private Cloud \u{03B2} path,
+            // where the notes block and every retrieved chunk ride the prompt
+            // to Apple's servers (`LocalChatBackend.memoryPrefix` has no tier
+            // gate), and flatly contradicted this document's OWN PCC paragraph
+            // twenty lines above. Pinning it made the falsehood load-bearing:
+            // the suite would have defended the wrong sentence.
+            "They stay on your iPhone unless you choose Private Cloud \u{03B2}, where a request carries the notes and any retrieved messages to Apple's Private Cloud Compute",
+            "Turning the memory switch off stops both new indexing and any use of what is already stored",
+            "Forget everything</strong>, under Settings \u{2192} Sessions \u{2192} Memory, erases the on-device memory index and every remembered note",
+        ] {
+            #expect(policy.contains(clause),
+                    "the published policy no longer describes local memory: \(clause)")
+        }
+
+        #expect(!policy.contains("never leave your iPhone"), """
+            the policy claims local memory never leaves the device \u{2014} it does, on every \
+            Private Cloud \u{03B2} turn, exactly as this file's own PCC paragraph says
+            """)
+    }
+
+    /// **I1 — the effective date revises with the change**, which is the file's
+    /// own promise in its Changes clause. A policy edit that leaves the date
+    /// behind tells a reader the text they are looking at is older than it is.
+    @Test func thePolicysEffectiveDateMatchesThisChange() throws {
+        let policy = try Self.read("docs/privacy.html")
+        #expect(policy.contains("Effective: 2026-09-03"), """
+            the policy text changed in this lane but its Effective date did not — the file's \
+            own Changes clause promises the date revises with the change
+            """)
+    }
+
+    /// Collapses any run of whitespace (including newlines) to a single
+    /// space — a browser does the same to hand-wrapped HTML prose on render,
+    /// so this is what makes "byte-identical" a claim about the WORDS rather
+    /// than an accident of how a source file happens to be wrapped.
+    private static func collapsedWhitespace(_ text: String) -> String {
+        text.components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
 }

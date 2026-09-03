@@ -201,7 +201,11 @@ final class MemoryStore {
                                    chunkIndex: $0.chunkIndex, text: $0.text, sentAt: $0.sentAt) }
     }
 
-    /// Hide a single row from retrieval, or bring it back. A no-op when the row is gone.
+    /// Hide a single ROW from retrieval, or bring it back. A no-op when the row is gone.
+    ///
+    /// Row-level, and deliberately kept that way for the tests and for any
+    /// caller that really does mean one chunk. **The Memory screen does not use
+    /// it** — see `setExcluded(messageID:_:)`.
     func setExcluded(entryID: UUID, _ excluded: Bool) {
         let id = entryID
         guard let row = fetch(FetchDescriptor<MemoryTurnIndexRecord>(
@@ -210,8 +214,169 @@ final class MemoryStore {
         save()
     }
 
-    func indexCount() -> Int {
-        (try? context.fetchCount(FetchDescriptor<MemoryTurnIndexRecord>())) ?? 0
+    /// Hide EVERY row of one message, or bring them all back (#422 final
+    /// review, I6).
+    ///
+    /// **The unit the user is talking about is a message, not a chunk.** A long
+    /// turn is split by `MemoryChunker` into several rows; the Memory screen
+    /// shows the chunk a reply happened to retrieve, and *Don't use this* on it
+    /// used to hide exactly that one — leaving the rest of the same sentence
+    /// retrievable. The user says "don't use this" about something they wrote,
+    /// watches the row grey out, and the memory keeps coming back through its
+    /// siblings. Nothing on screen could explain it, because the other chunks
+    /// were never shown.
+    ///
+    /// Returns the rows it touched, so a caller can tell a real change from a
+    /// no-op.
+    @discardableResult
+    func setExcluded(messageID: UUID, _ excluded: Bool) -> Int {
+        let id = messageID
+        let rows = fetch(FetchDescriptor<MemoryTurnIndexRecord>(
+            predicate: #Predicate { $0.messageID == id }), op: "setExcludedByMessage")
+        guard !rows.isEmpty else { return 0 }
+        rows.forEach { $0.isExcluded = excluded }
+        save()
+        return rows.count
+    }
+
+    /// The screen's door: exclude (or restore) the whole MESSAGE an entry
+    /// belongs to. Resolves the entry's `messageID` first — the screen knows
+    /// the row it rendered, and the row's siblings are exactly what it cannot
+    /// see. A no-op when the entry is gone.
+    @discardableResult
+    func setExcludedForEntry(_ entryID: UUID, _ excluded: Bool) -> Int {
+        let id = entryID
+        var descriptor = FetchDescriptor<MemoryTurnIndexRecord>(
+            predicate: #Predicate { $0.entryID == id })
+        descriptor.fetchLimit = 1
+        guard let row = fetch(descriptor, op: "setExcludedForEntry").first else { return 0 }
+        return setExcluded(messageID: row.messageID, excluded)
+    }
+
+    /// How many indexed turn chunks exist — **`nil` when the store could not
+    /// answer** (#422 final review, I3).
+    ///
+    /// It used to be `(try? …) ?? 0`, and that zero was a manufactured fact.
+    /// The Memory screen's empty copy ("Nothing saved yet") requires a real,
+    /// READ zero precisely so it cannot claim a person's store is empty when
+    /// it merely failed to read — and a coalescing count handed it exactly
+    /// that claim, for the one user whose container is unhappy. `nil` renders
+    /// as `—`, the same honest answer as "not read yet".
+    func indexCount() -> Int? {
+        countOrNil(FetchDescriptor<MemoryTurnIndexRecord>(), op: "indexCount")
+    }
+
+    /// How many distinct MESSAGES the index covers, which is not the same
+    /// number as `indexCount()` and must not be reported as if it were.
+    ///
+    /// A turn is chunked (`MemoryChunker`), so one long message can hold
+    /// several rows. The Memory screen's summary sentence says *messages*, in
+    /// the user's own vocabulary — they wrote messages, not chunks — and
+    /// counting rows under that wording would quietly inflate the number the
+    /// screen shows about their own data. `indexCount()` stays the row count
+    /// for the INDEX readout beside it.
+    ///
+    /// `propertiesToFetch` is not a micro-optimisation here (fix round 1
+    /// minor): the Memory screen calls this on every refresh, on the
+    /// MainActor, and a bare fetch materialises the `text` of every indexed
+    /// chunk in the store to answer a question about ids.
+    func indexedMessageCount() -> Int {
+        var descriptor = FetchDescriptor<MemoryTurnIndexRecord>()
+        descriptor.propertiesToFetch = [\.messageID]
+        return Set(fetch(descriptor, op: "indexedMessageCount").map(\.messageID)).count
+    }
+
+    /// The entry ids currently hidden from retrieval.
+    ///
+    /// **The Memory screen's feedback loop, and it needs its own read
+    /// (fix round 1, Important item 3).** `turnEntry(id:)` resolves a row
+    /// whether or not it is excluded — correct for a provenance source line,
+    /// which must keep quoting a memory the user has since switched off — so
+    /// nothing the screen already had could tell the two states apart. With no
+    /// way to see the flag, *Don't use this* re-rendered the identical row and
+    /// the identical button: no confirmation that anything happened, and no
+    /// way back.
+    ///
+    /// Ids only, like `indexedMessageCount()`: this answers a membership
+    /// question and has no business loading anyone's sentences to do it.
+    func excludedEntryIDs() -> Set<UUID> {
+        var descriptor = FetchDescriptor<MemoryTurnIndexRecord>(
+            predicate: #Predicate { $0.isExcluded })
+        descriptor.propertiesToFetch = [\.entryID]
+        return Set(fetch(descriptor, op: "excludedEntryIDs").map(\.entryID))
+    }
+
+    /// How many explicit notes exist. Counted rather than fetched: the Memory
+    /// screen's Forget-everything pin and the notes budget both want the
+    /// number, not the rows.
+    /// How many explicit notes exist, `nil` when the store could not answer —
+    /// same rule and same reason as `indexCount()`.
+    func noteCount() -> Int? {
+        countOrNil(FetchDescriptor<MemoryNoteRecord>(), op: "noteCount")
+    }
+
+    /// **Forget everything — the ONLY eraser (#422, Owen 2026-09-02).**
+    ///
+    /// Retention is never: no row ages out, and the memory toggle deliberately
+    /// KEEPS the index when it is switched off. So this is the single place a
+    /// memory is destroyed, and it must destroy all of it — every indexed turn
+    /// chunk, every explicit note, and every use record.
+    ///
+    /// All three entities, one save. Leaving the use records behind would be
+    /// the worst possible half-job: the RECENTLY USED list would survive the
+    /// erase, still naming ids, and every one of them would resolve to
+    /// `source deleted` — a screen that keeps a ghost of the memories the user
+    /// just asked it to forget. Ruling 2 in reverse.
+    ///
+    /// Three fetch-and-delete loops rather than a bulk `delete(model:)`: the
+    /// counts here are one person's own memories, and an ordinary delete goes
+    /// through the same context (and the same `save()` diagnostic) as every
+    /// other write in this class.
+    func forgetEverything() {
+        fetch(FetchDescriptor<MemoryTurnIndexRecord>(), op: "forgetEverything.turns")
+            .forEach(context.delete)
+        fetch(FetchDescriptor<MemoryNoteRecord>(), op: "forgetEverything.notes")
+            .forEach(context.delete)
+        fetch(FetchDescriptor<MemoryUseRecord>(), op: "forgetEverything.uses")
+            .forEach(context.delete)
+        save()
+        Self.logger.notice("forgetEverything: local memory erased at the user's request (#422)")
+    }
+
+    // MARK: - Provenance lookup (#422 ruling 2)
+    //
+    // Resolving the ids a `MemoryProvenance` value carries back into the words
+    // the user actually wrote, so the provenance sheet shows a source rather
+    // than an identifier.
+    //
+    // Both read ONLY `text` / `sentAt` / `createdAt`. A source line quotes the
+    // user's own words and says when they were said; the scoring columns are no
+    // part of that question, and reading them here would tie the one surface the
+    // user sees to a retrieval implementation that is still moving.
+    //
+    // Both return `nil` rather than a placeholder for a row that is gone.
+    // Missing is a real answer — `reconcileSession` deletes the rows of a
+    // message the user retried, undid or regenerated away — and the caller
+    // renders it as `source deleted`. Manufacturing a stand-in row here would
+    // put that decision in the store, where the view could no longer tell a
+    // real memory from a hole.
+    //
+    // They go through `fetch(_:op:)` like every other read. A bare
+    // `try? context.fetch` would make a FAILED fetch indistinguishable from a
+    // deleted row, and the user-visible consequence is worse here than
+    // anywhere else in this class: the sheet would say "source deleted" about
+    // a memory that still exists, in the one surface ruling 2 built to be
+    // trustworthy — silently, and only for the user whose store is unhappy.
+
+    /// The indexed turn chunk behind a provenance `entryID`, or `nil` when the
+    /// row no longer exists.
+    func turnEntry(id: UUID) -> (text: String, sentAt: Date)? {
+        let entryID = id
+        var descriptor = FetchDescriptor<MemoryTurnIndexRecord>(
+            predicate: #Predicate { $0.entryID == entryID })
+        descriptor.fetchLimit = 1
+        guard let row = fetch(descriptor, op: "turnEntry").first else { return nil }
+        return (row.text, row.sentAt)
     }
 
     // MARK: - Note CRUD (#422 Task 11 — the explicit "Remember that…" path)
@@ -429,11 +594,18 @@ final class MemoryStore {
     /// The most recent use records, newest first — Task 16's RECENTLY USED
     /// list reads these, and a test reads them to prove a turn recorded what
     /// it drew on.
-    func recentUses(limit: Int = 20) -> [(replyMessageID: UUID, store: String,
+    ///
+    /// **`nil` means unbounded, and the Memory screen passes it** (fix round
+    /// 1, Important item 1). The default 20 is right for the stamp's lookup —
+    /// it wants one row, the newest — and wrong for a list whose bar is
+    /// "every `MemoryUseRecord`": a page size doubling as a list length caps
+    /// the screen at 20 with no marker, so a user with more history is told a
+    /// smaller truth about their own data and nothing on screen says so.
+    func recentUses(limit: Int? = 20) -> [(replyMessageID: UUID, store: String,
                                           entryIDs: [UUID], noteIDs: [UUID], at: Date)] {
         var descriptor = FetchDescriptor<MemoryUseRecord>(
             sortBy: [SortDescriptor(\.at, order: .reverse)])
-        descriptor.fetchLimit = max(0, limit)
+        descriptor.fetchLimit = limit.map { max(0, $0) }
         return fetch(descriptor, op: "recentUses").map {
             (replyMessageID: $0.replyMessageID, store: $0.store,
              entryIDs: $0.entryIDs, noteIDs: $0.noteIDs, at: $0.at)
@@ -445,6 +617,17 @@ final class MemoryStore {
     /// it, and one in `deleteSession` leaves the doomed session's rows dangling —
     /// the exact invariant bar 422-A protects. Behaviour on failure is unchanged
     /// (empty result); only the silence is.
+    /// `fetchCount` with the same diagnostic as `fetch(_:op:)`, and the same
+    /// refusal to invent an answer: a failure is `nil`, never `0`.
+    private func countOrNil<T: PersistentModel>(_ descriptor: FetchDescriptor<T>, op: String) -> Int? {
+        do {
+            return try context.fetchCount(descriptor)
+        } catch {
+            Self.logger.error("memory count failed (\(op, privacy: .public)): \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
     private func fetch<T: PersistentModel>(_ descriptor: FetchDescriptor<T>, op: String) -> [T] {
         do {
             return try context.fetch(descriptor)

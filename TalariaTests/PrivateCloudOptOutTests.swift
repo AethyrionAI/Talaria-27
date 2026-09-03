@@ -346,4 +346,19 @@ struct PrivateCloudOptOutTests {
             reader was added without extending this pin)
             """)
     }
+
+    // MARK: - #422-N fix round 1: the policy sentence only renders while ON
+
+    /// **The bug this pin exists for:** the sentence used to render
+    /// unconditionally, right after a blurb that reads "Off — nothing is
+    /// sent to Apple's servers…" when the toggle is OFF. Two adjacent lines
+    /// then said, in order, "nothing is sent" and "your request leaves the
+    /// device" — a contradiction, not a disclosure. The sentence describes
+    /// what a PCC turn does, so it has nothing to say while the tier is off.
+    @Test func policySentenceShowsOnlyWhileTheTierIsOn() {
+        #expect(PrivateCloudSettingsScreen.showsPolicySentence(isOn: true),
+                "the disclosure must show while the tier is selectable and could carry a real request")
+        #expect(!PrivateCloudSettingsScreen.showsPolicySentence(isOn: false),
+                "the disclosure must NOT show beside a blurb that just said nothing is sent")
+    }
 }

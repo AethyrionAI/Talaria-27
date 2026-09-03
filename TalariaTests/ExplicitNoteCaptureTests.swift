@@ -32,6 +32,14 @@ struct ExplicitNoteCaptureTests {
         private let memoryStore: MemoryStore
         private(set) var noteCountsAtPrepareTime: [Int] = []
 
+        /// #422 Task 16: what this turn "drew on", recorded against the reply
+        /// exactly where `LocalChatBackend.recordMemoryUse` does it — at the
+        /// reply's settle point, keyed on the reply's own `Message.id`, and
+        /// BEFORE `.finished` is yielded. The stamp under test reads that row
+        /// back, so writing it any later would test a different ordering than
+        /// production's.
+        var memoryUseToRecord: (entryIDs: [UUID], noteIDs: [UUID])?
+
         init(memoryStore: MemoryStore) { self.memoryStore = memoryStore }
 
         func connect() async {}
@@ -52,6 +60,10 @@ struct ExplicitNoteCaptureTests {
             // closure runs.
             noteCountsAtPrepareTime.append(memoryStore.allNotes().count)
             let reply = Message(sender: .hermes, content: "Got it.", status: .delivered)
+            if let use = memoryUseToRecord {
+                memoryStore.recordUse(replyMessageID: reply.id,
+                                      entryIDs: use.entryIDs, noteIDs: use.noteIDs)
+            }
             return AsyncStream { continuation in
                 continuation.yield(.finished(reply, nil, nil))
                 continuation.finish()
@@ -396,5 +408,94 @@ struct ExplicitNoteCaptureTests {
 
         #expect(store.allNotes().count == 1, "retrying the unrelated later turn must not touch the earlier note")
         #expect(store.allNotes().first?.text == "my sister lives in Austin")
+    }
+
+    // MARK: - #422 Task 16 — the reply provenance STAMP (ruling 2)
+    //
+    // Lane M3 recorded what a turn drew on in the STORE (`MemoryUseRecord`)
+    // and left the message half owed, because `MemoryProvenance` did not
+    // exist on that branch. This is the other half: when the reply settles,
+    // ChatStore stamps `Message.memoryProvenance` from the store's use row
+    // (keyed on the reply's own id, which survives the placeholder slot swap)
+    // and from `pendingSavedNoteID`.
+    //
+    // The stamp is what makes the chip DURABLE. The backend's
+    // `lastMemoryUse` is the same fact for the turn that just finished and
+    // nothing else — reload the transcript, relaunch the app, or scroll back
+    // to a reply from last week, and only the message's own field can still
+    // say the reply drew on memory.
+
+    /// A reply that drew on stored memories carries their ids.
+    @Test func aReplyThatDrewOnMemoryIsStampedWithWhatItUsed() async throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let (chatStore, client) = makeChatStore(memoryStore: store)
+        let entryA = UUID(), entryB = UUID(), noteID = UUID()
+        client.memoryUseToRecord = (entryIDs: [entryA, entryB], noteIDs: [noteID])
+
+        _ = await chatStore.sendMessage("Who is my dentist?")
+
+        let reply = try #require(chatStore.conversation?.messages.last { $0.sender == .hermes })
+        #expect(reply.memoryProvenance
+                == .local(entryIDs: [entryA, entryB], noteIDs: [noteID], savedNoteID: nil),
+                """
+                the settled reply carries no provenance — the chip would render for one \
+                turn off the backend's in-memory copy and vanish on the next transcript load
+                """)
+    }
+
+    /// A "Remember that…" turn's reply names the note it SAVED, which is what
+    /// makes the chip say `SAVED TO MEMORY` rather than nothing at all — the
+    /// deterministic note path injects nothing, so there is no use row.
+    @Test func aTurnThatSavedANoteStampsTheSavedNoteID() async throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let (chatStore, _) = makeChatStore(memoryStore: store)
+
+        _ = await chatStore.sendMessage("Remember that my sister lives in Austin")
+
+        let savedID = try #require(store.allNotes().first?.noteID)
+        let reply = try #require(chatStore.conversation?.messages.last { $0.sender == .hermes })
+        #expect(reply.memoryProvenance
+                == .local(entryIDs: [], noteIDs: [], savedNoteID: savedID))
+        #expect(MemoryProvenanceChipModel.model(for: reply.memoryProvenance)?.label
+                == "SAVED TO MEMORY")
+    }
+
+    /// **The negative, and it is the load-bearing one.** A reply that drew on
+    /// nothing must carry NO provenance: `nil` is what mints no chip, and a
+    /// stamp that fired unconditionally would put an "ON-DEVICE MEMORY" chip
+    /// on every reply in the app — a claim about the user's data that is
+    /// false on almost every turn.
+    @Test func aReplyThatDrewOnNothingCarriesNoProvenance() async throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let (chatStore, _) = makeChatStore(memoryStore: store)
+
+        _ = await chatStore.sendMessage("What's the weather like?")
+
+        let reply = try #require(chatStore.conversation?.messages.last { $0.sender == .hermes })
+        #expect(reply.memoryProvenance == nil)
+        #expect(MemoryProvenanceChipModel.model(for: reply.memoryProvenance) == nil)
+    }
+
+    /// The saved-note slot belongs to ONE turn: the reply after it must carry
+    /// no memory claim at all.
+    ///
+    /// Two things hold that line, and only one of them is this lane's — the
+    /// stamp CONSUMES the slot, and `sendMessage` also resets it at the top of
+    /// every send (Task 11). So this pin is a belt-and-braces check on the
+    /// user-visible outcome rather than a discriminator for the consume alone;
+    /// the consume earns its keep on a settle that is NOT followed by another
+    /// send (a recovery arm re-delivering a reply), which no fixture here
+    /// reaches.
+    @Test func theSavedNoteStampDoesNotLeakIntoTheFollowingTurn() async throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let (chatStore, _) = makeChatStore(memoryStore: store)
+
+        _ = await chatStore.sendMessage("Remember that my sister lives in Austin")
+        _ = await chatStore.sendMessage("What's the weather like?")
+
+        let replies = try #require(chatStore.conversation?.messages.filter { $0.sender == .hermes })
+        #expect(replies.count == 2)
+        #expect(replies.last?.memoryProvenance == nil,
+                "the second reply saved nothing and drew on nothing")
     }
 }

@@ -29,7 +29,7 @@ struct MemoryIndexerTests {
     private func indexed(_ messages: [Message]) throws -> Int {
         let store = try #require(MemoryStore.make(inMemoryOnly: true))
         MemoryIndexer(store: store).index(conversation(messages))
-        return store.indexCount()
+        return try #require(store.indexCount())
     }
 
     @Test func userTurnsAreIndexed() throws {
@@ -145,7 +145,7 @@ struct MemoryIndexerTests {
 
         let conversationID = try #require(chatStore.conversation?.id)
         #expect(sessions.hasSession(withID: conversationID), "the thread is born local")
-        #expect(memory.indexCount() > 0, "a settled local turn must reach the memory index")
+        #expect(try #require(memory.indexCount()) > 0, "a settled local turn must reach the memory index")
     }
 
     /// The mirror of the test above, and the exclusion this suite was missing:
