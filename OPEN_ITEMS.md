@@ -2466,6 +2466,8 @@ Logged 2026-07-20 (Session V launch sweep).
 
 > **🎉 2026-09-02 ~10:00 — FIRST FIELD RESULT ON THE GATE BUILD (Owen, build 3211, speakerphone): "It works. When it talks on speakerphone, it doesn't interrupt itself!"** Recorded as the FELT verdict — the first session on any build in this entry's history where the assistant finished its own sentences on speakerphone. **138-O-E is still OWED on the log** (the card's PASS needs the `#138 onset gate: speech_started suppressed Nms` positive control present — proof the server DID send the onset trip and the gate ate it — plus 0/3 at low AND max); a sysdiagnose taken after the session captures it. Volume for this session and whether a reply ran uncut (the 419-B confirmation) pending Owen's word.
 
+> **10:0x — the field session's two unknowns (Owen): speaker at MAX (or near), and at least one reply ran UNCUT.** So the felt PASS is the LOUD arm (where the residual is strongest); the low arm is this morning's 1/1 dirty pre-gate session and still needs its three post-gate starts. The uncut reply means the archive should carry the first non-zero `audio.stopped after Nms` — **419-B's device confirmation rides in the same sysdiagnose.** Awaiting the Taildrop.
+
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
 
 > **🔬 PREMISE RE-CHECKED 2026-08-25 (Owen's applicability rider on the
