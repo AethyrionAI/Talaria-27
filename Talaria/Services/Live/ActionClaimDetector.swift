@@ -76,6 +76,26 @@ enum ActionClaimDetector {
         /// the thing the app promised to remember turns out never to have
         /// existed.
         case memoryCreation
+        /// *"Got it, I'll remember that."*, *"I'll keep that in mind."*, *"I
+        /// won't forget that."* — **a PROMISE to remember, split from the
+        /// completed-write claim above on 2026-09-04 (bar 422-U).**
+        ///
+        /// The 09-02 plan wrote the memory tier for a shape in which the
+        /// explicit note was the ONLY memory, so a promise and a claimed write
+        /// were the same lie. The shape that shipped also indexes every user
+        /// turn of a local chat at settle and retrieves it later by its words
+        /// — so on such a thread the promise is KEPT, and the correction
+        /// appended to it (*"Nothing was saved to memory"*) was the false
+        /// sentence. A claimed WRITE — *"I've noted that"*, *"That's been
+        /// saved"* — asserts a row in the Memory screen's NOTES list that does
+        /// not exist, and stays `memoryCreation`.
+        ///
+        /// Licensed by `savedNote` like its sibling, and ALSO by the caller's
+        /// `promiseKeptByIndex` — the one fact that distinguishes the two
+        /// kinds. Its default is `false`, the strict reading: a caller that
+        /// does not know whether this turn is indexed keeps the guard as loud
+        /// as it was.
+        case memoryPromise
 
         /// True when ANY executed tool call — read tools included — makes the
         /// phrasing defensible, so the guard must stay quiet.
@@ -85,19 +105,21 @@ enum ActionClaimDetector {
         /// A turn that called `getCalendarEvents` and answered *"I've created
         /// the event"* is still a lie — reading does not license authorship.
         ///
-        /// `memoryCreation` sits with the never-licensed kinds because no tool
-        /// on the belt writes a memory: reading the calendar, and creating a
-        /// reminder, are both silent on whether a note was stored.
+        /// `memoryCreation` and `memoryPromise` sit with the never-licensed
+        /// kinds because no tool on the belt writes a memory: reading the
+        /// calendar, and creating a reminder, are both silent on whether a
+        /// note was stored.
         ///
-        /// **For `memoryCreation` this value is VESTIGIAL in the licence
-        /// path** — `unfulfilledClaim` short-circuits that kind to `savedNote`
-        /// before this property is consulted, so changing it to `true` would
-        /// not license anything. It is stated anyway because the kind's
-        /// licensing rule belongs next to the other kinds' where a reader
-        /// looks for it, and `conversationHistoryLicenseIsNarrow` asserts it.
+        /// **For the two memory kinds this value is VESTIGIAL in the licence
+        /// path** — `unfulfilledClaim` short-circuits them to `savedNote` (and
+        /// `promiseKeptByIndex`) before this property is consulted, so changing
+        /// it to `true` would not license anything. It is stated anyway
+        /// because the kind's licensing rule belongs next to the other kinds'
+        /// where a reader looks for it, and `conversationHistoryLicenseIsNarrow`
+        /// asserts it.
         var isLicensedByAnyToolCall: Bool {
             switch self {
-            case .firstPersonCreation, .impersonatedCard, .memoryCreation: false
+            case .firstPersonCreation, .impersonatedCard, .memoryCreation, .memoryPromise: false
             case .passiveCompletion, .presentStateSet, .presentStateOn: true
             }
         }
@@ -187,11 +209,19 @@ enum ActionClaimDetector {
     /// licence to read. Defaulting it to `false` is the strict reading, the
     /// same choice `priorActionToolExecutedInConversation` makes: a caller
     /// that does not know stays as loud as it was.
+    ///
+    /// **`promiseKeptByIndex` (bar 422-U, 2026-09-04).** Whether THIS turn's
+    /// message is indexed at settle and retrievable later by its words — the
+    /// one fact that makes *"I'll remember that"* true. Licenses
+    /// `.memoryPromise` and nothing else: a claimed WRITE names a note that
+    /// does not exist whatever the index holds. Default `false`, the strict
+    /// reading, like every other licence parameter here.
     static func unfulfilledClaim(
         in text: String,
         executedToolNames: [String],
         priorActionToolExecutedInConversation: Bool = false,
-        savedNote: Bool = false
+        savedNote: Bool = false,
+        promiseKeptByIndex: Bool = false
     ) -> Claim? {
         // 338-D, the production-safety floor: a turn that executed an ACTION
         // tool staged a real confirmation card. Whatever it said afterwards,
@@ -206,6 +236,9 @@ enum ActionClaimDetector {
             // A note really was written this turn, so the reply is true and a
             // correction here would itself be the false statement.
             if claim.kind == .memoryCreation { return !savedNote }
+            // A promise is kept by a saved note OR by the index that will hold
+            // this very message; either makes the correction the false line.
+            if claim.kind == .memoryPromise { return !savedNote && !promiseKeptByIndex }
             return !(claim.kind.isLicensedByAnyToolCall && licensesPresentState)
         }
     }
@@ -475,7 +508,11 @@ enum ActionClaimDetector {
     /// them. Those are honest capability statements, and bar 338-A's weighting
     /// is unchanged here: a guard that fires on an honest offer trains the
     /// user to ignore it.
-    private static let memoryFirstPersonPatterns: [TokenPattern] = [
+    /// **The PROMISE frames — `.memoryPromise` (split 2026-09-04, bar 422-U).**
+    /// A future-tense or keep-in-mind promise to store: kept by the index on a
+    /// thread the settle seam indexes, a fabrication anywhere else. The
+    /// completed-write frames live in `memoryWritePatterns` below.
+    private static let memoryPromisePatterns: [TokenPattern] = [
         // THE FUTURE FRAME — "I'll remember that". A promise to store, and
         // the only frame in which `remember` is a claim.
         //
@@ -499,20 +536,26 @@ enum ActionClaimDetector {
         // "I will remember that" — the auxiliary is a required step, which is
         // what excludes "I can remember that".
         .init(steps: [["i"], ["will"], memoryPromiseVerbs.union(memoryWriteVerbs), memoryNouns], maxGap: 1),
-        // THE COMPLETED-WRITE FRAME — "I've noted that", "I've already saved
-        // that to memory". `remember` is absent by construction: "I've
-        // remembered that" is recall, not a write.
-        .init(steps: [["i've"], memoryWriteVerbs, memoryNouns], maxGap: 1),
-        // "I have noted that", "I have saved that".
-        .init(steps: [["i"], ["have"], memoryWriteVerbs, memoryNouns], maxGap: 1),
-        // "I noted that", "I saved that" — no gap, for the same reason the
-        // auxiliary is pinned above.
-        .init(steps: [["i"], memoryWriteVerbs, memoryNouns], maxGap: 0),
         // "I'll keep that in mind" / "I'll keep in mind" — the fixed frame,
         // with `in mind` as required steps so a bare "keep" cannot match.
         .init(steps: [["i'll", "i've"], ["keep", "kept"], ["in"], ["mind"]], maxGap: 1),
         // "I will keep that in mind", "I have kept that in mind".
         .init(steps: [["i"], ["will", "have"], ["keep", "kept"], ["in"], ["mind"]], maxGap: 1),
+    ]
+
+    /// **The COMPLETED-WRITE frames — `.memoryCreation`.** *"I've noted that"*,
+    /// *"I have saved that"*, *"I saved that"*: an assertion that a row exists
+    /// in the Memory screen's NOTES list, which no index makes true.
+    /// `remember` is absent by construction: "I've remembered that" is
+    /// recall, not a write.
+    private static let memoryWritePatterns: [TokenPattern] = [
+        // "I've noted that", "I've already saved that to memory".
+        .init(steps: [["i've"], memoryWriteVerbs, memoryNouns], maxGap: 1),
+        // "I have noted that", "I have saved that".
+        .init(steps: [["i"], ["have"], memoryWriteVerbs, memoryNouns], maxGap: 1),
+        // "I noted that", "I saved that" — no gap, for the same reason the
+        // auxiliary is pinned in the promise frames.
+        .init(steps: [["i"], memoryWriteVerbs, memoryNouns], maxGap: 0),
     ]
 
     /// The memory tier's passive twin of `passivePatterns` — *"That's been
@@ -783,12 +826,21 @@ enum ActionClaimDetector {
         // card and the user taps Confirm, so a future tense really is a
         // future. **There is no memory affordance to follow up**: nothing is
         // staged, nothing is confirmable, and *"I'll remember that"* describes
-        // a state change that will never occur. The promise IS the fabrication,
-        // so the offer suppressor must not reach this tier.
-        if memoryFirstPersonPatterns.contains(where: { $0.matches(tokens) })
-            || memoryPassivePatterns.contains(where: { $0.matches(tokens) })
-            || isNegatedMemoryPromise {
+        // a state change that will never occur — as a NOTE. The promise is
+        // still a claim here (`.memoryPromise`); whether the INDEX keeps it is
+        // the caller's `promiseKeptByIndex` (422-U, 2026-09-04), and the offer
+        // suppressor must not reach this tier either way.
+        //
+        // The WRITE frames are tried first: a sentence that both claims a
+        // saved note and promises to remember gets the correction for the
+        // claim that is false whatever the index holds.
+        if memoryWritePatterns.contains(where: { $0.matches(tokens) })
+            || memoryPassivePatterns.contains(where: { $0.matches(tokens) }) {
             found.append(Claim(kind: .memoryCreation, sentence: sentence))
+            return found
+        }
+        if memoryPromisePatterns.contains(where: { $0.matches(tokens) }) || isNegatedMemoryPromise {
+            found.append(Claim(kind: .memoryPromise, sentence: sentence))
             return found
         }
         // Everything below has to be ABOUT a device artifact.

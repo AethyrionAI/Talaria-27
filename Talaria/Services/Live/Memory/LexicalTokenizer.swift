@@ -10,9 +10,39 @@ import Foundation
 /// removed the rest of it.
 enum LexicalTokenizer {
 
-    static let stopWords: Set<String> = ["the","a","an","and","or","of","to","in","on","at","is","are","was","were","my","your",
+    /// The 53 words 422-R's corpus was first scored with (2026-09-02): articles,
+    /// pronouns, auxiliaries, question words and prepositions.
+    private static let coreStopWords: Set<String> = ["the","a","an","and","or","of","to","in","on","at","is","are","was","were","my","your",
         "i","me","you","it","its","this","that","do","does","did","what","when","where","who","which","how","for","with","about",
         "have","has","had","be","been","we","our","us","they","them","he","she","his","her","not","no","yes","please"]
+
+    /// **422-S (2026-09-04): the light verbs, modals and discourse words a question is
+    /// carried BY, never about.** Measured before this set existed: *"can you tell me who
+    /// my dentist is"* tokenized to `{can, tell, dentist}`, overlap is normalised by the
+    /// query's token count, and ties fall newest-first — so any newer turn that said
+    /// "can" or "tell" outranked the dentist row, and under relative admission the dentist
+    /// row was not admitted at all. Only 13 of the 107 corpus queries carry such a word,
+    /// which is how 422-R scored 60/75 as written and 50/75 under a "can you tell me"
+    /// frame. With this set the corpus scores 62/75 · 72/75 under every frame tried.
+    ///
+    /// Function words only. A verb a memory can be ABOUT — mow, run, drink, cook —
+    /// stays content; "won" stays content (a real result, see `contractionFragments`).
+    /// `remember`/`forget` are here because every *"Remember that …"* turn in the store
+    /// shares them, and a question is never about remembering itself.
+    private static let functionWords: Set<String> = [
+        "can", "could", "would", "should", "will", "shall", "may", "might", "must",
+        "tell", "told", "know", "knew", "think", "thought", "like", "want", "wanted",
+        "need", "needed", "get", "got", "give", "gave", "let", "lets", "say", "said",
+        "ask", "asked", "remind", "reminded", "show", "help", "find", "make", "made",
+        "look", "see", "saw", "use", "used", "mean", "meant",
+        "just", "really", "very", "much", "more", "most", "some", "any", "all", "also",
+        "but", "then", "than", "from", "out", "into", "over", "there", "here", "now",
+        "again", "still", "ever", "one", "thing", "things", "something", "anything",
+        "everything", "nothing", "way", "sure", "okay", "yeah", "thanks", "thank",
+        "hello", "hey", "remember", "remembered", "forget", "forgot",
+    ]
+
+    static let stopWords: Set<String> = coreStopWords.union(functionWords)
 
     /// What the split leaves behind when a contraction meets a non-alphanumeric separator:
     /// "don't" becomes "don" + "t". The "t" dies on the length filter, but "don" is three

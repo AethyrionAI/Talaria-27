@@ -405,12 +405,24 @@ struct NamingSweepTests {
     /// app says about its own memory when a reply got it wrong: it must name
     /// TALARIA, never the host.
     @Test func theHonestyCorrectionNamesTalariaNotTheHost() throws {
+        // 422-U (2026-09-04): the copy moved from "Nothing was saved to memory.
+        // Talaria only remembers what you ask it to…" to "No note was saved.
+        // Talaria saves a note only when you say…". Pinned on the CONSTANTS
+        // rather than a source grep: the old grep stayed green on a doc comment
+        // that merely QUOTED the retired sentence — a green that proves nothing.
+        for notice in [LocalChatBackend.memoryCorrectionNotice,
+                       LocalChatBackend.memoryCorrectionNoticeNoIndex] {
+            #expect(notice.contains("No note was saved"),
+                    "the honesty correction lost its lead sentence: \(notice)")
+            #expect(notice.contains("Talaria saves a note only when you say"),
+                    "the correction no longer names Talaria as the one that saves: \(notice)")
+            #expect(!notice.contains("Hermes"),
+                    "a host-meaning word on an app-meaning surface: \(notice)")
+        }
+        // …and the constants are declared in a shipping target, not a harness file.
         let sources = try Self.shippingSources()
-        let clause = "Talaria only remembers what you ask "
-        #expect(sources.contains { $0.text.contains("Nothing was saved to memory") },
+        #expect(sources.contains { $0.text.contains("static let memoryCorrectionNoticeNoIndex") },
                 "the honesty correction left the shipping targets")
-        #expect(sources.contains { $0.text.contains(clause) },
-                "the honesty correction no longer names Talaria as the one that remembers")
     }
 
     /// **(c) — no app-meaning "Hermes Memory" / "Hermes remembers" literal.**

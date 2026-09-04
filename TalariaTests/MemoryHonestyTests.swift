@@ -38,17 +38,112 @@ struct MemoryHonestyTests {
         )
     }
 
+    /// 422-U: a backend whose thread the settle seam WILL index — a live store and the
+    /// switch on. `isLocalThread` defaults to `{ _ in true }`, the shape of a hostless
+    /// install, where every thread is local-origin.
+    private func makeIndexedBackend(memoryEnabled: Bool = true) throws -> LocalChatBackend {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        return LocalChatBackend(
+            persistence: UserDefaultsAppPersistenceStore(
+                defaults: UserDefaults(suiteName: "memory-honesty-indexed-\(UUID().uuidString)")!
+            ),
+            intelligence: LocalIntelligenceService(),
+            memoryStore: store,
+            isMemoryEnabled: { memoryEnabled }
+        )
+    }
+
+    // MARK: - 422-U (2026-09-04): a PROMISE is honoured by the index; a claimed WRITE is not
+
+    // The 09-02 plan wrote the honesty guard for a shape in which the explicit note was
+    // the ONLY memory. The shape that shipped also indexes every user turn of a local
+    // chat at settle, so *"I'll keep that in mind"* is kept — the turn is retrievable
+    // next session by its words — and the correction *"Nothing was saved to memory"*
+    // was the false sentence. Owen's ruling (delegated, 2026-09-04): a promise to
+    // remember is honoured by the index; a claim to have WRITTEN a note is not.
+
+    @Test("422-U(a): with a live index, a promise to remember is NOT corrected",
+          arguments: ["Got it, I'll remember that.",
+                      "I'll keep that in mind.",
+                      "Don't worry, I won't forget that."])
+    func aPromiseIsHonouredByTheIndex(reply: String) throws {
+        let backend = try makeIndexedBackend()
+        let out = backend.honestyGuardedReply(
+            modelText: reply, settledText: reply,
+            recorder: LocalChatBackend.TurnToolCallRecorder(), savedNote: false)
+        #expect(out == reply,
+                "the turn is indexed at settle and retrievable by its words — the promise is kept, so the correction was the false statement: \(out)")
+        #expect(backend.honestyGuardFireCount == 0)
+    }
+
+    @Test("422-U(b): with a live index, a claimed WRITE on a turn that saved no note is still corrected",
+          arguments: ["I've noted that your sister lives in Austin.",
+                      "I have saved that to memory.",
+                      "That's been noted."])
+    func aClaimedWriteIsStillCorrectedInTrueCopy(reply: String) throws {
+        // A control, not a RED: the narrowing must not reach the write frames. A claim
+        // that a NOTE exists when none does is a specific false statement about the
+        // Memory screen's NOTES list, and it keeps its correction — in the true copy.
+        let backend = try makeIndexedBackend()
+        let out = backend.honestyGuardedReply(
+            modelText: reply, settledText: reply,
+            recorder: LocalChatBackend.TurnToolCallRecorder(), savedNote: false)
+        #expect(out == reply + "\n\n" + LocalChatBackend.memoryCorrectionNotice)
+        #expect(backend.honestyGuardFireCount == 1)
+    }
+
+    @Test("422-U(c): with NO index, a promise IS corrected — and the copy does not call the message findable",
+          arguments: ["Got it, I'll remember that.", "I'll keep that in mind."])
+    func aPromiseWithNoIndexIsCorrectedWithoutTheFindableClause(reply: String) {
+        // No store: the settle seam indexes nothing, so the promise is NOT kept and the
+        // strict reading stands — but the last sentence of the live-index copy would be
+        // a lie here, so it is absent.
+        let backend = makeBackend()
+        let out = backend.honestyGuardedReply(
+            modelText: reply, settledText: reply,
+            recorder: LocalChatBackend.TurnToolCallRecorder(), savedNote: false)
+        #expect(out.hasPrefix(reply + "\n\n\u{26A0}\u{FE0F} **No note was saved.**"), "got: \(out)")
+        #expect(!out.contains("can still be found"),
+                "nothing was indexed, so the copy must not promise the message is findable")
+        #expect(backend.honestyGuardFireCount == 1)
+    }
+
+    @Test("422-U(d): memory OFF stays quiet on a promise too (the 09-03 ruling, unchanged)")
+    func aPromiseWithMemoryOffStaysQuiet() throws {
+        let backend = try makeIndexedBackend(memoryEnabled: false)
+        let reply = "I'll keep that in mind."
+        let out = backend.honestyGuardedReply(
+            modelText: reply, settledText: reply,
+            recorder: LocalChatBackend.TurnToolCallRecorder(), savedNote: false)
+        #expect(out == reply)
+        #expect(backend.honestyGuardFireCount == 0)
+    }
+
+    @Test("422-U(e): a saved note licenses a claimed write with a live index too")
+    func aSavedNoteLicensesAWriteClaimWithALiveIndex() throws {
+        let backend = try makeIndexedBackend()
+        let reply = "I've noted that your sister lives in Austin."
+        let out = backend.honestyGuardedReply(
+            modelText: reply, settledText: reply,
+            recorder: LocalChatBackend.TurnToolCallRecorder(), savedNote: true)
+        #expect(out == reply)
+        #expect(backend.honestyGuardFireCount == 0)
+    }
+
     // MARK: - The claim fires (must-fire controls)
 
-    @Test("422-H: a memory claim on a turn that saved nothing fires",
-          arguments: ["Got it, I'll remember that.",
-                      "I've noted that your sister lives in Austin.",
-                      "I'll keep that in mind."])
-    func aMemoryClaimWithNoSavedNoteFires(reply: String) {
+    @Test("422-H: a memory claim on a turn that saved nothing fires — a promise as .memoryPromise, a write as .memoryCreation",
+          arguments: [("Got it, I'll remember that.", ActionClaimDetector.ClaimKind.memoryPromise),
+                      ("I've noted that your sister lives in Austin.", .memoryCreation),
+                      ("I'll keep that in mind.", .memoryPromise)])
+    func aMemoryClaimWithNoSavedNoteFires(reply: String, expected: ActionClaimDetector.ClaimKind) {
+        // The strict default (`promiseKeptByIndex: false`) still reads a
+        // promise as a claim — a caller that does not know whether this turn
+        // is indexed stays as loud as it was (422-U).
         let claim = ActionClaimDetector.unfulfilledClaim(
             in: reply, executedToolNames: [], savedNote: false)
-        #expect(claim?.kind == .memoryCreation,
-                "nothing was stored — this reply is a promise the app cannot keep: \(String(describing: claim))")
+        #expect(claim?.kind == expected,
+                "nothing was stored — under the strict default this is a claim the app cannot vouch for: \(String(describing: claim))")
     }
 
     @Test("422-H: the PASSIVE memory form fires too",
@@ -73,7 +168,7 @@ struct MemoryHonestyTests {
             in: "Got it, I\u{2019}ll remember that.", executedToolNames: [], savedNote: false)
         let straight = ActionClaimDetector.unfulfilledClaim(
             in: "Got it, I'll remember that.", executedToolNames: [], savedNote: false)
-        #expect(curly?.kind == .memoryCreation)
+        #expect(curly?.kind == .memoryPromise)
         #expect(curly?.kind == straight?.kind)
     }
 
@@ -116,8 +211,14 @@ struct MemoryHonestyTests {
         // turn nor an action tool earlier in the conversation says anything
         // about whether a NOTE was stored, so neither may silence this kind.
         #expect(!ActionClaimDetector.ClaimKind.memoryCreation.isLicensedByAnyToolCall)
+        #expect(!ActionClaimDetector.ClaimKind.memoryPromise.isLicensedByAnyToolCall)
         #expect(ActionClaimDetector.unfulfilledClaim(
             in: "Got it, I'll remember that.",
+            executedToolNames: ["getCalendarEvents"],
+            priorActionToolExecutedInConversation: true,
+            savedNote: false)?.kind == .memoryPromise)
+        #expect(ActionClaimDetector.unfulfilledClaim(
+            in: "I've noted that your sister lives in Austin.",
             executedToolNames: ["getCalendarEvents"],
             priorActionToolExecutedInConversation: true,
             savedNote: false)?.kind == .memoryCreation)
@@ -132,6 +233,7 @@ struct MemoryHonestyTests {
         let offer = ActionClaimDetector.unfulfilledClaim(
             in: "I'll set a reminder for 8 PM.", executedToolNames: [], savedNote: false)
         #expect(offer?.kind != .memoryCreation)
+        #expect(offer?.kind != .memoryPromise)
         #expect(offer == nil, "an offer to act is not a completed action (#338-A)")
 
         // #336's fabricated alarm row stays exactly the kind it always was.
@@ -192,8 +294,9 @@ struct MemoryHonestyTests {
         // bar 422-H's device arm targets, and the sentence-level negation
         // silencer runs ahead of every tier — so without the exemption the
         // whole family is unreachable rather than merely unmatched.
+        // A PROMISE kind since 422-U: kept by the index on an indexed thread.
         #expect(ActionClaimDetector.unfulfilledClaim(
-            in: reply, executedToolNames: [], savedNote: false)?.kind == .memoryCreation)
+            in: reply, executedToolNames: [], savedNote: false)?.kind == .memoryPromise)
     }
 
     @Test("422-H: every OTHER negation still stays quiet",
@@ -234,14 +337,20 @@ struct MemoryHonestyTests {
 
     @Test("422-H: the correction text is pinned")
     func theCorrectionTextIsPinned() {
+        // 422-U (2026-09-04): the first copy said "Nothing was saved to memory", which is
+        // FALSE — the user's turn is indexed at settle and retrievable by its words. The
+        // correction now names the artifact that was NOT written (a note), the affordance
+        // that writes one, and what remains true.
         #expect(LocalChatBackend.memoryCorrectionNotice ==
-            "\u{26A0}\u{FE0F} **Nothing was saved to memory.** Talaria only remembers what you ask "
-            + "it to with \"Remember that\u{2026}\" \u{2014} the reply above is inaccurate.")
+            "\u{26A0}\u{FE0F} **No note was saved.** Talaria saves a note only when you say "
+            + "\"Remember that\u{2026}\" \u{2014} the reply above is inaccurate. "
+            + "Your message can still be found later by its words.")
     }
 
-    @Test("422-H: the memory correction obeys every property the action one does")
-    func theMemoryCorrectionIsWellFormed() {
-        let notice = LocalChatBackend.memoryCorrectionNotice
+    @Test("422-H: the memory correction obeys every property the action one does",
+          arguments: [LocalChatBackend.memoryCorrectionNotice,
+                      LocalChatBackend.memoryCorrectionNoticeNoIndex])
+    func theMemoryCorrectionIsWellFormed(notice: String) {
         #expect(notice.contains("\u{26A0}\u{FE0F}"), "visibly distinct, not prose that blends in")
         // Naming ruling (CLAUDE.md, Owen 08-27): the outward identity is
         // TALARIA. This string is user-facing and says nothing about a host.
@@ -265,11 +374,12 @@ struct MemoryHonestyTests {
         let reply = "Got it, I'll remember that."
         let out = backend.honestyGuardedReply(
             modelText: reply, settledText: reply, executedToolNames: [], savedNote: false)
-        #expect(out == reply + "\n\n" + LocalChatBackend.memoryCorrectionNotice)
+        // No store on this backend: the strict reading, in the no-index copy (422-U).
+        #expect(out == reply + "\n\n" + LocalChatBackend.memoryCorrectionNoticeNoIndex)
         #expect(out.hasPrefix(reply),
                 "silent rewriting is its own trust problem \u{2014} #338 says APPEND")
         #expect(backend.honestyGuardFireCount == 1)
-        #expect(backend.lastHonestyGuardClaim?.kind == .memoryCreation)
+        #expect(backend.lastHonestyGuardClaim?.kind == .memoryPromise)
     }
 
     @Test("422-H: a turn that DID save a note leaves the reply BYTE-untouched")
@@ -299,7 +409,8 @@ struct MemoryHonestyTests {
         let memory = backend.honestyGuardedReply(
             modelText: "I'll keep that in mind.", settledText: "I'll keep that in mind.",
             executedToolNames: [])
-        #expect(memory.contains(LocalChatBackend.memoryCorrectionNotice))
+        // No store on this backend, so the no-index copy (422-U).
+        #expect(memory.contains(LocalChatBackend.memoryCorrectionNoticeNoIndex))
         #expect(!memory.contains(LocalChatBackend.honestyCorrectionNotice))
     }
 
@@ -323,7 +434,9 @@ struct MemoryHonestyTests {
 
         let corrected = backend.honestyGuardedReply(
             modelText: reply, settledText: reply, recorder: recorder)
-        #expect(corrected.contains(LocalChatBackend.memoryCorrectionNotice),
+        // No store on this backend, so nothing is indexed: the strict reading, in
+        // the no-index copy (422-U).
+        #expect(corrected.contains(LocalChatBackend.memoryCorrectionNoticeNoIndex),
                 "the default must be the STRICT reading")
 
         let licensed = backend.honestyGuardedReply(
@@ -432,7 +545,7 @@ struct MemoryHonestyTests {
     // MARK: - KNOWN LIMITS (final review, item 3)
     //
     // These are MISSES, asserted as misses. The comment on
-    // `memoryFirstPersonPatterns` used to claim the future frame covered
+    // `memoryPromisePatterns` (`memoryFirstPersonPatterns` until 422-U) used to claim the future frame covered
     // "I'll note that"; it does not — `memoryWriteVerbs` holds the past
     // participles `noted`/`saved` only, so the bare infinitives are in no verb
     // set and these forms fall through.
@@ -452,7 +565,7 @@ struct MemoryHonestyTests {
     func theBareInfinitiveNoteIsAKnownMiss() {
         #expect(ActionClaimDetector.unfulfilledClaim(
             in: "I'll note that.", executedToolNames: [], savedNote: false) == nil,
-                "documented gap — see memoryFirstPersonPatterns' KNOWN LIMIT note")
+                "documented gap — see memoryPromisePatterns' KNOWN LIMIT note")
     }
 
     @Test("KNOWN LIMIT: \"I'll save that to memory.\" is not detected (bare infinitive)")

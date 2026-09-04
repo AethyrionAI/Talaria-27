@@ -86,7 +86,10 @@ struct MemoryRetrieverTests {
         private func fmt(_ v: Float) -> String { String(format: "%.3f", v) }
     }
 
-    private func scoreCorpus() throws -> CorpusScore {
+    /// `framing` rewrites each ANSWERABLE query before scoring — bar 422-S's lever for
+    /// asking the same questions the way a person actually types them. No-answer queries
+    /// are scored as written, so the false-admit denominators keep their meaning.
+    private func scoreCorpus(framing: (String) -> String = { $0 }) throws -> CorpusScore {
         let corpus = try Self.loadCorpus()
         let cands = candidates(corpus)
         var correct = 0, recalled = 0
@@ -94,7 +97,8 @@ struct MemoryRetrieverTests {
         var plainAdmits = 0, plainTotal = 0
 
         for query in corpus.queries {
-            let hits = MemoryRetriever.retrieve(query: query.text, candidates: cands)
+            let text = query.relevant == nil ? query.text : framing(query.text)
+            let hits = MemoryRetriever.retrieve(query: text, candidates: cands)
             guard let gold = query.relevant else {
                 let admitted = !hits.isEmpty
                 if query.queryClass == "plain" {
@@ -134,6 +138,33 @@ struct MemoryRetrieverTests {
         let s = try scoreCorpus()
         print(s.line)
         #expect(s.topThreeRecall >= 0.90, "top-3 recall \(s.recalled)/\(s.answerable)")
+    }
+
+    // MARK: - Bar 422-S (2026-09-04): phrasing invariance
+
+    /// **The same questions, asked the way a person types them, must score the same.**
+    ///
+    /// Only 13 of the 107 corpus queries carry a light verb, so 422-R's numbers were
+    /// measured on compact phrasings — *"who is my dentist"* — and could not see that
+    /// *"can you tell me who my dentist is"* tokenized to `{can, tell, dentist}`,
+    /// normalised by THREE tokens, and lost rank 1 to any newer turn that happened to say
+    /// "can" or "tell". Measured before the fix: 50/75 · 60/75 under this frame against
+    /// 60/75 · 71/75 as written. The lever is the stop list alone — light verbs, modals and
+    /// discourse words — never the scorer, `z`, or the normalisation.
+    ///
+    /// RED by reverting `LexicalTokenizer.stopWords` to the 53-word list.
+    @Test func precisionHoldsWhenQueriesArePhrasedNaturally() throws {
+        let asWritten = try scoreCorpus()
+        let framed = try scoreCorpus(framing: { "can you tell me " + $0 })
+        print("422-S as written: " + asWritten.line)
+        print("422-S framed:     " + framed.line)
+        #expect(framed.precisionAt1 >= 0.80, "framed p@1 \(framed.correct)/\(framed.answerable)")
+        #expect(framed.topThreeRecall >= 0.90, "framed top-3 \(framed.recalled)/\(framed.answerable)")
+        // The frame must not COST anything either: a stop list that fixed the natural
+        // phrasing by breaking the compact one would be a different retriever, not a fix.
+        #expect(framed.correct >= asWritten.correct - 1,
+                "framing lost \(asWritten.correct - framed.correct) rank-1 hits")
+        #expect(framed.plainAdmits == 0, "plain false admits must stay 0 by construction")
     }
 
     /// The gated class. The adversarial rate is reported on the same line and deliberately
