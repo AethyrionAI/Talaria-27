@@ -3770,6 +3770,24 @@ final class ChatStore {
             // snapshot all along). `lastSessionsLoadAt` deliberately stays
             // untouched so the next unforced load retries instead of caching
             // the failure.
+            //
+            // 2026-09-04 (#425), what still reaches this catch and what no
+            // longer does. `ChatBackendRouter.listSessions()` no longer
+            // rethrows a host that is configured but UNREACHABLE: it returns
+            // the local rows plus the last host snapshot, dimmed — so that
+            // case now lands on the SUCCESS path above, which caches the
+            // DEGRADED list and stamps `lastSessionsLoadAt` for the 15 s TTL.
+            // That is deliberate and acceptable: #425's own evidence log
+            // shows three loads inside ten seconds each paying a full host
+            // timeout, and the TTL collapses that burst into one; the served
+            // list is honest (every row it can open is openable, every row it
+            // cannot says why); and everything that MUTATES the list passes
+            // `force: true`, so the cache can never outlive a real change.
+            // What DOES still arrive here: a CANCELLED load — the router
+            // rethrows `CancellationError` / `URLError(.cancelled)`
+            // specifically so a dismissed sheet cannot overwrite a good list
+            // with a dimmed one — plus any local-side or programming failure.
+            // For those the snapshot-preserving behaviour below is unchanged.
             chatLog.error("loadSessions: FAILED — \(error.localizedDescription, privacy: .public); serving \(self.lastLoadedSessions.count) from the last real list")
             return lastLoadedSessions
         }

@@ -672,6 +672,22 @@ final class ChatBackendRouter: HermesClientProtocol {
         do {
             hermesSessions = try await hermes.listSessions()
         } catch {
+            // A CANCELLED load is the caller walking away, not the host being
+            // away, and must never be degraded into one. Two screens list
+            // from a cancellable `.task` (`SettingsChannelsScreen`,
+            // `SessionsSettingsScreen`), so dismissing a sheet cancels the
+            // in-flight fetch — `URLError(.cancelled)` out of the
+            // single-profile `fetchSessionList`, or `CancellationError` from
+            // a cancelled `Task`. Swallowing either would put
+            // `ChatStore.loadSessions` on its SUCCESS path, writing this
+            // dimmed list into `lastLoadedSessions` and stamping
+            // `lastSessionsLoadAt` — a good list from a slow-but-REACHABLE
+            // host replaced by unopenable rows and cached for the whole 15 s
+            // snapshot TTL. Re-throwing hands it back to that store's own
+            // catch, which serves the last real list exactly as before.
+            if error is CancellationError || (error as? URLError)?.code == .cancelled {
+                throw error
+            }
             // `SessionsHermesClient.listSessions` already tolerates partial
             // failure — one profile of several going quiet drops out of the
             // round — and throws only when no list came back at all. So
