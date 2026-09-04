@@ -1,0 +1,85 @@
+# #219 red on the 422-S/T/U gate, 2026-09-03 ~23:33 CDT, CC-lane-1 (24A5423a), bytes b88f53d8
+# preceding test in the bundle:
+Test Case '-[TalariaUITests.TalariaUITests testChatSendFlow]' passed (11.415 seconds).
+# the failing instance's window (suite.log lines 16880-16960):
+    t =    16.25s     Synthesize event
+    t =    16.54s     Wait for org.aethyrion.talaria27 to idle
+    t =    16.54s Type 'uitest-api-server-...' into "Your host's API key" SecureTextField
+    t =    16.54s     Wait for org.aethyrion.talaria27 to idle
+    t =    16.54s     Find the "Your host's API key" SecureTextField
+    t =    16.56s     Check for interrupting elements affecting "Your host's API key" SecureTextField
+    t =    16.58s     Synthesize event
+    t =    17.13s     Wait for org.aethyrion.talaria27 to idle
+    t =    17.14s Waiting 5.0s for "connectHostWizard.check" Button to exist
+    t =    18.17s     Checking `Expect predicate `existsNoRetry == 1` for object "connectHostWizard.check" Button`
+    t =    18.17s         Checking existence of `"connectHostWizard.check" Button`
+    t =    18.21s Find the "connectHostWizard.check" Button
+    t =    18.23s Find the "connectHostWizard.check" Button
+    t =    18.25s Tap "connectHostWizard.check" Button
+    t =    18.25s     Wait for org.aethyrion.talaria27 to idle
+    t =    18.26s     Find the "connectHostWizard.check" Button
+    t =    18.27s     Check for interrupting elements affecting "connectHostWizard.check" Button
+    t =    18.29s     Synthesize event
+    t =    18.29s         Scroll element to visible
+    t =    18.30s         Find the "connectHostWizard.check" Button
+    t =    18.32s         Computed hit point {210, 423} after scrolling to visible
+    t =    18.60s     Wait for org.aethyrion.talaria27 to idle
+    t =    18.88s Waiting 15.0s for "connectHostWizard.continue" Button to exist
+    t =    19.90s     Checking `Expect predicate `existsNoRetry == 1` for object "connectHostWizard.continue" Button`
+    t =    19.90s         Checking existence of `"connectHostWizard.continue" Button`
+    t =    19.92s Tap "connectHostWizard.continue" Button
+    t =    19.92s     Wait for org.aethyrion.talaria27 to idle
+    t =    19.92s     Find the "connectHostWizard.continue" Button
+    t =    19.93s     Check for interrupting elements affecting "connectHostWizard.continue" Button
+    t =    19.94s     Synthesize event
+    t =    20.23s     Wait for org.aethyrion.talaria27 to idle
+    t =    20.23s Checking existence of `"connectHostWizard.startChatting" Button`
+    t =    20.24s Waiting 10.0s for "connectHostWizard.startChatting" Button to exist
+    t =    21.27s     Checking `Expect predicate `existsNoRetry == 1` for object "connectHostWizard.startChatting" Button`
+    t =    21.27s         Checking existence of `"connectHostWizard.startChatting" Button`
+    t =    21.29s Find the "connectHostWizard.startChatting" Button
+    t =    21.32s Find the "connectHostWizard.startChatting" Button
+    t =    21.33s Find the Window (First Match)
+    t =    21.34s Find the ScrollView (First Match)
+    t =    21.97s XFLAKE pre hittable=false frame=(24.0, 509.0, 372.0, 56.0) window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    21.97s Tap "connectHostWizard.startChatting" Button
+    t =    21.97s     Wait for org.aethyrion.talaria27 to idle
+    t =    21.98s     Find the "connectHostWizard.startChatting" Button
+    t =    22.00s     Check for interrupting elements affecting "connectHostWizard.startChatting" Button
+    t =    22.02s     Synthesize event
+    t =    22.02s         Scroll element to visible
+    t =    22.02s         Find the "connectHostWizard.startChatting" Button
+    t =    22.05s         Computed hit point {-1, -1} after scrolling to visible
+    t =    22.33s     Wait for org.aethyrion.talaria27 to idle
+    t =    22.34s Checking existence of `"connectHostWizard.startChatting" Button`
+    t =    22.38s Checking existence of `"chat.composer" TextField`
+    t =    22.40s Checking existence of `"chat.composer" TextView`
+    t =    22.42s Checking existence of `"Reply to Hermes" TextField`
+    t =    22.43s Checking existence of `"Reply to Hermes" TextView`
+    t =    22.45s Checking existence of `"chat.composer" TextView`
+    t =    22.96s Checking existence of `"chat.composer" TextField`
+    t =    23.00s Checking existence of `"chat.composer" TextView`
+    t =    23.02s Checking existence of `"Reply to Hermes" TextField`
+    t =    23.04s Checking existence of `"Reply to Hermes" TextView`
+    t =    23.05s Checking existence of `"chat.composer" TextView`
+    t =    23.57s Checking existence of `"chat.composer" TextField`
+    t =    23.60s Checking existence of `"chat.composer" TextView`
+    t =    23.62s Checking existence of `"Reply to Hermes" TextField`
+    t =    23.64s Checking existence of `"Reply to Hermes" TextView`
+    t =    23.65s Checking existence of `"chat.composer" TextView`
+    t =    24.17s Checking existence of `"chat.composer" TextField`
+    t =    24.20s Checking existence of `"chat.composer" TextView`
+    t =    24.22s Checking existence of `"Reply to Hermes" TextField`
+    t =    24.23s Checking existence of `"Reply to Hermes" TextView`
+    t =    24.25s Checking existence of `"chat.composer" TextView`
+    t =    24.76s Checking existence of `"chat.composer" TextField`
+    t =    24.79s Checking existence of `"chat.composer" TextView`
+    t =    24.81s Checking existence of `"Reply to Hermes" TextField`
+    t =    24.83s Checking existence of `"Reply to Hermes" TextView`
+    t =    24.85s Checking existence of `"chat.composer" TextView`
+    t =    25.36s Checking existence of `"chat.composer" TextField`
+    t =    25.40s Checking existence of `"chat.composer" TextView`
+    t =    25.42s Checking existence of `"Reply to Hermes" TextField`
+    t =    25.44s Checking existence of `"Reply to Hermes" TextView`
+    t =    25.45s Checking existence of `"chat.composer" TextView`
+    t =    25.97s Checking existence of `"chat.composer" TextField`
