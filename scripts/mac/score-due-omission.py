@@ -7,12 +7,20 @@ without hand-reading a log, because the #340 A/B (#200S's pinned rollback
 `ReminderCreateToolRequiredFields` against the shipping optional schema) needs
 n per arm in the tens.
 
-It reads #249's own instrument at `DeviceActionTools.swift:260`:
+It reads #249's own instrument in `ReminderCreateTool.performCreate`:
 
-    createReminder due raw="<what the model sent>" parsed=<local time or nil>
+    createReminder due raw="<what the model sent>" bareClock=<…> source=<…> parsed=<local time or nil>
 
 which is `.notice` and gated behind `TalariaLog.isVerbose` — the Developer
 screen toggle MUST be on for the run or this script has nothing to read.
+
+`source=` (#340 Task 3, 2026-09-04) says WHERE the date came from — `model`
+(the argument the model sent), `userText` (the fallback read it out of the
+user's own sentence), or `none` (the card stayed dateless). It is what makes
+bar 340-U-C decidable: a `populated-future` rate that rose because the fix is
+working and one that rose because the model got lucky are the same number
+without it. **Absent on every pre-2026-09-04 archive**, and absent must not
+read as `none` — those rows are reported as `legacy`.
 
 WHAT IT DELIBERATELY WILL NOT DO. It never reports "0% omission" when it found
 no lines. A run whose instrument was off, whose archive window missed the
@@ -59,10 +67,15 @@ PREDICATE = ('eventMessage CONTAINS "createReminder due" '
 # the same commit — a trailing field would have made every `parsed` read
 # `nil bareClock=no`, which is not "nil", which would have zeroed the
 # `unreadable` bucket without a single test noticing.
+# #340 Task 3 added `source=` under the same rule and in the same place, and the
+# app side is now PINNED: `theInstrumentLineCarriesSourceAheadOfParsed` fails if
+# anyone ever appends a field after `parsed=`.
+# Both trailing groups stay OPTIONAL so pre-#340 archives keep parsing.
 LINE_RE = re.compile(
     r'(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})[.\d]*\s'
     r'.*createReminder due raw="(?P<raw>.*?)"'
     r'(?: bareClock=(?P<bareclock>\S+))?'
+    r'(?: source=(?P<source>\S+))?'
     r' parsed=(?P<parsed>.+?)\s*$'
 )
 
@@ -82,6 +95,21 @@ class Call:
     # None on a pre-#340 archive: the field did not exist, and "absent" must
     # not read as "no". Three live values: resolved / unresolvable / no.
     bareclock: "str | None" = None
+    # None on any archive collected before #340 Task 3 (2026-09-04). Three live
+    # values: model / userText / none.
+    source: "str | None" = None
+
+    @property
+    def source_label(self) -> str:
+        """`source=` for reporting, with absence named rather than guessed.
+
+        An archive that predates the field carries no opinion about where its
+        due dates came from, and reporting that as `none` would say the exact
+        opposite of the truth — `none` means the card was DATELESS. `legacy`
+        is the honest third answer, and it is the same rule as `bareclock`'s:
+        absent is not "no".
+        """
+        return self.source if self.source is not None else "legacy"
 
     @property
     def omitted(self) -> bool:
@@ -98,6 +126,28 @@ class Call:
     @property
     def unreadable(self) -> bool:
         return not self.omitted and self.parsed.strip() == "nil"
+
+    @property
+    def dateless(self) -> bool:
+        """**No due date reached the CARD** — which is not the same question as
+        `omitted`, and #340 Task 3 is the day the two came apart.
+
+        Until 2026-09-04 an empty argument could only ever produce a dateless
+        card: `raw=""` fed `parseDateTime`/`parseBareClock`, both returned nil,
+        and `parsed=nil` followed by construction. So on every archive this
+        script has ever read, `omitted == dateless` identically — which is why
+        the buckets could be denominated on the ARGUMENT without anyone
+        noticing they were answering the user's question by accident.
+
+        The fallback breaks that identity on purpose: the model sends nothing,
+        the user's own sentence carries the date, and the card is correct while
+        the argument is still empty. `omitted` keeps its ARGUMENT meaning
+        (340-C's founding measurement, and `source=userText` counts exactly the
+        rows where it and `dateless` now disagree); `bucket()` moves to this
+        one, because what 340-U-C is asking is whether the USER got a usable
+        due date.
+        """
+        return self.parsed.strip() == "nil"
 
     @property
     def past_at_call(self) -> bool:
@@ -153,7 +203,8 @@ def extract(text: str) -> list[Call]:
         m = LINE_RE.search(line)
         if m:
             calls.append(Call(m.group("ts"), m.group("raw"),
-                              m.group("parsed").strip(), m.group("bareclock")))
+                              m.group("parsed").strip(), m.group("bareclock"),
+                              m.group("source")))
     return calls
 
 
@@ -238,13 +289,42 @@ def bucket(call: "Call | None") -> str:
     populated field the user cannot use, and 340-H5's bar is on the union
     `omitted + wrong-value`. The two stay separately COUNTED below so the pool
     is a reporting choice and never a lost distinction.
+
+    ⚠️ **CHANGED 2026-09-04 (#340 Task 3), and the change is a no-op on every
+    archive collected before that date.** The first line used to read
+    `if call.omitted` — the ARGUMENT the model sent. It now reads
+    `if call.dateless` — the date that reached the CARD.
+
+    **Why it is a no-op on old data:** before the fallback existed, `raw=""`
+    could only produce `parsed=nil`, so the two predicates agreed on every row
+    ever scored. The order below preserves the old precedence exactly:
+    `unreadable` is false by construction when the argument is empty, and
+    `past_at_call` early-returns false for the same rows, so an empty argument
+    with a nil parse still lands in `omitted` and nothing else moved.
+
+    **Why it had to change:** the fallback fills the card from the user's own
+    sentence while the argument stays empty. Scored on the argument, those
+    trials would count as `omitted` — the fix would be invisible in the very
+    bucket it exists to move, and 340-U-C (`populated-future >= 34/40` with a
+    `source=userText >= 12/40` column) could not be met by a working product.
+    The argument rate is not lost: it is `omitted + source=userText`, printed
+    on its own line.
+
+    ⚠️ **One blind spot this creates, named rather than hidden.**
+    `past_at_call` judges the RAW string, so it cannot judge a fallback-filled
+    row (there is no raw to parse, and `parsed` is a display string). A
+    fallback due that had already elapsed would therefore read as
+    `populated-future`. That is safe only because `detectDue` guarantees a
+    strictly-future answer — bar 340-U-A, six pinned rows — so the guarantee
+    lives in the app, not here. If that ever changes, this scorer will not
+    catch it.
     """
     if call is None:
         return "no-call"
-    if call.omitted:
-        return "omitted"
     if call.unreadable or call.past_at_call:
         return "wrong-value"
+    if call.dateless:
+        return "omitted"
     return "populated-future"
 
 
@@ -325,6 +405,15 @@ def report_by_cell(by_cell: "dict[str, list]") -> int:
         past = sum(1 for _, c in rows if c is not None and c.past_at_call)
         resolved = sum(1 for _, c in rows
                        if c is not None and c.bareclock == "resolved")
+        # #340 Task 3 / bar 340-U-C: WHERE each usable due date came from.
+        # Counted over the `populated-future` rows ONLY — a source on a row the
+        # user cannot use is not evidence the fix works, and pooling the two
+        # would let a run whose fallback produced nothing but already-past
+        # values read as a fallback that is working.
+        by_source: "dict[str, int]" = {}
+        for _, c in rows:
+            if bucket(c) == "populated-future":
+                by_source[c.source_label] = by_source.get(c.source_label, 0) + 1
 
         print(f"\ncell {cell} — {n} TRIALS (denominator is trials, not calls)")
         for name in order:
@@ -333,6 +422,24 @@ def report_by_cell(by_cell: "dict[str, list]") -> int:
         print(f"  UNION omitted+wrong-value: {union}/{n}  ({100 * union / n:.1f}%)"
               "   <- 340-H5's non-decomposable bar")
         print(f"    of which unreadable={unreadable}, already-past={past}")
+        if by_source:
+            breakdown = ", ".join(f"{name}={by_source[name]}/{n}"
+                                  for name in sorted(by_source))
+        else:
+            breakdown = "(no populated-future trials)"
+        print(f"  populated-future by SOURCE: {breakdown}"
+              "   <- 340-U-C's column")
+        # 340-C's founding measurement, kept visible now that the buckets are
+        # denominated on the CARD: how often the MODEL sent nothing at all.
+        # Without this line the argument rate would silently vanish from the
+        # report the day the fallback started rescuing it.
+        empty_arg = sum(1 for _, c in rows if c is not None and c.omitted)
+        print(f"  model sent an EMPTY argument: {empty_arg}/{n}"
+              "   <- 340-C's rate; the fallback rescues some of these")
+        if "legacy" in by_source:
+            print("    ⚠️  `legacy` = the archive predates the source= field "
+                  "(2026-09-04). It is NOT `none`, and it licenses no claim "
+                  "about where those dates came from.")
         print(f"  app-resolved a bare clock: {resolved}/{n}"
               "   <- #340 route (a) actually firing")
         if counts["no-call"] == n:
@@ -371,11 +478,21 @@ def report(calls: list[Call]) -> int:
           f"  ({100 * len(unreadable) / n:.1f}%)")
     print(f"  due ALREADY PAST at call time      : {len(past)}/{n}"
           f"  ({100 * len(past) / n:.1f}%)   ← a WRONG value, not a present one")
+    # #340 Task 3. This view is denominated on the ARGUMENT and stays that way
+    # — it exists for comparability with every pre-340-H4 measurement, so
+    # redefining its OMITTED row would destroy the one thing it is for. But
+    # from 2026-09-04 an omitted argument can still produce a correct card, so
+    # the count is named here rather than left to be misread as a failure.
+    rescued = [c for c in calls if c.source == "userText"]
+    if rescued:
+        print(f"  …of the omitted, RESCUED from the user's words: {len(rescued)}/{n}"
+              f"  ({100 * len(rescued) / n:.1f}%)   ← counted under OMITTED above,"
+              " which is an ARGUMENT rate")
 
     if populated:
-        print("\nPopulated arguments — the model IS capable of this field:")
+        print("\nPopulated arguments — a usable due date reached the card:")
         for c in populated:
-            print(f"  {c.timestamp}  raw={c.raw!r}  parsed={c.parsed}")
+            print(f"  {c.timestamp}  raw={c.raw!r}  source={c.source_label}  parsed={c.parsed}")
 
     if past:
         print("\n🔴 A due that had ALREADY ELAPSED when the model sent it.")
@@ -436,6 +553,17 @@ def self_test() -> int:
     assert not calls[2].past_at_call, "an unparseable raw cannot be judged past"
     assert calls[2].bareclock == "no"
     assert not calls[0].past_at_call, "an omitted due is not a past due"
+    # ---- #340 Task 3: the LEGACY shape. ----
+    #
+    # Every one of the three fixtures above is a REAL line collected before the
+    # `source=` field existed, and they are the reason `source` is optional in
+    # the pattern at all: an archive from 2026-08-15 must keep parsing exactly
+    # as it did, and its rows must report `legacy` rather than `none` — `none`
+    # is a positive claim that the card was dateless, which these lines do not
+    # make.
+    assert all(c.source is None for c in calls), "pre-#340 lines carry no source"
+    assert all(c.source_label == "legacy" for c in calls), \
+        "an absent source= must read as legacy, never as none"
     # A FUTURE due is the only shape that may read as cleanly populated.
     future = extract(
         '2026-08-15 14:58:08.920 Df Talaria 27[1:1] [org.aethyrion.talaria27:app] '
@@ -444,6 +572,56 @@ def self_test() -> int:
     assert len(future) == 1 and not future[0].past_at_call and not future[0].omitted
     # The banner line and the trailing separator must not parse as calls.
     assert extract("Timestamp               Ty Process[PID:TID]\n==========\n") == []
+
+    # ---- #340 Task 3: the CURRENT shape, all three source values. ----
+    #
+    # THE ASSERTION THAT MATTERS MOST HERE IS ON `parsed`, not on `source`.
+    # `parsed` runs greedily to end-of-line, so if `source=` were ever emitted
+    # AFTER it, every one of these rows would parse with
+    # `parsed="Sep 5, 2026 at 4:00 PM source=userText"` — still truthy, still
+    # not "nil", and the `unreadable` bucket would silently drop to zero with
+    # the source column looking perfectly healthy. So each row below asserts
+    # the parsed value EXACTLY. The app side is pinned too
+    # (`theInstrumentLineCarriesSourceAheadOfParsed`), which is the half a
+    # fixture cannot prove: this file only sees the lines it was handed.
+    sourced = extract(
+        'Timestamp               Ty Process[PID:TID]\n'
+        '2026-09-04 09:00:01.100 Df Talaria 27[1:1] [org.aethyrion.talaria27:app] '
+        'createReminder due raw="" bareClock=no source=userText parsed=Sep 5, 2026 at 4:00 PM\n'
+        '2026-09-04 09:00:03.100 Df Talaria 27[1:1] [org.aethyrion.talaria27:app] '
+        'createReminder due raw="16:30" bareClock=resolved source=model parsed=Sep 4, 2026 at 4:30 PM\n'
+        '2026-09-04 09:00:05.100 Df Talaria 27[1:1] [org.aethyrion.talaria27:app] '
+        'createReminder due raw="" bareClock=no source=none parsed=nil\n'
+        '==========\n'
+    )
+    assert len(sourced) == 3, f"expected 3 source-bearing calls, got {len(sourced)}"
+    assert [c.source for c in sourced] == ["userText", "model", "none"], \
+        [c.source for c in sourced]
+    assert [c.source_label for c in sourced] == ["userText", "model", "none"]
+    assert sourced[0].parsed == "Sep 5, 2026 at 4:00 PM", \
+        f"source= was swallowed into parsed: {sourced[0].parsed!r}"
+    assert sourced[1].parsed == "Sep 4, 2026 at 4:30 PM", sourced[1].parsed
+    assert sourced[2].parsed == "nil", sourced[2].parsed
+    # The existing columns are untouched by the new field.
+    assert [c.bareclock for c in sourced] == ["no", "resolved", "no"]
+
+    # ---- The two predicates that came APART on 2026-09-04. ----
+    #
+    # Row 0 is the fallback firing: the model's ARGUMENT was empty (`omitted`
+    # stays True — 340-C's measurement is not redefined) while the CARD carries
+    # a real future instant (`dateless` is False). That divergence is the whole
+    # of Task 3, and it is asserted here in both directions so a future edit
+    # cannot quietly collapse the two back together.
+    assert sourced[0].omitted and not sourced[0].dateless, \
+        "the fallback row must be an empty ARGUMENT with a dated CARD"
+    assert sourced[2].omitted and sourced[2].dateless, \
+        "a source=none row is empty in both senses"
+    assert not sourced[1].omitted and not sourced[1].dateless
+    assert not sourced[0].unreadable and not sourced[1].past_at_call
+    # And the bucket follows the CARD, which is what makes 340-U-C decidable.
+    assert bucket(sourced[0]) == "populated-future", bucket(sourced[0])
+    assert bucket(sourced[1]) == "populated-future", bucket(sourced[1])
+    assert bucket(sourced[2]) == "omitted", bucket(sourced[2])
     # And the no-data path must NOT be a success. This PRINTS the guard's own
     # message — that output below is the branch being exercised, not a failure.
     print("--- exercising the no-data guard; the block below is EXPECTED ---")
@@ -503,6 +681,68 @@ def self_test() -> int:
     assert by_cell["armed"][1][1].past_at_call and not by_cell["armed"][1][1].unreadable
     assert by_cell["armed-bareclock"][1][1].unreadable
 
+    # ---- #340 Task 3: the LEGACY A/B above still scores IDENTICALLY. ----
+    #
+    # This is the whole backward-compatibility claim of the bucket change, and
+    # it is asserted rather than argued: every fixture above predates `source=`,
+    # and every one of its buckets is the value the pre-2026-09-04 script
+    # produced. The list is written out in full so a future edit that shifts one
+    # row has to say so.
+    assert [bucket(c) for _, c in by_cell["armed"]] == \
+        ["omitted", "wrong-value", "populated-future", "no-call"]
+    assert [bucket(c) for _, c in by_cell["armed-bareclock"]] == \
+        ["populated-future", "wrong-value", "no-call"]
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        legacy_code = report_by_cell(by_cell)
+    legacy_out = buf.getvalue()
+    assert legacy_code == 0, legacy_code
+    # A legacy archive's populated rows must be labelled `legacy`, never `none`,
+    # and the report must SAY so rather than quietly printing a source column
+    # that looks like a measurement.
+    assert "populated-future by SOURCE: legacy=1/4" in legacy_out, legacy_out
+    assert "the archive predates the source= field" in legacy_out, legacy_out
+
+    # ---- #340 Task 3: the CURRENT shape, end to end through the report. ----
+    #
+    # Hand-built for the same reason the A/B above is: the branch that reports
+    # `source=userText` must EXECUTE, not merely exist. Two cells, and the
+    # treatment arm carries the shape the whole lane is for — an EMPTY argument
+    # whose card is nonetheless dated, from the user's own sentence.
+    sourced_ab = (
+        'Timestamp               Ty Process[PID:TID]\n'
+        # --- control: the model filled the field itself ---
+        '2026-09-04 09:00:00.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed-nofallback p=remind t=1\n'
+        '2026-09-04 09:00:01.100 Df Talaria 27[1:1] [x] createReminder due raw="16:30" bareClock=resolved source=model parsed=Sep 4, 2026 at 4:30 PM\n'
+        '2026-09-04 09:00:02.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed-nofallback p=remind t=2\n'
+        '2026-09-04 09:00:03.100 Df Talaria 27[1:1] [x] createReminder due raw="" bareClock=no source=none parsed=nil\n'
+        # --- treatment: one model-filled, one rescued from the user's words ---
+        '2026-09-04 09:10:00.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed p=remind t=1\n'
+        '2026-09-04 09:10:01.100 Df Talaria 27[1:1] [x] createReminder due raw="16:30" bareClock=resolved source=model parsed=Sep 4, 2026 at 4:30 PM\n'
+        '2026-09-04 09:10:02.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed p=remind t=2\n'
+        '2026-09-04 09:10:03.100 Df Talaria 27[1:1] [x] createReminder due raw="" bareClock=no source=userText parsed=Sep 5, 2026 at 4:00 PM\n'
+        '==========\n'
+    )
+    sourced_cells = attribute(extract(sourced_ab), extract_trials(sourced_ab))
+    assert [bucket(c) for _, c in sourced_cells["armed-nofallback"]] == \
+        ["populated-future", "omitted"]
+    assert [bucket(c) for _, c in sourced_cells["armed"]] == \
+        ["populated-future", "populated-future"]
+
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        sourced_code = report_by_cell(sourced_cells)
+    sourced_out = buf.getvalue()
+    assert sourced_code == 0, sourced_code
+    # 340-U-C's column, both arms, printed and asserted.
+    assert "populated-future by SOURCE: model=1/2, userText=1/2" in sourced_out, sourced_out
+    assert "populated-future by SOURCE: model=1/2" in sourced_out, sourced_out
+    # 340-C's argument rate stays visible even though the card is now what the
+    # buckets count — one omitted argument per arm, one of them rescued.
+    assert sourced_out.count("model sent an EMPTY argument: 1/2") == 2, sourced_out
+    # And no `legacy` warning on an archive that carries the field.
+    assert "predates the source= field" not in sourced_out, sourced_out
+
     # ---- #200V: the DISCARDED warm-up trial is NOT an arm. ----
     #
     # The battery pays the model's cold start up front, outside the counts, and
@@ -560,8 +800,11 @@ def self_test() -> int:
     print("--- end expected block ---")
 
     print("SELF-TEST PASSED — 4 call fixtures, all four classes, the no-data")
-    print("guard, #340-H4's four buckets attributed across a two-arm A/B, and")
-    print("the #200V warm-up trial reported as discarded rather than as an arm.")
+    print("guard, #340-H4's four buckets attributed across a two-arm A/B, the")
+    print("#200V warm-up trial reported as discarded rather than as an arm, and")
+    print("#340 Task 3's source= column in BOTH line shapes: legacy archives")
+    print("score byte-identically and report `legacy`, current ones report")
+    print("model / userText / none with parsed= proven un-swallowed.")
     return 0
 
 

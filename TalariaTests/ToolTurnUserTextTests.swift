@@ -118,26 +118,18 @@ struct ToolTurnUserTextTests {
                 "the witness overran `streamTurn` — its pins would pass on the wrong function's text")
     }
 
-    // MARK: - source helper (mirrors MemoryInjectionTests' pattern)
+    // MARK: - source helper
 
     /// One function's body, bounded at the NEXT method declaration rather than
-    /// by a character count. Copied in shape (not shared) from
-    /// `MemoryInjectionTests.backendFunctionBody(from:)`, which is `private` to
-    /// that type.
+    /// by a character count.
+    ///
+    /// **⟵ HOISTED 2026-09-04 (#340 Task 3).** This used to be a private copy
+    /// of `MemoryInjectionTests.backendFunctionBody(from:)`, byte-identical to
+    /// it; Task 3 needed a third user and the right answer to a third copy is
+    /// one implementation. Both former copies now delegate here, and
+    /// `RepoSourceWitness` carries the reasoning about why the body is bounded
+    /// rather than character-counted.
     private static func backendFunctionBody(from anchor: String) throws -> String {
-        let path = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("Talaria/Services/Live/LocalChatBackend.swift")
-        let source = try #require(
-            try? String(contentsOf: path, encoding: .utf8),
-            "LocalChatBackend.swift unreadable — these pins must fail loudly, not vacuously"
-        )
-        let range = try #require(
-            source.range(of: anchor),
-            "\(anchor) is gone — re-point this pin at its successor")
-        let rest = source[range.upperBound...]
-        guard let next = rest.range(of: "\n    func ") else { return String(rest) }
-        return String(rest[..<next.lowerBound])
+        try RepoSourceWitness.functionBody(from: anchor)
     }
 }

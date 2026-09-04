@@ -791,20 +791,11 @@ struct MemoryInjectionTests {
     /// fails as a false RED when the function grows and — far worse here — as
     /// a false GREEN when it shrinks, because `streamTurn` carries the
     /// identical pair of lines this pin is asserting about `send`.
+    ///
+    /// **⟵ HOISTED 2026-09-04 (#340 Task 3) into `RepoSourceWitness`**, which
+    /// this now delegates to. The implementation moved; the reasoning above
+    /// is why it is shaped that way and moved with it.
     private static func backendFunctionBody(from anchor: String) throws -> String {
-        let path = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("Talaria/Services/Live/LocalChatBackend.swift")
-        let source = try #require(
-            try? String(contentsOf: path, encoding: .utf8),
-            "LocalChatBackend.swift unreadable — these pins must fail loudly, not vacuously"
-        )
-        let range = try #require(
-            source.range(of: anchor),
-            "\(anchor) is gone — re-point this pin at its successor")
-        let rest = source[range.upperBound...]
-        guard let next = rest.range(of: "\n    func ") else { return String(rest) }
-        return String(rest[..<next.lowerBound])
+        try RepoSourceWitness.functionBody(from: anchor)
     }
 }

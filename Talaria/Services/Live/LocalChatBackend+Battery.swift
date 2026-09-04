@@ -803,10 +803,24 @@ extension LocalChatBackend {
     /// Routing is a cell rather than a run-level flag so the contrast is
     /// WITHIN a run — same thermal state, same slot rotation, the design
     /// #200V's warm-up work established.
+    /// `carriesUserText` — #340 Task 3, and it exists because the default is a
+    /// measurement trap rather than a feature gap.
+    ///
+    /// Every DEBUG instrument calls the bare `toolRelay?.beginTurn()` once per
+    /// trial (#343's governor reset), and #340 Task 2 made that bare form
+    /// CLEAR `ToolEventRelay.currentTurnUserText` — deliberately, so trial *n*
+    /// can never resolve a due date out of trial *n−1*'s sentence. The
+    /// consequence is that a battery measuring the user-words fallback would,
+    /// by default, measure it **switched off**: `source=userText` 0/40, bar
+    /// 340-U-C missed, and nothing in the artifact saying why. That is #215's
+    /// unrouted cell exactly — a rate on a configuration production never
+    /// enters — so the opt-in is explicit, per battery, and defaults to the
+    /// byte-identical bare call every other wrapper has always made.
     func runActionBattery(trials: Int,
                           cells: [ActionBatteryCell] = LocalChatBackend.actionBatteryCells,
                           includeGrabCanary: Bool = false,
                           promptSet: [(tag: String, text: String)]? = nil,
+                          carriesUserText: Bool = false,
                           warmup: Bool = LocalChatBackend.batteryWarmupDefault) async {
         guard await Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
@@ -1043,7 +1057,12 @@ extension LocalChatBackend {
                     // them: #343's canary measured 31/40 trials DEAD on a build
                     // whose beta4 archive twin — which PREDATES the governor
                     // (`5e919269`, 2026-08-02) — scored 20/20.
-                    toolRelay?.beginTurn()
+                    //
+                    // #340 Task 3: `nil` is the bare call every other battery
+                    // has always made — same governor reset, same cleared
+                    // field. Only a battery that OPTS IN hands the trial's own
+                    // prompt to the belt; see `carriesUserText` above.
+                    toolRelay?.beginTurn(userText: carriesUserText ? prompt : nil)
                     // #215: the routed variant. The trial clock is already
                     // running, so a routed trial's latency includes its router
                     // generation — the real cost of a production turn, not the
@@ -1592,11 +1611,20 @@ extension LocalChatBackend {
     /// appear" would be the same error one step later, because the model's
     /// answer when pushed to fill the field was 8:46 AM for a 2:58 PM ask.
     /// Verbose logging MUST be on or the run produces no readable output.
+    /// **⟵ #340 Task 3 (2026-09-04): this battery now CARRIES THE PROMPT TEXT
+    /// into each trial's turn, and that is a precondition of bar 340-U-C
+    /// rather than an enhancement.** The fallback reads
+    /// `ToolEventRelay.currentTurnUserText`; the bare per-trial `beginTurn()`
+    /// every instrument makes CLEARS it; so without `carriesUserText: true`
+    /// this instrument would measure the fallback in its OFF configuration and
+    /// report `source=userText` 0/40 as if the product did not work. Nothing
+    /// else about the run changes, and no other battery is affected.
     func runDueDateBattery(trials: Int,
                            cells: [ActionBatteryCell] = LocalChatBackend.dueDateBatteryCells) async {
         await runActionBattery(trials: trials, cells: cells,
                                includeGrabCanary: false,
-                               promptSet: Self.dueDatePromptSet)
+                               promptSet: Self.dueDatePromptSet,
+                               carriesUserText: true)
     }
 
     nonisolated static let declineBatteryCells: [ActionBatteryCell] = [.armed]

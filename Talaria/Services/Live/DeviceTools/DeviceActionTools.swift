@@ -598,19 +598,98 @@ struct ReminderCreateTool: Tool {
         let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
         if case .refused(let refusal) = try await relay.started(name, detail: title) { return refusal }
         defer { Task { await relay.completed(name) } }
+        // #340 Task 3: the CURRENT TURN's user message, read from the seam
+        // `LocalChatBackend.beginToolTurn(userText:)` fills. Nil whenever no
+        // turn is in flight — a DEBUG instrument's bare `beginTurn()`, or a
+        // direct unit call — and an empty string then takes today's path
+        // exactly, because `detectDue("")` is nil.
+        let turnUserText = await relay.currentTurnUserText ?? ""
         // An omitted field lands on exactly the path an empty string took,
         // so the create flow is unchanged from the pre-promotion tool.
         return await Self.performCreate(
             rawTitle: title, rawDue: arguments.due ?? "", rawList: arguments.list ?? "",
+            userText: turnUserText,
             relay: relay, confirmations: confirmations
         )
+    }
+
+    /// #340 Task 3 (bar 340-U-C) — the due date AND where it came from, in
+    /// **one** place, so the staged card and the instrument line cannot
+    /// disagree about either.
+    ///
+    /// **The three sources, and why the field is not cosmetic.** 340-H5′
+    /// measured `populated-future` rising 0/40 → 18/40 on the promoted guide
+    /// text; 340-U-C asks it to reach 34/40. A rate that rose because THIS
+    /// fallback is doing the work and a rate that rose because the model got
+    /// lucky are the same number — `source=` is what separates them, which is
+    /// why the bar carries a `source=userText ≥ 12/40` column of its own.
+    ///
+    /// - `model` — the argument the model sent produced the date, either as an
+    ///   explicit timestamp (340-H2: left exactly as sent) or through route
+    ///   (a)'s bare-clock resolution.
+    /// - `userText` — the model sent nothing and the USER's own sentence
+    ///   carried a date.
+    /// - `none` — no date at all; the card stays dateless.
+    ///
+    /// **The fallback fires ONLY on an EMPTY argument (Owen, 2026-09-04).** A
+    /// non-empty value the app cannot read stays on today's wrong-value path
+    /// rather than being rescued, because `wrong-value` is a bucket the scorer
+    /// must keep able to count: #340-C measured it at zero, and a fallback that
+    /// quietly absorbed unparseable arguments would zero it by construction
+    /// instead of by fact. `rawDue.isEmpty` is deliberately the UNTRIMMED test
+    /// — a whitespace-only argument is an unparseable value, not an absent one.
+    ///
+    /// **Empty `userText` is today's path exactly**, because `detectDue("")` is
+    /// nil — which is what `performCreate`'s defaulted parameter buys: every
+    /// call site that has no turn to speak of (a unit test, a direct call)
+    /// behaves as it did before this landed. The four `createReminder` tools —
+    /// production and its three `#if DEBUG` treatment copies — all DO pass the
+    /// turn's text, deliberately: they share one engine, and letting only
+    /// production read the user's words would have made the engine a second,
+    /// silent delta in every A/B those copies are used for.
+    nonisolated static func resolvedDue(rawDue: String, userText: String, now: Date)
+        -> (date: Date?, source: String, bareClock: String) {
+        // #340 route (a), ruled by Owen 2026-08-18. The model can produce the
+        // TIME and cannot produce the DAY (340-G: every value it sent was
+        // today at the asked hour, already elapsed), so a bare clock time is
+        // resolved HERE rather than delegated back to the model in prose.
+        // An explicit date is left exactly as sent — 340-H2 — and falls
+        // through to the three guards in `performCreate` unchanged.
+        let explicitDue = DeviceActionParsing.parseDateTime(rawDue)
+        let bareClock = explicitDue == nil ? DeviceActionParsing.parseBareClock(rawDue) : nil
+        let resolvedBareClock = bareClock.flatMap {
+            DeviceActionParsing.resolveBareClock($0, now: now)
+        }
+        let modelDue = explicitDue ?? resolvedBareClock
+        // #340 Task 3: the fallback. `detectDue` is deterministic, model-free,
+        // and never returns an instant at or before `now` (bar 340-U-A), so
+        // the three guards below in `performCreate` run on the result exactly
+        // as they do on a model-supplied value — nothing here is special-cased
+        // out of them.
+        let parsedDue = modelDue
+            ?? (rawDue.isEmpty ? DeviceActionParsing.detectDue(in: userText, now: now) : nil)
+        let source: String
+        if parsedDue == nil {
+            source = "none"
+        } else if modelDue != nil {
+            source = "model"
+        } else {
+            source = "userText"
+        }
+        return (parsedDue, source,
+                resolvedBareClock != nil ? "resolved" : (bareClock != nil ? "unresolvable" : "no"))
     }
 
     /// The whole create flow from staged-title to EventKit save, shared
     /// with the #200B guidefix copy so a treatment cell's ONLY delta is
     /// text — structural-identity discipline: two structs, one engine.
+    ///
+    /// `userText` is the CURRENT TURN's user message, threaded in from
+    /// `ToolEventRelay.currentTurnUserText` (#340 Task 2's seam). It is read
+    /// only when the model's `due` argument is empty — see `resolvedDue`.
     nonisolated static func performCreate(
         rawTitle: String, rawDue: String, rawList: String,
+        userText: String = "",
         relay: ToolEventRelay,
         confirmations: ToolConfirmationCenter,
         now: Date = Date()
@@ -618,26 +697,25 @@ struct ReminderCreateTool: Tool {
         let title = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return "No reminder title was given — nothing staged." }
 
-        // #340 route (a), ruled by Owen 2026-08-18. The model can produce the
-        // TIME and cannot produce the DAY (340-G: every value it sent was
-        // today at the asked hour, already elapsed), so a bare clock time is
-        // resolved HERE rather than delegated back to the model in prose.
-        // An explicit date is left exactly as sent — 340-H2 — and falls
-        // through to the three guards below unchanged.
-        let explicitDue = DeviceActionParsing.parseDateTime(rawDue)
-        let bareClock = explicitDue == nil ? DeviceActionParsing.parseBareClock(rawDue) : nil
-        let resolvedBareClock = bareClock.flatMap {
-            DeviceActionParsing.resolveBareClock($0, now: now)
-        }
-        let parsedDue = explicitDue ?? resolvedBareClock
+        let resolution = Self.resolvedDue(rawDue: rawDue, userText: userText, now: now)
+        let parsedDue = resolution.date
         // #249 instrument: raw model-supplied due vs the parsed local time.
         // A zone-bearing raw string takes the ISO branch and gets CONVERTED
         // to local — a DST-wrong offset (-06:00 in summer Chicago) lands the
         // card an hour off what the user said, indistinguishable at the UI
         // from the model resolving the hour wrong. This line is the
         // discriminator.
+        //
+        // ⛔ NOTHING MAY BE APPENDED AFTER `parsed=`. `score-due-omission.py`'s
+        // `parsed` group runs greedily to end-of-line, so a trailing field is
+        // swallowed into it silently — every `parsed` would read
+        // "nil source=none", which is not "nil", which would zero the
+        // `unreadable` bucket with no test noticing. `bareClock=` and
+        // `source=` both sit ahead of it for that reason, and
+        // `theInstrumentLineCarriesSourceAheadOfParsed` now fails if that ever
+        // stops being true.
         if TalariaLog.isVerbose {
-            TalariaLog.logger.notice("createReminder due raw=\"\(rawDue, privacy: .public)\" bareClock=\(resolvedBareClock != nil ? "resolved" : (bareClock != nil ? "unresolvable" : "no"), privacy: .public) parsed=\(parsedDue.map { DeviceActionParsing.displayDate($0) } ?? "nil", privacy: .public)")
+            TalariaLog.logger.notice("createReminder due raw=\"\(rawDue, privacy: .public)\" bareClock=\(resolution.bareClock, privacy: .public) source=\(resolution.source, privacy: .public) parsed=\(parsedDue.map { DeviceActionParsing.displayDate($0) } ?? "nil", privacy: .public)")
         }
         // #249 guard 1: a due already in the past is never what the user
         // meant — two of the three observed cards were hours stale at
@@ -911,8 +989,14 @@ struct ReminderCreateToolRequiredFields: Tool {
         let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
         if case .refused(let refusal) = try await relay.started(name, detail: title) { return refusal }
         defer { Task { await relay.completed(name) } }
+        // #340 Task 3: two structs, ONE engine — see `performCreate`. Passing
+        // the turn text here keeps this copy's only delta from production the
+        // model-facing one it was built to measure (the schema optionality);
+        // omitting it would have made the engine a second, silent delta.
+        let turnUserText = await relay.currentTurnUserText ?? ""
         return await ReminderCreateTool.performCreate(
             rawTitle: title, rawDue: arguments.due, rawList: arguments.list,
+            userText: turnUserText,
             relay: relay, confirmations: confirmations
         )
     }
@@ -975,8 +1059,11 @@ struct ReminderCreateToolGuidefix: Tool {
         let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
         if case .refused(let refusal) = try await relay.started(name, detail: title) { return refusal }
         defer { Task { await relay.completed(name) } }
+        // #340 Task 3: same engine as production — see `ReminderCreateTool.call`.
+        let turnUserText = await relay.currentTurnUserText ?? ""
         return await ReminderCreateTool.performCreate(
             rawTitle: title, rawDue: arguments.due, rawList: arguments.list,
+            userText: turnUserText,
             relay: relay, confirmations: confirmations
         )
     }
@@ -1047,8 +1134,11 @@ struct ReminderCreateToolDateguide: Tool {
         let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
         if case .refused(let refusal) = try await relay.started(name, detail: title) { return refusal }
         defer { Task { await relay.completed(name) } }
+        // #340 Task 3: same engine as production — see `ReminderCreateTool.call`.
+        let turnUserText = await relay.currentTurnUserText ?? ""
         return await ReminderCreateTool.performCreate(
             rawTitle: title, rawDue: arguments.due ?? "", rawList: arguments.list ?? "",
+            userText: turnUserText,
             relay: relay, confirmations: confirmations
         )
     }
