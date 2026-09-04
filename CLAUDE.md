@@ -777,7 +777,11 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
     THAT file on every run — so an entry naming a test no tracker knows about is a
     red excused by nothing and reds the gate in PREFLIGHT, exactly like the advice
     pointers above and with the same sweep hazard.
-    **⟵ 2026-09-04: "~1 s" is now ~2-3 s over 74 checks** (measured, three runs).
+    **⟵ 2026-09-04: "~1 s" is now 1-3 s over 86 checks** (measured over three
+    runs at each of two counts; the spread is host load, not the check count —
+    74 checks measured 2.2-2.8 s on a box running six builds and 86 measured
+    1.2 s on an idle one, so read this as "seconds, not minutes" and never as a
+    performance bar).
   - **No tracker item numbers in text the gate PRINTS** — a script cannot keep
     one live, and all three it used to print (#164, #183, #93) were closed by the
     time someone followed one. Advice names a **search string**; the self-test
