@@ -157,6 +157,13 @@ final class ChatBackendRouter: HermesClientProtocol {
     /// #190: the honest reason line a dimmed remote-stub row carries.
     static let unresumableReason = "Host unpaired — reconnect to open"
 
+    /// #425: the reason a dimmed remote-stub row carries when a host IS
+    /// configured but could not be reached. Deliberately NOT
+    /// `unresumableReason` — an unpaired host and a host that timed out are
+    /// different states with different remedies, and this line is the only
+    /// place the user learns which one they are in.
+    static let hostUnreachableReason = "Host unreachable — reconnect to open"
+
     init(
         hermes: any HermesClientProtocol,
         local: any HermesClientProtocol,
@@ -641,8 +648,19 @@ final class ChatBackendRouter: HermesClientProtocol {
         // side contributes its live list while configured, and its last
         // recorded snapshot — dimmed, unresumable — once it isn't. A local
         // listing failure can't exist in practice (`try?` is shape, not
-        // policy); a HERMES failure still throws exactly as before, so
-        // connected-mode error behavior is unchanged.
+        // policy).
+        //
+        // #425: a host that is configured but UNREACHABLE degrades the same
+        // way, instead of throwing. The old shape fetched the local rows
+        // first and then threw them away with the host's error, and
+        // `ChatStore.loadSessions` answered from `lastLoadedSessions` —
+        // zero rows in any launch that had not yet completed one successful
+        // host list. Owen's phone dropped off the tailnet on 2026-09-04 and
+        // the entire shelf went blank: Local, PCC and Hermes threads all ride
+        // this one call, so one throw hid three origins' worth of history
+        // that was never lost, only unread. The host being away is a true
+        // state and the drawer says so per row; it is not a reason to hide
+        // work that lives on the phone.
         let localSessions = (try? await local.listSessions()) ?? []
         guard isHermesConfigured() else {
             let stubs = (remoteSessionStubs?() ?? []).map {
@@ -650,7 +668,25 @@ final class ChatBackendRouter: HermesClientProtocol {
             }
             return Self.sortedByRecency(localSessions + stubs)
         }
-        let hermesSessions = try await hermes.listSessions()
+        let hermesSessions: [HermesSessionInfo]
+        do {
+            hermesSessions = try await hermes.listSessions()
+        } catch {
+            // `SessionsHermesClient.listSessions` already tolerates partial
+            // failure — one profile of several going quiet drops out of the
+            // round — and throws only when no list came back at all. So
+            // reaching here means NO configured host answered.
+            let stubs = (remoteSessionStubs?() ?? []).map {
+                $0.asUnresumable(reason: Self.hostUnreachableReason)
+            }
+            Self.logger.notice("listSessions: no configured host answered — \(error.localizedDescription, privacy: .public); serving \(localSessions.count, privacy: .public) local row(s) + \(stubs.count, privacy: .public) dimmed host row(s) from the last snapshot")
+            // Deliberately NOT `recordRemoteSessions`: those stubs ARE the
+            // last real host list, and the snapshot write REPLACES
+            // (`SwiftDataLocalSessionStore.recordRemoteSessionStubs`), so
+            // recording a failure would delete the only remote history the
+            // drawer has left.
+            return Self.sortedByRecency(localSessions + stubs)
+        }
         recordRemoteSessions?(hermesSessions)
         return Self.sortedByRecency(hermesSessions + localSessions)
     }
