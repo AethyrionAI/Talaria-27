@@ -602,6 +602,7 @@
 		E4EE52A039E47EBA8881069D /* Icon-MidnightAquarium@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 8BD8C35FF4AC86391DCCFEC4 /* Icon-MidnightAquarium@2x.png */; };
 		E55D967594F813AE526B9E1E /* StreamLossClassificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D9C8AE622EA2B105C222872 /* StreamLossClassificationTests.swift */; };
 		E5838375ED9AD3D0BDF55F70 /* ConversationCardInputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F534300B8AB31C540006B3 /* ConversationCardInputTests.swift */; };
+		E5D64AC7D0FA1341E11DE4E7 /* HittableTap.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA994833E460686603F752E9 /* HittableTap.swift */; };
 		E60743104E7E1D6D792F47D4 /* ToolProvenanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B68C8CE6ADD9A54C49C2AA1C /* ToolProvenanceTests.swift */; };
 		E66E1DCD6DDC6DFDF214ED71 /* SpaceGrotesk-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 57107F3D3770FAA8F93F1E70 /* SpaceGrotesk-Medium.ttf */; };
 		E720D0212714D677520D0169 /* ToolCallGovernorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A48706B93FBAD7CE6804E50 /* ToolCallGovernorTests.swift */; };
@@ -1370,6 +1371,7 @@
 		F851B3F3DCBCD700EE6C8E69 /* DeliverFieldModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeliverFieldModeTests.swift; sourceTree = "<group>"; };
 		F8C1F6B4EB8F44EDDD301077 /* AppLockMidFlightCoverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockMidFlightCoverTests.swift; sourceTree = "<group>"; };
 		F9EE177723360E9DC4562574 /* IconPreview-SpringSprout.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-SpringSprout.png"; sourceTree = "<group>"; };
+		FA994833E460686603F752E9 /* HittableTap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HittableTap.swift; sourceTree = "<group>"; };
 		FB4B4E5BA743254D0C695B48 /* Icon-DeepField@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-DeepField@2x.png"; sourceTree = "<group>"; };
 		FC9503176968EC14B829B955 /* SyncStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatus.swift; sourceTree = "<group>"; };
 		FCA0CF6B2A0F6ED16DCA848E /* HostApprovalModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostApprovalModeTests.swift; sourceTree = "<group>"; };
@@ -2046,9 +2048,18 @@
 			path = Sessions;
 			sourceTree = "<group>";
 		};
+		6F150D8993B7CF3B313927A5 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				FA994833E460686603F752E9 /* HittableTap.swift */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
 		79E5B7197F6A1FE02D0B4B50 /* TalariaUITests */ = {
 			isa = PBXGroup;
 			children = (
+				6F150D8993B7CF3B313927A5 /* Support */,
 				E5AD6E957D927DE3495F4B72 /* AppTemplateUITests.swift */,
 				FE8DB0F148FFC7BC813EE622 /* AppTemplateUITestsLaunchTests.swift */,
 				992ACC9FF55104E22717D5ED /* MessageIdentityUITests.swift */,
@@ -3042,6 +3053,7 @@
 			files = (
 				3761D9CE23F6E783C852413F /* AppTemplateUITests.swift in Sources */,
 				7409FEAB390EF888D69B1C55 /* AppTemplateUITestsLaunchTests.swift in Sources */,
+				E5D64AC7D0FA1341E11DE4E7 /* HittableTap.swift in Sources */,
 				69F3448685D89DCF09247A46 /* MessageIdentityUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
