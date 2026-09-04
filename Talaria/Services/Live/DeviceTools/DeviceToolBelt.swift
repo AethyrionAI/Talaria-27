@@ -201,12 +201,43 @@ final class ToolEventRelay {
     /// (`org.aethyrion.talaria`, LocalChatBackend) captures a whole turn.
     private static let instrumentLogger = Logger(subsystem: "org.aethyrion.talaria", category: "LocalChatBackend")
 
-    /// The single turn-boundary call (#225 + #228): resets the instrument's
-    /// counters and the governor's budget together, so the log's running index
-    /// and the admission decisions can never describe different turns.
-    func beginTurn() {
+    /// #340 bar 340-U-B — the user's own message for the CURRENT turn, or nil.
+    ///
+    /// **Why the belt needs this at all.** A tool sees only what the MODEL sent
+    /// it. When `createReminder` arrives with an empty `due`, the time the user
+    /// actually said ("remind me at 4") is nowhere in the tool's arguments, so
+    /// there is nothing to resolve a date from. This is the one channel that
+    /// carries the sentence itself down to where `DeviceActionParsing.detectDue`
+    /// can read it.
+    ///
+    /// **It is the USER's text, never the assembled prompt.** By the time a turn
+    /// reaches `beginToolTurn()` the prompt has grown a memory prefix and any
+    /// instruction preamble; mining THAT for a date would let a remembered
+    /// sentence set the due time of an unrelated reminder. Both production call
+    /// sites pass `message`, pinned by source witness in
+    /// `ToolTurnUserTextTests`.
+    ///
+    /// **Turn-scoped, and structurally so.** It is set by the ONE call that
+    /// already opens every turn, and the parameter's `nil` default means a
+    /// caller that passes nothing CLEARS it rather than inheriting the last
+    /// turn's sentence. That is deliberate rather than incidental: #343's
+    /// governor bug was exactly a per-turn field that leaked because it was
+    /// reset somewhere other than the turn boundary, and the DEBUG instruments
+    /// call the bare `beginTurn()` dozens of times in a row.
+    private(set) var currentTurnUserText: String?
+
+    /// The single turn-boundary call (#225 + #228 + #340): resets the
+    /// instrument's counters and the governor's budget together, so the log's
+    /// running index and the admission decisions can never describe different
+    /// turns — and installs (or clears) this turn's user text.
+    ///
+    /// `userText` is defaulted so every existing caller — the per-trial
+    /// `beginTurn()` the DEBUG instruments make (#343) — compiles and behaves
+    /// exactly as before, with the field explicitly cleared.
+    func beginTurn(userText: String? = nil) {
         executedCallsThisTurn = 0
         refusalsThisTurn = 0
+        currentTurnUserText = userText
         governor?.beginTurn()
     }
 
