@@ -493,6 +493,17 @@ if (( RUN_SUITE )); then
         echo "   BYTES. Both logs are kept; a second red is a REAL red."
         echo "     first run:  $SUITE_LOG"
         echo "     re-roll:    $REROLL_LOG"
+        # "IDENTICAL BYTES" IS A CLAIM ABOUT THE TREE, NOT A CHECK THIS SCRIPT
+        # PERFORMS. This is `test`, not `test-without-building`, so it compiles
+        # again — deliberately, because the first run may have left a partial
+        # product and the re-roll has to be a full, honest run. The consequence
+        # is that an edit landing in the working tree BETWEEN the two runs is
+        # silently picked up, and the second run then measures different bytes
+        # than the first while the output still says identical. Nothing here can
+        # see that; the guarantee is "nobody touched the tree during the run",
+        # which is a property of how the gate is used. If a lane ever needs that
+        # enforced rather than assumed, the honest form is a source hash taken
+        # before the suite and compared here — not a comment.
         "$DEVELOPER_DIR/usr/bin/xcodebuild" test \
             -project Talaria.xcodeproj -scheme Talaria \
             -only-testing:TalariaUITests \

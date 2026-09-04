@@ -76,10 +76,8 @@ advice_says() {   # advice_says <label> <logfile> <needle>
 # the exact opposite of its ruled protocol. An assertion that the wrong words
 # are ABSENT is the only one that can catch that sentence coming back.
 advice_never_says() {   # advice_never_says <label> <logfile> <needle>
-    local out
     advice_render "$2"
-    out="$ADVICE_OUT"
-    if [[ "$out" != *"$3"* ]]; then
+    if [[ "$ADVICE_OUT" != *"$3"* ]]; then
         PASS=$((PASS+1)); printf '  PASS  %s\n' "$1"
     else
         FAIL=$((FAIL+1)); printf '  FAIL  %s — advice contained "%s" and must not\n' "$1" "$3"
@@ -577,9 +575,14 @@ check "a second red -> FAIL" \
       "FAIL" "$(gate_evaluate_reroll_log "$FIXDIR/reroll-red.log" 15 65 | head -1)"
 check "green markers over a SHORT bundle -> FAIL" \
       "FAIL" "$(gate_evaluate_reroll_log "$FIXDIR/reroll-short.log" 15 0 | head -1)"
+# The EXACT sentence, not "a 2 and a 15 appear somewhere in the block". Every
+# reason line here carries numbers, so a substring pair over the whole block is
+# satisfied by almost any wording — including one that names the wrong cause,
+# which is the defect this gate's advice was rebuilt to stop committing. This
+# is the reason a reader needs verbatim: it says the re-roll was SHORT, not red.
 REROLL_SHORT_WHY="$(gate_evaluate_reroll_log "$FIXDIR/reroll-short.log" 15 0 | tail -n +2)"
-check "the short re-roll says what it got and what it owed" \
-      "yes" "$( [[ "$REROLL_SHORT_WHY" == *2* && "$REROLL_SHORT_WHY" == *15* ]] && echo yes || echo no )"
+check "the short re-roll says exactly what it got and what it owed" \
+      "yes" "$( [[ "$REROLL_SHORT_WHY" == *"ran 2 test(s) where the first run ran 15"* ]] && echo yes || echo no )"
 check "TEST SUCCEEDED over no ledger at all -> FAIL" \
       "FAIL" "$(gate_evaluate_reroll_log "$FIXDIR/reroll-no-ledger.log" 15 0 | head -1)"
 check "a build failure -> FAIL" \

@@ -214,6 +214,13 @@ echo
     printf '# runtime\tiOS %s\t%s\n' "$SIM_RUNTIME_VERSION" "$SIM_RUNTIME_BUILD"
     printf '# tap_strategy\t%s\n' "${TAP_STRATEGY:-unset}"
     printf '# started\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    # What the two count columns actually count, said here because a 0 in
+    # either is ambiguous otherwise. They tally log lines whose XCUITest
+    # activity name begins with the prefix "HITTAP " (the current tap helper)
+    # or "XFLAKE " (the older one). A build whose helper emits neither prefix
+    # reports 0 for both, and that is "none emitted under this prefix" — not a
+    # broken instrument and not a clean run.
+    printf '# columns\thittap_lines / xflake_lines = activity lines prefixed "HITTAP " / "XFLAKE "\n'
     printf 'run\tresult\tfailing_tests\thittap_lines\txflake_lines\txcuitest_ledger\n'
 } > "$LEDGER"
 
@@ -222,7 +229,16 @@ echo
 # XFLAKE are counted SEPARATELY and never summed: they are two different
 # prefixes emitted by two different vintages of the same helper, and a single
 # number would hide which one this build actually produces.
-REDS_FILE="$LOGDIR/.failing-names"
+#
+# It lives under tmp/ rather than as a dotfile beside the artifacts. This log
+# directory is published — it goes into the tracker entry as the batch's
+# evidence — and a hidden scratch file in it is one an ls does not show and a
+# reader cannot account for. Kept rather than deleted: it is the raw input the
+# summary's tally was computed from, so a reader who doubts the tally can
+# recount it.
+SCRATCH_DIR="$LOGDIR/tmp"
+mkdir -p "$SCRATCH_DIR" || exit 1
+REDS_FILE="$SCRATCH_DIR/failing-names"
 : > "$REDS_FILE"
 RUN_FAILS=0
 
@@ -297,8 +313,11 @@ else
 fi
 echo "   runtime measured on: iOS $SIM_RUNTIME_VERSION ($SIM_RUNTIME_BUILD)"
 echo "   tap arm:             ${TAP_STRATEGY:-unset}"
+echo "   HITTAP/XFLAKE:       activity lines prefixed \"HITTAP \" / \"XFLAKE \" — a 0"
+echo "                        means none were emitted under that prefix by this build"
 echo "   ledger:              $LEDGER"
 echo "   logs:                $LOGDIR"
+echo "   scratch:             $SCRATCH_DIR (raw input to the per-test tally above)"
 echo
 echo "   A rate from this batch carries the commit, the runtime and the tap arm"
 echo "   above, or it is ambiguous. Do not compare it with a batch built from"
