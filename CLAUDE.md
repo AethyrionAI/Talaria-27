@@ -735,6 +735,19 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   there because #218: `main` could not build in Release for two days and every check
   we had was Debug, so 1461 green tests proved nothing. **The gate is verified to
   fail** — the #218 bug was re-injected and it caught all three errors.
+  **⟵ 2026-09-04 (#219's deterministic-gate lane): "one command" now includes ONE
+  AUTOMATED RE-ROLL of the UI target, and only ever one.** It fires when — and only
+  when — all three hold: every failing test is on the classifier's audited
+  known-flake list, the Swift Testing marker passed with a count above zero, and the
+  first run's XCUITest ledger is COMPLETE (an outcome reported for every test that
+  started, which is what excludes a runner death that happens to name a listed test).
+  It never fires on a Swift Testing red. **Both logs stay in `$LOGDIR` — `suite.log`
+  and `suite-reroll.log`, and both belong in any record of the run** — the verdict
+  line names the re-roll in both directions, and a second red is `GATE: FAIL`. The
+  re-roll's log is judged on the same positive markers as the first plus a SIZE check
+  the first run cannot make (the bundle that came back must match the one that
+  failed). Consequence to budget: a gate run that hits the flake is now ~35-40 min
+  longer, on top of the `simctl diagnose` window below.
   - **Read the gate's FAILURE ADVICE, but know what it is now (#300, fixed
     2026-08-10).** Until that fix it could not tell a real failure from a flake at
     all: its discriminator was `grep '\.swift:[0-9]+: error:'`, which matches only
@@ -749,6 +762,19 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
     SAFE — anything it cannot attribute is reported REAL, never as noise.
     **`scripts/mac/lane-gate-classify-test.sh` exercises it in ~1 s** against
     recorded fixtures; run that after touching the advice, not a 20-minute suite.
+    **⟵ 2026-09-04 (#219's lane): fail-safe now has ONE NAMED EXCEPTION, and it is
+    not about attribution at all.** The `known-flake` verdict excuses a red when
+    every failing test is on a small audited list AND the ledger is complete, and
+    its advice prints the PROTOCOL — re-run once over identical bytes, keep both
+    logs, a second red is a real red — instead of "Do NOT re-roll it", which is
+    what it used to print over the one family whose ruled protocol is exactly one
+    re-roll (the swallowed first tap asserts on the state after the tap it never
+    got, so it always carries a locus). The list is keyed on search strings, each
+    entry naming the tracker file its string resolves in, and the self-test greps
+    THAT file on every run — so an entry naming a test no tracker knows about is a
+    red excused by nothing and reds the gate in PREFLIGHT, exactly like the advice
+    pointers above and with the same sweep hazard.
+    **⟵ 2026-09-04: "~1 s" is now ~2-3 s over 74 checks** (measured, three runs).
   - **No tracker item numbers in text the gate PRINTS** — a script cannot keep
     one live, and all three it used to print (#164, #183, #93) were closed by the
     time someone followed one. Advice names a **search string**; the self-test
