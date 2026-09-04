@@ -791,6 +791,30 @@ def self_test() -> int:
     # 340-U-C's column, both arms, printed and asserted.
     assert "populated-future by SOURCE: model=1/2, userText=1/2" in sourced_out, sourced_out
     assert "populated-future by SOURCE: model=1/2" in sourced_out, sourced_out
+    # ---- 340-U-D: `userText=0` on the nofallback arm is a MEASUREMENT. ----
+    #
+    # The two substring assertions above cannot see it, and that is the point:
+    # `model=1/2` is a prefix of `model=1/2, userText=1/2`, so BOTH of them are
+    # already satisfied by the treatment arm's line alone. A scorer that lost
+    # the nofallback arm's column entirely would pass them. So the output is
+    # split into per-cell sections and the arms are read separately — the
+    # nofallback arm must show NO userText at all, which is the number
+    # 340-U-D's contrast is denominated against.
+    sections: "dict[str, list[str]]" = {}
+    current = None
+    for line in sourced_out.splitlines():
+        if line.startswith("cell "):
+            current = line.split()[1]
+            sections[current] = []
+        elif current is not None:
+            sections[current].append(line)
+    assert set(sections) == {"armed", "armed-nofallback"}, sorted(sections)
+    nofallback = "\n".join(sections["armed-nofallback"])
+    treatment = "\n".join(sections["armed"])
+    assert "populated-future by SOURCE: model=1/2" in nofallback, nofallback
+    assert "userText" not in nofallback, \
+        f"the nofallback arm reported a userText source: {nofallback}"
+    assert "populated-future by SOURCE: model=1/2, userText=1/2" in treatment, treatment
     # 340-C's argument rate stays visible even though the card is now what the
     # buckets count — one omitted argument per arm, one of them rescued.
     assert sourced_out.count("model sent an EMPTY argument: 1/2") == 2, sourced_out

@@ -470,6 +470,33 @@ extension LocalChatBackend {
         /// contrasts TWO treatments. The cell is kept, unedited, because it is
         /// 340-G's measured artifact.
         case armedDateguide = "armed-dateguide"
+        /// #340 bar 340-U-D: **production with the user-words FALLBACK switched
+        /// off** — the same-run control for 340-U-C's `populated-future` rate.
+        ///
+        /// Task 3 made an empty `due` argument resolve from the user's own
+        /// sentence. 340-U-C asks how high that takes `populated-future`; this
+        /// arm asks how high it would have gone anyway, on the same prompt,
+        /// the same model and the same thermal state. #200O settled that a
+        /// remembered number cannot answer that — three cells landed on
+        /// exactly 6/10 remind on three different texts — so the control
+        /// travels with the treatment.
+        ///
+        /// **Belt, guide, instructions and turn text are production's**; the
+        /// sole delta is the relay's DEBUG fallback switch, armed per trial
+        /// from the cell (the identifier is deliberately not written here —
+        /// the arming line is pinned as the SOLE mention in this file, and a
+        /// doc comment naming it would be a second match).
+        /// `carriesUserText` was the obvious lever and is
+        /// the wrong one: switching it off would also blank the relay's turn
+        /// text, so the two arms would differ in what the BELT sees as well as
+        /// in what the resolver does, and an A/B has to hand both arms the same
+        /// input.
+        ///
+        /// **No tool copy.** The other reminder cells swap a
+        /// `ReminderCreateTool…` struct because their delta is model-facing
+        /// TEXT; this one's delta is a term inside `performCreate`, and a copy
+        /// would have forked the engine those copies exist to share.
+        case armedNofallback = "armed-nofallback"
         /// #200L: the first cell that measures a PROMOTED clause by
         /// removing it — production with `includeCardNarrationClause`
         /// explicitly false, i.e. the pinned rollback text verbatim.
@@ -622,7 +649,8 @@ extension LocalChatBackend {
              .armedFindfix, .armedSpiralfix, .armedStrikefix, .armedCardfix,
              .armedDatefix, .armedCardrollback, .armedDeadendfix, .armedGrabfix,
              .armedStallfix, .armedSchemafix, .armedCalfix, .armedDeadend2,
-             .armedCarveoutrollback, .armedScopedv2, .routedProduction, .routedScoped:
+             .armedCarveoutrollback, .armedScopedv2, .armedNofallback,
+             .routedProduction, .routedScoped:
             // instrfix/findfix/spiralfix treat INSTRUCTIONS, toolmode and
             // strikefix treat the tool-calling MODE, the #200F scoping
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
@@ -1063,6 +1091,22 @@ extension LocalChatBackend {
                     // field. Only a battery that OPTS IN hands the trial's own
                     // prompt to the belt; see `carriesUserText` above.
                     toolRelay?.beginTurn(userText: carriesUserText ? prompt : nil)
+                    // #340 Task 4 (bar 340-U-D): the nofallback arm's ONLY
+                    // delta, armed at the turn boundary alongside the reset
+                    // above.
+                    //
+                    // **Written on EVERY trial, from the cell — never set for
+                    // one cell and cleared after.** A matched set/clear pair is
+                    // the shape that leaks, and this project has already paid
+                    // for it once: #343's governor bug was a per-turn field
+                    // reset somewhere other than the turn boundary, and Task
+                    // 2's `beginTurn(userText:)` defaults to `nil` for the same
+                    // reason. An unconditional assignment derived from `cell`
+                    // has no clear step to forget — every non-nofallback trial
+                    // writes `false` as a side effect of writing anything at
+                    // all, so the switch cannot survive into the `armed` arm of
+                    // the same run.
+                    toolRelay?.disableUserTextDueFallback = (cell == .armedNofallback)
                     // #215: the routed variant. The trial clock is already
                     // running, so a routed trial's latency includes its router
                     // generation — the real cost of a production turn, not the
@@ -1588,7 +1632,19 @@ extension LocalChatBackend {
     /// Developer-screen button passed its cell names as string literals rather
     /// than reading the pinned constant, which is how a list documented as
     /// "Pinned" managed to pin nothing.
-    nonisolated static let dueDateBatteryCells: [ActionBatteryCell] = [.armed, .armedDateguide]
+    ///
+    /// **⟵ #340 Task 4 (2026-09-04): `.armedNofallback` JOINS THE LIST, and it
+    /// is the control this pair has been missing since the promotion.** With
+    /// the fallback landed, `armed` and `armed-dateguide` are two treatments;
+    /// the nofallback arm is production with the fallback switched off, which
+    /// is the only arm in this instrument that answers "how much of
+    /// `populated-future` is the fix doing?" — the question bar 340-U-D asks.
+    /// It rides the default list rather than waiting to be typed in, because
+    /// the retired `bareClockBatteryCells` constant is this file's own record
+    /// of what a pinned-but-unreferenced cell list is worth.
+    nonisolated static let dueDateBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedDateguide, .armedNofallback,
+    ]
 
     /// #340: the FALSIFIED instructions-layer pair, kept runnable. 340-F ran
     /// this and the clause produced zero due dates; the default moved to the

@@ -226,6 +226,41 @@ final class ToolEventRelay {
     /// call the bare `beginTurn()` dozens of times in a row.
     private(set) var currentTurnUserText: String?
 
+    #if DEBUG
+    /// #340 bar 340-U-D — the `armed-nofallback` arm's ONLY delta from
+    /// production, and it is one Bool.
+    ///
+    /// **Why a flag rather than a fifth tool struct.** Every other reminder
+    /// treatment cell swaps in a `ReminderCreateTool…` copy, and each of those
+    /// copies carries the model-facing TEXT it was made for while sharing
+    /// `performCreate`'s one engine — *"two structs, one engine"*. This arm's
+    /// delta is not text at all; it is a term INSIDE that engine. A copy would
+    /// have had to fork the engine, which is the one thing the copy discipline
+    /// exists to prevent, and the retired `armed-bareclock` copy is this lane's
+    /// own record of what a fork costs once production moves on beneath it.
+    ///
+    /// **Why on the relay.** The relay already carries per-turn state into the
+    /// belt (`currentTurnUserText`, the governor), `performCreate` already
+    /// holds one, and it is already MainActor — so the battery can arm it at
+    /// the turn boundary in the same breath as `beginTurn`, and the engine
+    /// reads it exactly where the fallback lives.
+    ///
+    /// **DEBUG-only, and `false` by default.** A default of `true` would ship
+    /// the product with the fix switched off; the `#if DEBUG` is what makes
+    /// "production cannot reach this" a compile-time fact rather than a
+    /// convention. A Release build proves the tree COMPILES — it does not
+    /// prove the symbol is unreachable, since code outside a guard would
+    /// compile perfectly well and simply ship — so
+    /// `everyMentionOfTheSwitchSitsInsideADebugRegion` reads every Swift file
+    /// under `Talaria/` and fails if any mention escapes a guard.
+    ///
+    /// **NOT reset by `beginTurn`, deliberately.** The battery writes it on
+    /// every trial from the cell, so there is no "clear" step to forget and no
+    /// way for one cell's setting to survive into the next cell's trials —
+    /// which is the leak shape #343's governor bug actually was.
+    var disableUserTextDueFallback = false
+    #endif
+
     /// The single turn-boundary call (#225 + #228 + #340): resets the
     /// instrument's counters and the governor's budget together, so the log's
     /// running index and the admission decisions can never describe different

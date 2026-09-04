@@ -23,15 +23,6 @@ import Testing
 /// end-to-end with `now` pinned, read the staged card's DUE field, decline.
 /// Declining creates nothing and needs no EventKit grant, and the argument is
 /// on the record before the confirmation gate is consulted.
-/// The tool's return value, settled on the MainActor so the test's own poll can
-/// see it. A local `var` cannot be captured mutably by the escaping task body,
-/// and the point of watching it is to tell "the tool finished without staging"
-/// (a guard fired) apart from "the tool has not got there yet".
-@MainActor
-private final class StagedOutcome {
-    var result: String?
-}
-
 @MainActor
 struct ReminderDueFallbackTests {
 
@@ -58,63 +49,18 @@ struct ReminderDueFallbackTests {
 
     /// Drives `performCreate` to completion and reports BOTH what it staged and
     /// what it returned — `BareClockWiringTests`' seam, with the user's
-    /// sentence threaded in and **two measured hazards closed**.
+    /// sentence threaded in.
     ///
-    /// **1. A yield-counted poll measures the WRONG PROCESS, and it cost this
-    /// lane a ten-minute hang.** `performCreate` is `nonisolated`, so the tool
-    /// leaves the MainActor and runs on the generic executor while the test
-    /// waits. `BareClockWiringTests`' `while … attempts < 2000 { await
-    /// Task.yield() }` therefore counts the TEST's scheduling, not the tool's
-    /// progress: on an idle MainActor those 2,000 yields elapse in about two
-    /// milliseconds. That is enough for every row in that file, and it is not
-    /// enough here — `NSDataDetector`'s FIRST construction in a process takes
-    /// roughly 36 ms (measured: the card staged at `…18.409`, 36 ms after the
-    /// previous suite's last line, with the poll long since given up). The
-    /// loop exited, nothing declined the card, and `await task.value` waited
-    /// forever on a decision that was never coming. A stall has no verdict,
-    /// which makes it strictly worse than a failure.
-    ///
-    /// So the wait is on the WALL CLOCK, and it also watches the tool's own
-    /// completion so a row that reaches a GUARD (staging nothing at all)
-    /// returns immediately instead of burning the deadline.
-    ///
-    /// **2. It never awaits a task that may not finish.** If the deadline
-    /// passes with nothing staged and nothing returned, the helper gives back
-    /// a sentinel and lets the row FAIL, loudly, naming which half timed out.
+    /// **The body moved to `StagedReminderProbe` (#340 Task 4)**, unchanged, for
+    /// the reason Task 3 gave when it hoisted `RepoSourceWitness`: Task 4 needs
+    /// the same drive with a relay it has configured, and the right move at that
+    /// moment is one helper rather than one more copy. The two measured hazards
+    /// it closes — a yield-counted poll that cannot see an off-actor callee, and
+    /// awaiting a task that may never finish — are documented there.
     private func staged(rawDue: String, userText: String,
                         now: Date) async -> (due: String?, result: String) {
-        let relay = ToolEventRelay()
-        let center = ToolConfirmationCenter()
-        let outcome = StagedOutcome()
-        let task = Task { @MainActor in
-            outcome.result = await ReminderCreateTool.performCreate(
-                rawTitle: "Call mom", rawDue: rawDue, rawList: "",
-                userText: userText,
-                relay: relay, confirmations: center, now: now)
-        }
-
-        var due: String?
-        var didStage = false
-        let stageBy = Date().addingTimeInterval(30)
-        while Date() < stageBy {
-            if let pending = center.pending {
-                due = pending.fields.first { $0.key == "due" }?.value
-                didStage = true
-                center.decline()
-                break
-            }
-            // A guard returned without staging anything — done, don't wait.
-            if outcome.result != nil { break }
-            try? await Task.sleep(nanoseconds: 2_000_000)
-        }
-
-        let finishBy = Date().addingTimeInterval(30)
-        while outcome.result == nil && Date() < finishBy {
-            try? await Task.sleep(nanoseconds: 2_000_000)
-        }
-        task.cancel()
-        return (due, outcome.result
-                ?? "<TIMED OUT: the tool never returned; staged=\(didStage)>")
+        await StagedReminderProbe.staged(rawDue: rawDue, userText: userText,
+                                         now: now, relay: ToolEventRelay())
     }
 
     private func stagedDue(rawDue: String, userText: String, now: Date) async -> String? {

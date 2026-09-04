@@ -647,7 +647,8 @@ struct ReminderCreateTool: Tool {
     /// turn's text, deliberately: they share one engine, and letting only
     /// production read the user's words would have made the engine a second,
     /// silent delta in every A/B those copies are used for.
-    nonisolated static func resolvedDue(rawDue: String, userText: String, now: Date)
+    nonisolated static func resolvedDue(rawDue: String, userText: String, now: Date,
+                                        allowUserTextFallback: Bool = true)
         -> (date: Date?, source: String, bareClock: String) {
         // #340 route (a), ruled by Owen 2026-08-18. The model can produce the
         // TIME and cannot produce the DAY (340-G: every value it sent was
@@ -666,8 +667,15 @@ struct ReminderCreateTool: Tool {
         // the three guards below in `performCreate` run on the result exactly
         // as they do on a model-supplied value — nothing here is special-cased
         // out of them.
+        // `allowUserTextFallback` is #340 Task 4's switch and it gates THIS
+        // term and nothing else — the guards, the log line and the card are
+        // untouched by it, so the `armed-nofallback` arm differs from `armed`
+        // in exactly one place. It is on one line with the term on purpose:
+        // `theSwitchGatesTheFallbackTermItself` reads the SOLE line carrying
+        // the detector call, because a body-level pin would be satisfied by
+        // the parameter's own appearance in the signature above.
         let parsedDue = modelDue
-            ?? (rawDue.isEmpty ? DeviceActionParsing.detectDue(in: userText, now: now) : nil)
+            ?? (allowUserTextFallback && rawDue.isEmpty ? DeviceActionParsing.detectDue(in: userText, now: now) : nil)
         let source: String
         if parsedDue == nil {
             source = "none"
@@ -697,7 +705,22 @@ struct ReminderCreateTool: Tool {
         let title = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return "No reminder title was given — nothing staged." }
 
-        let resolution = Self.resolvedDue(rawDue: rawDue, userText: userText, now: now)
+        // #340 Task 4 (bar 340-U-D): the ONE place the measurement switch is
+        // consulted, in the ONE engine. The `armed-nofallback` cell runs this
+        // same function with the fallback term switched off — no fifth
+        // `ReminderCreateTool…` copy, because a copy would have had to fork
+        // `performCreate` itself, which is exactly what "two structs, one
+        // engine" exists to prevent. Release cannot reach the flag: the
+        // declaration and this read are both inside `#if DEBUG`, and
+        // `everyMentionOfTheSwitchSitsInsideADebugRegion` reads the whole tree
+        // to prove no third mention escaped one.
+        #if DEBUG
+        let allowUserTextFallback = !(await relay.disableUserTextDueFallback)
+        #else
+        let allowUserTextFallback = true
+        #endif
+        let resolution = Self.resolvedDue(rawDue: rawDue, userText: userText, now: now,
+                                          allowUserTextFallback: allowUserTextFallback)
         let parsedDue = resolution.date
         // #249 instrument: raw model-supplied due vs the parsed local time.
         // A zone-bearing raw string takes the ISO branch and gets CONVERTED

@@ -43,15 +43,21 @@ enum RepoSourceWitness {
         #endif
     }()
 
-    /// A repo file's whole text, addressed relative to the repo root.
+    /// The repo root.
     ///
     /// `#filePath` is this file's own path, so two `deletingLastPathComponent`
-    /// hops land on the repo root regardless of which suite is calling.
+    /// hops land on the root regardless of which suite is calling. Exposed
+    /// (#340 Task 4) because one pin has to enumerate a whole DIRECTORY rather
+    /// than name a file: proving that a DEBUG-only symbol appears nowhere
+    /// production can reach means checking every source file, not a list
+    /// somebody remembered to keep current.
+    static let repoRoot: URL = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()   // TalariaTests/
+        .deletingLastPathComponent()   // repo root
+
+    /// A repo file's whole text, addressed relative to the repo root.
     static func source(_ relativePath: String) throws -> String {
-        let path = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // TalariaTests/
-            .deletingLastPathComponent()   // repo root
-            .appendingPathComponent(relativePath)
+        let path = repoRoot.appendingPathComponent(relativePath)
         return try #require(
             try? String(contentsOf: path, encoding: .utf8),
             "\(relativePath) unreadable — these pins must fail loudly, not vacuously"
