@@ -240,7 +240,8 @@ gate_failing_test_names() {   # gate_failing_test_names <logfile>
 # The consequence downstream is not only a wrong verdict. A truncated first run
 # makes `gate_evaluate_reroll_log`'s expected total SHORT, so a clean full
 # re-roll trips the size check and the gate reports "the re-roll ran 15 test(s)
-# where the first run ran 5" — a false FAIL after a 35-minute re-run, explained
+# where the first run ran 5" — a false FAIL after a ~15 min re-run (measured
+# 14.6 min incl. the incremental rebuild, 2026-09-04), explained
 # by the opposite of what happened.
 gate_classify_failures() {   # gate_classify_failures <logfile>
     local log="$1" line name saw_any=0 all_known=1 started passed failed
@@ -304,15 +305,34 @@ gate_classify_failures() {   # gate_classify_failures <logfile>
 #
 # LINES, never unique names: the launch suite runs `testLaunch` twice under two
 # configurations and both are real executions.
+#
+# ANCHORED ON THE UI TARGET'S MODULE, and that anchor is load-bearing rather
+# than tidy. This is the XCUITEST count; the re-roll runs
+# `-only-testing:TalariaUITests` and its `passed` is compared against the
+# number this function returned for the FIRST run. An unanchored pattern counts
+# any `Test Case '-[…]'` line in the log, including one from the unit target —
+# so the two sides of that comparison would be counting different populations.
+#
+# It reads as correct today only because `TalariaTests` contains zero
+# `XCTestCase` subclasses (it is all Swift Testing), which is a fact about the
+# tree on one day and not about the log format. Add one XCTest unit test and a
+# flawless re-roll comes back short of an expectation that counted it, and the
+# gate reports "the re-roll ran 15 test(s) where the first run ran 17" — a FAIL
+# after a full re-run, naming a cause that did not happen. Pinned by the
+# interleaved-unit-lines fixture in the self-test.
+#
+# `TalariaUITests` here is the MODULE, which every class in the UI bundle
+# carries: `-[TalariaUITests.MessageIdentityUITests …]` and
+# `-[TalariaUITests.TalariaUITestsLaunchTests …]` are both inside it.
 # ---------------------------------------------------------------------------
 
 # The raw tally. Echoes three integers: started, passed, failed.
 gate_xcuitest_ledger() {   # gate_xcuitest_ledger <logfile>
     local log="$1" started passed failed
     if [[ ! -s "$log" ]]; then printf '0 0 0'; return; fi
-    started="$(grep -cE "^Test Case '-\[.*\]' started" "$log")"
-    passed="$( grep -cE "^Test Case '-\[.*\]' passed"  "$log")"
-    failed="$( grep -cE "^Test Case '-\[.*\]' failed"  "$log")"
+    started="$(grep -cE "^Test Case '-\[TalariaUITests\..*\]' started" "$log")"
+    passed="$( grep -cE "^Test Case '-\[TalariaUITests\..*\]' passed"  "$log")"
+    failed="$( grep -cE "^Test Case '-\[TalariaUITests\..*\]' failed"  "$log")"
     printf '%s %s %s' "${started:-0}" "${passed:-0}" "${failed:-0}"
 }
 
@@ -537,4 +557,38 @@ gate_print_failure_advice() {   # gate_print_failure_advice <logfile>
             echo "        ^ could not read a failing-test list — read the log directly."
             ;;
     esac
+}
+
+# What the gate prints when the ONE re-roll did not come back clean.
+#
+#   gate_print_reroll_failure <reroll-log> <evaluate-output> <first-run-log>
+#
+# It lives here rather than inline in `lane-gate.sh` for the reason everything
+# else in this file does: the text a reader acts on is exercised over recorded
+# fixtures in a second instead of behind a forty-minute suite.
+#
+# THE PART THAT WAS MISSING, and it is the whole point of the addition: the
+# gate named the FIRST run's locus and then, on the second red, printed only
+# the evaluation's reasons. **The second red need not be the same test.** The
+# first run is a known flake by construction — that is the only reason a
+# re-roll happened — so the failure that now STANDS is whatever the re-roll
+# found, and quoting the first run's locus at the reader points them at the
+# one failure the gate has already decided was not real.
+#
+# Guarded on a failing-test list: a re-roll can fail its SIZE check with every
+# marker green and nothing failing, and running the advice over that log would
+# print "could not read a failing-test list" underneath reasons that already
+# said exactly what happened.
+gate_print_reroll_failure() {
+    local reroll_log="$1" result="$2" first_log="$3"
+    printf '%s\n' "$result" | tail -n +2 | sed 's/^/        /'
+    echo "        A second red is a REAL red. Do not roll a third time."
+    echo "        Both logs are on disk and BOTH belong in the record:"
+    echo "          $first_log"
+    echo "          $reroll_log"
+    if [[ -s "$reroll_log" ]] && grep -q '^Failing tests:' "$reroll_log"; then
+        echo "        THE RE-ROLL'S OWN failing test(s) and locus — this is the red"
+        echo "        that STANDS, and it is not necessarily the one above:"
+        gate_print_failure_advice "$reroll_log"
+    fi
 }

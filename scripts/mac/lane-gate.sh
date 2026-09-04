@@ -526,11 +526,11 @@ if (( RUN_SUITE )); then
             # the wrong cause, which is the defect this gate's advice was
             # rebuilt to stop doing. The reasons below say which it was.
             bad "re-roll of TalariaUITests — did NOT come back clean, so the red STANDS"
-            printf '%s\n' "$REROLL_RESULT" | tail -n +2 | sed 's/^/        /'
-            echo "        A second red is a REAL red. Do not roll a third time."
-            echo "        Both logs are on disk and BOTH belong in the record:"
-            echo "          $SUITE_LOG"
-            echo "          $REROLL_LOG"
+            # The reporting — including the RE-ROLL's own locus, which is the
+            # red that now stands and need not be the test the first run named
+            # — lives in the classifier library so it is exercised over
+            # recorded fixtures rather than only when a real re-roll goes bad.
+            gate_print_reroll_failure "$REROLL_LOG" "$REROLL_RESULT" "$SUITE_LOG"
             REROLL_NOTE=" (re-rolled once on a known flake: $REROLL_NAMES — THE RE-ROLL WAS ALSO RED)"
         fi
         echo

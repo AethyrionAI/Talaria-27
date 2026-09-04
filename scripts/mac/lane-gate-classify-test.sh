@@ -362,7 +362,8 @@ FLAKE_LOCUS='/Users/owenjones/Talaria/TalariaUITests/AppTemplateUITests.swift:54
 # It also INVERTS the re-roll's size check. A truncated first run makes the
 # expected total short, so a clean fifteen-test re-roll trips `passed !=
 # expected` and the gate reports "the re-roll ran 15 test(s) where the first
-# run ran 5" — a false FAIL after 35 minutes, explained by the opposite of
+# run ran 5" — a false FAIL after a ~15 min re-run (measured 14.6 min incl. the
+# incremental rebuild, 2026-09-04), explained by the opposite of
 # what happened.
 #
 # The discriminator is the LEDGER, not the locus: started == passed + failed
@@ -424,6 +425,49 @@ printf '** TEST SUCCEEDED **\n' > "$FIXDIR/reroll-no-ledger.log"
 # Fixture 22 — the build died before the bundle ran.
 printf '** TEST BUILD FAILED **\n' > "$FIXDIR/reroll-build-failed.log"
 
+# ------------------------------------------------------------- fixture 24
+# THE UI BUNDLE'S LEDGER IS NOT "EVERY XCTestCase IN THE RUN".
+#
+# `TalariaTests` today contains zero `XCTestCase` subclasses — it is all Swift
+# Testing — so every `Test Case '-[…]'` line in a suite log happens to come
+# from the UI target and an unanchored count happens to be right. That is a
+# property of the tree on one day, not of the log format, and the re-roll's
+# size check is built on top of it: the re-roll runs
+# `-only-testing:TalariaUITests`, so its `passed` is UI-only, while the
+# expectation it is compared against is the FIRST run's whole-log total.
+#
+# The day a lane adds one XCTest unit test, those two stop being the same
+# number: a perfectly clean re-roll comes back with fifteen where the
+# expectation says seventeen, and the gate reports "the re-roll ran 15 test(s)
+# where the first run ran 17" — a FAIL, after a full re-run, naming a cause
+# that did not happen. So the fixture interleaves unit-target lines that PASS,
+# which leaves the verdict and the re-roll decision exactly where they were and
+# isolates the failure on the SIZE.
+{
+    printf "Test Case '-[TalariaTests.LegacyUnitXCTests testAUnitTargetXCTestCase]' started.\n"
+    printf "Test Case '-[TalariaTests.LegacyUnitXCTests testAUnitTargetXCTestCase]' passed (0.021 seconds).\n"
+    emit_ledger 5 -1
+    printf "Test Case '-[TalariaTests.LegacyUnitXCTests testASecondUnitTargetXCTestCase]' started.\n"
+    printf "Test Case '-[TalariaTests.LegacyUnitXCTests testASecondUnitTargetXCTestCase]' passed (0.014 seconds).\n"
+    printf '%s\n' "$FLAKE_LOCUS"
+    printf '%s\n' "$SWIFT_TESTING_PASSED"
+    printf '** TEST FAILED **\n\nFailing tests:\n\tTalariaUITests.testConnectedRelaunchSkipsTheConnectEntry()\n\n'
+} > "$FIXDIR/unit-xctest-interleaved.log"
+
+# ------------------------------------------------------------- fixture 25
+# THE SECOND RED IS A DIFFERENT TEST. Fixture 19 re-fails the same journey,
+# which is the easy case and hides the defect: the gate printed the FIRST run's
+# locus and then, on the second red, only the evaluation's reasons — so the
+# failure that actually stands never got named. The first run is a known flake
+# by construction (that is the only reason a re-roll happened), so quoting its
+# locus points the reader at the one failure the gate has already decided was
+# not real.
+{
+    emit_ledger 1 -1
+    printf '/Users/owenjones/Talaria/TalariaUITests/MessageIdentityUITests.swift:212: error: -[TalariaUITests.MessageIdentityUITests testTranscriptNeverRendersDuplicateMessageIDs] : XCTAssertEqual failed - the transcript rendered two rows for one message id\n'
+    printf '** TEST FAILED **\n\nFailing tests:\n\tMessageIdentityUITests.testTranscriptNeverRendersDuplicateMessageIDs()\n\n'
+} > "$FIXDIR/reroll-red-different-test.log"
+
 echo "== classifier self-test =="
 echo
 
@@ -474,6 +518,23 @@ check "no ledger -> empty, which the caller must fail on" \
       "" "$(gate_xcuitest_summary "$FIXDIR/xcui-no-ledger.log")"
 check "missing log -> empty, never a count" \
       "" "$(gate_xcuitest_summary "$FIXDIR/does-not-exist.log")"
+echo
+
+echo "-- and it counts the UI BUNDLE, not every XCTestCase the run happened to print"
+check "a unit-target XCTestCase line is not counted" \
+      "15 14 1" "$(gate_xcuitest_ledger "$FIXDIR/unit-xctest-interleaved.log")"
+check "the summary reports the UI bundle's own figures" \
+      "14 passed / 1 failed / 15 ran" "$(gate_xcuitest_summary "$FIXDIR/unit-xctest-interleaved.log")"
+check "the verdict is unmoved by the interleaved unit lines" \
+      "known-flake" "$(gate_classify_failures "$FIXDIR/unit-xctest-interleaved.log")"
+# THE CONSEQUENCE, end to end, which is the reason this matters at all. The
+# re-roll is `-only-testing:TalariaUITests`, so its ledger is UI-only; the
+# expectation it is measured against is whatever the FIRST run's ledger said.
+# Count unit-target lines into the first number and a flawless re-roll fails
+# for a reason that never happened.
+read -r IL_EXPECTED _ _ <<<"$(gate_xcuitest_ledger "$FIXDIR/unit-xctest-interleaved.log")"
+check "a clean UI-only re-roll still clears a red measured beside unit XCTest lines" \
+      "PASS" "$(gate_evaluate_reroll_log "$FIXDIR/reroll-green.log" "$IL_EXPECTED" 0 | head -1)"
 echo
 
 echo "-- DET-B: the known-flake verdict — a locus does NOT make this family real"
@@ -591,6 +652,44 @@ check "a missing log -> FAIL" \
       "FAIL" "$(gate_evaluate_reroll_log "$FIXDIR/does-not-exist.log" 15 0 | head -1)"
 check "every marker green but a NONZERO xcodebuild exit -> FAIL" \
       "FAIL" "$(gate_evaluate_reroll_log "$FIXDIR/reroll-green.log" 15 65 | head -1)"
+echo
+
+echo "-- DET-D: a second red names ITS OWN locus, not the first run's"
+# The gate's re-roll FAILURE report, rendered exactly as `lane-gate.sh` calls
+# it. The first-run argument is the known-flake red, so a report that reached
+# for the wrong log would be visible: that test's name must not appear at all.
+RR_FAIL_OUT="$(gate_print_reroll_failure "$FIXDIR/reroll-red-different-test.log" \
+    "$(gate_evaluate_reroll_log "$FIXDIR/reroll-red-different-test.log" 15 65)" \
+    "$FIXDIR/known-flake-red.log")"
+check "the second red's failing test is named" "yes" \
+      "$( [[ "$RR_FAIL_OUT" == *"MessageIdentityUITests.testTranscriptNeverRendersDuplicateMessageIDs"* ]] \
+          && echo yes || echo no )"
+check "the second red's LOCUS is quoted back" "yes" \
+      "$( [[ "$RR_FAIL_OUT" == *"MessageIdentityUITests.swift:212"* ]] && echo yes || echo no )"
+check "the second red gets its verdict-specific advice" "yes" \
+      "$( [[ "$RR_FAIL_OUT" == *"REAL failure"* ]] && echo yes || echo no )"
+# The inverse, and it is the one that catches the defect coming back: the first
+# run's flake was already excused, so naming it here would send the reader at
+# the failure the gate itself ruled unreal.
+check "the first run's already-excused flake is NOT presented as the standing red" "yes" \
+      "$( [[ "$RR_FAIL_OUT" != *"testConnectedRelaunchSkipsTheConnectEntry"* ]] && echo yes || echo no )"
+check "both logs are still named in the record line" "yes" \
+      "$( [[ "$RR_FAIL_OUT" == *"known-flake-red.log"* && "$RR_FAIL_OUT" == *"reroll-red-different-test.log"* ]] \
+          && echo yes || echo no )"
+check "the do-not-roll-a-third-time protocol survives" "yes" \
+      "$( [[ "$RR_FAIL_OUT" == *"A second red is a REAL red. Do not roll a third time."* ]] \
+          && echo yes || echo no )"
+# The SIZE-check arm has no failing test at all. Running the advice over it
+# would print "could not read a failing-test list" underneath reasons that
+# already said precisely what happened — a wrong cause stapled to a right one,
+# which is the defect this gate's advice was rebuilt to stop committing.
+RR_SHORT_OUT="$(gate_print_reroll_failure "$FIXDIR/reroll-short.log" \
+    "$(gate_evaluate_reroll_log "$FIXDIR/reroll-short.log" 15 0)" \
+    "$FIXDIR/known-flake-red.log")"
+check "a SHORT re-roll still says what it got and owed" "yes" \
+      "$( [[ "$RR_SHORT_OUT" == *"ran 2 test(s) where the first run ran 15"* ]] && echo yes || echo no )"
+check "a SHORT re-roll gets no advice block it has no failing test for" "yes" \
+      "$( [[ "$RR_SHORT_OUT" != *"could not read a failing-test list"* ]] && echo yes || echo no )"
 echo
 
 echo "-- the REAL 2026-09-01 gate logs, if they are still on this machine"
