@@ -480,14 +480,268 @@ struct LocalSessionHistoryTests {
         #expect(stub.unresumableReason == ChatBackendRouter.unresumableReason)
     }
 
+    // MARK: - Router: the shelf survives an unreachable host (#425)
+    //
+    // SUPERSEDES `routerListStillThrowsWhenConfiguredHermesFails`, which
+    // pinned the #190 note's "a HERMES failure still throws exactly as
+    // before" as if it were a promise. It was the defect: the router fetched
+    // the local rows FIRST and then discarded them with the throw, and
+    // `ChatStore.loadSessions` served `lastLoadedSessions` — zero rows in any
+    // launch that had not completed one successful host list. Owen's phone
+    // dropped off the tailnet on 2026-09-04 and the whole shelf went blank,
+    // Local and PCC threads included.
+
+    /// **425-A.** A configured host whose `listSessions()` throws must not
+    /// take the local shelf down with it: every local row survives, the last
+    /// host snapshot rides along dimmed, and the call does NOT throw.
+    ///
+    /// Isolating mutation M-A: restore the rethrow in
+    /// `ChatBackendRouter.listSessions()` → this row reds.
     @Test @MainActor
-    func routerListStillThrowsWhenConfiguredHermesFails() async throws {
+    func routerServesLocalRowsWhenConfiguredHostIsUnreachable() async throws {
+        let hermes = ScriptedClient()
+        let local = ScriptedClient()
+        hermes.listError = StubError()
+        let localNewID = UUID().uuidString
+        let localOldID = UUID().uuidString
+        local.sessions = [
+            HermesSessionInfo(
+                id: localNewID, title: "Local new", preview: nil, model: "on-device",
+                source: "local", messageCount: 2,
+                lastActive: Date(timeIntervalSince1970: 4_000), isActive: false
+            ),
+            HermesSessionInfo(
+                id: localOldID, title: "Local old", preview: nil, model: "on-device",
+                source: "local", messageCount: 4,
+                lastActive: Date(timeIntervalSince1970: 2_000), isActive: false
+            ),
+        ]
+        let router = makeRouter(hermes: hermes, local: local, configured: true)
+        router.remoteSessionStubs = {
+            [
+                self.remoteInfo(id: "h-new", lastActive: Date(timeIntervalSince1970: 5_000)),
+                self.remoteInfo(id: "h-old", lastActive: Date(timeIntervalSince1970: 1_000)),
+            ]
+        }
+
+        let merged = try await router.listSessions()
+
+        #expect(merged.map(\.id) == ["h-new", localNewID, localOldID, "h-old"],
+                "an unreachable host must cost the shelf nothing it already had on the phone")
+        let localRows = merged.filter { $0.id == localNewID || $0.id == localOldID }
+        #expect(localRows.count == 2, "every local row survives a host-list failure")
+        #expect(localRows.allSatisfy { $0.isResumable },
+                "a local row opens on the local backend — the host being away cannot make it unopenable")
+        let stubs = merged.filter { $0.id == "h-new" || $0.id == "h-old" }
+        #expect(stubs.count == 2, "the last host snapshot stays visible rather than vanishing")
+        #expect(stubs.allSatisfy { $0.isResumable == false },
+                "a row this app cannot open right now must say so, not offer a tap that fails")
+        #expect(stubs.allSatisfy { $0.unresumableReason == ChatBackendRouter.hostUnreachableReason },
+                "the dimmed reason names the true cause: the host is unreachable, not unpaired")
+    }
+
+    /// **425-D (fix round 1).** A CANCELLED load is not an unreachable host,
+    /// and must not be degraded into one.
+    ///
+    /// Two screens list sessions from a cancellable `.task`
+    /// (`SettingsChannelsScreen`, `SessionsSettingsScreen`); dismissing the
+    /// sheet cancels the in-flight `URLSession` fetch, which surfaces as
+    /// `URLError(.cancelled)` out of `SessionsHermesClient.listSessions`'
+    /// single-profile path. Swallowing that would make `ChatStore.loadSessions`
+    /// take its SUCCESS path — writing the dimmed list into
+    /// `lastLoadedSessions` and stamping `lastSessionsLoadAt`, so a good list
+    /// from a slow-but-REACHABLE host is replaced by unopenable rows and
+    /// CACHED for the 15 s snapshot TTL. A cancellation is the caller walking
+    /// away, not the host being away.
+    ///
+    /// Isolating mutation M-D: drop the cancellation re-throw at the top of
+    /// the catch → this row and its `CancellationError` twin red, nothing else.
+    @Test @MainActor
+    func routerRethrowsAURLCancellationInsteadOfServingTheDegradedList() async throws {
+        let hermes = ScriptedClient()
+        let local = ScriptedClient()
+        hermes.listError = URLError(.cancelled)
+        local.sessions = [
+            HermesSessionInfo(
+                id: UUID().uuidString, title: "Local", preview: nil, model: "on-device",
+                source: "local", messageCount: 2,
+                lastActive: Date(timeIntervalSince1970: 2_000), isActive: false
+            ),
+        ]
+        let router = makeRouter(hermes: hermes, local: local, configured: true)
+        router.remoteSessionStubs = { [self.remoteInfo(id: "h-stale", lastActive: Date(timeIntervalSince1970: 9_000))] }
+
+        let thrown = await #expect(throws: URLError.self) {
+            _ = try await router.listSessions()
+        }
+
+        #expect(thrown?.code == .cancelled,
+                "a cancelled fetch must reach ChatStore so it serves its last good list, not a dimmed one")
+    }
+
+    /// **425-D, second half.** The structured-concurrency spelling of the same
+    /// thing: a cancelled `Task` throws `CancellationError`, which carries no
+    /// `URLError` code, so it needs its own arm in the guard.
+    ///
+    /// Isolating mutation M-D: drop the cancellation re-throw → this row reds.
+    @Test @MainActor
+    func routerRethrowsCancellationErrorInsteadOfServingTheDegradedList() async throws {
+        let hermes = ScriptedClient()
+        hermes.listError = CancellationError()
+        let router = makeRouter(hermes: hermes, local: ScriptedClient(), configured: true)
+        var recordedCalls: [[HermesSessionInfo]] = []
+        router.recordRemoteSessions = { recordedCalls.append($0) }
+        router.remoteSessionStubs = { [self.remoteInfo(id: "h-stale", lastActive: Date(timeIntervalSince1970: 9_000))] }
+
+        await #expect(throws: CancellationError.self) {
+            _ = try await router.listSessions()
+        }
+
+        #expect(recordedCalls.isEmpty, "a cancelled round is not a snapshot either")
+    }
+
+    /// **425-E (fix round 1).** An EMPTY host list is a SUCCESS, not a
+    /// failure. `SessionsHermesClient.listSessions` throws only when NO
+    /// configured host answered; a host that answers "no sessions" is
+    /// reachable, so the catch must not run, nothing dims, and the empty list
+    /// IS the snapshot — a host whose last session was deleted must not keep
+    /// showing yesterday's stubs forever.
+    @Test @MainActor
+    func routerTreatsAnEmptyHostListAsASuccessAndSnapshotsIt() async throws {
+        let hermes = ScriptedClient()
+        let local = ScriptedClient()
+        hermes.sessions = []
+        let localID = UUID().uuidString
+        local.sessions = [
+            HermesSessionInfo(
+                id: localID, title: "Local", preview: nil, model: "on-device",
+                source: "local", messageCount: 2,
+                lastActive: Date(timeIntervalSince1970: 2_000), isActive: false
+            ),
+        ]
+        let router = makeRouter(hermes: hermes, local: local, configured: true)
+        var recordedCalls: [[HermesSessionInfo]] = []
+        router.recordRemoteSessions = { recordedCalls.append($0) }
+        router.remoteSessionStubs = { [self.remoteInfo(id: "h-stale", lastActive: Date(timeIntervalSince1970: 9_000))] }
+
+        let merged = try await router.listSessions()
+
+        #expect(merged.map(\.id) == [localID],
+                "an empty host list contributes nothing — the stale stubs must NOT be substituted for it")
+        #expect(merged.allSatisfy { $0.isResumable }, "nothing dims while the host answers")
+        #expect(recordedCalls.count == 1, "an empty answer is still an answer, and still the snapshot")
+        #expect(recordedCalls.first?.isEmpty == true,
+                "the host said zero — recording it is how a deleted last session stops haunting the drawer")
+    }
+
+    /// **425-C, failure half.** The stub snapshot IS the last real host list.
+    /// Recording an empty/failed list over it would delete the only remote
+    /// history the drawer has — so the failure path must not call
+    /// `recordRemoteSessions` at all.
+    ///
+    /// Deliberately reads through `try?`: this row is about the RECORDING
+    /// call, not about whether the router throws (that is 425-A's). Keeping
+    /// it throw-insensitive is what makes M-A and M-C isolate cleanly.
+    ///
+    /// Isolating mutation M-C: call `recordRemoteSessions` on the failure
+    /// path → this row reds.
+    @Test @MainActor
+    func routerDoesNotOverwriteTheRemoteSnapshotWhenTheHostListFails() async throws {
         let hermes = ScriptedClient()
         hermes.listError = StubError()
         let router = makeRouter(hermes: hermes, local: ScriptedClient(), configured: true)
-        await #expect(throws: (any Error).self) {
-            _ = try await router.listSessions()
-        }
+        var recordedCalls: [[HermesSessionInfo]] = []
+        router.recordRemoteSessions = { recordedCalls.append($0) }
+        router.remoteSessionStubs = { [self.remoteInfo(id: "h-keep", lastActive: Date(timeIntervalSince1970: 5_000))] }
+
+        _ = try? await router.listSessions()
+
+        #expect(recordedCalls.isEmpty,
+                "a failed host list is not a snapshot — recording it would erase the real one")
+    }
+
+    /// **425-F (fix round 1).** The degenerate corner of the failure path: no
+    /// local rows and no snapshot to serve. The honest answer is an empty
+    /// list, not a throw — a first launch on a phone that has never reached
+    /// the host shows "no conversations yet", which is true, instead of an
+    /// error the drawer would have to invent a story for.
+    @Test @MainActor
+    func routerFailurePathReturnsAnHonestEmptyListWhenThereIsNothingToServe() async throws {
+        let hermes = ScriptedClient()
+        hermes.listError = StubError()
+        let router = makeRouter(hermes: hermes, local: ScriptedClient(), configured: true)
+        router.remoteSessionStubs = { [] }
+
+        let merged = try await router.listSessions()
+
+        #expect(merged.isEmpty, "nothing to show is not the same as failing to show it")
+    }
+
+    /// **425-C, success half.** A reachable host is untouched: the live list
+    /// is snapshotted and the merge is the pre-fix merge.
+    @Test @MainActor
+    func routerRecordsTheRemoteSnapshotWhenTheHostListSucceeds() async throws {
+        let hermes = ScriptedClient()
+        let local = ScriptedClient()
+        hermes.sessions = [
+            remoteInfo(id: "h-a", lastActive: Date(timeIntervalSince1970: 6_000)),
+            remoteInfo(id: "h-b", lastActive: Date(timeIntervalSince1970: 1_500)),
+        ]
+        let localID = UUID().uuidString
+        local.sessions = [
+            HermesSessionInfo(
+                id: localID, title: "Local", preview: nil, model: "on-device",
+                source: "local", messageCount: 1,
+                lastActive: Date(timeIntervalSince1970: 3_000), isActive: false
+            ),
+        ]
+        let router = makeRouter(hermes: hermes, local: local, configured: true)
+        var recordedCalls: [[HermesSessionInfo]] = []
+        router.recordRemoteSessions = { recordedCalls.append($0) }
+        // Present but unused on the success path — a live list never falls
+        // back to its own snapshot.
+        router.remoteSessionStubs = { [self.remoteInfo(id: "h-stale", lastActive: Date(timeIntervalSince1970: 9_000))] }
+
+        let merged = try await router.listSessions()
+
+        #expect(merged.map(\.id) == ["h-a", localID, "h-b"],
+                "a reachable host keeps the #190 merge exactly as it was")
+        #expect(merged.allSatisfy { $0.isResumable }, "nothing dims while the host answers")
+        #expect(recordedCalls.count == 1, "one live list, one snapshot write")
+        #expect(recordedCalls.first?.map(\.id) == ["h-a", "h-b"],
+                "the snapshot is the host's own list, not the merged one")
+    }
+
+    /// **425-B, structural half.** The not-configured branch is the shape the
+    /// failure path was modelled on, and it must stay byte-identical — in
+    /// particular it keeps carrying `unresumableReason` ("unpaired"), never
+    /// the new unreachable wording. A host with no key is not a host that
+    /// timed out, and the drawer row is the only place the user learns which.
+    ///
+    /// Fails LOUDLY when the file cannot be read: a check that did not run
+    /// must say so rather than pass.
+    @Test func notConfiguredBranchOfTheRouterListIsUnchanged() throws {
+        let path = "Talaria/Services/Support/ChatBackendRouter.swift"
+        let source = try #require(
+            try? String(
+                contentsOf: URL(fileURLWithPath: #filePath)
+                    .deletingLastPathComponent()   // TalariaTests/
+                    .deletingLastPathComponent()   // repo root
+                    .appendingPathComponent(path),
+                encoding: .utf8
+            ),
+            "cannot read \(path) — this check did not run"
+        )
+        let expected = """
+                guard isHermesConfigured() else {
+                    let stubs = (remoteSessionStubs?() ?? []).map {
+                        $0.asUnresumable(reason: Self.unresumableReason)
+                    }
+                    return Self.sortedByRecency(localSessions + stubs)
+                }
+        """
+        #expect(source.contains(expected),
+                "the not-configured branch of listSessions() changed; #425 was scoped to the host-FAILURE path only")
     }
 
     @Test @MainActor
