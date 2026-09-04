@@ -60,6 +60,19 @@
 # prints passed/failed/total whenever those disagree. Green runs print the same
 # bare number they always have.
 #
+# ...AND THE ONE THING THIS SCRIPT NOW DOES TWICE, DELIBERATELY. A small,
+# NAMED set of XCUITest journeys fails about one run in ten on a tap the runner
+# reports as synthesized and the app never receives. The standing protocol for
+# them has always been: re-run ONCE over identical bytes, keep BOTH logs, a
+# second red is a real red. Every lane did that by hand at 35-40 minutes a
+# turn, while the advice above it said "ASSERTION TEXT PRESENT — do NOT
+# re-roll", because the flake asserts on the state after the tap it never got.
+# The gate now performs that single re-run itself, and ONLY on that shape:
+# every failing test on the audited list AND a Swift Testing run that passed.
+# There is no loop, the second red is reported as real, and both logs stay on
+# disk. The decision and the judgement live in lane-gate-classify.sh so they
+# are testable in seconds; see the block above the invocation below.
+#
 # Usage:
 #   scripts/mac/lane-gate.sh              suite + Release build (the gate)
 #   scripts/mac/lane-gate.sh --release    Release build only (fast re-check)
@@ -109,6 +122,12 @@ esac
 FAIL=0
 ok()  { echo "  PASS  $1"; }
 bad() { FAIL=$((FAIL+1)); echo "  FAIL  $1"; }
+
+# Set by the suite section when the single automated re-roll runs; appended to
+# the verdict line so a PASS can never be quoted without saying it was re-rolled
+# and over which tests. Same reason the runtime rides that line: the verdict is
+# what gets copied into a tracker entry, and the detail above it scrolls away.
+REROLL_NOTE=""
 
 # Grep a log for a REQUIRED success marker. Empty or missing log => FAIL.
 # This is the whole point of the script; do not "simplify" it into a
@@ -366,6 +385,9 @@ echo
 if (( RUN_SUITE )); then
     echo "-- Debug suite (units + XCUITest) on $SIM_NAME"
     SUITE_LOG="$LOGDIR/suite.log"
+    # Snapshot so the re-roll below can hand back exactly the FAILs this suite
+    # contributed, and nothing else — a preflight FAIL above it survives.
+    FAIL_BEFORE_SUITE=$FAIL
     "$DEVELOPER_DIR/usr/bin/xcodebuild" test \
         -project Talaria.xcodeproj -scheme Talaria \
         -destination "platform=iOS Simulator,id=$SIM_UDID" \
@@ -435,6 +457,74 @@ if (( RUN_SUITE )); then
         gate_print_failure_advice "$SUITE_LOG"
     fi
 
+    # ------------------------------------------------- the single re-roll
+    #
+    # THE PROTOCOL IS UNCHANGED; ONLY THE HAND THAT PERFORMS IT IS. On a named
+    # flake: re-run ONCE over identical bytes, keep BOTH logs, and a second red
+    # is a real red. That was the standing rule and every lane did it by hand,
+    # at 35-40 minutes a turn, after reading advice that told them the opposite
+    # ("ASSERTION TEXT PRESENT — do NOT re-roll") because the flake asserts on
+    # the state after the tap it never got.
+    #
+    # WHAT KEEPS THIS FROM BECOMING A RE-ROLL-UNTIL-GREEN MACHINE, which is the
+    # obvious way an automated re-run turns into a worse bug than the one it
+    # fixes:
+    #
+    #   * gate_should_reroll fires on ONE shape — every failing test named on
+    #     the audited known-flake list AND a Swift Testing run that passed. One
+    #     unlisted failure, or any unit red, and nothing happens here at all.
+    #   * it runs exactly once. There is no loop and no counter to raise; a
+    #     second red is reported as a real red, with both logs kept.
+    #   * the re-roll's log is judged by the same positive-marker discipline as
+    #     the first, plus a size check the first run cannot make: the bundle
+    #     that came back must be the same size as the one that failed.
+    #
+    # The decision and the judgement both live in the classifier library so
+    # they are exercised over recorded fixtures in a couple of seconds. What is
+    # left here is asking, running xcodebuild, and reporting.
+    if [[ "$(gate_should_reroll "$SUITE_LOG")" == "yes" ]]; then
+        REROLL_NAMES="$(gate_failing_test_names "$SUITE_LOG")"
+        read -r RR_EXPECTED _ _ <<<"$(gate_xcuitest_ledger "$SUITE_LOG")"
+        REROLL_LOG="$LOGDIR/suite-reroll.log"
+        echo
+        echo "-- KNOWN FLAKE: $REROLL_NAMES"
+        echo "   every failing test is on the gate's known-flake list and the unit"
+        echo "   suite passed, so the UI target is being re-run ONCE over IDENTICAL"
+        echo "   BYTES. Both logs are kept; a second red is a REAL red."
+        echo "     first run:  $SUITE_LOG"
+        echo "     re-roll:    $REROLL_LOG"
+        "$DEVELOPER_DIR/usr/bin/xcodebuild" test \
+            -project Talaria.xcodeproj -scheme Talaria \
+            -only-testing:TalariaUITests \
+            -destination "platform=iOS Simulator,id=$SIM_UDID" \
+            > "$REROLL_LOG" 2>&1
+        REROLL_STATUS=$?
+        echo "   xcodebuild exit=$REROLL_STATUS"
+        REROLL_RESULT="$(gate_evaluate_reroll_log "$REROLL_LOG" "$RR_EXPECTED" "$REROLL_STATUS")"
+        if [[ "$(printf '%s' "$REROLL_RESULT" | head -1)" == "PASS" ]]; then
+            # The suite's contribution to the FAIL count becomes the RE-ROLL's,
+            # which is zero. Nothing else is forgiven: FAIL_BEFORE_SUITE carries
+            # any preflight failure through untouched.
+            FAIL=$FAIL_BEFORE_SUITE
+            ok "re-roll of TalariaUITests — clean, all $RR_EXPECTED test(s)"
+            REROLL_NOTE=" (re-rolled once on a known flake: $REROLL_NAMES)"
+        else
+            # Deliberately NOT worded "second red". The re-roll can also fail
+            # its SIZE check — every marker green over a bundle smaller than
+            # the one that failed — and calling that a second red would name
+            # the wrong cause, which is the defect this gate's advice was
+            # rebuilt to stop doing. The reasons below say which it was.
+            bad "re-roll of TalariaUITests — did NOT come back clean, so the red STANDS"
+            printf '%s\n' "$REROLL_RESULT" | tail -n +2 | sed 's/^/        /'
+            echo "        A second red is a REAL red. Do not roll a third time."
+            echo "        Both logs are on disk and BOTH belong in the record:"
+            echo "          $SUITE_LOG"
+            echo "          $REROLL_LOG"
+            REROLL_NOTE=" (re-rolled once on a known flake: $REROLL_NAMES — THE RE-ROLL WAS ALSO RED)"
+        fi
+        echo
+    fi
+
     # A test count that did not move after editing tests is the stale-binary
     # signature: build-for-testing can silently re-run the OLD .xctest.
     echo "   NOTE: if this lane added or renamed tests, confirm the count MOVED."
@@ -476,9 +566,14 @@ fi
 # preflight scrolls away. "GATE: PASS" quoted with no runtime is exactly the
 # ambiguity this is meant to end, so the two travel together or the fix does
 # not work.
+#
+# REROLL_NOTE rides it for the same reason. A PASS that was re-rolled is not
+# the same fact as a PASS that was not, and the difference must survive being
+# copied out of this terminal — otherwise the gate has quietly widened what
+# "green" means and nothing downstream can tell.
 if (( FAIL == 0 )); then
-    echo "GATE: PASS on $SIM_RUNTIME_BUILD — logs in $LOGDIR"
+    echo "GATE: PASS on $SIM_RUNTIME_BUILD$REROLL_NOTE — logs in $LOGDIR"
     exit 0
 fi
-echo "GATE: FAIL ($FAIL check(s)) on $SIM_RUNTIME_BUILD — logs in $LOGDIR"
+echo "GATE: FAIL ($FAIL check(s)) on $SIM_RUNTIME_BUILD$REROLL_NOTE — logs in $LOGDIR"
 exit 1

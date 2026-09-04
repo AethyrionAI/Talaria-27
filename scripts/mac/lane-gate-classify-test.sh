@@ -2,8 +2,8 @@
 # lane-gate-classify-test.sh — the classifier's own self-test (OPEN_ITEMS 300).
 #
 # The gate is the one script every lane's verdict depends on, so a wrong "fix"
-# to its advice silently degrades every future reading. This runs in about a
-# second and needs no simulator, no toolchain and no build.
+# to its advice silently degrades every future reading. This runs in a second
+# or two and needs no simulator, no toolchain and no build.
 #
 #   scripts/mac/lane-gate-classify-test.sh
 #
@@ -17,9 +17,16 @@
 #                                  The one the old classifier called a flake.
 #   /tmp/gate-279-run2/suite.log   XCUITest runner death, no assertion text
 #                                  anywhere. The true positive.
+#
+# The known-flake fixtures (12 onward) are transcribed from the 2026-09-03 gate
+# red kept at planning/reports/2026-09-04-219-evidence-swallowed-tap.txt. They
+# cover the third verdict and the gate's single automated re-roll — a decision
+# and a log evaluation that both live in the library precisely so they can be
+# exercised here in a second rather than behind a 35-minute suite.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 # shellcheck source=./lane-gate-classify.sh
 . "$HERE/lane-gate-classify.sh"
 
@@ -43,13 +50,39 @@ check() {   # check <label> <expected> <actual>
 # of SIGPIPE and pipefail takes its status — so a MATCH is reported as a miss,
 # nondeterministically, depending on how much output fit in the pipe buffer.
 # That bit this very file on its first run.
+# Rendering the advice is the expensive thing in this file (a classify plus a
+# locus grep per failing test), and most fixtures are asked several questions
+# in a row. One-entry cache, filled in the CALLER's shell — a command
+# substitution would put the cache in a subshell and never see it again.
+ADVICE_KEY=""; ADVICE_OUT=""
+advice_render() {   # advice_render <logfile>
+    if [[ "$ADVICE_KEY" != "$1" ]]; then
+        ADVICE_KEY="$1"
+        ADVICE_OUT="$(gate_print_failure_advice "$1")"
+    fi
+}
+
 advice_says() {   # advice_says <label> <logfile> <needle>
-    local out
-    out="$(gate_print_failure_advice "$2")"
-    if [[ "$out" == *"$3"* ]]; then
+    advice_render "$2"
+    if [[ "$ADVICE_OUT" == *"$3"* ]]; then
         PASS=$((PASS+1)); printf '  PASS  %s\n' "$1"
     else
         FAIL=$((FAIL+1)); printf '  FAIL  %s — advice did not contain "%s"\n' "$1" "$3"
+    fi
+}
+
+# The inverse, and it is not symmetry for its own sake. The known-flake verdict
+# exists because the advice for this family used to read "Do NOT re-roll it" —
+# the exact opposite of its ruled protocol. An assertion that the wrong words
+# are ABSENT is the only one that can catch that sentence coming back.
+advice_never_says() {   # advice_never_says <label> <logfile> <needle>
+    local out
+    advice_render "$2"
+    out="$ADVICE_OUT"
+    if [[ "$out" != *"$3"* ]]; then
+        PASS=$((PASS+1)); printf '  PASS  %s\n' "$1"
+    else
+        FAIL=$((FAIL+1)); printf '  FAIL  %s — advice contained "%s" and must not\n' "$1" "$3"
     fi
 }
 
@@ -240,6 +273,133 @@ emit_ledger() {
 # the bundle ran). Absence must read as absence, never as a count.
 printf '** TEST BUILD FAILED **\n' > "$FIXDIR/xcui-no-ledger.log"
 
+# --------------------------------------- fixtures 12-17: the KNOWN FLAKE
+#
+# The swallowed-first-tap family. `testConnectedRelaunchSkipsTheConnectEntry`
+# and its two sibling connect/disconnect journeys fail on a tap the runner
+# reports as delivered — `Synthesize event`, then `Computed hit point {-1, -1}`
+# — and the app never receives. The assertion that follows is about the state
+# AFTER that tap, so the failure DOES carry a locus.
+#
+# That is the whole reason this verdict had to exist. A locus-only classifier
+# reads this as `assertion` and prints "Do NOT re-roll it" over the one family
+# whose ruled protocol is exactly one re-roll — so the advice was telling the
+# reader to do the opposite of the protocol, on the failure it sees most often.
+#
+# Transcribed from the 2026-09-03 gate red; the locus, the failure text and the
+# activity lines are that run's
+# (planning/reports/2026-09-04-219-evidence-swallowed-tap.txt).
+#
+# Every fixture below that must NOT re-roll for a VERDICT reason carries the
+# Swift Testing pass line, so that its "no" isolates on the verdict and cannot
+# be satisfied accidentally by a missing marker.
+SWIFT_TESTING_PASSED='✔ Test run with 3128 tests in 200 suites passed after 412.331 seconds.'
+FLAKE_LOCUS='/Users/owenjones/Talaria/TalariaUITests/AppTemplateUITests.swift:540: error: -[TalariaUITests.TalariaUITests testConnectedRelaunchSkipsTheConnectEntry] : failed - a successful connect should land straight in chat'
+
+# Fixture 12 — THE case: one listed test, a real locus, units green above it.
+# The units run before the UI target in the scheme, so a UI-only red always
+# carries the Swift Testing pass line.
+{
+    emit_ledger 5 -1
+    printf '    t =    21.97s XFLAKE pre hittable=false frame=(24.0, 509.0, 372.0, 56.0) window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)\n'
+    printf '    t =    22.05s         Computed hit point {-1, -1} after scrolling to visible\n'
+    printf '%s\n' "$FLAKE_LOCUS"
+    printf '%s\n' "$SWIFT_TESTING_PASSED"
+    printf '** TEST FAILED **\n\nFailing tests:\n\tTalariaUITests.testConnectedRelaunchSkipsTheConnectEntry()\n\n'
+} > "$FIXDIR/known-flake-red.log"
+
+# Fixture 13 — the same red with NO Swift Testing pass line. Still the same
+# verdict (the verdict is about WHICH tests failed), but it must not re-roll:
+# a Swift Testing red never re-rolls, and "the line is missing" is
+# indistinguishable from "the units did not pass" without reading further.
+{
+    emit_ledger 5 -1
+    printf '%s\n' "$FLAKE_LOCUS"
+    printf '** TEST FAILED **\n\nFailing tests:\n\tTalariaUITests.testConnectedRelaunchSkipsTheConnectEntry()\n\n'
+} > "$FIXDIR/known-flake-red-no-units.log"
+
+# Fixture 14 — MIXED: a listed test and an unlisted one, both UI, units green.
+# One unlisted failure disqualifies the whole run. This is the safe-direction
+# invariant in its new clothes: the list may only ever EXCUSE a run in which
+# nothing else failed. (Its ledger reports one failure rather than two —
+# `emit_ledger` takes a single index. Nothing here reads this fixture's count;
+# the subject is the verdict.)
+{
+    emit_ledger 5 -1
+    printf '%s\n' "$FLAKE_LOCUS"
+    printf '/Users/owenjones/Talaria/TalariaUITests/MessageIdentityUITests.swift:212: error: -[TalariaUITests.MessageIdentityUITests testTranscriptNeverRendersDuplicateMessageIDs] : XCTAssertEqual failed\n'
+    printf '%s\n' "$SWIFT_TESTING_PASSED"
+    printf '** TEST FAILED **\n\nFailing tests:\n\tTalariaUITests.testConnectedRelaunchSkipsTheConnectEntry()\n\tMessageIdentityUITests.testTranscriptNeverRendersDuplicateMessageIDs()\n\n'
+} > "$FIXDIR/known-flake-mixed.log"
+
+# Fixture 15 — an UNLISTED UI red with units green. Ordinary `assertion`, no
+# re-roll, and the identity family's own advice line rides along.
+{
+    emit_ledger 1 -1
+    printf '/Users/owenjones/Talaria/TalariaUITests/MessageIdentityUITests.swift:212: error: -[TalariaUITests.MessageIdentityUITests testTranscriptNeverRendersDuplicateMessageIDs] : XCTAssertEqual failed\n'
+    printf '%s\n' "$SWIFT_TESTING_PASSED"
+    printf '** TEST FAILED **\n\nFailing tests:\n\tMessageIdentityUITests.testTranscriptNeverRendersDuplicateMessageIDs()\n\n'
+} > "$FIXDIR/unlisted-red.log"
+
+# Fixture 16 — a runner death with units green and an UNLISTED test named. The
+# runner-flake verdict survives untouched, and it does not re-roll: its
+# protocol is the same one re-run, but by a human who has read the log.
+{
+    emit_ledger -1 10
+    printf '%s\n' "$SWIFT_TESTING_PASSED"
+    printf '** TEST FAILED **\n\nFailing tests:\n\tTalariaUITests.testSettingsDeckNavigation()\n\n'
+} > "$FIXDIR/runner-death-with-units.log"
+
+# Fixture 17 — a runner death that happens to name a LISTED test. Documented,
+# deliberate consequence: the list wins, so this re-rolls. Both families
+# prescribe exactly one re-run over identical bytes, so the outcome is the
+# ruled one either way; what changes is that the gate performs it.
+{
+    emit_ledger -1 5
+    printf '%s\n' "$SWIFT_TESTING_PASSED"
+    printf '** TEST FAILED **\n\nFailing tests:\n\tTalariaUITests.testConnectedRelaunchSkipsTheConnectEntry()\n\n'
+} > "$FIXDIR/runner-death-listed.log"
+
+# ------------------------------------- fixtures 18-22: the RE-ROLL's own log
+#
+# The re-roll runs `-only-testing:TalariaUITests`, so it has NO Swift Testing
+# line and must not be asked for one. Everything else is the gate's ordinary
+# discipline, plus one check the first run cannot make: the bundle that came
+# back has to be the SAME SIZE as the one that failed. A `-only-testing`
+# argument that resolves to a subset would otherwise re-roll two tests, pass,
+# and clear a red over thirteen tests nobody ran.
+
+# Fixture 18 — a clean re-roll: all fifteen, all passed.
+{
+    emit_ledger -1 -1
+    printf '\t Executed 15 tests, with 0 failures (0 unexpected) in 290.183 (290.208) seconds\n'
+    printf '** TEST SUCCEEDED **\n'
+} > "$FIXDIR/reroll-green.log"
+
+# Fixture 19 — the second red. This is a REAL red, and the gate must say so.
+{
+    emit_ledger 5 -1
+    printf '%s\n' "$FLAKE_LOCUS"
+    printf '** TEST FAILED **\n\nFailing tests:\n\tTalariaUITests.testConnectedRelaunchSkipsTheConnectEntry()\n\n'
+} > "$FIXDIR/reroll-red.log"
+
+# Fixture 20 — every marker green, but only two tests ran. The count check is
+# the only thing standing between this log and a cleared red.
+{
+    printf "Test Case '-[TalariaUITests.TalariaUITestsLaunchTests testLaunch]' started.\n"
+    printf "Test Case '-[TalariaUITests.TalariaUITestsLaunchTests testLaunch]' passed (5.001 seconds).\n"
+    printf "Test Case '-[TalariaUITests.TalariaUITestsLaunchTests testLaunch]' started.\n"
+    printf "Test Case '-[TalariaUITests.TalariaUITestsLaunchTests testLaunch]' passed (5.002 seconds).\n"
+    printf '** TEST SUCCEEDED **\n'
+} > "$FIXDIR/reroll-short.log"
+
+# Fixture 21 — TEST SUCCEEDED over no ledger at all. Zero is not a count and
+# absence is not a pass; this is the gate's founding sin in miniature.
+printf '** TEST SUCCEEDED **\n' > "$FIXDIR/reroll-no-ledger.log"
+
+# Fixture 22 — the build died before the bundle ran.
+printf '** TEST BUILD FAILED **\n' > "$FIXDIR/reroll-build-failed.log"
+
 echo "== classifier self-test =="
 echo
 
@@ -292,6 +452,93 @@ check "missing log -> empty, never a count" \
       "" "$(gate_xcuitest_summary "$FIXDIR/does-not-exist.log")"
 echo
 
+echo "-- DET-B: the known-flake verdict — a locus does NOT make this family real"
+check "listed test alone -> known-flake" \
+      "known-flake" "$(gate_classify_failures "$FIXDIR/known-flake-red.log")"
+check "listed test, no units line -> still known-flake" \
+      "known-flake" "$(gate_classify_failures "$FIXDIR/known-flake-red-no-units.log")"
+check "listed + unlisted -> assertion (one real failure disqualifies the run)" \
+      "assertion" "$(gate_classify_failures "$FIXDIR/known-flake-mixed.log")"
+check "unlisted UI red -> assertion" \
+      "assertion" "$(gate_classify_failures "$FIXDIR/unlisted-red.log")"
+check "runner death naming an unlisted test -> runner-flake" \
+      "runner-flake" "$(gate_classify_failures "$FIXDIR/runner-death-with-units.log")"
+check "runner death naming a LISTED test -> known-flake (deliberate)" \
+      "known-flake" "$(gate_classify_failures "$FIXDIR/runner-death-listed.log")"
+advice_says "known-flake advice prescribes exactly ONE re-run" \
+            "$FIXDIR/known-flake-red.log" "ONCE"
+advice_says "known-flake advice says a second red is a REAL red" \
+            "$FIXDIR/known-flake-red.log" "a second red is a REAL red"
+advice_says "known-flake advice says keep BOTH logs" \
+            "$FIXDIR/known-flake-red.log" "BOTH logs"
+advice_says "known-flake advice says identical bytes" \
+            "$FIXDIR/known-flake-red.log" "IDENTICAL BYTES"
+advice_says "known-flake advice points at the family's live entry" \
+            "$FIXDIR/known-flake-red.log" "grep -n 'runner dies mid-bundle' OPEN_ITEMS-ARCHIVE.md"
+advice_says "known-flake advice still quotes the locus back" \
+            "$FIXDIR/known-flake-red.log" "AppTemplateUITests.swift:540"
+advice_never_says "known-flake advice never tells the reader NOT to re-roll" \
+            "$FIXDIR/known-flake-red.log" "Do NOT re-roll"
+advice_says "a mixed run keeps the REAL-failure advice" \
+            "$FIXDIR/known-flake-mixed.log" "REAL failure"
+advice_says "a mixed run still says do NOT re-roll" \
+            "$FIXDIR/known-flake-mixed.log" "Do NOT re-roll"
+echo
+
+echo "-- DET-F: the identity family names its cause first, and never re-rolls"
+advice_says "identity failure names its transcript-dump search string" \
+            "$FIXDIR/unlisted-red.log" "the on-device reply for"
+advice_says "identity failure gets a resolvable pointer" \
+            "$FIXDIR/unlisted-red.log" "grep -n 'the on-device reply for' OPEN_ITEMS-ARCHIVE.md"
+advice_says "the identity line rides a mixed run too" \
+            "$FIXDIR/known-flake-mixed.log" "the on-device reply for"
+advice_never_says "a run with no identity test gets no identity line" \
+            "$FIXDIR/swift-testing-assertion.log" "the on-device reply for"
+advice_never_says "the identity family is never on the known-flake list" \
+            "$FIXDIR/unlisted-red.log" "KNOWN-FLAKE"
+echo
+
+echo "-- DET-D: the single automated re-roll fires on exactly one shape"
+check "listed-only red + units green -> yes" \
+      "yes" "$(gate_should_reroll "$FIXDIR/known-flake-red.log")"
+check "listed-only red with NO Swift Testing pass line -> no" \
+      "no" "$(gate_should_reroll "$FIXDIR/known-flake-red-no-units.log")"
+check "mixed listed+unlisted -> no" \
+      "no" "$(gate_should_reroll "$FIXDIR/known-flake-mixed.log")"
+check "unlisted red -> no" \
+      "no" "$(gate_should_reroll "$FIXDIR/unlisted-red.log")"
+check "runner death -> no" \
+      "no" "$(gate_should_reroll "$FIXDIR/runner-death-with-units.log")"
+check "a Swift Testing failure -> no" \
+      "no" "$(gate_should_reroll "$FIXDIR/swift-testing-assertion.log")"
+check "a GREEN run -> no (there is nothing to re-roll)" \
+      "no" "$(gate_should_reroll "$FIXDIR/xcui-green.log")"
+check "a missing log -> no" \
+      "no" "$(gate_should_reroll "$FIXDIR/does-not-exist.log")"
+echo
+
+echo "-- DET-D: the re-roll's own log is judged on positive markers AND its size"
+check "clean re-roll of the whole bundle -> PASS" \
+      "PASS" "$(gate_evaluate_reroll_log "$FIXDIR/reroll-green.log" 15 0 | head -1)"
+check "the two-argument form (no exit status) still works" \
+      "PASS" "$(gate_evaluate_reroll_log "$FIXDIR/reroll-green.log" 15 | head -1)"
+check "a second red -> FAIL" \
+      "FAIL" "$(gate_evaluate_reroll_log "$FIXDIR/reroll-red.log" 15 65 | head -1)"
+check "green markers over a SHORT bundle -> FAIL" \
+      "FAIL" "$(gate_evaluate_reroll_log "$FIXDIR/reroll-short.log" 15 0 | head -1)"
+REROLL_SHORT_WHY="$(gate_evaluate_reroll_log "$FIXDIR/reroll-short.log" 15 0 | tail -n +2)"
+check "the short re-roll says what it got and what it owed" \
+      "yes" "$( [[ "$REROLL_SHORT_WHY" == *2* && "$REROLL_SHORT_WHY" == *15* ]] && echo yes || echo no )"
+check "TEST SUCCEEDED over no ledger at all -> FAIL" \
+      "FAIL" "$(gate_evaluate_reroll_log "$FIXDIR/reroll-no-ledger.log" 15 0 | head -1)"
+check "a build failure -> FAIL" \
+      "FAIL" "$(gate_evaluate_reroll_log "$FIXDIR/reroll-build-failed.log" 15 65 | head -1)"
+check "a missing log -> FAIL" \
+      "FAIL" "$(gate_evaluate_reroll_log "$FIXDIR/does-not-exist.log" 15 0 | head -1)"
+check "every marker green but a NONZERO xcodebuild exit -> FAIL" \
+      "FAIL" "$(gate_evaluate_reroll_log "$FIXDIR/reroll-green.log" 15 65 | head -1)"
+echo
+
 echo "-- the REAL 2026-09-01 gate logs, if they are still on this machine"
 for pair in \
     "14 passed / 1 failed / 15 ran:OvEY5t4EZE" \
@@ -311,7 +558,13 @@ echo
 
 echo "-- 300-C: no tracker item numbers in text the gate EMITS"
 EMITTED_NUMS=0
-for f in "$HERE/lane-gate.sh" "$HERE/lane-gate-classify.sh"; do
+# `ui-bundle-batch.sh` is in the list because the same rule binds it: it is an
+# instrument a reader is told to act on. It is guarded rather than required —
+# this check owns "no dead numbers in emitted text", not "these files exist",
+# and a future lane retiring the batch instrument must not red the gate's
+# preflight to do it.
+for f in "$HERE/lane-gate.sh" "$HERE/lane-gate-classify.sh" "$HERE/ui-bundle-batch.sh"; do
+    [[ -r "$f" ]] || continue
     # Every echo/printf argument string in the script, stripped of comments.
     n="$(grep -hoE '^[[:space:]]*(echo|printf)[[:space:]].*' "$f" | grep -coE '#[0-9]+' || true)"
     EMITTED_NUMS=$((EMITTED_NUMS + ${n:-0}))
@@ -331,7 +584,8 @@ echo "-- and the pointers that REPLACED them actually resolve"
 # sight instead of satisfying it. `CondenserFidelityTests` had been unverified
 # on exactly that account since 2026-08-18. Resolving each hint against the
 # file it NAMES is the only form of this check that a repoint cannot silence.
-REPO_ROOT="$(cd "$HERE/../.." && pwd)"
+# (REPO_ROOT is resolved at the top of this file — the known-flake list's own
+# resolution check below needs it too.)
 ADVICE_LINES="$(grep -hoE '^[[:space:]]*(echo|printf)[[:space:]].*' \
     "$HERE/lane-gate.sh" "$HERE/lane-gate-classify.sh")"
 HINTS=0
@@ -354,6 +608,31 @@ for tracker_name in OPEN_ITEMS.md OPEN_ITEMS-ARCHIVE.md; do
     )
 done
 check "advice emits at least one tracker pointer" "yes" "$( ((HINTS>0)) && echo yes || echo no )"
+echo
+
+echo "-- and every KNOWN-FLAKE entry resolves in the tracker file it names"
+# The list is the only thing that can excuse a red, so an entry naming a test
+# no tracker knows about is a red excused by nothing. Same discipline as the
+# advice hints above, and for the same reason: each entry carries the file it
+# resolves in, and it is checked against THAT file — a swept entry repointed at
+# the archive must keep resolving, not fall out of sight.
+KNOWN_ENTRIES=0
+while IFS='|' read -r kf_kind kf_pat kf_tracker_name; do
+    [[ -n "${kf_pat:-}" ]] || continue
+    KNOWN_ENTRIES=$((KNOWN_ENTRIES+1))
+    kf_tracker="$REPO_ROOT/$kf_tracker_name"
+    if [[ -s "$kf_tracker" ]] && grep -q -- "$kf_pat" "$kf_tracker"; then
+        PASS=$((PASS+1)); printf '  PASS  known-flake %s resolves: %s -> %s hit(s) in %s\n' \
+            "$kf_kind" "$kf_pat" "$(grep -c -- "$kf_pat" "$kf_tracker")" "$kf_tracker_name"
+    else
+        FAIL=$((FAIL+1)); printf '  FAIL  known-flake %s finds NOTHING in %s: %s\n' \
+            "$kf_kind" "$kf_tracker_name" "$kf_pat"
+    fi
+done < <(gate_known_flake_entries)
+check "the known-flake list is non-empty" \
+      "yes" "$( ((KNOWN_ENTRIES>0)) && echo yes || echo no )"
+check "the known-flake list carries at least one TEST name" \
+      "yes" "$( [[ -n "$(gate_known_flake_names)" ]] && echo yes || echo no )"
 echo
 
 echo "-- the ORIGINAL logs, if they are still on this machine"
