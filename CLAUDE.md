@@ -746,8 +746,11 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   line names the re-roll in both directions, and a second red is `GATE: FAIL`. The
   re-roll's log is judged on the same positive markers as the first plus a SIZE check
   the first run cannot make (the bundle that came back must match the one that
-  failed). Consequence to budget: a gate run that hits the flake is now ~35-40 min
-  longer, on top of the `simctl diagnose` window below.
+  failed). Consequence to budget: a gate run that hits the flake is now **~15 min
+  longer (measured 14.6 min incl. the incremental rebuild, 2026-09-04 — units 3.3 min,
+  UI 4.6 min)**, on top of the `simctl diagnose` window below. That is the RE-ROLL,
+  which is `-only-testing:TalariaUITests`; the 35-40 min figures elsewhere in these
+  scripts describe the MANUAL re-run of the whole gate and are still right.
   - **Read the gate's FAILURE ADVICE, but know what it is now (#300, fixed
     2026-08-10).** Until that fix it could not tell a real failure from a flake at
     all: its discriminator was `grep '\.swift:[0-9]+: error:'`, which matches only
@@ -774,7 +777,11 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
     THAT file on every run — so an entry naming a test no tracker knows about is a
     red excused by nothing and reds the gate in PREFLIGHT, exactly like the advice
     pointers above and with the same sweep hazard.
-    **⟵ 2026-09-04: "~1 s" is now ~2-3 s over 74 checks** (measured, three runs).
+    **⟵ 2026-09-04: "~1 s" is now 1-3 s over 86 checks** (measured over three
+    runs at each of two counts; the spread is host load, not the check count —
+    74 checks measured 2.2-2.8 s on a box running six builds and 86 measured
+    1.2 s on an idle one, so read this as "seconds, not minutes" and never as a
+    performance bar).
   - **No tracker item numbers in text the gate PRINTS** — a script cannot keep
     one live, and all three it used to print (#164, #183, #93) were closed by the
     time someone followed one. Advice names a **search string**; the self-test

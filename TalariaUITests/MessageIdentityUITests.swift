@@ -179,7 +179,12 @@ final class MessageIdentityUITests: XCTestCase {
 
     @MainActor
     private func sendMessage(_ text: String, in app: XCUIApplication, composer: XCUIElement) {
-        composer.tap()
+        // #219: the one place in this file where a tap FOLLOWS a composer
+        // wait. `timeout: 0` because the wait that produced `composer` already
+        // spent this site's budget and a bare `.tap()` is what stood here —
+        // the helper adds the diagnostic, not a wait. Pinned to `.elementTap`
+        // so the A/B's environment variable moves exactly one call site.
+        composer.tapWhenHittable(timeout: 0, in: app, strategy: .elementTap, label: "chat.composer")
         composer.typeText(text)
 
         // #195: `typeText` can race the keyboard settling and mangle the
@@ -231,33 +236,7 @@ final class MessageIdentityUITests: XCTestCase {
         XCTAssertLessThanOrEqual(worst, 1, "max id multiplicity \(worst) during \(phase)")
     }
 
-    @MainActor
-    private func composerInput(in app: XCUIApplication) -> XCUIElement {
-        // The composer may surface as a text field or a text view depending
-        // on the SwiftUI editor in use — check the identifier and the
-        // accessibility label across both.
-        for candidate in [
-            app.textFields["chat.composer"],
-            app.textViews["chat.composer"],
-            app.textFields["Reply to Hermes"],
-            app.textViews["Reply to Hermes"],
-        ] where candidate.exists {
-            return candidate
-        }
-        return app.textViews["chat.composer"]
-    }
-
-    /// Polls the composer candidates until one exists (the screen may still
-    /// be transitioning off onboarding when the first query runs), so the
-    /// wait isn't pinned to a single element type guessed too early.
-    @MainActor
-    private func waitForComposer(in app: XCUIApplication, timeout: TimeInterval) -> XCUIElement? {
-        let deadline = Date(timeIntervalSinceNow: timeout)
-        repeat {
-            let candidate = composerInput(in: app)
-            if candidate.exists { return candidate }
-            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.5))
-        } while Date() < deadline
-        return nil
-    }
+    // `composerInput` / `waitForComposer` live in `Support/HittableTap.swift`
+    // (#219): this class and `TalariaUITests` carried byte-identical private
+    // copies of both.
 }

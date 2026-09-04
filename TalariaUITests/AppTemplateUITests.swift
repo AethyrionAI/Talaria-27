@@ -363,6 +363,151 @@ final class TalariaUITests: XCTestCase {
                         "a hostless install should offer the Settings upgrade row again")
     }
 
+    // MARK: - #219 DET-A: the swallowed-tap fixture
+
+    /// **The failure path, on demand (#219, bar DET-A).**
+    ///
+    /// `testConnectedRelaunchSkipsTheConnectEntry` flakes ~1 run in 10 on a
+    /// START CHATTING tap that XCUITest resolves to `Computed hit point
+    /// {-1, -1}` — the button exists at a valid frame and is not hittable. That
+    /// shape appeared roughly monthly, never on demand, and the one diagnostic
+    /// the suite carried never reached the log because its assertion PASSED.
+    ///
+    /// `UITEST_OVERLAY_BLOCKS_WIZARD=1` mounts a DEBUG-only clear overlay above
+    /// the wizard's done step, which reproduces the shape deterministically:
+    /// same frame, same existence, no hit point. What this test PINS is not the
+    /// flake — it is the diagnostic. A helper whose timeout path stops naming
+    /// what covers the button fails here in seconds instead of costing another
+    /// month of gate runs.
+    @MainActor
+    func testOverlayFixtureMakesStartChattingUnhittable() throws {
+        let context = UITestLaunchContext()
+        let app = makeApp(context: context)
+        app.launchEnvironment["UITEST_OVERLAY_BLOCKS_WIZARD"] = "1"
+        app.launch()
+
+        let startChatting = advanceWizardToStartChatting(in: app, context: context)
+        XCTAssertTrue(startChatting.exists,
+                      "the fixture must leave the button PRESENT — an absent button is a different failure")
+
+        // The tap COUNTER, read before and after: the outcome case, the `via`
+        // arm and "the wizard is still up" are all satisfied by a helper that
+        // never tapped. This is the only assertion here that a missing tap
+        // fails.
+        XCTAssertEqual(swallowedOverlayTaps(in: app), 0,
+                       "the fixture overlay must publish a tap counter, starting at 0")
+
+        // A SHORT budget on purpose: this test is about the path, not the
+        // budget. Production's own call site keeps its existing 10s.
+        let outcome = startChatting.tapWhenHittable(
+            timeout: 3,
+            in: app,
+            strategy: .elementTap,
+            label: "connectHostWizard.startChatting"
+        )
+
+        guard case let .tappedAfterTimeout(diagnostic, via) = outcome else {
+            // Read `exists` BEFORE anything else: when this assertion fires the
+            // usual reason is that the tap WORKED and the wizard popped, and a
+            // property read on the departed button raises "Failed to get
+            // matching snapshot" — which replaces the real message with a
+            // stack trace. (Measured: that is exactly what the RED run
+            // printed.) Same rule the drive helper's own diagnostic follows.
+            let stillPresent = startChatting.exists
+            let extra = stillPresent
+                ? "hittable=\(startChatting.isHittable) frame=\(startChatting.frame)"
+                : "the button is gone — the tap went through and the wizard popped"
+            XCTFail("""
+                the overlay fixture must drive the tap onto the timeout path, \
+                got \(outcome) — \(extra)
+                """)
+            return
+        }
+        XCTAssertEqual(via, .elementTap, "the default arm must fall back to today's element tap")
+        XCTAssertTrue(
+            diagnostic.contains("uitest.overlayBlocksWizard"),
+            """
+            DET-A: the timeout diagnostic must NAME what sits over the button's \
+            centre point — got:
+            \(diagnostic)
+            """
+        )
+
+        // The overlay swallows the fallback tap too, so the wizard stays up —
+        // which is what makes this a fixture for the flake rather than a
+        // roundabout way of completing the connect.
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 1.0))
+        XCTAssertTrue(startChatting.exists,
+                      "a swallowed tap must leave the wizard where it was")
+        XCTAssertEqual(
+            swallowedOverlayTaps(in: app), 1,
+            """
+            DET-A: the element-tap arm must ISSUE its fallback tap — the overlay \
+            counts exactly one swallowed tap. A count of 0 means the helper \
+            emitted the diagnostic and never tapped, which every other assertion \
+            in this test would still pass.
+            """
+        )
+    }
+
+    /// The coordinate arm FIRES after the timeout (bar DET-A's second half).
+    ///
+    /// It does not fix anything here — the overlay swallows a coordinate tap
+    /// exactly as it swallows an element tap, which is the fixture's correct
+    /// semantics: the fixture proves the arm RUNS, and the later A/B measures
+    /// whether it helps against the real flake.
+    @MainActor
+    func testOverlayFixtureCoordinateArmStillTapsAfterTimeout() throws {
+        let context = UITestLaunchContext()
+        let app = makeApp(context: context)
+        app.launchEnvironment["UITEST_OVERLAY_BLOCKS_WIZARD"] = "1"
+        app.launch()
+
+        let startChatting = advanceWizardToStartChatting(in: app, context: context)
+        XCTAssertEqual(swallowedOverlayTaps(in: app), 0,
+                       "the fixture overlay must publish a tap counter, starting at 0")
+
+        let outcome = startChatting.tapWhenHittable(
+            timeout: 3,
+            in: app,
+            strategy: .coordinateAfterTimeout,
+            label: "connectHostWizard.startChatting"
+        )
+
+        guard case let .tappedAfterTimeout(diagnostic, via) = outcome else {
+            XCTFail("the coordinate arm must still reach the timeout path, got \(outcome)")
+            return
+        }
+        XCTAssertEqual(via, .coordinateAfterTimeout,
+                       "an explicitly-passed strategy must not be overridden by the environment")
+        XCTAssertTrue(diagnostic.contains("uitest.overlayBlocksWizard"),
+                      "DET-A: the coordinate arm reports the same diagnostic — got:\n\(diagnostic)")
+
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 1.0))
+        XCTAssertTrue(startChatting.exists,
+                      "the overlay swallows a coordinate tap too — the wizard must still be up")
+        XCTAssertEqual(
+            swallowedOverlayTaps(in: app), 1,
+            """
+            DET-A: the coordinate arm must ISSUE its tap — the overlay counts \
+            exactly one swallowed tap. This is what makes "the arm RUNS" a \
+            measurement rather than a claim about an unobserved code path.
+            """
+        )
+    }
+
+    /// The DEBUG fixture overlay publishes the number of taps it has SWALLOWED
+    /// as its accessibility VALUE (`UITestWizardBlockingOverlay`). `nil` means
+    /// the overlay is absent or is not publishing a value at all — reported as
+    /// itself rather than folded into 0, so a broken fixture cannot read as a
+    /// missing tap.
+    @MainActor
+    private func swallowedOverlayTaps(in app: XCUIApplication) -> Int? {
+        let overlay = app.otherElements["uitest.overlayBlocksWizard"]
+        guard overlay.exists, let raw = overlay.value as? String else { return nil }
+        return Int(raw)
+    }
+
     // MARK: - Connect helper
 
     /// Drives the Connect Host wizard end to end: Settings → the upgrade row →
@@ -383,6 +528,55 @@ final class TalariaUITests: XCTestCase {
     ///   keystroke must fail HERE rather than as a downstream timeout.
     @MainActor
     private func completeConnect(in app: XCUIApplication, context: UITestLaunchContext) {
+        let startChatting = advanceWizardToStartChatting(in: app, context: context)
+
+        // **The flake site (#219). ONE budget, not two.** The 10s this site
+        // used to spend in `waitForExistence` is now spent HERE, polling
+        // `exists ∧ hittable` — `advanceWizardToStartChatting` hands the
+        // button over on a zero-budget `exists` check (its own 30s condition
+        // loop already polled existence), so nothing is stacked and the
+        // site's worst case is exactly the pre-change 10s. An earlier draft
+        // of this lane kept both and doubled the site to 20s, which is the
+        // thing "never widen a wait" forbids.
+        //
+        // The strategy is left defaulted because this is the one site the A/B
+        // varies.
+        //
+        // `XFLAKE pre` folded into the helper's own `HITTAP pre`; `XFLAKE post`
+        // became `HITTAP post` so one grep prefix reads the whole path, and it
+        // now carries the OUTCOME — the single line a batch run needs.
+        let outcome = startChatting.tapWhenHittable(
+            timeout: 10,
+            in: app,
+            label: "connectHostWizard.startChatting"
+        )
+        XCTContext.runActivity(named: HittableTap.clamp("""
+            \(HittableTap.activityPrefix)post outcome=\(outcome) \
+            wizardUp=\(startChatting.exists) \
+            composerIn5s=\(waitForComposer(in: app, timeout: 5) != nil) \
+            wizardUpAfter=\(startChatting.exists)
+            """)) { _ in }
+
+        // #137: landing straight in chat — no permissions interstitial.
+        guard waitForComposer(in: app, timeout: 15) != nil else {
+            XCTFail("a successful connect should land straight in chat (#137)")
+            return
+        }
+        XCTAssertFalse(app.buttons["CONTINUE"].exists,
+                       "the post-connect permissions wall must not return (#137)")
+        XCTAssertTrue(app.buttons["Open settings"].waitForExistence(timeout: 10))
+    }
+
+    /// #219 DET-A: the wizard drive, split out of `completeConnect` verbatim so
+    /// a fixture test can reach step 3 WITHOUT also taking the START CHATTING
+    /// tap — that tap is the flake under investigation, and a test about the
+    /// tap cannot share a helper that has already taken it. Returns the
+    /// START CHATTING button, existence already asserted.
+    @MainActor
+    private func advanceWizardToStartChatting(
+        in app: XCUIApplication,
+        context: UITestLaunchContext
+    ) -> XCUIElement {
         let settingsButton = app.buttons["Open settings"]
         XCTAssertTrue(settingsButton.waitForExistence(timeout: 10))
         settingsButton.tap()
@@ -477,6 +671,13 @@ final class TalariaUITests: XCTestCase {
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let startChatting = app.buttons["connectHostWizard.startChatting"]
         let tapDeadline = Date(timeIntervalSinceNow: 30)
+        // **One dump per loop, not one per iteration (#219).** The first
+        // un-hittable iteration gets the full DET-A diagnostic; the rest get a
+        // single suppressed line. Thirty `debugDescription` snapshots and ~480
+        // activity names inside the very flake this loop exists for would eat
+        // the 1s cadence — costing the loop retries inside its unchanged 30s
+        // deadline — and bury the prefix a batch run greps.
+        var hasDumpedContinueDiagnostic = false
         while !startChatting.exists, Date() < tapDeadline {
             if springboard.alerts.count > 0 {
                 let alert = springboard.alerts.firstMatch
@@ -499,10 +700,25 @@ final class TalariaUITests: XCTestCase {
                     let scroller = app.scrollViews.firstMatch
                     if scroller.exists { scroller.swipeUp() } else { app.swipeUp() }
                 }
-                if carryOn.isHittable {
-                    carryOn.tap()
-                } else {
-                    carryOn.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+                // Through the shared helper for the diagnostic only — the
+                // behaviour is byte-for-byte what stood here: hittable ⇒ tap,
+                // otherwise the coordinate tap. Hence `timeout: 0` (this
+                // loop's own 30s deadline is the budget; a per-iteration poll
+                // would eat the retries) and an EXPLICIT strategy (this site
+                // already coordinate-taps, so it must not swing with the A/B's
+                // environment variable — only START CHATTING does).
+                let carryOnOutcome = carryOn.tapWhenHittable(
+                    timeout: 0,
+                    in: app,
+                    strategy: .coordinateAfterTimeout,
+                    diagnose: !hasDumpedContinueDiagnostic,
+                    label: "connectHostWizard.continue"
+                )
+                // Latch on the EXPENSIVE path only: a loop whose first
+                // iteration taps cleanly must still dump when a later one
+                // does not.
+                if case .tappedAfterTimeout = carryOnOutcome {
+                    hasDumpedContinueDiagnostic = true
                 }
             }
             RunLoop.current.run(until: Date(timeIntervalSinceNow: 1.0))
@@ -511,9 +727,19 @@ final class TalariaUITests: XCTestCase {
         // than an element dump: `allElementsBoundByIndex` re-snapshots the
         // hierarchy and throws "No matches found for Element at index N" when
         // it changes underneath — which is how the first version of this line
-        // replaced a readable failure with an unreadable one.
+        // replaced a readable failure with an unreadable one. Every property
+        // read here goes through `HittableTap.describe`, which gates on
+        // existence for the same reason (a `.frame` read on the element that
+        // is MISSING is exactly the read this message would make).
+        //
+        // **`exists`, not `waitForExistence(timeout: 10)` (#219).** The loop
+        // above already polled existence for 30s and exits the instant the
+        // button appears, so the old 10s here was a second budget stacked on
+        // that one — and the caller's `tapWhenHittable(timeout: 10)` is now
+        // where this site's single 10s is spent. Nothing was widened, and one
+        // hedge was removed.
         XCTAssertTrue(
-            startChatting.waitForExistence(timeout: 10),
+            startChatting.exists,
             """
             step 3 should offer START CHATTING — buttons=\(app.buttons.count) \
             continue=\(app.buttons["connectHostWizard.continue"].exists) \
@@ -524,25 +750,13 @@ final class TalariaUITests: XCTestCase {
             settingsScan=\(app.buttons["connectHost.scan"].exists) \
             composer=\(composerInput(in: app).exists) \
             springboardAlerts=\(springboard.alerts.count) \
-            continueHittable=\(app.buttons["connectHostWizard.continue"].isHittable) \
             keyboards=\(app.keyboards.count) \
             scrollViews=\(app.scrollViews.count) \
-            continueFrame=\(app.buttons["connectHostWizard.continue"].frame) \
-            window=\(app.windows.firstMatch.frame)
+            continueState=\(HittableTap.describe(app.buttons["connectHostWizard.continue"])) \
+            window=\(HittableTap.describeFrame(of: app.windows.firstMatch))
             """
         )
-        XCTContext.runActivity(named: "XFLAKE pre hittable=\(startChatting.isHittable) frame=\(startChatting.frame) window=\(app.windows.firstMatch.frame) scroll=\(app.scrollViews.firstMatch.frame)") { _ in }
-        startChatting.tap()
-        XCTContext.runActivity(named: "XFLAKE post wizardUp=\(startChatting.exists) composerIn5s=\(waitForComposer(in: app, timeout: 5) != nil) wizardUpAfter=\(startChatting.exists)") { _ in }
-
-        // #137: landing straight in chat — no permissions interstitial.
-        guard waitForComposer(in: app, timeout: 15) != nil else {
-            XCTFail("a successful connect should land straight in chat (#137)")
-            return
-        }
-        XCTAssertFalse(app.buttons["CONTINUE"].exists,
-                       "the post-connect permissions wall must not return (#137)")
-        XCTAssertTrue(app.buttons["Open settings"].waitForExistence(timeout: 10))
+        return startChatting
     }
 
 
@@ -814,32 +1028,7 @@ final class TalariaUITests: XCTestCase {
         return app
     }
 
-    /// The composer may surface as a text field or a text view depending on
-    /// the SwiftUI editor in use — check the identifier and the accessibility
-    /// label across both.
-    @MainActor
-    private func composerInput(in app: XCUIApplication) -> XCUIElement {
-        for candidate in [
-            app.textFields["chat.composer"],
-            app.textViews["chat.composer"],
-            app.textFields["Reply to Hermes"],
-            app.textViews["Reply to Hermes"],
-        ] where candidate.exists {
-            return candidate
-        }
-        return app.textViews["chat.composer"]
-    }
-
-    /// Polls the composer candidates until one exists (the screen may still
-    /// be transitioning off onboarding when the first query runs).
-    @MainActor
-    private func waitForComposer(in app: XCUIApplication, timeout: TimeInterval) -> XCUIElement? {
-        let deadline = Date(timeIntervalSinceNow: timeout)
-        repeat {
-            let candidate = composerInput(in: app)
-            if candidate.exists { return candidate }
-            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.5))
-        } while Date() < deadline
-        return nil
-    }
+    // `composerInput` / `waitForComposer` live in `Support/HittableTap.swift`
+    // (#219): this class and `MessageIdentityUITests` carried byte-identical
+    // private copies.
 }

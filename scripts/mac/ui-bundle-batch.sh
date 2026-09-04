@@ -38,7 +38,10 @@
 #                         its default when it does not recognise a value, so a
 #                         typo would produce an artifact labelled with an arm
 #                         it did not run — a mislabelled measurement is worse
-#                         than a refused one.
+#                         than a refused one. Whichever arm is selected, it is
+#                         WITNESSED in trial 1's own diagnostics before the
+#                         batch continues (see "the arm WITNESS" below); an
+#                         unwitnessed arm ABORTS the batch.
 #
 # Output, all under the log directory:
 #   run-NN.log          the full xcodebuild log for trial NN
@@ -79,6 +82,86 @@ if [[ -n "$TAP_STRATEGY" && "$TAP_STRATEGY" != "element" && "$TAP_STRATEGY" != "
     echo "  never ran." >&2
     exit 2
 fi
+
+# WHICH `via=` TOKEN THE HELPER WILL PRINT for the arm above. The test side
+# resolves "coordinate" to `.coordinateAfterTimeout` and everything else —
+# including unset — to `.elementTap`, then prints the resolved case name. The
+# baseline is witnessed exactly as the coordinate arm is, so a mislabel cannot
+# happen in either direction: an inherited TEST_RUNNER_UITEST_TAP_STRATEGY from
+# the calling shell would otherwise silently turn an "unset" batch into a
+# coordinate one.
+if [[ "$TAP_STRATEGY" == "coordinate" ]]; then
+    EXPECT_VIA="coordinateAfterTimeout"
+else
+    EXPECT_VIA="elementTap"
+fi
+
+# ------------------------------------------------- the START CHATTING site
+#
+# READ THIS BEFORE CHANGING ANY PATTERN BELOW. Every one is copied from
+# TalariaUITests/Support/HittableTap.swift and TalariaUITests/AppTemplateUITests.swift.
+# A grep keyed on a string the helper cannot emit is a check that always fails,
+# and the next operator either chases a phantom or learns to skip the step. The
+# four shapes that matter, verbatim from a real run:
+#
+#   HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.82s polls=0 budget=10.0s
+#   HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=elementTap timeout=10.0s
+#   HITTAP fallback connectHostWizard.startChatting via=elementTap under=19
+#   HITTAP post outcome=tappedAfterTimeout(via: elementTap) wizardUp=true composerIn5s=false wizardUpAfter=true
+#
+# AND THE TRAP THAT MAKES THE OBVIOUS GREP USELESS. Two DEBUG fixture tests tap
+# the SAME button, and they PIN their arms in the source — one `.elementTap`,
+# one `.coordinateAfterTimeout` — so every run emits one `fallback … via=elementTap`
+# line and one `fallback … via=coordinateAfterTimeout` line whatever this batch
+# set. A witness that greps `via=<arm>` alone therefore matches in both
+# directions and can never say no; a "timed out" column that counts `fallback`
+# lines can never read 0. Both would be instruments that cannot fail.
+#
+# What separates production from the fixtures is the BUDGET. The fixtures pass
+# `timeout: 3` deliberately (they are about the path, not the budget);
+# `completeConnect` — the one site this A/B varies, and the one the flake lives
+# at — passes `timeout: 10`. So every pattern below carries that number, and
+# `HITTAP post` is used for the timeout tally because only `completeConnect`
+# emits it at all.
+#
+# If the site's budget is ever changed, this batch ABORTS on its witness rather
+# than mislabelling a run — the safe direction — and SITE_BUDGET is what to
+# update with it.
+SITE_BUDGET="10.0"
+SITE_BUDGET_RE="${SITE_BUDGET//./\\.}"
+SITE_LABEL='connectHostWizard\.startChatting'
+
+# The arm ARRIVED at the site this batch varies: a production-site line, on
+# either outcome, carrying it. BOTH outcomes are accepted because trial 1 may
+# itself be the flake, and aborting a batch on the very outcome it exists to
+# count would be absurd.
+count_arm_witness() {   # count_arm_witness <hittap-file> <via-token>
+    local n
+    n="$(grep -cE "HITTAP tapped $SITE_LABEL via=$2 .*budget=${SITE_BUDGET_RE}s|HITTAP centre $SITE_LABEL .*strategy=$2 timeout=${SITE_BUDGET_RE}s" "$1" 2>/dev/null)"
+    printf '%s' "${n:-0}"
+}
+
+# The three START CHATTING columns, so the ledger answers "was this run's tap
+# clean, late, or lost?" without anyone grepping. `polls` counts 0.25s waits,
+# so `polls=0` is "hittable on the first look" and `polls>0` is "became
+# hittable during the poll" — a self-heal, which now passes where it used to
+# fail, and which a reader of these runs has to be able to tell from a clean tap.
+count_sc_first_look() {   # <hittap-file>
+    local n; n="$(grep -cE "HITTAP tapped $SITE_LABEL .*polls=0 budget=${SITE_BUDGET_RE}s" "$1" 2>/dev/null)"
+    printf '%s' "${n:-0}"
+}
+count_sc_self_healed() {   # <hittap-file>
+    local n; n="$(grep -cE "HITTAP tapped $SITE_LABEL .*polls=[1-9][0-9]* budget=${SITE_BUDGET_RE}s" "$1" 2>/dev/null)"
+    printf '%s' "${n:-0}"
+}
+count_sc_timed_out() {   # <hittap-file>
+    # `HITTAP post` is emitted at ONE place in the suite — `completeConnect`,
+    # immediately after this tap — so it needs no budget filter, and unlike the
+    # `fallback` line it also covers the degenerate timeout path that never
+    # reaches a `centre` line.
+    local n; n="$(grep -c 'HITTAP post outcome=tappedAfterTimeout' "$1" 2>/dev/null)"
+    printf '%s' "${n:-0}"
+}
 
 LOGDIR="${TALARIA_BATCH_LOGDIR:-$(mktemp -d -t talaria-uibatch)}"
 mkdir -p "$LOGDIR" || exit 1
@@ -221,7 +304,18 @@ echo
     # reports 0 for both, and that is "none emitted under this prefix" — not a
     # broken instrument and not a clean run.
     printf '# columns\thittap_lines / xflake_lines = activity lines prefixed "HITTAP " / "XFLAKE "\n'
-    printf 'run\tresult\tfailing_tests\thittap_lines\txflake_lines\txcuitest_ledger\n'
+    # The START CHATTING columns. They exist so the reading of a batch is a
+    # column, not a grep — and so the three outcomes stay separable, because a
+    # tap that self-heals inside the budget now PASSES and would otherwise be
+    # indistinguishable in the ledger from one that never had to wait.
+    printf '# columns\tsc_* = the START CHATTING tap in completeConnect (budget %ss) — the ONLY site this batch varies:\n' "$SITE_BUDGET"
+    printf '# columns\t  sc_first_look  = tapped on the first look (polls=0)\n'
+    printf '# columns\t  sc_self_healed = became hittable DURING the poll (polls>0) — late, not lost\n'
+    printf '# columns\t  sc_timed_out   = never hittable; the fallback tap went out (outcome=tappedAfterTimeout)\n'
+    printf '# columns\t  the three sum to the number of connect journeys in the bundle (3 today)\n'
+    printf '# columns\t  the two DEBUG overlay fixtures tap the same button on a SHORTER budget with their\n'
+    printf '# columns\t  arms pinned in the source; they are excluded from all three and are not this site\n'
+    printf 'run\tresult\tfailing_tests\thittap_lines\txflake_lines\tsc_first_look\tsc_self_healed\tsc_timed_out\txcuitest_ledger\n'
 } > "$LEDGER"
 
 # The per-test red tally. bash 3.2 has no associative arrays, so failing names
@@ -241,6 +335,9 @@ mkdir -p "$SCRATCH_DIR" || exit 1
 REDS_FILE="$SCRATCH_DIR/failing-names"
 : > "$REDS_FILE"
 RUN_FAILS=0
+SC_TOTAL_FIRST=0
+SC_TOTAL_HEALED=0
+SC_TOTAL_TIMEOUT=0
 
 for (( i = 1; i <= N; i++ )); do
     RUN_ID="$(printf '%02d' "$i")"
@@ -260,6 +357,15 @@ for (( i = 1; i <= N; i++ )); do
     grep -E 'HITTAP |XFLAKE ' "$RUN_LOG" > "$HITTAP_FILE" 2>/dev/null || true
     HITTAP_N="$(grep -c 'HITTAP ' "$RUN_LOG" 2>/dev/null)"; HITTAP_N=${HITTAP_N:-0}
     XFLAKE_N="$(grep -c 'XFLAKE ' "$RUN_LOG" 2>/dev/null)"; XFLAKE_N=${XFLAKE_N:-0}
+
+    # The three START CHATTING outcomes, read from the extracted file so they
+    # are computed over exactly the lines the artifact preserves.
+    SC_FIRST="$(count_sc_first_look  "$HITTAP_FILE")"
+    SC_HEALED="$(count_sc_self_healed "$HITTAP_FILE")"
+    SC_TIMEOUT="$(count_sc_timed_out  "$HITTAP_FILE")"
+    SC_TOTAL_FIRST=$((SC_TOTAL_FIRST + SC_FIRST))
+    SC_TOTAL_HEALED=$((SC_TOTAL_HEALED + SC_HEALED))
+    SC_TOTAL_TIMEOUT=$((SC_TOTAL_TIMEOUT + SC_TIMEOUT))
 
     # PASS needs all three, the same way the gate does: the authoritative
     # marker, a zero exit, and a per-test count greater than zero. Zero is not
@@ -288,13 +394,53 @@ for (( i = 1; i <= N; i++ )); do
         fi
     fi
 
-    printf '%s\t%s\t%s\t%s\t%s\t%s ran / %s passed / %s failed\n' \
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s ran / %s passed / %s failed\n' \
         "$RUN_ID" "$RESULT" "$FAILING" "$HITTAP_N" "$XFLAKE_N" \
+        "$SC_FIRST" "$SC_HEALED" "$SC_TIMEOUT" \
         "$RUN_STARTED" "$RUN_PASSED" "$RUN_FAILED" >> "$LEDGER"
 
-    printf '%s  (exit %s, %s ran / %s passed / %s failed, HITTAP %s, XFLAKE %s)  %s\n' \
+    printf '%s  (exit %s, %s ran / %s passed / %s failed, HITTAP %s, XFLAKE %s, START CHATTING %s first / %s healed / %s timed out)  %s\n' \
         "$RESULT" "$RUN_STATUS" "$RUN_STARTED" "$RUN_PASSED" "$RUN_FAILED" \
-        "$HITTAP_N" "$XFLAKE_N" "$RUN_LOG"
+        "$HITTAP_N" "$XFLAKE_N" "$SC_FIRST" "$SC_HEALED" "$SC_TIMEOUT" "$RUN_LOG"
+
+    # ------------------------------------------------------ the arm WITNESS
+    #
+    # After trial 1, and it ABORTS rather than warns.
+    #
+    # The tap arm is the batch's independent variable, and until now its only
+    # basis was an environment variable nobody had watched arrive: this script
+    # exports TEST_RUNNER_UITEST_TAP_STRATEGY, xcodebuild has to forward it
+    # into the runner, the runner has to hand it to the test process, and the
+    # helper has to read the key it expects. Any one of those failing yields a
+    # batch that measured the DEFAULT arm and says on its face that it measured
+    # the other one. A mislabelled measurement is the one outcome worse than no
+    # measurement, and it is undetectable afterwards — which is why this is a
+    # refusal and not a note in the summary.
+    #
+    # Trial 1's artifacts are already written above, so the abort loses nothing
+    # a reader needs to diagnose it.
+    if (( i == 1 )); then
+        WITNESS_N="$(count_arm_witness "$HITTAP_FILE" "$EXPECT_VIA")"
+        if (( WITNESS_N == 0 )); then
+            echo
+            echo "BATCH ABORTED after trial $RUN_ID — the tap arm was never WITNESSED." >&2
+            echo "  Wanted at least one production START CHATTING line carrying via=$EXPECT_VIA" >&2
+            echo "  (or strategy=$EXPECT_VIA on the timeout path) with the site's own ${SITE_BUDGET}s" >&2
+            echo "  budget, in:" >&2
+            echo "      $HITTAP_FILE" >&2
+            echo "  Either UITEST_TAP_STRATEGY did not reach the test process, or the site's" >&2
+            echo "  budget changed and SITE_BUDGET in this script is stale." >&2
+            echo "  Refusing to continue: every remaining trial would be labelled with an arm" >&2
+            echo "  nobody has seen arrive." >&2
+            echo "  What that trial actually recorded for this button:" >&2
+            grep -E "HITTAP (tapped|centre|fallback|post) ($SITE_LABEL|outcome=)" "$HITTAP_FILE" \
+                2>/dev/null | sed 's/^/      /' >&2 \
+                || echo "      (nothing at all — the button was never tapped through the helper)" >&2
+            echo "  Logs so far: $LOGDIR" >&2
+            exit 1
+        fi
+        echo "   WITNESS: the arm reached the production site $WITNESS_N time(s) in this trial (via=$EXPECT_VIA, budget ${SITE_BUDGET}s)"
+    fi
 done
 
 printf '# finished\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$LEDGER"
@@ -311,8 +457,15 @@ if [[ -s "$REDS_FILE" ]]; then
 else
     echo "   no failing test was named in any run"
 fi
+echo "   START CHATTING over $N run(s): $SC_TOTAL_FIRST tapped on the first look /"
+echo "                        $SC_TOTAL_HEALED became hittable during the poll /"
+echo "                        $SC_TOTAL_TIMEOUT timed out and took the fallback tap"
+echo "                        (the site this batch varies, budget ${SITE_BUDGET}s. The two DEBUG"
+echo "                        overlay fixtures tap the same button on a shorter budget with"
+echo "                        their arms pinned in the source and are NOT counted here.)"
 echo "   runtime measured on: iOS $SIM_RUNTIME_VERSION ($SIM_RUNTIME_BUILD)"
-echo "   tap arm:             ${TAP_STRATEGY:-unset}"
+echo "   tap arm:             ${TAP_STRATEGY:-unset} — WITNESSED as via=$EXPECT_VIA at the"
+echo "                        production site in trial 01, not merely forwarded"
 echo "   HITTAP/XFLAKE:       activity lines prefixed \"HITTAP \" / \"XFLAKE \" — a 0"
 echo "                        means none were emitted under that prefix by this build"
 echo "   ledger:              $LEDGER"

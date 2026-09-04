@@ -31,6 +31,19 @@ struct ConnectHostWizard: View {
     @State private var isScannerPresented = false
     @State private var scannerMessage: String?
 
+    /// #219 (bar DET-A): is the UITest fixture seam armed for THIS step?
+    /// Always `false` in Release, and the DEBUG-only type is named only inside
+    /// the `#if` — so a Release build carries no reference to it (#218: a
+    /// `#if DEBUG` declaration that production code read broke `main`'s Release
+    /// build for two days).
+    private var isUITestTapBlockFixtureArmed: Bool {
+        #if DEBUG
+        step == .done && UITestWizardBlockingOverlay.isEnabled
+        #else
+        false
+        #endif
+    }
+
     var body: some View {
         ZStack {
             HUDScreenBackground()
@@ -52,6 +65,29 @@ struct ConnectHostWizard: View {
                     .scrollDismissesKeyboard(.interactively)
                 }
             }
+            // #219: half of the fixture seam — and NOT the half that makes
+            // anything un-hittable. Turning interaction off here is what makes
+            // the fallback tap get SWALLOWED, which is what leaves the wizard
+            // standing for the fixture to assert on. It does not change
+            // `isHittable` at all: probe 2 of 2026-09-04 had this modifier AND
+            // a tap-consuming overlay in place, the tap was genuinely eaten
+            // (the wizard stayed up), and XCUITest still reported
+            // `isHittable == true`. The lever that decides hittability is the
+            // overlay's own accessibility sort priority — stated once, in
+            // `UITestWizardBlockingOverlay`.
+            // Inert in Release — see `isUITestTapBlockFixtureArmed`.
+            .allowsHitTesting(!isUITestTapBlockFixtureArmed)
+
+            #if DEBUG
+            // The named blocker, mounted on the DONE step only so the earlier
+            // steps stay drivable. It is full-screen, and the modifier above
+            // disables the whole step — so it is the DONE step's controls that
+            // lose their hit point, of which START CHATTING (the tap that
+            // flakes) is the one the fixture takes.
+            if isUITestTapBlockFixtureArmed {
+                UITestWizardBlockingOverlay()
+            }
+            #endif
         }
         .navigationBarBackButtonHidden(true)
         .task {
@@ -529,6 +565,79 @@ struct ConnectHostWizard: View {
         router.popToRoot()
     }
 }
+
+#if DEBUG
+/// **#219 DET-A fixture seam.** Reproduces on demand the one failure shape the
+/// suite has never been able to reproduce: START CHATTING present at its normal
+/// frame, and no hit point for it.
+///
+/// The gate has lost roughly one run a month to a tap that lands without
+/// invoking its action, and every attempt to diagnose it has had to wait for
+/// the flake to happen again — which is why a month of gate runs produced no
+/// evidence. A seam turns "wait and hope" into a test that runs in seconds.
+///
+/// Same shape as `MessageListIdentityProbe`'s `UITEST_DUPID_PROBE` gate: a
+/// launch-environment flag, read once (launch env is immutable for the process
+/// lifetime), absent from the view tree otherwise. One difference, and it is
+/// deliberate — this is wrapped in `#if DEBUG`, so a Release build carries no
+/// trace of it at all (#218: a `#if DEBUG` declaration that production code
+/// read broke `main`'s Release build for two days, invisible to an all-Debug
+/// stack of checks).
+///
+/// **Why 0.1% alpha rather than a fully clear fill.** The overlay's only job is
+/// to be what the accessibility hit-test finds at the button's centre. A fixture
+/// that silently stopped intercepting would turn the DET-A pin green while
+/// proving nothing, so the layer is painted rather than trusting `.clear` to be
+/// hit-testable in every rendering path. At 0.001 opacity it is invisible.
+private struct UITestWizardBlockingOverlay: View {
+    static let identifier = "uitest.overlayBlocksWizard"
+
+    /// **How many taps this layer has swallowed, published as its
+    /// accessibility VALUE.**
+    ///
+    /// Without it neither fixture could tell a tap from no tap: asserting the
+    /// outcome case, the `via` arm, the diagnostic's contents and "the wizard
+    /// is still up" is all equally satisfied by a helper that emitted the
+    /// activities and never tapped at all — which is precisely the claim the
+    /// A/B rests on. The counter is the only thing here that goes up *because
+    /// a tap was issued*, so it is also the arm's isolating mutation: delete
+    /// the fallback tap and both fixtures red on this number.
+    @State private var swallowedTaps = 0
+
+    /// Launch-env gate. Inert (and absent from the tree) unless set.
+    static var isEnabled: Bool {
+        ProcessInfo.processInfo.environment["UITEST_OVERLAY_BLOCKS_WIZARD"] == "1"
+    }
+
+    var body: some View {
+        Rectangle()
+            .fill(Color.black.opacity(0.001))
+            .ignoresSafeArea()
+            .contentShape(Rectangle())
+            // A gesture, so the layer genuinely CONSUMES the tap instead of
+            // merely sitting over it — the swallowed tap is the whole point of
+            // the fixture, and a tap that fell through to the button would
+            // complete the connect and prove nothing. It COUNTS what it
+            // swallows, which is the only observable a helper that never
+            // tapped would fail to produce.
+            .onTapGesture { swallowedTaps += 1 }
+            // An accessibility element, so the helper's centre-point walk can
+            // NAME it rather than reporting an anonymous blocker.
+            .accessibilityElement()
+            .accessibilityIdentifier(Self.identifier)
+            .accessibilityLabel("uitest overlay")
+            .accessibilityValue("\(swallowedTaps)")
+            // **The lever that actually decides hittability, measured the hard
+            // way.** XCUITest resolves "what is on top of this point" from the
+            // ORDER of the accessibility snapshot, not from the app's hit
+            // testing — and SwiftUI reports a ZStack front-to-back, so the
+            // front-most view lands FIRST in the tree and reads as the one
+            // underneath. A low sort priority puts this layer last, which is
+            // where XCUITest looks for the thing on top.
+            .accessibilitySortPriority(-1000)
+    }
+}
+#endif
 
 /// The recommended card glows; the other does not. A modifier so the glow can
 /// be absent rather than zero-strength — `hudGlow` on every card would make
