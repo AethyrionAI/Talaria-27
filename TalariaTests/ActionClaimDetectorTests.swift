@@ -760,7 +760,7 @@ struct ActionClaimDetectorTests {
             switch kind {
             case .passiveCompletion, .presentStateSet, .presentStateOn:
                 #expect(kind.isLicensedByAnyToolCall, "\(kind.rawValue) should be licensable")
-            case .firstPersonCreation, .impersonatedCard, .memoryCreation:
+            case .firstPersonCreation, .impersonatedCard, .memoryCreation, .memoryPromise:
                 #expect(!kind.isLicensedByAnyToolCall, "\(kind.rawValue) must never be licensed")
             }
         }

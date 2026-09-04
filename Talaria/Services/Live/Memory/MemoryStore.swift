@@ -193,10 +193,27 @@ final class MemoryStore {
     /// Returns VALUES, not models. The scorer runs over the whole set and has no business
     /// holding live SwiftData objects: a candidate is read once, ranked, and may outlive
     /// the fetch that produced it.
-    func candidates() -> [MemoryCandidate] {
-        fetch(FetchDescriptor<MemoryTurnIndexRecord>(
-            predicate: #Predicate { $0.isExcluded == false },
-            sortBy: [SortDescriptor(\.sentAt, order: .forward)]), op: "candidates")
+    ///
+    /// **`excludingSession` — the current conversation is never its own memory (bar
+    /// 422-T, 2026-09-04).** Its turns are already in the model's transcript; the hits
+    /// preamble calls a hit "your earlier chats"; and after Forget everything a thread's
+    /// own questions were indexed at settle and quoted back by the very next question.
+    /// Filtered in the predicate, for the same reason `isExcluded` is: a row that reaches
+    /// the scorer can be ranked, injected and chipped. `nil` — a test, or no current
+    /// conversation yet — excludes nothing.
+    func candidates(excludingSession excluded: UUID? = nil) -> [MemoryCandidate] {
+        let sort = [SortDescriptor(\MemoryTurnIndexRecord.sentAt, order: .forward)]
+        let descriptor: FetchDescriptor<MemoryTurnIndexRecord>
+        if let excluded {
+            descriptor = FetchDescriptor(
+                predicate: #Predicate { $0.isExcluded == false && $0.sessionID != excluded },
+                sortBy: sort)
+        } else {
+            descriptor = FetchDescriptor(
+                predicate: #Predicate { $0.isExcluded == false },
+                sortBy: sort)
+        }
+        return fetch(descriptor, op: "candidates")
             .map { MemoryCandidate(entryID: $0.entryID, sessionID: $0.sessionID,
                                    chunkIndex: $0.chunkIndex, text: $0.text, sentAt: $0.sentAt) }
     }

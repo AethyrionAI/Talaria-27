@@ -52,6 +52,27 @@ struct LexicalTokenizerTests {
         #expect(LexicalTokenizer.contentTokens("who won the world cup").contains("won"))
     }
 
+    /// **422-S (2026-09-04): light verbs, modals and discourse words are not content.**
+    ///
+    /// *"can you tell me who my dentist is"* used to tokenize to `{can, tell, dentist}`,
+    /// so a stored *"Can you tell me a joke about cats?"* scored 2/3 against it and the
+    /// dentist row 1/3 — the joke was quoted and the dentist dropped. The question is
+    /// ABOUT the dentist; the verbs that carry it are the same on every question the
+    /// user will ever ask, which is the definition of a stop word.
+    ///
+    /// "won" survives on purpose (the test above) — it is not a function word.
+    @Test func lightVerbsAndModalsAreNotContentTokens() {
+        let natural = LexicalTokenizer.contentTokens("can you tell me who my dentist is")
+        #expect(natural == ["dentist"], "got \(natural.sorted())")
+        let aside = LexicalTokenizer.contentTokens("just so you know, I think I like tea")
+        #expect(!aside.contains("know"), "got \(aside.sorted())")
+        #expect(!aside.contains("think"), "got \(aside.sorted())")
+        #expect(aside.contains("tea"), "the thing the sentence is ABOUT survives")
+        // The verbs a memory is ABOUT are still content: a user who says they mow the
+        // lawn on Fridays has said something about mowing.
+        #expect(LexicalTokenizer.contentTokens("I mow the lawn on Fridays").contains("mow"))
+    }
+
     /// The end-to-end consequence: a question and a stored turn that share only a
     /// morphological variant now overlap, where they scored a flat zero before.
     @Test func overlapSurvivesAMorphologicalVariant() {

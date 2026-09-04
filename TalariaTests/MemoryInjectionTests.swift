@@ -145,6 +145,63 @@ struct MemoryInjectionTests {
         }
     }
 
+    // MARK: - (a′) 422-T: the current conversation is never its own memory
+
+    /// **A turn indexed under the CURRENT conversation is never quoted back into that
+    /// conversation's prompt** (bar 422-T, 2026-09-04).
+    ///
+    /// Two things were wrong without this. The hits preamble says *"From your earlier
+    /// chats"*, and the commonest hit in a long thread was the user's own message from
+    /// three turns ago in the SAME chat — already in the model's transcript, quoted a
+    /// second time under a heading that called it an earlier chat. And after Forget
+    /// everything, each memory-shaped question was indexed at settle and retrieved by the
+    /// next one, so DE2's "empty" arm was not empty from question two.
+    ///
+    /// Cross-conversation retrieval is untouched: the other conversation's matching turn
+    /// is the precondition here, not the thing under test.
+    ///
+    /// RED by dropping the session clause from `MemoryStore.candidates(excludingSession:)`.
+    @Test func theCurrentConversationIsNeverQuotedBackToItself() async throws {
+        let store = try #require(MemoryStore.make(inMemoryOnly: true))
+        let current = UUID(), other = UUID()
+        store.upsertTurnChunks([
+            MemoryTurnIndexRecord(
+                entryID: UUID(), sessionID: current, messageID: UUID(), chunkIndex: 0,
+                text: "my dentist is Doctor Ramirez on Pearl Street",
+                sentAt: Date(timeIntervalSince1970: 1_750_000_001)),
+            MemoryTurnIndexRecord(
+                entryID: UUID(), sessionID: other, messageID: UUID(), chunkIndex: 0,
+                text: "the dentist appointment is always on a Tuesday morning",
+                sentAt: Date(timeIntervalSince1970: 1_750_000_000)),
+        ])
+        let backend = makeBackend(memoryStore: store)
+        backend.currentConversation = Conversation(id: current, title: "t", messages: [])
+
+        let prefix = await backend.memoryPrefix(for: compose(hitQuery), query: hitQuery)
+
+        #expect(prefix.contains("Tuesday morning"),
+                "precondition: the OTHER conversation's turn must still retrieve")
+        #expect(!prefix.contains("Doctor Ramirez"),
+                "the current conversation's own turn was quoted back into its own prompt")
+    }
+
+    /// **422-S corollary: a question ABOUT the store still gets the honest line when the
+    /// function words leave it with no content token at all.** *"what do you know about
+    /// me"* tokenizes to nothing once `know` is a stop word, so the skip gate closes before
+    /// retrieval — and the no-match line used to live inside that gate. It is judged
+    /// outside it now: this is exactly the question the line was written for.
+    ///
+    /// RED by moving the `isMemoryShapedQuestion` check back inside the skip gate.
+    @Test func aStoreShapedQuestionWithNoContentTokensStillGetsTheHonestLine() async throws {
+        let store = try seededStore()
+        let backend = makeBackend(memoryStore: store)
+        let question = "what do you know about me"
+        #expect(LexicalTokenizer.contentTokens(question).isEmpty,
+                "precondition: no content token survives — got \(LexicalTokenizer.contentTokens(question))")
+        let prefix = await backend.memoryPrefix(for: compose(question), query: question)
+        #expect(prefix.contains(MemoryBudget.noMemoriesMatch), "got: \(prefix.debugDescription)")
+    }
+
     // MARK: - (b) The accounting rebuild, and never the #26 overflow retry
 
     /// **422-D: 30 turns, a 3-hit prefix on every one of them.**

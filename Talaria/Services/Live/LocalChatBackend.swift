@@ -384,6 +384,22 @@ final class LocalChatBackend: HermesClientProtocol {
     /// context window with nothing on the other side of the trade.
     private var memoryCanInject: Bool { memoryIsOn && memoryStore != nil }
 
+    /// Whether the settle seam will index THIS turn's message, so that a
+    /// promise to remember it is one the app keeps (bar 422-U, 2026-09-04):
+    /// memory on, a store to write to, and a thread the seam indexes.
+    /// `isLocalThread` is #190B's origin verdict — a host-origin thread the
+    /// brain flipped under mid-conversation is never indexed. A thread with
+    /// no settled assistant turn yet becomes local-origin the moment this
+    /// one settles on-device (`recordLocalOriginAfterSettledTurn`'s
+    /// first-turn rule), and the guard runs BEFORE the reply is appended, so
+    /// that case is read as indexable too.
+    private var memoryIndexIsLive: Bool {
+        guard memoryCanInject else { return false }
+        guard let conversation = currentConversation else { return true }
+        if isLocalThread(conversation) { return true }
+        return !conversation.messages.contains { $0.sender == .hermes }
+    }
+
     /// Identity of the notes set as it stands RIGHT NOW. Empty string means
     /// "no notes" — including the toggle-off and no-store cases, which is
     /// correct: with memory off the session must carry no notes block, and
@@ -532,17 +548,22 @@ final class LocalChatBackend: HermesClientProtocol {
         // second fetch for an answer that cannot have changed between them.
         let notes = await memoryNotesBlock()
         let noteIDs = notes.noteIDs
+        // The honest line's precondition: memory could have answered and nothing
+        // was admitted. Starts as "memory can answer at all", and retrieval
+        // below overwrites it with what actually happened.
+        var noHitWasAdmitted = memoryCanInject
         if memoryIsOn, let memoryStore, !MemoryRetriever.shouldSkip(prompt) {
             memoryRetrievalCount += 1
-            let hits = MemoryRetriever.retrieve(query: prompt, candidates: memoryStore.candidates())
-            if hits.isEmpty {
-                // The no-match line needs no budgeting of its own: it exists
-                // ONLY on the branch where no hit was admitted, so it can
-                // never compete with one for the cap.
-                if MemoryRetriever.isMemoryShapedQuestion(prompt) {
-                    pieces.append(MemoryBudget.noMemoriesMatch)
-                }
-            } else {
+            // 422-T (2026-09-04): the current conversation is never its own
+            // memory. Its turns are already in the model's transcript, the
+            // preamble calls a hit "your earlier chats", and after a Forget
+            // everything a thread's own questions were being indexed at settle
+            // and quoted straight back by the next one.
+            let hits = MemoryRetriever.retrieve(
+                query: prompt,
+                candidates: memoryStore.candidates(excludingSession: currentConversation?.id))
+            noHitWasAdmitted = hits.isEmpty
+            if !hits.isEmpty {
                 let admitted = await admittedHitsBlock(
                     hits, notesBlock: notes.text, noticeTokens: noticeTokens)
                 if !admitted.block.isEmpty {
@@ -550,6 +571,15 @@ final class LocalChatBackend: HermesClientProtocol {
                     entryIDs = admitted.entryIDs
                 }
             }
+        }
+        // The no-match line needs no budgeting of its own: it exists ONLY when
+        // no hit was admitted, so it can never compete with one for the cap.
+        // Judged OUTSIDE the skip gate (422-S): a question ABOUT the store —
+        // "what do you know about me", "do you remember?" — can carry no
+        // content token at all once the function words are stopped, and it is
+        // exactly the question the honest line was written for.
+        if noHitWasAdmitted, MemoryRetriever.isMemoryShapedQuestion(prompt) {
+            pieces.append(MemoryBudget.noMemoriesMatch)
         }
 
         // Recorded even when nothing was PREFIXED: a reply produced while the
@@ -2307,17 +2337,32 @@ final class LocalChatBackend: HermesClientProtocol {
     /// Wording pinned by the #422 plan's naming rule (CLAUDE.md, Owen
     /// 2026-08-27): the outward identity is TALARIA on every phone-facing
     /// surface.
+    ///
+    /// **Re-cut 2026-09-04 (bar 422-U).** The first copy said *"Nothing was
+    /// saved to memory"* — false on every indexed thread, where the user's
+    /// turn is retrievable by its words a session later. This copy names the
+    /// artifact that was NOT written (a note), the affordance that writes one,
+    /// and what remains true. The last sentence belongs to the live-index copy
+    /// alone; `memoryCorrectionNoticeNoIndex` drops it for a turn nothing
+    /// will index.
     nonisolated static let memoryCorrectionNotice =
-        "⚠️ **Nothing was saved to memory.** Talaria only remembers what you ask "
-        + "it to with \"Remember that…\" — the reply above is inaccurate."
+        memoryCorrectionNoticeNoIndex + " Your message can still be found later by its words."
+
+    /// The same correction for a turn NO index will hold — no store, or a
+    /// host-origin thread the settle seam does not index. Nothing here is
+    /// findable later, so the copy does not say it is.
+    nonisolated static let memoryCorrectionNoticeNoIndex =
+        "⚠️ **No note was saved.** Talaria saves a note only when you say "
+        + "\"Remember that…\" — the reply above is inaccurate."
 
     /// The correction that belongs to a claim. One switch, so a new kind
     /// cannot silently inherit copy that names the wrong artifact.
     nonisolated static func correctionNotice(
-        for kind: ActionClaimDetector.ClaimKind
+        for kind: ActionClaimDetector.ClaimKind, memoryIndexLive: Bool = false
     ) -> String {
         switch kind {
-        case .memoryCreation: memoryCorrectionNotice
+        case .memoryCreation, .memoryPromise:
+            memoryIndexLive ? memoryCorrectionNotice : memoryCorrectionNoticeNoIndex
         case .firstPersonCreation, .passiveCompletion, .presentStateSet,
              .presentStateOn, .impersonatedCard: honestyCorrectionNotice
         }
@@ -2365,6 +2410,10 @@ final class LocalChatBackend: HermesClientProtocol {
     ///     `memoryCreation` claim, and it licenses nothing else. Default
     ///     `false` — the strict reading, so every existing caller keeps the
     ///     behaviour it had.
+    ///   - memoryIndexLive: whether THIS turn's message will be indexed at
+    ///     settle and retrievable by its words (bar 422-U, 2026-09-04). Keeps
+    ///     a `.memoryPromise` claim honest, and selects the copy that says the
+    ///     message is findable. Default `false` — nothing is assumed indexed.
     ///
     /// Never throws and never returns less than it was given (#197: the tool
     /// path gains no throw; #338: the model's text is never rewritten or
@@ -2376,13 +2425,17 @@ final class LocalChatBackend: HermesClientProtocol {
         executedToolNames: [String],
         priorActionToolExecutedInConversation: Bool = false,
         savedNote: Bool = false,
-        memoryEnabled: Bool = true
+        memoryEnabled: Bool = true,
+        memoryIndexLive: Bool = false
     ) -> String {
         guard let claim = ActionClaimDetector.unfulfilledClaim(
             in: modelText,
             executedToolNames: executedToolNames,
             priorActionToolExecutedInConversation: priorActionToolExecutedInConversation,
-            savedNote: savedNote
+            savedNote: savedNote,
+            // 422-U (2026-09-04): a PROMISE to remember is kept by the index
+            // on a thread the settle seam indexes; a claimed WRITE is not.
+            promiseKeptByIndex: memoryIndexLive
         ) else { return settledText }
         // **#422 bar 422-H — OWEN'S RULING, 2026-09-03: the guard is QUIET on
         // memory claims while memory is OFF.**
@@ -2411,7 +2464,7 @@ final class LocalChatBackend: HermesClientProtocol {
         // stands down whenever the sentence names a device artifact: that
         // reply is still corrected, in the memory copy, exactly as it is
         // today with memory on.
-        if claim.kind == .memoryCreation, !memoryEnabled,
+        if claim.kind == .memoryCreation || claim.kind == .memoryPromise, !memoryEnabled,
            !ActionClaimDetector.mentionsDeviceArtifact(claim.sentence) {
             Self.logger.notice("honesty guard: memory claim left uncorrected — memory is OFF, so the app promised nothing (#422)")
             return settledText
@@ -2419,7 +2472,8 @@ final class LocalChatBackend: HermesClientProtocol {
         honestyGuardFireCount += 1
         lastHonestyGuardClaim = claim
         Self.logger.notice("\(Self.honestyGuardLogLine(kind: claim.kind, executedCalls: executedToolNames.count, fireCount: self.honestyGuardFireCount), privacy: .public)")
-        return Self.appendingCorrection(Self.correctionNotice(for: claim.kind), to: settledText)
+        return Self.appendingCorrection(
+            Self.correctionNotice(for: claim.kind, memoryIndexLive: memoryIndexLive), to: settledText)
     }
 
     /// **The production entry point** — the overload both turn paths call, and
@@ -2452,7 +2506,12 @@ final class LocalChatBackend: HermesClientProtocol {
             // the recorder and the relay latch, for the reason this overload
             // exists — both turn paths get the ruling without either call
             // site having to remember it.
-            memoryEnabled: memoryIsOn)
+            memoryEnabled: memoryIsOn,
+            // 422-U: read live here for the same reason — whether the settle
+            // seam will index THIS thread is a fact about the store, the
+            // switch and the thread's origin, none of which a call site
+            // should have to know.
+            memoryIndexLive: memoryIndexIsLive)
     }
 
     // MARK: - Conversation bookkeeping
