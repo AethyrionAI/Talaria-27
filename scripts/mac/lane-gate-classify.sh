@@ -123,6 +123,10 @@ gate_log_has_any_locus() {   # gate_log_has_any_locus <logfile>
 #   * it excuses a run ONLY when every failing test is on it. One unlisted
 #     failure and the ordinary logic applies untouched. The list can never
 #     hide a red it did not fully account for.
+#   * it excuses ONE FAILURE MODE, not a test name. The run's XCUITest ledger
+#     must also be COMPLETE — an outcome reported for every test that started.
+#     A runner death that happens to name a listed test is a runner death, and
+#     is classified as one; see gate_classify_failures.
 #   * it buys exactly one re-run over identical bytes. A second red is a real
 #     red. Nothing here can excuse a failure twice.
 #   * every entry carries the tracker file its search string resolves in, and
@@ -201,9 +205,10 @@ gate_failing_test_names() {   # gate_failing_test_names <logfile>
 
 # The classifier. Echoes exactly one token for the whole run:
 #
-#   known-flake    the failing set is non-empty and EVERY member of it is on
-#                  the list above -> one re-roll over identical bytes, and a
-#                  locus does not override this (see the list's comment)
+#   known-flake    the failing set is non-empty, EVERY member of it is on the
+#                  list above, AND the XCUITest ledger is COMPLETE -> one
+#                  re-roll over identical bytes. A locus does not override
+#                  this (see the list's comment); a runner death does.
 #   assertion      at least one failing test has a locus -> a REAL failure
 #   unattributed   no failing test has a locus, but the log holds loci anyway
 #                  (display-named tests, a name shape not parsed here) -> also
@@ -216,8 +221,29 @@ gate_failing_test_names() {   # gate_failing_test_names <logfile>
 # safe direction hold in both directions at once: it can only fire when there
 # is nothing else in the run to be wrong about, and everything it does not
 # fire on falls through to the pre-existing logic byte for byte.
+#
+# THE SECOND CONJUNCT, and it is not a belt-and-braces addition. A name on the
+# list excuses ONE KNOWN FAILURE MODE — the swallowed first tap — not every red
+# that happens to mention that test. When the RUNNER dies, which test is named
+# in the failing list is an accident of what it was holding at the time, so
+# treating the name as the family throws away the only diagnosis the log
+# supports and prints the wrong advice over it. So the ledger must also be
+# COMPLETE: every test that started reported an outcome. That is the direct
+# measure of "the runner did not die", and it is a measure of the FIRST RUN,
+# unlike the locus, which this family always has.
+#
+# `started > 0` is part of it. `passed + failed == started` alone is satisfied
+# VACUOUSLY by a log with no ledger at all (0 == 0) — which is a runner death
+# in its most extreme form, and would otherwise read as the most complete
+# ledger this function ever saw. Zero is not a count here either.
+#
+# The consequence downstream is not only a wrong verdict. A truncated first run
+# makes `gate_evaluate_reroll_log`'s expected total SHORT, so a clean full
+# re-roll trips the size check and the gate reports "the re-roll ran 15 test(s)
+# where the first run ran 5" — a false FAIL after a 35-minute re-run, explained
+# by the opposite of what happened.
 gate_classify_failures() {   # gate_classify_failures <logfile>
-    local log="$1" line name saw_any=0 all_known=1
+    local log="$1" line name saw_any=0 all_known=1 started passed failed
     [[ -s "$log" ]] || { printf 'unknown'; return; }
 
     while IFS= read -r line; do
@@ -228,7 +254,12 @@ gate_classify_failures() {   # gate_classify_failures <logfile>
     done < <(gate_failing_test_lines "$log")
 
     if (( ! saw_any )); then printf 'unknown'; return; fi
-    if (( all_known )); then printf 'known-flake'; return; fi
+    if (( all_known )); then
+        read -r started passed failed <<<"$(gate_xcuitest_ledger "$log")"
+        if (( started > 0 && passed + failed == started )); then
+            printf 'known-flake'; return
+        fi
+    fi
 
     while IFS= read -r line; do
         [[ -n "${line//[[:space:]]/}" ]] || continue
@@ -336,7 +367,10 @@ gate_swift_testing_passed_count() {   # gate_swift_testing_passed_count <logfile
 #
 #   a. there is a failing-test list at all;
 #   b. the verdict is `known-flake` — so every failing test is named on the
-#      list above, and one unlisted failure disqualifies the whole run;
+#      list above AND the first run's ledger is complete. One unlisted failure
+#      disqualifies the run, and so does a runner death. This condition keys on
+#      the VERDICT rather than re-deriving either half, so there is no second
+#      copy of the rule here to drift out of step with the classifier;
 #   c. the Swift Testing run PASSED, with a count greater than zero.
 #
 # (c) is the load-bearing one and it is cheap to get wrong. The units run

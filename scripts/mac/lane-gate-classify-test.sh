@@ -350,15 +350,41 @@ FLAKE_LOCUS='/Users/owenjones/Talaria/TalariaUITests/AppTemplateUITests.swift:54
     printf '** TEST FAILED **\n\nFailing tests:\n\tTalariaUITests.testSettingsDeckNavigation()\n\n'
 } > "$FIXDIR/runner-death-with-units.log"
 
-# Fixture 17 — a runner death that happens to name a LISTED test. Documented,
-# deliberate consequence: the list wins, so this re-rolls. Both families
-# prescribe exactly one re-run over identical bytes, so the outcome is the
-# ruled one either way; what changes is that the gate performs it.
+# Fixture 17 — a runner death that happens to name a LISTED test: fifteen tests
+# START and only five ever report an outcome. THE LIST DOES NOT WIN HERE, and
+# this fixture exists to hold that line.
+#
+# A name on the list excuses ONE KNOWN FAILURE MODE — a tap the app never
+# received — not every red that happens to mention that test. When the runner
+# dies, which test is named is an accident of what it was holding at the time,
+# so reading the name as the swallowed-tap family throws away the only
+# diagnosis the log actually supports ("no assertion locus anywhere — the
+# runner died").
+#
+# It also INVERTS the re-roll's size check. A truncated first run makes the
+# expected total short, so a clean fifteen-test re-roll trips `passed !=
+# expected` and the gate reports "the re-roll ran 15 test(s) where the first
+# run ran 5" — a false FAIL after 35 minutes, explained by the opposite of
+# what happened.
+#
+# The discriminator is the LEDGER, not the locus: started == passed + failed
+# means every test that started reported an outcome, which is the direct
+# measure of "the runner did not die".
 {
     emit_ledger -1 5
     printf '%s\n' "$SWIFT_TESTING_PASSED"
     printf '** TEST FAILED **\n\nFailing tests:\n\tTalariaUITests.testConnectedRelaunchSkipsTheConnectEntry()\n\n'
 } > "$FIXDIR/runner-death-listed.log"
+
+# Fixture 23 — the same shape at its extreme: a listed test named with NO
+# ledger at all. Nothing started, so nothing could report an outcome, and
+# `passed + failed == started` holds VACUOUSLY (0 == 0) — a completeness rule
+# written as that comparison alone would call this the most complete ledger it
+# ever saw. Zero is not a count here either.
+{
+    printf '%s\n' "$SWIFT_TESTING_PASSED"
+    printf '** TEST FAILED **\n\nFailing tests:\n\tTalariaUITests.testConnectedRelaunchSkipsTheConnectEntry()\n\n'
+} > "$FIXDIR/runner-death-listed-no-ledger.log"
 
 # ------------------------------------- fixtures 18-22: the RE-ROLL's own log
 #
@@ -463,8 +489,18 @@ check "unlisted UI red -> assertion" \
       "assertion" "$(gate_classify_failures "$FIXDIR/unlisted-red.log")"
 check "runner death naming an unlisted test -> runner-flake" \
       "runner-flake" "$(gate_classify_failures "$FIXDIR/runner-death-with-units.log")"
-check "runner death naming a LISTED test -> known-flake (deliberate)" \
-      "known-flake" "$(gate_classify_failures "$FIXDIR/runner-death-listed.log")"
+check "runner death naming a LISTED test -> runner-flake (the list does NOT win)" \
+      "runner-flake" "$(gate_classify_failures "$FIXDIR/runner-death-listed.log")"
+check "runner death naming a LISTED test with NO ledger -> runner-flake" \
+      "runner-flake" "$(gate_classify_failures "$FIXDIR/runner-death-listed-no-ledger.log")"
+# The two halves of the discriminator, pinned in both directions so the reason
+# a fixture qualifies is visible in the output and not just in a comment.
+read -r KF_STARTED KF_PASSED KF_FAILED <<<"$(gate_xcuitest_ledger "$FIXDIR/known-flake-red.log")"
+check "the known-flake fixture's ledger is COMPLETE — that is what qualifies it" \
+      "15 == 15" "$KF_STARTED == $((KF_PASSED + KF_FAILED))"
+read -r RD_STARTED RD_PASSED RD_FAILED <<<"$(gate_xcuitest_ledger "$FIXDIR/runner-death-listed.log")"
+check "the runner-death fixture's ledger is INCOMPLETE — that is what disqualifies it" \
+      "15 != 5" "$RD_STARTED != $((RD_PASSED + RD_FAILED))"
 advice_says "known-flake advice prescribes exactly ONE re-run" \
             "$FIXDIR/known-flake-red.log" "ONCE"
 advice_says "known-flake advice says a second red is a REAL red" \
@@ -483,6 +519,13 @@ advice_says "a mixed run keeps the REAL-failure advice" \
             "$FIXDIR/known-flake-mixed.log" "REAL failure"
 advice_says "a mixed run still says do NOT re-roll" \
             "$FIXDIR/known-flake-mixed.log" "Do NOT re-roll"
+# The runner-death diagnosis must SURVIVE a listed name. Losing it is the whole
+# cost of letting the list win: the one sentence the log supports is the one
+# the reader stops being told.
+advice_says "a runner death that names a listed test still gets the runner diagnosis" \
+            "$FIXDIR/runner-death-listed.log" "NO assertion locus anywhere"
+advice_never_says "a runner death is never dressed up as a known flake" \
+            "$FIXDIR/runner-death-listed.log" "KNOWN-FLAKE"
 echo
 
 echo "-- DET-F: the identity family names its cause first, and never re-rolls"
@@ -509,6 +552,14 @@ check "unlisted red -> no" \
       "no" "$(gate_should_reroll "$FIXDIR/unlisted-red.log")"
 check "runner death -> no" \
       "no" "$(gate_should_reroll "$FIXDIR/runner-death-with-units.log")"
+# The decision keys on the VERDICT, so this follows from the classifier rather
+# than from a second rule kept in step by hand. It is pinned anyway: a
+# truncated first run also makes the size check's expectation short, so a
+# re-roll here would be a long run that fails for the opposite of its reason.
+check "runner death naming a LISTED test -> no" \
+      "no" "$(gate_should_reroll "$FIXDIR/runner-death-listed.log")"
+check "runner death naming a LISTED test, no ledger -> no" \
+      "no" "$(gate_should_reroll "$FIXDIR/runner-death-listed-no-ledger.log")"
 check "a Swift Testing failure -> no" \
       "no" "$(gate_should_reroll "$FIXDIR/swift-testing-assertion.log")"
 check "a GREEN run -> no (there is nothing to re-roll)" \
