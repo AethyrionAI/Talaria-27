@@ -201,12 +201,108 @@ final class ToolEventRelay {
     /// (`org.aethyrion.talaria`, LocalChatBackend) captures a whole turn.
     private static let instrumentLogger = Logger(subsystem: "org.aethyrion.talaria", category: "LocalChatBackend")
 
-    /// The single turn-boundary call (#225 + #228): resets the instrument's
-    /// counters and the governor's budget together, so the log's running index
-    /// and the admission decisions can never describe different turns.
-    func beginTurn() {
+    /// #340 bar 340-U-B — the user's own message for the CURRENT turn, or nil.
+    ///
+    /// **Why the belt needs this at all.** A tool sees only what the MODEL sent
+    /// it. When `createReminder` arrives with an empty `due`, the time the user
+    /// actually said ("remind me at 4") is nowhere in the tool's arguments, so
+    /// there is nothing to resolve a date from. This is the one channel that
+    /// carries the sentence itself down to where
+    /// `DeviceActionParsing.detectDueCandidates` can read it. (That was
+    /// `detectDue` until 2026-09-04's fix wave; the resolver now calls the list
+    /// form so decision 2's candidate count can be logged, and `detectDue` is
+    /// exactly `candidates.first`, so nothing about the answer moved.)
+    ///
+    /// **It is the USER's text, never the assembled prompt.** By the time a turn
+    /// reaches `beginToolTurn()` the prompt has grown a memory prefix and any
+    /// instruction preamble; mining THAT for a date would let a remembered
+    /// sentence set the due time of an unrelated reminder. Both production call
+    /// sites pass `message`, pinned by source witness in
+    /// `ToolTurnUserTextTests`.
+    ///
+    /// **Turn-scoped, and structurally so.** It is set by the ONE call that
+    /// already opens every turn, and the parameter's `nil` default means a
+    /// caller that passes nothing CLEARS it rather than inheriting the last
+    /// turn's sentence. That is deliberate rather than incidental: #343's
+    /// governor bug was exactly a per-turn field that leaked because it was
+    /// reset somewhere other than the turn boundary, and the DEBUG instruments
+    /// call the bare `beginTurn()` dozens of times in a row.
+    private(set) var currentTurnUserText: String?
+
+    #if DEBUG
+    /// #340 bar 340-U-D — the `armed-nofallback` arm's ONLY delta from
+    /// production, and it is one Bool.
+    ///
+    /// **Why a flag rather than a fifth tool struct.** Every other reminder
+    /// treatment cell swaps in a `ReminderCreateTool…` copy, and each of those
+    /// copies carries the model-facing TEXT it was made for while sharing
+    /// `performCreate`'s one engine — *"two structs, one engine"*. This arm's
+    /// delta is not text at all; it is a term INSIDE that engine. A copy would
+    /// have had to fork the engine, which is the one thing the copy discipline
+    /// exists to prevent, and the retired `armed-bareclock` copy is this lane's
+    /// own record of what a fork costs once production moves on beneath it.
+    ///
+    /// **Why on the relay.** The relay already carries per-turn state into the
+    /// belt (`currentTurnUserText`, the governor), `performCreate` already
+    /// holds one, and it is already MainActor — so the battery can arm it at
+    /// the turn boundary in the same breath as `beginTurn`, and the engine
+    /// reads it exactly where the fallback lives.
+    ///
+    /// **DEBUG-only, and `false` by default.** A default of `true` would ship
+    /// the product with the fix switched off; the `#if DEBUG` is what makes
+    /// "production cannot reach this" a compile-time fact rather than a
+    /// convention. A Release build proves the tree COMPILES — it does not
+    /// prove the symbol is unreachable, since code outside a guard would
+    /// compile perfectly well and simply ship — so
+    /// `everyMentionOfTheSwitchSitsInsideADebugRegion` reads every Swift file
+    /// under `Talaria/` and fails if any mention escapes a guard.
+    ///
+    /// **PER-TURN STATE: `beginTurn` clears it, exactly like
+    /// `currentTurnUserText` above.** This paragraph used to say the opposite —
+    /// that the reset was unnecessary because the battery writes the switch on
+    /// every trial from the cell — and that argument was true but too narrow.
+    /// It covers leaks between CELLS and nothing else. `ToolEventRelay` is ONE
+    /// instance per `AppContainer`, shared by production chat and by every
+    /// other instrument in the launch, and `.armedNofallback` is the LAST
+    /// default due-date cell: so the terminal state of every default run was
+    /// `true`, and it stayed `true` for the rest of the process. A later
+    /// shape/refusal/read-tool run created its reminders with the fix off, and
+    /// a hand check of the fallback in chat read as a product regression.
+    ///
+    /// Clearing it at the turn boundary is what makes the leak unreachable:
+    /// every production turn and every instrument's bare `beginTurn()` closes
+    /// it, and the battery's own per-trial write lands AFTER `beginTurn`, so
+    /// the arming still wins for the trial it was written for. That ordering
+    /// is the load-bearing part and it is pinned
+    /// (`anArmedTrialAfterANofallbackTrialStillStagesTheDate`).
+    ///
+    /// `runActionBattery` clears it again at the run's end, beside the
+    /// `batteryTrialTag` clear — for the warm-up trial, which opens no turn at
+    /// all, and for a run that dies mid-cell.
+    var disableUserTextDueFallback = false
+    #endif
+
+    /// The single turn-boundary call (#225 + #228 + #340): resets the
+    /// instrument's counters and the governor's budget together, so the log's
+    /// running index and the admission decisions can never describe different
+    /// turns — and installs (or clears) this turn's user text.
+    ///
+    /// `userText` is defaulted so every existing caller — the per-trial
+    /// `beginTurn()` the DEBUG instruments make (#343) — compiles and behaves
+    /// exactly as before, with the field explicitly cleared.
+    func beginTurn(userText: String? = nil) {
         executedCallsThisTurn = 0
         refusalsThisTurn = 0
+        currentTurnUserText = userText
+        #if DEBUG
+        // #340 bar 340-U-D: the measurement switch is per-turn state like the
+        // field above it, so it clears at the same boundary. The battery's
+        // per-trial arming is written AFTER this call and therefore still
+        // wins for its own trial; what this closes is the switch surviving
+        // the battery altogether onto production chat and every later
+        // instrument in the launch. See the declaration.
+        disableUserTextDueFallback = false
+        #endif
         governor?.beginTurn()
     }
 

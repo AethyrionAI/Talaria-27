@@ -1104,7 +1104,10 @@ struct DeviceToolBeltTests {
         // direction too, which is why this line moved deliberately rather than
         // being discovered red. It did its job on 2026-08-21, when the gate
         // caught that lane's new case here.
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 32)
+        // #340 Task 4: the user-words fallback's same-run control — production
+        // with the fallback switched off, `armed-nofallback`. 32 → 33.
+        #expect(LocalChatBackend.ActionBatteryCell.armedNofallback.rawValue == "armed-nofallback")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 33)
     }
 
     /// #216: routing is a property of the CELL, and exactly two cells have it.

@@ -687,10 +687,19 @@ final class LocalChatBackend: HermesClientProtocol {
     /// every turn after the twelfth tool call of the session goes silently
     /// toolless, which is a worse and far less visible bug than the spiral this
     /// bounds. Pinned by `theBudgetResetsForEachTurn`.
-    private func beginToolTurn() {
+    ///
+    /// #340 bar 340-U-B: it also carries this turn's `userText` to the belt, so
+    /// a tool whose model-supplied argument is empty can still reach the
+    /// sentence the user actually wrote. **Pass `message`, never the assembled
+    /// prompt** — by here `turnInput` has grown a memory prefix, and mining that
+    /// for a date would let a remembered sentence set an unrelated reminder's
+    /// due time. Defaulted to nil so a caller with no text CLEARS the field
+    /// rather than inheriting the last turn's. Pinned by
+    /// `ToolTurnUserTextTests`.
+    private func beginToolTurn(userText: String? = nil) {
         // #228: one call resets the governor's budget AND the instrument's
         // per-turn counters — split resets could describe different turns.
-        toolRelay?.beginTurn()
+        toolRelay?.beginTurn(userText: userText)
     }
 
     /// Honest explanation for the CURRENT unavailability, nil when the model
@@ -1002,8 +1011,10 @@ final class LocalChatBackend: HermesClientProtocol {
         turnInput = Self.prefixed(turnInput, with: memoryPrefix)
         appendUserMessage(message: message, attachments: attachments, clientMessageID: clientMessageID)
 
-        // #225: fresh tool budget for this turn.
-        beginToolTurn()
+        // #225: fresh tool budget for this turn. #340: and the user's OWN
+        // words — `message`, not `turnInput.promptText`, which by now carries
+        // the memory prefix.
+        beginToolTurn(userText: message)
         // #228: measure the recorded session budgets only once the turn is
         // over, on every exit path — measuring mid-turn killed the turn.
         defer { flushSessionBudgetMeasurements() }
@@ -1263,8 +1274,9 @@ final class LocalChatBackend: HermesClientProtocol {
         turnInput = Self.prefixed(turnInput, with: memoryPrefix)
         appendUserMessage(message: message, attachments: attachments, clientMessageID: clientMessageID)
 
-        // #225: fresh tool budget for this turn.
-        beginToolTurn()
+        // #225: fresh tool budget for this turn. #340: see `send` — the user's
+        // OWN words, not the memory-prefixed prompt.
+        beginToolTurn(userText: message)
 
         // #197: any observable activity — a tool event, a text delta, a
         // reasoning delta — makes the turn non-retryable: a tool that

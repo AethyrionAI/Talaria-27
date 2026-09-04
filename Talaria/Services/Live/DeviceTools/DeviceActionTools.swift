@@ -275,6 +275,222 @@ enum DeviceActionParsing {
         return calendar.date(byAdding: .day, value: 1, to: today)
     }
 
+    // MARK: - #340 route (a): the due date the USER'S OWN WORDS name
+
+    /// A matched substring that is **nothing but a clock** — an optional
+    /// `at`/`@` frame, one or two hour digits, optional `:mm`, optional
+    /// meridiem. Deliberately NUMERIC-only, which is what keeps `noon`,
+    /// `tonight` and `this morning` out of the roll-forward set below.
+    ///
+    /// `NSTextCheckingResult` exposes no "which components were present"
+    /// accessor, so the discriminator has to be derived from the matched text.
+    /// A whole-string match against this pattern is the derivation: it can only
+    /// succeed when the substring carries no weekday, month, day word or date
+    /// separator, because any of those leave characters the pattern cannot eat.
+    ///
+    /// **If this `try?` ever yields nil the roll-forward is disabled outright**
+    /// — `isClockOnlyPhrase` answers false for everything, so every past match
+    /// is dropped and every clock already behind `now` returns no due at all.
+    /// That is the fail-safe direction (a dateless card, never a wrong date),
+    /// and the pattern is a literal, so nil here means a Foundation change
+    /// rather than input.
+    private nonisolated static let clockOnlyMatch = try? NSRegularExpression(
+        pattern: #"^(?:at\s+|@\s*)?(?:[01]?\d|2[0-3])(?::[0-5]\d)?(?:\s*[ap]\.?m\.?)?$"#,
+        options: [.caseInsensitive])
+
+    /// **Is this matched substring a bare clock time, naming no day at all?**
+    ///
+    /// Only such a match may be rolled forward. `Friday at 9am` and
+    /// `September 9 at 3pm` name a DAY, and silently moving a day the user
+    /// gave is the worse defect `parseBareClock`'s docstring already refuses
+    /// — an explicit past date returns no due rather than a different one.
+    private nonisolated static func isClockOnlyPhrase(_ substring: String) -> Bool {
+        let trimmed = substring.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let regex = clockOnlyMatch else { return false }
+        let range = NSRange(trimmed.startIndex..<trimmed.endIndex, in: trimmed)
+        return regex.firstMatch(in: trimmed, options: [], range: range) != nil
+    }
+
+    /// The next occurrence of a bare clock **strictly after** `now`.
+    ///
+    /// `resolveBareClock` shares `isPastDue`'s five-minute grace, so on its own
+    /// it can hand back a time a couple of minutes gone. `detectDue`'s contract
+    /// is stronger — never a value `<= now` — so the grace window costs a day
+    /// here. That is a real behavioural difference between the two functions
+    /// and it is pinned by a test rather than left to be rediscovered.
+    private nonisolated static func nextStrictlyFutureOccurrence(
+        of clock: DateComponents, now: Date
+    ) -> Date? {
+        guard let resolved = resolveBareClock(clock, now: now) else { return nil }
+        guard resolved <= now else { return resolved }
+        return Calendar.current.date(byAdding: .day, value: 1, to: resolved)
+    }
+
+    /// The bare clock in an **`at <clock>` frame**, or nil.
+    ///
+    /// **Framed rather than token-wise, and that is the whole point.**
+    /// `parseBareClock` is designed to accept a bare one-or-two-digit integer,
+    /// and a user's sentence is full of them: run over every token, *"check the
+    /// oven **in 20 minutes**"* becomes 20:00, *"in 3 hours"* becomes 03:00,
+    /// and *"call table 4"* becomes 04:00 — three reminders at a time nobody
+    /// asked for. Only a numeral the user put behind `at` (or `@`) is read as
+    /// a clock.
+    ///
+    /// A meridiem written as its own token is folded back in, so `at 4 pm`
+    /// reaches `parseBareClock` as `"4pm"` and lands on 16:00 through this path
+    /// exactly as it does through the detector's.
+    ///
+    /// **And the frame alone is not enough, because `at` is not always
+    /// temporal.** *"Remind me to look at 5 documents"* puts a numeral behind
+    /// `at` and names no time at all; read token-wise or frame-wise, it becomes
+    /// 05:00 tomorrow. What separates the two `at`s is the word AFTER the
+    /// numeral: a clock is followed by nothing, by punctuation, or by a
+    /// continuation word — never by the noun it was counting. So a **bare
+    /// integer** (no colon, no meridiem) is a clock only when its next token is
+    /// absent, punctuation-only, or in `clockContinuations`. A token that
+    /// carries a colon or a meridiem of its own — `at 4:30`, `at 5pm` — is
+    /// unambiguous already and is not put through that test.
+    private nonisolated static func bareClockInAtFrame(_ text: String) -> DateComponents? {
+        let tokens = text.split(whereSeparator: \.isWhitespace).map { token -> String in
+            var trimmed = String(token)
+            while let last = trimmed.last, ".,;!?\"')".contains(last) { trimmed.removeLast() }
+            return trimmed
+        }
+        let meridiems: Set<String> = ["am", "pm", "a.m", "p.m", "a.m.", "p.m."]
+
+        for (index, token) in tokens.enumerated() {
+            let lowered = token.lowercased()
+            var clockToken: String?
+            var meridiemIndex = index + 2
+            if lowered == "at" || lowered == "@" {
+                clockToken = index + 1 < tokens.count ? tokens[index + 1] : nil
+            } else if lowered.hasPrefix("@"), lowered.count > 1 {
+                clockToken = String(token.dropFirst())
+                meridiemIndex = index + 1
+            }
+            guard var candidate = clockToken, !candidate.isEmpty else { continue }
+            // `meridiemIndex` is the token immediately after the clock token,
+            // for both the `at 4 pm` and the attached `@4 pm` frames.
+            let following = meridiemIndex < tokens.count
+                ? tokens[meridiemIndex].lowercased()
+                : ""
+            if meridiems.contains(following) {
+                candidate += tokens[meridiemIndex]
+            }
+            if isBareIntegerToken(candidate) {
+                // Absent, punctuation-only (the trimmer leaves those empty), or
+                // a continuation word. Anything else is a counted noun and the
+                // `at` was not temporal.
+                guard following.isEmpty || clockContinuations.contains(following) else { continue }
+            }
+            if let clock = parseBareClock(candidate) { return clock }
+        }
+        return nil
+    }
+
+    /// Words that may legitimately follow a bare hour — meridiems, the two
+    /// spellings of `o'clock`, and the connectives a sentence puts after a time
+    /// (*"at 5 to call mom"*, *"at 5 and then…"*, *"at 5 tomorrow"*).
+    ///
+    /// Deliberately a closed list rather than a part-of-speech test: the cost
+    /// of a missing word is a `nil` and a dateless card, which is decision 5's
+    /// own outcome, while the cost of admitting one too many is a reminder at a
+    /// time nobody asked for.
+    private nonisolated static let clockContinuations: Set<String> = [
+        "am", "pm", "o'clock", "oclock", "to", "that", "for", "and", "then",
+        "about", "tomorrow", "today", "tonight", "this", "next", "on", "in"
+    ]
+
+    /// A token that is nothing but digits — the ambiguous form, and the only
+    /// one the continuation test applies to. A colon or a meridiem makes the
+    /// token a clock on its own evidence.
+    private nonisolated static func isBareIntegerToken(_ token: String) -> Bool {
+        let lowered = token.lowercased().replacingOccurrences(of: ".", with: "")
+        guard !lowered.isEmpty, !lowered.contains(":"),
+              !lowered.hasSuffix("am"), !lowered.hasSuffix("pm") else { return false }
+        return lowered.allSatisfy(\.isNumber)
+    }
+
+    /// Every future due date the user's own words name, **earliest first**.
+    ///
+    /// `NSDataDetector` over the whole message first; the bare-clock parser
+    /// over an `at <clock>` frame **only when the detector matched nothing at
+    /// all**. Every element is strictly after `now`.
+    ///
+    /// **"Nothing at all", not "nothing usable", and the difference is a wrong
+    /// value rather than a missing one.** *"Remind me yesterday at 5pm"* gives
+    /// the detector a match — yesterday 17:00 — which is dropped, because a day
+    /// the user named is never silently moved. Gating the second pass on an
+    /// empty candidate list cannot tell that drop apart from a message the
+    /// detector never understood, so the pass then reads the `at 5pm` still
+    /// sitting in the text and answers TODAY at 17:00: a date nobody asked for,
+    /// manufactured out of the user's own past date. A past date the user gave
+    /// means the user gave a date; the honest answer is `nil`.
+    ///
+    /// **Exposed because `detectDue` reduces it, and a reduction whose input
+    /// cannot be seen is a reduction that cannot be tested.** The detector
+    /// returns matches in DOCUMENT order, which is not chronological order —
+    /// *"on Friday at 9am and again tomorrow at 4pm"* would give the wrong
+    /// answer to anything taking `matches.first`.
+    nonisolated static func detectDueCandidates(in userText: String,
+                                                now: Date = Date()) -> [Date] {
+        let text = userText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return [] }
+
+        var candidates: [Date] = []
+        var detectorMatchedSomething = false
+        // A nil detector disables the first pass entirely: no match is ever
+        // recorded, so the message falls to the `at <clock>` second pass and
+        // every word-based phrase ("tomorrow", "Friday") stops resolving.
+        // Degraded, not wrong — and the gate below still reads correctly,
+        // because "the detector matched nothing" is then simply true.
+        if let detector = try? NSDataDetector(
+            types: NSTextCheckingResult.CheckingType.date.rawValue) {
+            let whole = NSRange(text.startIndex..<text.endIndex, in: text)
+            for match in detector.matches(in: text, options: [], range: whole) {
+                // Recorded BEFORE any filtering: the second pass's gate asks
+                // whether the detector saw a date phrase at all, not whether we
+                // kept what it saw.
+                detectorMatchedSomething = true
+                guard let date = match.date else { continue }
+                if date > now { candidates.append(date); continue }
+                // Measured: the detector pins a time-only phrase to TODAY and
+                // hands it back already elapsed — it never rolls forward. So
+                // the next-occurrence rule has to be applied to ITS output too,
+                // and only where the words named no day.
+                guard let range = Range(match.range, in: text),
+                      isClockOnlyPhrase(String(text[range])) else { continue }
+                let clock = Calendar.current.dateComponents([.hour, .minute], from: date)
+                if let rolled = nextStrictlyFutureOccurrence(of: clock, now: now) {
+                    candidates.append(rolled)
+                }
+            }
+        }
+
+        if !detectorMatchedSomething, let clock = bareClockInAtFrame(text),
+           let resolved = nextStrictlyFutureOccurrence(of: clock, now: now) {
+            candidates.append(resolved)
+        }
+
+        return candidates.sorted()
+    }
+
+    /// The date the USER'S OWN WORDS name, or nil.
+    ///
+    /// **Deterministic; no model, and that is structural rather than
+    /// incidental.** This function exists because the on-device brain leaves
+    /// `due` empty on roughly half the turns whose prompt plainly carried a
+    /// date phrase — resolving it with another generation would reinstate the
+    /// failure it fixes.
+    ///
+    /// **The earliest FUTURE date when the message carries two** (Owen's
+    /// ruling), and **nil when the words carry none** — the card stays
+    /// dateless and a default is never invented. Never returns a value
+    /// `<= now`.
+    nonisolated static func detectDue(in userText: String, now: Date = Date()) -> Date? {
+        detectDueCandidates(in: userText, now: now).first
+    }
+
     /// Time-only display form for the card's caution row.
     nonisolated static func timeOnly(_ date: Date) -> String {
         let formatter = DateFormatter()
@@ -382,19 +598,133 @@ struct ReminderCreateTool: Tool {
         let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
         if case .refused(let refusal) = try await relay.started(name, detail: title) { return refusal }
         defer { Task { await relay.completed(name) } }
+        // #340 Task 3: the CURRENT TURN's user message, read from the seam
+        // `LocalChatBackend.beginToolTurn(userText:)` fills. Nil whenever no
+        // turn is in flight — a DEBUG instrument's bare `beginTurn()`, or a
+        // direct unit call — and an empty string then takes today's path
+        // exactly, because `detectDue("")` is nil.
+        let turnUserText = await relay.currentTurnUserText ?? ""
         // An omitted field lands on exactly the path an empty string took,
         // so the create flow is unchanged from the pre-promotion tool.
         return await Self.performCreate(
             rawTitle: title, rawDue: arguments.due ?? "", rawList: arguments.list ?? "",
+            userText: turnUserText,
             relay: relay, confirmations: confirmations
         )
+    }
+
+    /// #340 Task 3 (bar 340-U-C) — the due date AND where it came from, in
+    /// **one** place, so the staged card and the instrument line cannot
+    /// disagree about either.
+    ///
+    /// **The three sources, and why the field is not cosmetic.** 340-H5′
+    /// measured `populated-future` rising 0/40 → 18/40 on the promoted guide
+    /// text; 340-U-C asks it to reach 34/40. A rate that rose because THIS
+    /// fallback is doing the work and a rate that rose because the model got
+    /// lucky are the same number — `source=` is what separates them, which is
+    /// why the bar carries a `source=userText ≥ 12/40` column of its own.
+    ///
+    /// - `model` — the argument the model sent produced the date, either as an
+    ///   explicit timestamp (340-H2: left exactly as sent) or through route
+    ///   (a)'s bare-clock resolution.
+    /// - `userText` — the model sent nothing and the USER's own sentence
+    ///   carried a date.
+    /// - `none` — no date at all; the card stays dateless.
+    ///
+    /// **`candidates` is decision 2's SECOND clause (2026-09-04).** Owen's
+    /// ruling reads *"take the EARLIEST future date and LOG THE CANDIDATE
+    /// COUNT"*, and until this wave nothing consumed `detectDueCandidates`'
+    /// count: the one edge the ruling is about — a message naming TWO dates,
+    /// where the earliest-future rule is CHOOSING rather than passing a single
+    /// answer through — was invisible in every archive. It counts the
+    /// FALLBACK's own candidates and is therefore `0` on the model path by
+    /// construction, because the detector is never reached there. `0` on its
+    /// own is ambiguous between "did not run" and "ran, found nothing";
+    /// `source=` on the same log line settles it.
+    ///
+    /// **The fallback fires ONLY on an EMPTY argument (Owen, 2026-09-04).** A
+    /// non-empty value the app cannot read stays on today's wrong-value path
+    /// rather than being rescued, because `wrong-value` is a bucket the scorer
+    /// must keep able to count: #340-C measured it at zero, and a fallback that
+    /// quietly absorbed unparseable arguments would zero it by construction
+    /// instead of by fact. `rawDue.isEmpty` is deliberately the UNTRIMMED test
+    /// — a whitespace-only argument is an unparseable value, not an absent one.
+    ///
+    /// **Empty `userText` is today's path exactly**, because `detectDue("")` is
+    /// nil — which is what `performCreate`'s defaulted parameter buys: every
+    /// call site that has no turn to speak of (a unit test, a direct call)
+    /// behaves as it did before this landed. The four `createReminder` tools —
+    /// production and its three `#if DEBUG` treatment copies — all DO pass the
+    /// turn's text, deliberately: they share one engine, and letting only
+    /// production read the user's words would have made the engine a second,
+    /// silent delta in every A/B those copies are used for.
+    nonisolated static func resolvedDue(rawDue: String, userText: String, now: Date,
+                                        allowUserTextFallback: Bool = true)
+        -> (date: Date?, source: String, bareClock: String, candidates: Int) {
+        // #340 route (a), ruled by Owen 2026-08-18. The model can produce the
+        // TIME and cannot produce the DAY (340-G: every value it sent was
+        // today at the asked hour, already elapsed), so a bare clock time is
+        // resolved HERE rather than delegated back to the model in prose.
+        // An explicit date is left exactly as sent — 340-H2 — and falls
+        // through to the three guards in `performCreate` unchanged.
+        let explicitDue = DeviceActionParsing.parseDateTime(rawDue)
+        let bareClock = explicitDue == nil ? DeviceActionParsing.parseBareClock(rawDue) : nil
+        let resolvedBareClock = bareClock.flatMap {
+            DeviceActionParsing.resolveBareClock($0, now: now)
+        }
+        let modelDue = explicitDue ?? resolvedBareClock
+        // #340 Task 3: the fallback. `detectDue` is deterministic, model-free,
+        // and never returns an instant at or before `now` (bar 340-U-A), so
+        // the three guards below in `performCreate` run on the result exactly
+        // as they do on a model-supplied value — nothing here is special-cased
+        // out of them.
+        // `allowUserTextFallback` is #340 Task 4's switch and it gates THIS
+        // term and nothing else — the guards, the log line and the card are
+        // untouched by it, so the `armed-nofallback` arm differs from `armed`
+        // in exactly one place. It is on one line with the term on purpose:
+        // `theSwitchGatesTheFallbackTermItself` reads the SOLE line carrying
+        // the detector call, because a body-level pin would be satisfied by
+        // the parameter's own appearance in the signature above.
+        //
+        // #340's final fix wave (2026-09-04) calls the LIST form rather than
+        // the reduction, because Owen's decision 2 has two clauses — "take the
+        // EARLIEST future date and LOG THE CANDIDATE COUNT" — and only the
+        // first was built. `detectDue` is exactly `candidates.first`, so the
+        // answer is unchanged and the count costs no second detector run.
+        //
+        // `modelDue == nil` LEADS the condition so a populated argument
+        // short-circuits before `NSDataDetector` is constructed at all, which
+        // is what `??` was doing implicitly and what keeps today's path
+        // byte-for-byte: that first construction costs ~36 ms in a process
+        // (measured in Task 3's RED, where it hung a test). So the count is 0
+        // on the model path BY CONSTRUCTION — and `source=` on the same log
+        // line is what tells "the fallback did not run" apart from "it ran and
+        // the sentence named nothing".
+        let fallbackCandidates = modelDue == nil && allowUserTextFallback && rawDue.isEmpty ? DeviceActionParsing.detectDueCandidates(in: userText, now: now) : []
+        let parsedDue = modelDue ?? fallbackCandidates.first
+        let source: String
+        if parsedDue == nil {
+            source = "none"
+        } else if modelDue != nil {
+            source = "model"
+        } else {
+            source = "userText"
+        }
+        return (parsedDue, source,
+                resolvedBareClock != nil ? "resolved" : (bareClock != nil ? "unresolvable" : "no"),
+                fallbackCandidates.count)
     }
 
     /// The whole create flow from staged-title to EventKit save, shared
     /// with the #200B guidefix copy so a treatment cell's ONLY delta is
     /// text — structural-identity discipline: two structs, one engine.
+    ///
+    /// `userText` is the CURRENT TURN's user message, threaded in from
+    /// `ToolEventRelay.currentTurnUserText` (#340 Task 2's seam). It is read
+    /// only when the model's `due` argument is empty — see `resolvedDue`.
     nonisolated static func performCreate(
         rawTitle: String, rawDue: String, rawList: String,
+        userText: String = "",
         relay: ToolEventRelay,
         confirmations: ToolConfirmationCenter,
         now: Date = Date()
@@ -402,26 +732,41 @@ struct ReminderCreateTool: Tool {
         let title = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return "No reminder title was given — nothing staged." }
 
-        // #340 route (a), ruled by Owen 2026-08-18. The model can produce the
-        // TIME and cannot produce the DAY (340-G: every value it sent was
-        // today at the asked hour, already elapsed), so a bare clock time is
-        // resolved HERE rather than delegated back to the model in prose.
-        // An explicit date is left exactly as sent — 340-H2 — and falls
-        // through to the three guards below unchanged.
-        let explicitDue = DeviceActionParsing.parseDateTime(rawDue)
-        let bareClock = explicitDue == nil ? DeviceActionParsing.parseBareClock(rawDue) : nil
-        let resolvedBareClock = bareClock.flatMap {
-            DeviceActionParsing.resolveBareClock($0, now: now)
-        }
-        let parsedDue = explicitDue ?? resolvedBareClock
+        // #340 Task 4 (bar 340-U-D): the ONE place the measurement switch is
+        // consulted, in the ONE engine. The `armed-nofallback` cell runs this
+        // same function with the fallback term switched off — no fifth
+        // `ReminderCreateTool…` copy, because a copy would have had to fork
+        // `performCreate` itself, which is exactly what "two structs, one
+        // engine" exists to prevent. Release cannot reach the flag: the
+        // declaration and this read are both inside `#if DEBUG`, and
+        // `everyMentionOfTheSwitchSitsInsideADebugRegion` reads the whole tree
+        // to prove no third mention escaped one.
+        #if DEBUG
+        let allowUserTextFallback = !(await relay.disableUserTextDueFallback)
+        #else
+        let allowUserTextFallback = true
+        #endif
+        let resolution = Self.resolvedDue(rawDue: rawDue, userText: userText, now: now,
+                                          allowUserTextFallback: allowUserTextFallback)
+        let parsedDue = resolution.date
         // #249 instrument: raw model-supplied due vs the parsed local time.
         // A zone-bearing raw string takes the ISO branch and gets CONVERTED
         // to local — a DST-wrong offset (-06:00 in summer Chicago) lands the
         // card an hour off what the user said, indistinguishable at the UI
         // from the model resolving the hour wrong. This line is the
         // discriminator.
+        //
+        // ⛔ NOTHING MAY BE APPENDED AFTER `parsed=`. `score-due-omission.py`'s
+        // `parsed` group runs greedily to end-of-line, so a trailing field is
+        // swallowed into it silently — every `parsed` would read
+        // "nil source=none", which is not "nil", which would zero the
+        // `unreadable` bucket with no test noticing. `bareClock=`, `source=`
+        // and `candidates=` all sit ahead of it for that reason, and
+        // `theInstrumentLineCarriesSourceAheadOfParsed` fails if that ever
+        // stops being true — it pins the whole chain, not just one field,
+        // because the hazard is positional and applies to every field added.
         if TalariaLog.isVerbose {
-            TalariaLog.logger.notice("createReminder due raw=\"\(rawDue, privacy: .public)\" bareClock=\(resolvedBareClock != nil ? "resolved" : (bareClock != nil ? "unresolvable" : "no"), privacy: .public) parsed=\(parsedDue.map { DeviceActionParsing.displayDate($0) } ?? "nil", privacy: .public)")
+            TalariaLog.logger.notice("createReminder due raw=\"\(rawDue, privacy: .public)\" bareClock=\(resolution.bareClock, privacy: .public) source=\(resolution.source, privacy: .public) candidates=\(resolution.candidates, privacy: .public) parsed=\(parsedDue.map { DeviceActionParsing.displayDate($0) } ?? "nil", privacy: .public)")
         }
         // #249 guard 1: a due already in the past is never what the user
         // meant — two of the three observed cards were hours stale at
@@ -695,8 +1040,14 @@ struct ReminderCreateToolRequiredFields: Tool {
         let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
         if case .refused(let refusal) = try await relay.started(name, detail: title) { return refusal }
         defer { Task { await relay.completed(name) } }
+        // #340 Task 3: two structs, ONE engine — see `performCreate`. Passing
+        // the turn text here keeps this copy's only delta from production the
+        // model-facing one it was built to measure (the schema optionality);
+        // omitting it would have made the engine a second, silent delta.
+        let turnUserText = await relay.currentTurnUserText ?? ""
         return await ReminderCreateTool.performCreate(
             rawTitle: title, rawDue: arguments.due, rawList: arguments.list,
+            userText: turnUserText,
             relay: relay, confirmations: confirmations
         )
     }
@@ -759,8 +1110,11 @@ struct ReminderCreateToolGuidefix: Tool {
         let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
         if case .refused(let refusal) = try await relay.started(name, detail: title) { return refusal }
         defer { Task { await relay.completed(name) } }
+        // #340 Task 3: same engine as production — see `ReminderCreateTool.call`.
+        let turnUserText = await relay.currentTurnUserText ?? ""
         return await ReminderCreateTool.performCreate(
             rawTitle: title, rawDue: arguments.due, rawList: arguments.list,
+            userText: turnUserText,
             relay: relay, confirmations: confirmations
         )
     }
@@ -831,8 +1185,11 @@ struct ReminderCreateToolDateguide: Tool {
         let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
         if case .refused(let refusal) = try await relay.started(name, detail: title) { return refusal }
         defer { Task { await relay.completed(name) } }
+        // #340 Task 3: same engine as production — see `ReminderCreateTool.call`.
+        let turnUserText = await relay.currentTurnUserText ?? ""
         return await ReminderCreateTool.performCreate(
             rawTitle: title, rawDue: arguments.due ?? "", rawList: arguments.list ?? "",
+            userText: turnUserText,
             relay: relay, confirmations: confirmations
         )
     }
