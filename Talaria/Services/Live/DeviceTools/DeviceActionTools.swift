@@ -287,6 +287,13 @@ enum DeviceActionParsing {
     /// A whole-string match against this pattern is the derivation: it can only
     /// succeed when the substring carries no weekday, month, day word or date
     /// separator, because any of those leave characters the pattern cannot eat.
+    ///
+    /// **If this `try?` ever yields nil the roll-forward is disabled outright**
+    /// — `isClockOnlyPhrase` answers false for everything, so every past match
+    /// is dropped and every clock already behind `now` returns no due at all.
+    /// That is the fail-safe direction (a dateless card, never a wrong date),
+    /// and the pattern is a literal, so nil here means a Foundation change
+    /// rather than input.
     private nonisolated static let clockOnlyMatch = try? NSRegularExpression(
         pattern: #"^(?:at\s+|@\s*)?(?:[01]?\d|2[0-3])(?::[0-5]\d)?(?:\s*[ap]\.?m\.?)?$"#,
         options: [.caseInsensitive])
@@ -297,7 +304,7 @@ enum DeviceActionParsing {
     /// `September 9 at 3pm` name a DAY, and silently moving a day the user
     /// gave is the worse defect `parseBareClock`'s docstring already refuses
     /// — an explicit past date returns no due rather than a different one.
-    nonisolated static func isClockOnlyPhrase(_ substring: String) -> Bool {
+    private nonisolated static func isClockOnlyPhrase(_ substring: String) -> Bool {
         let trimmed = substring.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let regex = clockOnlyMatch else { return false }
         let range = NSRange(trimmed.startIndex..<trimmed.endIndex, in: trimmed)
@@ -332,6 +339,17 @@ enum DeviceActionParsing {
     /// A meridiem written as its own token is folded back in, so `at 4 pm`
     /// reaches `parseBareClock` as `"4pm"` and lands on 16:00 through this path
     /// exactly as it does through the detector's.
+    ///
+    /// **And the frame alone is not enough, because `at` is not always
+    /// temporal.** *"Remind me to look at 5 documents"* puts a numeral behind
+    /// `at` and names no time at all; read token-wise or frame-wise, it becomes
+    /// 05:00 tomorrow. What separates the two `at`s is the word AFTER the
+    /// numeral: a clock is followed by nothing, by punctuation, or by a
+    /// continuation word — never by the noun it was counting. So a **bare
+    /// integer** (no colon, no meridiem) is a clock only when its next token is
+    /// absent, punctuation-only, or in `clockContinuations`. A token that
+    /// carries a colon or a meridiem of its own — `at 4:30`, `at 5pm` — is
+    /// unambiguous already and is not put through that test.
     private nonisolated static func bareClockInAtFrame(_ text: String) -> DateComponents? {
         let tokens = text.split(whereSeparator: \.isWhitespace).map { token -> String in
             var trimmed = String(token)
@@ -351,20 +369,63 @@ enum DeviceActionParsing {
                 meridiemIndex = index + 1
             }
             guard var candidate = clockToken, !candidate.isEmpty else { continue }
-            if meridiemIndex < tokens.count,
-               meridiems.contains(tokens[meridiemIndex].lowercased()) {
+            // `meridiemIndex` is the token immediately after the clock token,
+            // for both the `at 4 pm` and the attached `@4 pm` frames.
+            let following = meridiemIndex < tokens.count
+                ? tokens[meridiemIndex].lowercased()
+                : ""
+            if meridiems.contains(following) {
                 candidate += tokens[meridiemIndex]
+            }
+            if isBareIntegerToken(candidate) {
+                // Absent, punctuation-only (the trimmer leaves those empty), or
+                // a continuation word. Anything else is a counted noun and the
+                // `at` was not temporal.
+                guard following.isEmpty || clockContinuations.contains(following) else { continue }
             }
             if let clock = parseBareClock(candidate) { return clock }
         }
         return nil
     }
 
+    /// Words that may legitimately follow a bare hour — meridiems, the two
+    /// spellings of `o'clock`, and the connectives a sentence puts after a time
+    /// (*"at 5 to call mom"*, *"at 5 and then…"*, *"at 5 tomorrow"*).
+    ///
+    /// Deliberately a closed list rather than a part-of-speech test: the cost
+    /// of a missing word is a `nil` and a dateless card, which is decision 5's
+    /// own outcome, while the cost of admitting one too many is a reminder at a
+    /// time nobody asked for.
+    private nonisolated static let clockContinuations: Set<String> = [
+        "am", "pm", "o'clock", "oclock", "to", "that", "for", "and", "then",
+        "about", "tomorrow", "today", "tonight", "this", "next", "on", "in"
+    ]
+
+    /// A token that is nothing but digits — the ambiguous form, and the only
+    /// one the continuation test applies to. A colon or a meridiem makes the
+    /// token a clock on its own evidence.
+    private nonisolated static func isBareIntegerToken(_ token: String) -> Bool {
+        let lowered = token.lowercased().replacingOccurrences(of: ".", with: "")
+        guard !lowered.isEmpty, !lowered.contains(":"),
+              !lowered.hasSuffix("am"), !lowered.hasSuffix("pm") else { return false }
+        return lowered.allSatisfy(\.isNumber)
+    }
+
     /// Every future due date the user's own words name, **earliest first**.
     ///
     /// `NSDataDetector` over the whole message first; the bare-clock parser
-    /// over an `at <clock>` frame only when the detector produced nothing
-    /// usable. Every element is strictly after `now`.
+    /// over an `at <clock>` frame **only when the detector matched nothing at
+    /// all**. Every element is strictly after `now`.
+    ///
+    /// **"Nothing at all", not "nothing usable", and the difference is a wrong
+    /// value rather than a missing one.** *"Remind me yesterday at 5pm"* gives
+    /// the detector a match — yesterday 17:00 — which is dropped, because a day
+    /// the user named is never silently moved. Gating the second pass on an
+    /// empty candidate list cannot tell that drop apart from a message the
+    /// detector never understood, so the pass then reads the `at 5pm` still
+    /// sitting in the text and answers TODAY at 17:00: a date nobody asked for,
+    /// manufactured out of the user's own past date. A past date the user gave
+    /// means the user gave a date; the honest answer is `nil`.
     ///
     /// **Exposed because `detectDue` reduces it, and a reduction whose input
     /// cannot be seen is a reduction that cannot be tested.** The detector
@@ -377,10 +438,20 @@ enum DeviceActionParsing {
         guard !text.isEmpty else { return [] }
 
         var candidates: [Date] = []
+        var detectorMatchedSomething = false
+        // A nil detector disables the first pass entirely: no match is ever
+        // recorded, so the message falls to the `at <clock>` second pass and
+        // every word-based phrase ("tomorrow", "Friday") stops resolving.
+        // Degraded, not wrong — and the gate below still reads correctly,
+        // because "the detector matched nothing" is then simply true.
         if let detector = try? NSDataDetector(
             types: NSTextCheckingResult.CheckingType.date.rawValue) {
             let whole = NSRange(text.startIndex..<text.endIndex, in: text)
             for match in detector.matches(in: text, options: [], range: whole) {
+                // Recorded BEFORE any filtering: the second pass's gate asks
+                // whether the detector saw a date phrase at all, not whether we
+                // kept what it saw.
+                detectorMatchedSomething = true
                 guard let date = match.date else { continue }
                 if date > now { candidates.append(date); continue }
                 // Measured: the detector pins a time-only phrase to TODAY and
@@ -396,7 +467,7 @@ enum DeviceActionParsing {
             }
         }
 
-        if candidates.isEmpty, let clock = bareClockInAtFrame(text),
+        if !detectorMatchedSomething, let clock = bareClockInAtFrame(text),
            let resolved = nextStrictlyFutureOccurrence(of: clock, now: now) {
             candidates.append(resolved)
         }

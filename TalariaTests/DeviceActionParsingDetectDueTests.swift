@@ -321,6 +321,42 @@ struct DeviceActionParsingDetectDueTests {
         #expect(due > now)
     }
 
+    /// **A numeral behind a NON-temporal `at` is not a clock.** *"look at 5
+    /// documents"* names five documents, and there is no hour in the sentence
+    /// at all — `NSDataDetector` agrees and returns no match, so nothing but
+    /// the second pass can invent one here.
+    ///
+    /// The frame alone cannot tell the two `at`s apart, because both put a
+    /// numeral immediately behind the word. What separates them is the token
+    /// AFTER the numeral: a clock is followed by nothing, by punctuation, or
+    /// by a continuation word (`to`, `and`, `tomorrow`, a meridiem…), never by
+    /// the noun it was counting. A bare integer whose next token is outside
+    /// that allowlist is not read as a time.
+    @Test func aNumeralAfterANonTemporalAtIsNotAClockTime() {
+        let now = todayAt(9, 15)
+        #expect(DeviceActionParsing.detectDue(in: "Remind me to look at 5 documents",
+                                              now: now) == nil)
+    }
+
+    /// **The twin that keeps the allowlist from swallowing real clocks**, and
+    /// the reason it is not folded into the row above: a rule that says "no"
+    /// to everything satisfies that row perfectly.
+    ///
+    /// Both texts take `parseBareClock`'s existing reading of a marker-less
+    /// numeral — a **24-hour clock**, so `5` is 05:00, not 17:00 — and
+    /// `resolveBareClock` then takes the next occurrence, which at 09:15 is
+    /// tomorrow. That reading is not this task's to change; the row pins it so
+    /// the assertion is the invariant rather than a guess.
+    @Test(arguments: ["Remind me at 5 to call mom", "Remind me at 5"])
+    func aBareHourFollowedByAContinuationOrNothingStillResolves(text: String) throws {
+        let now = todayAt(9, 15)
+        let due = try #require(DeviceActionParsing.detectDue(in: text, now: now),
+                               "\(text) produced no due date")
+        #expect(hourMinute(due) == (5, 0))
+        #expect(dayOffset(from: now, to: due) == 1)
+        #expect(due > now)
+    }
+
     // MARK: - The words carry no date
 
     @Test func aMessageWithNoDatePhraseStaysDateless() {
@@ -380,6 +416,47 @@ struct DeviceActionParsingDetectDueTests {
     @Test func aSameDayWordAlreadyElapsedStaysDateless() {
         let now = todayAt(22, 0)
         #expect(DeviceActionParsing.detectDue(in: "remind me tonight to take the bins out",
+                                              now: now) == nil)
+    }
+
+    // MARK: - Past phrases that ALSO carry an `at <clock>` frame
+    //
+    // The two rows above are the same claim without the frame, and they pass on
+    // an implementation that gets this wrong: the ISO row only because
+    // `parseBareClock` rejects the `-` in its token, the `tonight` row only
+    // because its text has no `at` in it at all. Neither can see a rejected
+    // dated match falling through to the second pass. These three can — each
+    // carries a bare clock the second pass would happily read, and the past
+    // DATE sitting in front of it is the whole question.
+
+    /// The user named yesterday. The detector agrees (`yesterday at 5pm` →
+    /// yesterday 17:00) and the match is dropped as past, because a day the
+    /// user gave is never silently moved. **What must not happen next is the
+    /// second pass reading `at 5pm` and answering TODAY at 17:00** — a date
+    /// nobody asked for, which is this lane's founding wrong-value shape.
+    @Test func aPastRelativeDayWithAClockFrameStaysDateless() {
+        let now = todayAt(9, 15)
+        #expect(DeviceActionParsing.detectDue(in: "Remind me yesterday at 5pm to file the report",
+                                              now: now) == nil)
+    }
+
+    /// Same shape with an explicit calendar date, derived from `now` so the row
+    /// cannot expire. Measured: the detector reads a bare `MMMM d` two days back
+    /// as THIS year's — a past instant — and it is dropped; unsuppressed, the
+    /// second pass would answer 09:00 tomorrow off the `at 9am`.
+    @Test func aPastCalendarDateWithAClockFrameStaysDateless() {
+        let now = todayAt(9, 15)
+        let text = "Remind me on \(monthDay(days(-2, from: now))) at 9am to file the report"
+        #expect(DeviceActionParsing.detectDue(in: text, now: now) == nil)
+    }
+
+    /// A same-day WORD carrying its own clock, asked after that clock has gone.
+    /// `tonight at 4pm` means today, and today's 16:00 is six hours behind a
+    /// 22:00 `now`. The word names a day, so the match may not roll — and the
+    /// bare `4pm` inside it may not be re-read by the second pass either.
+    @Test func aSameDayWordWithAClockFrameAlreadyElapsedStaysDateless() {
+        let now = todayAt(22, 0)
+        #expect(DeviceActionParsing.detectDue(in: "Remind me tonight at 4pm to call mom",
                                               now: now) == nil)
     }
 
