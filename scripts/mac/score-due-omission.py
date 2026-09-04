@@ -490,7 +490,29 @@ def report(calls: list[Call]) -> int:
               " which is an ARGUMENT rate")
 
     if populated:
-        print("\nPopulated arguments — a usable due date reached the card:")
+        # 🔴 THE HEADING IS THE DENOMINATOR, and for one commit it was not.
+        #
+        # `populated` is `not omitted and not unreadable and not past_at_call`
+        # — an ARGUMENT-denominated set, exactly as the comment above says this
+        # view stays. A fallback-rescued row has `raw=""`, so it is `omitted`,
+        # so it is NOT in this list: the heading "a usable due date reached the
+        # card" named a set this list cannot contain, and its own `source=`
+        # column can print `model` or `legacy` but never `userText` — a reader
+        # who trusted the heading would have read the absence of `userText` as
+        # the fallback never firing.
+        #
+        # Fixed by making the HEADING truthful rather than by moving the rows
+        # in: the rows are what this view is for. Its whole purpose is
+        # comparability with every pre-340-H4 measurement, and widening the set
+        # would redefine the number those measurements are written in — the
+        # same argument that keeps `omitted` itself unchanged. The
+        # CARD-denominated view already exists, per cell, and is named here so
+        # the operator is sent to it instead of misreading this one.
+        print("\nPopulated arguments — the model IS capable of this field:")
+        print("   (an ARGUMENT rate. Fallback-rescued rows are NOT listed here"
+              " — their argument was empty, so they sit under OMITTED above."
+              " For the CARD-denominated view read `populated-future by SOURCE`"
+              " in the per-cell section, which needs `battery: BEGIN` lines.)")
         for c in populated:
             print(f"  {c.timestamp}  raw={c.raw!r}  source={c.source_label}  parsed={c.parsed}")
 
@@ -622,6 +644,38 @@ def self_test() -> int:
     assert bucket(sourced[0]) == "populated-future", bucket(sourced[0])
     assert bucket(sourced[1]) == "populated-future", bucket(sourced[1])
     assert bucket(sourced[2]) == "omitted", bucket(sourced[2])
+
+    # ---- The per-CALL view's HEADING must name its own denominator. ----
+    #
+    # This block exists because the heading was WRONG for one commit: it read
+    # "a usable due date reached the card" over a list built from
+    # `not omitted and not unreadable and not past_at_call`, which excludes
+    # every fallback-rescued row by construction. The three fixtures above are
+    # exactly the discriminating input — one model-filled row (listed), one
+    # rescued row and one dateless row (both omitted, neither listed) — so a
+    # heading that claims the CARD is asserted false against output where the
+    # card WAS dated and the row is absent.
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        per_call_code = report(sourced)
+    per_call_out = buf.getvalue()
+    assert per_call_code == 0, per_call_code
+    assert "Populated arguments — the model IS capable of this field:" in per_call_out, \
+        per_call_out
+    assert "a usable due date reached the card" not in per_call_out, \
+        "the heading claims the CARD over an ARGUMENT-denominated list"
+    assert "an ARGUMENT rate" in per_call_out, per_call_out
+    # …and it must SEND the reader to the card-denominated view rather than
+    # leaving them to infer that one exists.
+    assert "populated-future by SOURCE" in per_call_out, per_call_out
+    # The listed row is the model-filled one; the rescued row is counted on the
+    # RESCUED line and is deliberately not in the list.
+    assert "source=model" in per_call_out, per_call_out
+    assert "RESCUED from the user's words: 1/3" in per_call_out, per_call_out
+    assert "raw='16:30'" in per_call_out, per_call_out
+    assert "raw=''" not in per_call_out, \
+        "an empty-argument row is listed under a heading that excludes it"
+
     # And the no-data path must NOT be a success. This PRINTS the guard's own
     # message — that output below is the branch being exercised, not a failure.
     print("--- exercising the no-data guard; the block below is EXPECTED ---")
