@@ -422,11 +422,29 @@ def report_by_cell(by_cell: "dict[str, list]") -> int:
         print(f"  UNION omitted+wrong-value: {union}/{n}  ({100 * union / n:.1f}%)"
               "   <- 340-H5's non-decomposable bar")
         print(f"    of which unreadable={unreadable}, already-past={past}")
-        if by_source:
-            breakdown = ", ".join(f"{name}={by_source[name]}/{n}"
-                                  for name in sorted(by_source))
+        # #340 bar 340-U-D: a ZERO IS A MEASUREMENT AND MUST BE PRINTED AS ONE.
+        #
+        # `by_source` counts observed rows, so an arm whose fallback never
+        # fired printed no `userText` token at all — and an absent token reads
+        # as "the scorer lost the column", not as "the fallback produced
+        # nothing". Those are exactly the two readings this arm exists to tell
+        # apart: `armed-nofallback`'s whole contribution is a userText count of
+        # ZERO, denominated on trials. So both LIVE sources are always printed.
+        #
+        # `legacy` is deliberately NOT given a zero, and never joins the live
+        # pair: an archive that predates the `source=` field carries no opinion
+        # about where its dates came from, so `userText=0/N` on such a run would
+        # assert something the log cannot support — the same rule that makes the
+        # label `legacy` rather than `none` in the first place.
+        live_sources = ("model", "userText")
+        if "legacy" in by_source:
+            names = sorted(by_source)
         else:
-            breakdown = "(no populated-future trials)"
+            names = sorted(set(by_source) | set(live_sources))
+        breakdown = ", ".join(f"{name}={by_source.get(name, 0)}/{n}"
+                              for name in names)
+        if not by_source:
+            breakdown += "  (no populated-future trials)"
         print(f"  populated-future by SOURCE: {breakdown}"
               "   <- 340-U-C's column")
         # 340-C's founding measurement, kept visible now that the buckets are
@@ -798,8 +816,18 @@ def self_test() -> int:
     # already satisfied by the treatment arm's line alone. A scorer that lost
     # the nofallback arm's column entirely would pass them. So the output is
     # split into per-cell sections and the arms are read separately — the
-    # nofallback arm must show NO userText at all, which is the number
-    # 340-U-D's contrast is denominated against.
+    # nofallback arm must show `userText=0/2`, which is the number 340-U-D's
+    # contrast is denominated against.
+    #
+    # **A ZERO, NOT AN ABSENCE (fix round 1).** `by_source` counts observed
+    # rows, so the arm used to print no `userText` token at all — and the
+    # assertion here was `"userText" not in nofallback`, which passes equally
+    # when the column is measured at zero and when the scorer has lost the
+    # column. Those are the two things the operator most needs told apart, so
+    # the arm now prints an explicit `userText=0/N` and this asserts that
+    # literal, SCOPED to the `by SOURCE:` line: an unscoped scan over the whole
+    # section would also be satisfied by the string turning up in a heading, a
+    # warning, or any line added later.
     sections: "dict[str, list[str]]" = {}
     current = None
     for line in sourced_out.splitlines():
@@ -811,10 +839,32 @@ def self_test() -> int:
     assert set(sections) == {"armed", "armed-nofallback"}, sorted(sections)
     nofallback = "\n".join(sections["armed-nofallback"])
     treatment = "\n".join(sections["armed"])
-    assert "populated-future by SOURCE: model=1/2" in nofallback, nofallback
-    assert "userText" not in nofallback, \
-        f"the nofallback arm reported a userText source: {nofallback}"
+
+    def source_line(section: "list[str]") -> str:
+        matches = [ln for ln in section if "by SOURCE:" in ln]
+        assert len(matches) == 1, f"expected one `by SOURCE:` line, got {matches}"
+        return matches[0]
+
+    nofallback_sources = source_line(sections["armed-nofallback"])
+    assert "populated-future by SOURCE: model=1/2, userText=0/2" in nofallback_sources, \
+        nofallback_sources
+    assert "userText=0/" in nofallback_sources, \
+        f"the nofallback arm printed userText as an ABSENCE, not a zero: {nofallback_sources}"
     assert "populated-future by SOURCE: model=1/2, userText=1/2" in treatment, treatment
+    # The zero is the arm's ONLY userText mention — a stray one elsewhere in the
+    # section would leave a reader unsure which number the contrast is against.
+    assert nofallback.count("userText") == 1, nofallback
+    # And a cell with NO populated-future trials at all still prints both live
+    # zeros, because that is the arm 340-U-D most hopes to see: a fallback that
+    # rescued nothing produces exactly this cell, and "(no populated-future
+    # trials)" alone would leave the operator with no `userText=0/N` to read.
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        dry_code = report_by_cell({"armed": by_cell["armed"][:2]})
+    dry = buf.getvalue()
+    assert dry_code == 0, dry_code
+    assert ("populated-future by SOURCE: model=0/2, userText=0/2"
+            "  (no populated-future trials)") in dry, dry
     # 340-C's argument rate stays visible even though the card is now what the
     # buckets count — one omitted argument per arm, one of them rescued.
     assert sourced_out.count("model sent an EMPTY argument: 1/2") == 2, sourced_out
@@ -882,7 +932,11 @@ def self_test() -> int:
     print("#200V warm-up trial reported as discarded rather than as an arm, and")
     print("#340 Task 3's source= column in BOTH line shapes: legacy archives")
     print("score byte-identically and report `legacy`, current ones report")
-    print("model / userText / none with parsed= proven un-swallowed.")
+    print("model / userText / none with parsed= proven un-swallowed. Plus the")
+    print("per-CALL heading pinned as ARGUMENT-denominated (rescued rows absent,")
+    print("the reader sent to the card-denominated view), and 340-U-D's per-cell")
+    print("split: the two arms read separately, the nofallback arm's userText")
+    print("printed as an explicit 0/N zero rather than an absent token.")
     return 0
 
 

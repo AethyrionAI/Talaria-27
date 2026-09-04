@@ -1187,6 +1187,19 @@ extension LocalChatBackend {
             emitThermal(cell: cell.rawValue, at: "end")
         }
         ToolEventRelay.batteryTrialTag = nil
+        // #340 bar 340-U-D: the run's teardown clears the measurement switch
+        // too, beside the tag clear, because the relay is shared with
+        // production chat and with every later instrument in the launch.
+        //
+        // `beginTurn` already clears it at every turn boundary and that is the
+        // half that makes the leak unreachable. This is the other half: the
+        // WARM-UP trial opens no turn at all (it sets `batteryTrialTag` and
+        // calls no `beginTurn`), and a run that dies mid-cell never reaches
+        // another boundary — either way the relay would be left holding
+        // whatever the last trial wrote, which for the default cell list is
+        // `true`. A teardown split across two places is the shape that gets
+        // half-forgotten, so it sits here.
+        toolRelay?.disableUserTextDueFallback = false
         let reapSummary = await reapBatteryArtifacts(
             perTrialReminders: perTrialReminders,
             perTrialEvents: perTrialEvents,

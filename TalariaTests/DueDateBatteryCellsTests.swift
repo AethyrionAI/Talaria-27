@@ -104,6 +104,69 @@ struct DueDateBatteryCellsTests {
         #expect(ToolEventRelay().disableUserTextDueFallback == false)
     }
 
+    /// **The turn boundary CLEARS the switch — fix round 1's row (a).**
+    ///
+    /// `ToolEventRelay` is one instance per `AppContainer`, shared by
+    /// production chat and every instrument in the launch. The battery writes
+    /// the switch per trial from the cell, which stops it leaking between
+    /// CELLS — but `.armedNofallback` is the last default cell, so without a
+    /// reset the terminal state of every default due-date run was `true` and
+    /// stayed `true` for the rest of the process: the next instrument created
+    /// its reminders with the fix off, and a hand check of the fallback in
+    /// chat read as a product regression.
+    ///
+    /// A default of `false` on a FRESH relay never saw that, which is why
+    /// `theFallbackSwitchDefaultsToOff` passed throughout. The switch is
+    /// per-turn state exactly like `currentTurnUserText`, so it clears where
+    /// that clears — and the bare `beginTurn()` is the form every other
+    /// instrument and every production turn makes.
+    @Test func aTurnBoundaryClearsTheFallbackSwitch() {
+        let relay = ToolEventRelay()
+
+        relay.disableUserTextDueFallback = true
+        relay.beginTurn()
+        #expect(relay.disableUserTextDueFallback == false,
+                "a bare beginTurn() left the measurement switch set — it leaks to every later turn in the launch")
+
+        relay.disableUserTextDueFallback = true
+        relay.beginTurn(userText: "remind me to call mom tomorrow at 4pm")
+        #expect(relay.disableUserTextDueFallback == false,
+                "the production turn form left the switch set")
+    }
+
+    /// **The within-run isolation this fix must not break.**
+    ///
+    /// The battery's per-trial write happens AFTER `beginTurn`, so the reset
+    /// above cannot take the `armed-nofallback` cell's own arming away from
+    /// it — and the `armed` cell's next trial still resolves the date. This
+    /// row drives the two writes in production's order, on ONE relay, and
+    /// asserts both halves; reorder the pair and it reds.
+    @Test func anArmedTrialAfterANofallbackTrialStillStagesTheDate() async {
+        let now = todayAt(9, 15)
+        let prompt = "Remind me to call mom tomorrow at 4pm"
+        let relay = ToolEventRelay()
+
+        // Production's order, twice: open the turn, then arm from the cell.
+        // (`StagedReminderProbe` hands `performCreate` the same sentence
+        // directly, which is what the belt's `currentTurnUserText` carries on
+        // a real trial.)
+        func trial(_ cell: LocalChatBackend.ActionBatteryCell) async -> String {
+            relay.beginTurn(userText: prompt)
+            relay.disableUserTextDueFallback = (cell == .armedNofallback)
+            let due = await StagedReminderProbe.staged(
+                rawDue: "", userText: prompt, now: now, relay: relay).due
+            return due ?? "<nil>"
+        }
+
+        let first = await trial(.armedNofallback)
+        let second = await trial(.armed)
+
+        #expect(first.isEmpty,
+                "the nofallback trial staged \(first) — its own arming was lost to the turn-boundary reset")
+        #expect(second == DeviceActionParsing.displayDate(day(1, from: now, at: 16, 0)),
+                "the armed trial after a nofallback trial did not resolve the date — got \(second)")
+    }
+
     /// **The arm, through the card.** Same empty argument, same date-bearing
     /// sentence, same `now` as the control below — and the user is shown a
     /// DATELESS card, because the fallback did not run.
@@ -377,13 +440,18 @@ struct DueDateNofallbackWitnessTests {
     /// derived from `cell` has no "clear" step to forget: every non-nofallback
     /// trial writes `false` as a side effect of writing anything at all.
     ///
-    /// Pinned as the SOLE mention in the file, which is what makes the pair
-    /// shape a failure rather than an alternative.
+    /// Pinned as the SOLE assignment-from-the-cell in the file, which is what
+    /// makes the pair shape a failure rather than an alternative. (The needle
+    /// carries `= (cell` on purpose: fix round 1 added a SECOND mention to
+    /// this file — the run-end clear pinned by
+    /// `theRunEndClearsTheSwitchBesideTheTrialTagClear` — so a bare
+    /// `disableUserTextDueFallback` needle would now find two lines and this
+    /// pin would fail for a reason unrelated to its claim.)
     @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
                    "reads the repo's own sources — simulator only"))
     func theBatteryArmsTheSwitchFromTheCellEveryTrial() throws {
         let line = try RepoSourceWitness.soleLine(
-            containing: "disableUserTextDueFallback",
+            containing: "disableUserTextDueFallback = (cell",
             in: RepoSourceWitness.batteryPath)
         #expect(line.contains("toolRelay?.disableUserTextDueFallback = (cell == .armedNofallback)"),
                 "the battery must write the switch from the cell on every trial — a conditional set leaks into the next cell's trials; got: \(line)")
@@ -398,6 +466,50 @@ struct DueDateNofallbackWitnessTests {
         let arm = try #require(loop.range(of: "toolRelay?.disableUserTextDueFallback"))
         #expect(begin.lowerBound < arm.lowerBound,
                 "the switch must be armed at the turn boundary, after the turn is opened")
+    }
+
+    /// **The run's END clears the switch too — fix round 1's row (b).**
+    ///
+    /// `beginTurn` clears it at every turn boundary, so nothing that OPENS a
+    /// turn can inherit a previous run's setting. That is the load-bearing
+    /// half. This is the other one: the battery's warm-up trial opens no turn
+    /// (`batteryWarmupTag` is set, `beginTurn` is not called), and a run that
+    /// dies mid-cell never reaches another boundary at all — so the relay is
+    /// left holding whatever the last trial wrote, which for the default cell
+    /// list is `true`. The clear sits beside the `batteryTrialTag` clear
+    /// because that is already the run's teardown line, and a teardown split
+    /// across two places is the shape that gets half-forgotten.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo's own sources — simulator only"))
+    func theRunEndClearsTheSwitchBesideTheTrialTagClear() throws {
+        let loop = try RepoSourceWitness.functionBody(
+            from: "func runActionBattery(", in: RepoSourceWitness.batteryPath)
+        #expect(loop.contains("battery: DONE (#200)"),
+                "the witness read no runActionBattery teardown at all — a vacuous pin")
+
+        let arm = try #require(loop.range(of: "disableUserTextDueFallback = (cell"),
+                               "the per-trial arming line is gone — this pin reads the teardown relative to it")
+        let clear = try #require(
+            loop.range(of: "toolRelay?.disableUserTextDueFallback = false", range: arm.upperBound..<loop.endIndex),
+            "the run ends without clearing the switch — the relay is shared with production chat and every later instrument in the launch")
+        let tag = try #require(
+            loop.range(of: "ToolEventRelay.batteryTrialTag = nil", range: arm.upperBound..<loop.endIndex),
+            "runActionBattery's trial-tag clear is gone — re-point this pin at its successor")
+
+        // Beside it, and after it: the teardown is one place, not two.
+        //
+        // "Beside" is defined as *nothing EXECUTABLE stands between them* —
+        // a comment, however long, still leaves the two clears one block. A
+        // character-distance pin would have measured the comment instead of
+        // the code, and would red the day someone explains the clear better.
+        #expect(tag.upperBound <= clear.lowerBound,
+                "the switch is cleared before the trial tag — keep the teardown in one order so a reader finds both")
+        let intervening = loop[tag.upperBound..<clear.lowerBound]
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && !$0.hasPrefix("//") }
+        #expect(intervening.isEmpty,
+                "the run-end clear drifted away from the trial-tag clear — \(intervening.count) statement(s) now stand between them, starting: \(intervening.first ?? "")")
     }
 
     /// **The cell rides production's belt** — no tool swap, no instructions

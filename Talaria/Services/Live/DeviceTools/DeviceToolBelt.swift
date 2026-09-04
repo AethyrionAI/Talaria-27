@@ -254,10 +254,28 @@ final class ToolEventRelay {
     /// `everyMentionOfTheSwitchSitsInsideADebugRegion` reads every Swift file
     /// under `Talaria/` and fails if any mention escapes a guard.
     ///
-    /// **NOT reset by `beginTurn`, deliberately.** The battery writes it on
-    /// every trial from the cell, so there is no "clear" step to forget and no
-    /// way for one cell's setting to survive into the next cell's trials —
-    /// which is the leak shape #343's governor bug actually was.
+    /// **PER-TURN STATE: `beginTurn` clears it, exactly like
+    /// `currentTurnUserText` above.** This paragraph used to say the opposite —
+    /// that the reset was unnecessary because the battery writes the switch on
+    /// every trial from the cell — and that argument was true but too narrow.
+    /// It covers leaks between CELLS and nothing else. `ToolEventRelay` is ONE
+    /// instance per `AppContainer`, shared by production chat and by every
+    /// other instrument in the launch, and `.armedNofallback` is the LAST
+    /// default due-date cell: so the terminal state of every default run was
+    /// `true`, and it stayed `true` for the rest of the process. A later
+    /// shape/refusal/read-tool run created its reminders with the fix off, and
+    /// a hand check of the fallback in chat read as a product regression.
+    ///
+    /// Clearing it at the turn boundary is what makes the leak unreachable:
+    /// every production turn and every instrument's bare `beginTurn()` closes
+    /// it, and the battery's own per-trial write lands AFTER `beginTurn`, so
+    /// the arming still wins for the trial it was written for. That ordering
+    /// is the load-bearing part and it is pinned
+    /// (`anArmedTrialAfterANofallbackTrialStillStagesTheDate`).
+    ///
+    /// `runActionBattery` clears it again at the run's end, beside the
+    /// `batteryTrialTag` clear — for the warm-up trial, which opens no turn at
+    /// all, and for a run that dies mid-cell.
     var disableUserTextDueFallback = false
     #endif
 
@@ -273,6 +291,15 @@ final class ToolEventRelay {
         executedCallsThisTurn = 0
         refusalsThisTurn = 0
         currentTurnUserText = userText
+        #if DEBUG
+        // #340 bar 340-U-D: the measurement switch is per-turn state like the
+        // field above it, so it clears at the same boundary. The battery's
+        // per-trial arming is written AFTER this call and therefore still
+        // wins for its own trial; what this closes is the switch surviving
+        // the battery altogether onto production chat and every later
+        // instrument in the launch. See the declaration.
+        disableUserTextDueFallback = false
+        #endif
         governor?.beginTurn()
     }
 
