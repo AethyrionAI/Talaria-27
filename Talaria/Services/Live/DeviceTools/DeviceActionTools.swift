@@ -275,6 +275,151 @@ enum DeviceActionParsing {
         return calendar.date(byAdding: .day, value: 1, to: today)
     }
 
+    // MARK: - #340 route (b): the due date the USER'S OWN WORDS name
+
+    /// A matched substring that is **nothing but a clock** — an optional
+    /// `at`/`@` frame, one or two hour digits, optional `:mm`, optional
+    /// meridiem. Deliberately NUMERIC-only, which is what keeps `noon`,
+    /// `tonight` and `this morning` out of the roll-forward set below.
+    ///
+    /// `NSTextCheckingResult` exposes no "which components were present"
+    /// accessor, so the discriminator has to be derived from the matched text.
+    /// A whole-string match against this pattern is the derivation: it can only
+    /// succeed when the substring carries no weekday, month, day word or date
+    /// separator, because any of those leave characters the pattern cannot eat.
+    private nonisolated static let clockOnlyMatch = try? NSRegularExpression(
+        pattern: #"^(?:at\s+|@\s*)?(?:[01]?\d|2[0-3])(?::[0-5]\d)?(?:\s*[ap]\.?m\.?)?$"#,
+        options: [.caseInsensitive])
+
+    /// **Is this matched substring a bare clock time, naming no day at all?**
+    ///
+    /// Only such a match may be rolled forward. `Friday at 9am` and
+    /// `September 9 at 3pm` name a DAY, and silently moving a day the user
+    /// gave is the worse defect `parseBareClock`'s docstring already refuses
+    /// — an explicit past date returns no due rather than a different one.
+    nonisolated static func isClockOnlyPhrase(_ substring: String) -> Bool {
+        let trimmed = substring.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let regex = clockOnlyMatch else { return false }
+        let range = NSRange(trimmed.startIndex..<trimmed.endIndex, in: trimmed)
+        return regex.firstMatch(in: trimmed, options: [], range: range) != nil
+    }
+
+    /// The next occurrence of a bare clock **strictly after** `now`.
+    ///
+    /// `resolveBareClock` shares `isPastDue`'s five-minute grace, so on its own
+    /// it can hand back a time a couple of minutes gone. `detectDue`'s contract
+    /// is stronger — never a value `<= now` — so the grace window costs a day
+    /// here. That is a real behavioural difference between the two functions
+    /// and it is pinned by a test rather than left to be rediscovered.
+    private nonisolated static func nextStrictlyFutureOccurrence(
+        of clock: DateComponents, now: Date
+    ) -> Date? {
+        guard let resolved = resolveBareClock(clock, now: now) else { return nil }
+        guard resolved <= now else { return resolved }
+        return Calendar.current.date(byAdding: .day, value: 1, to: resolved)
+    }
+
+    /// The bare clock in an **`at <clock>` frame**, or nil.
+    ///
+    /// **Framed rather than token-wise, and that is the whole point.**
+    /// `parseBareClock` is designed to accept a bare one-or-two-digit integer,
+    /// and a user's sentence is full of them: run over every token, *"check the
+    /// oven **in 20 minutes**"* becomes 20:00, *"in 3 hours"* becomes 03:00,
+    /// and *"call table 4"* becomes 04:00 — three reminders at a time nobody
+    /// asked for. Only a numeral the user put behind `at` (or `@`) is read as
+    /// a clock.
+    ///
+    /// A meridiem written as its own token is folded back in, so `at 4 pm`
+    /// reaches `parseBareClock` as `"4pm"` and lands on 16:00 through this path
+    /// exactly as it does through the detector's.
+    private nonisolated static func bareClockInAtFrame(_ text: String) -> DateComponents? {
+        let tokens = text.split(whereSeparator: \.isWhitespace).map { token -> String in
+            var trimmed = String(token)
+            while let last = trimmed.last, ".,;!?\"')".contains(last) { trimmed.removeLast() }
+            return trimmed
+        }
+        let meridiems: Set<String> = ["am", "pm", "a.m", "p.m", "a.m.", "p.m."]
+
+        for (index, token) in tokens.enumerated() {
+            let lowered = token.lowercased()
+            var clockToken: String?
+            var meridiemIndex = index + 2
+            if lowered == "at" || lowered == "@" {
+                clockToken = index + 1 < tokens.count ? tokens[index + 1] : nil
+            } else if lowered.hasPrefix("@"), lowered.count > 1 {
+                clockToken = String(token.dropFirst())
+                meridiemIndex = index + 1
+            }
+            guard var candidate = clockToken, !candidate.isEmpty else { continue }
+            if meridiemIndex < tokens.count,
+               meridiems.contains(tokens[meridiemIndex].lowercased()) {
+                candidate += tokens[meridiemIndex]
+            }
+            if let clock = parseBareClock(candidate) { return clock }
+        }
+        return nil
+    }
+
+    /// Every future due date the user's own words name, **earliest first**.
+    ///
+    /// `NSDataDetector` over the whole message first; the bare-clock parser
+    /// over an `at <clock>` frame only when the detector produced nothing
+    /// usable. Every element is strictly after `now`.
+    ///
+    /// **Exposed because `detectDue` reduces it, and a reduction whose input
+    /// cannot be seen is a reduction that cannot be tested.** The detector
+    /// returns matches in DOCUMENT order, which is not chronological order —
+    /// *"on Friday at 9am and again tomorrow at 4pm"* would give the wrong
+    /// answer to anything taking `matches.first`.
+    nonisolated static func detectDueCandidates(in userText: String,
+                                                now: Date = Date()) -> [Date] {
+        let text = userText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return [] }
+
+        var candidates: [Date] = []
+        if let detector = try? NSDataDetector(
+            types: NSTextCheckingResult.CheckingType.date.rawValue) {
+            let whole = NSRange(text.startIndex..<text.endIndex, in: text)
+            for match in detector.matches(in: text, options: [], range: whole) {
+                guard let date = match.date else { continue }
+                if date > now { candidates.append(date); continue }
+                // Measured: the detector pins a time-only phrase to TODAY and
+                // hands it back already elapsed — it never rolls forward. So
+                // the next-occurrence rule has to be applied to ITS output too,
+                // and only where the words named no day.
+                guard let range = Range(match.range, in: text),
+                      isClockOnlyPhrase(String(text[range])) else { continue }
+                let clock = Calendar.current.dateComponents([.hour, .minute], from: date)
+                if let rolled = nextStrictlyFutureOccurrence(of: clock, now: now) {
+                    candidates.append(rolled)
+                }
+            }
+        }
+
+        if candidates.isEmpty, let clock = bareClockInAtFrame(text),
+           let resolved = nextStrictlyFutureOccurrence(of: clock, now: now) {
+            candidates.append(resolved)
+        }
+
+        return candidates.sorted()
+    }
+
+    /// The date the USER'S OWN WORDS name, or nil.
+    ///
+    /// **Deterministic; no model, and that is structural rather than
+    /// incidental.** This function exists because the on-device brain leaves
+    /// `due` empty on roughly half the turns whose prompt plainly carried a
+    /// date phrase — resolving it with another generation would reinstate the
+    /// failure it fixes.
+    ///
+    /// **The earliest FUTURE date when the message carries two** (Owen's
+    /// ruling), and **nil when the words carry none** — the card stays
+    /// dateless and a default is never invented. Never returns a value
+    /// `<= now`.
+    nonisolated static func detectDue(in userText: String, now: Date = Date()) -> Date? {
+        detectDueCandidates(in: userText, now: now).first
+    }
+
     /// Time-only display form for the card's caution row.
     nonisolated static func timeOnly(_ date: Date) -> String {
         let formatter = DateFormatter()
