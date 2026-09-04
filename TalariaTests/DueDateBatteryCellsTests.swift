@@ -419,8 +419,14 @@ struct DueDateNofallbackWitnessTests {
         // that declared the switch and then ignored it would satisfy a
         // body-level `contains` and a body-level ordering check alike. The gate
         // has to be on the same line as the thing it gates.
+        // NEEDLE RE-POINTED 2026-09-04 (the final fix wave), and the claim is
+        // unchanged. The term now calls the LIST form — decision 2's second
+        // clause needs the candidate count, and `detectDue` is exactly
+        // `candidates.first`, so the answer did not move. The old needle
+        // (`…detectDue(in: userText`) would now match ZERO lines and this row
+        // would red for a reason unrelated to what it asserts.
         let term = try RepoSourceWitness.soleLine(
-            containing: "DeviceActionParsing.detectDue(in: userText",
+            containing: "DeviceActionParsing.detectDueCandidates(in: userText",
             in: RepoSourceWitness.deviceActionToolsPath)
         #expect(term.contains("allowUserTextFallback"),
                 "the fallback term is not gated by the switch — got: \(term)")

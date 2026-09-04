@@ -226,6 +226,67 @@ struct ReminderDueFallbackTests {
                     "unexpected source label \"\(source)\" for raw=\"\(rawDue)\"")
         }
     }
+
+    // MARK: - Decision 2's second clause: the CANDIDATE COUNT
+
+    /// **Owen's decision 2 has two clauses and only the first was built.** The
+    /// ruling reads *"take the EARLIEST future date and LOG THE CANDIDATE
+    /// COUNT"* — `detectDueCandidates` existed and nothing consumed its count,
+    /// so the one edge the ruling is about (a message carrying TWO dates, where
+    /// the earliest-future rule is actually choosing rather than merely
+    /// passing a single answer through) was invisible in every archive.
+    ///
+    /// **`0` on the model path is a claim, not a placeholder.** The count is
+    /// only computed when the fallback RAN: a populated argument short-circuits
+    /// before the detector is ever constructed, which is what keeps today's
+    /// path byte-for-byte unchanged (`NSDataDetector`'s first construction in a
+    /// process costs ~36 ms — measured in this file's own RED). So `0` reads as
+    /// "the fallback did not run, or ran and found nothing", and the `source=`
+    /// field is what tells those two apart on the same line.
+    ///
+    /// A date phrase built from `now` rather than written as a literal, for the
+    /// reason `DeviceActionParsingDetectDueTests` gives: a hardcoded date starts
+    /// failing the day after it is written and reads as a parser regression.
+    @Test func theCandidateCountIsTheFallbacksOwnAndZeroOnTheModelPath() {
+        let now = todayAt(9, 15)
+        let twoDates = "Remind me tomorrow at 4pm and again on "
+            + monthDay(day(2, from: now, at: 9, 0)) + " at 9am"
+
+        let two = ReminderCreateTool.resolvedDue(
+            rawDue: "", userText: twoDates, now: now)
+        #expect(two.candidates == 2,
+                "the two-date edge decision 2 rules on must be visible, got \(two.candidates)")
+        #expect(two.date == day(1, from: now, at: 16, 0),
+                "and the count must not disturb the earliest-future answer")
+
+        let one = ReminderCreateTool.resolvedDue(
+            rawDue: "", userText: "Remind me to call mom tomorrow at 4pm", now: now)
+        #expect(one.candidates == 1)
+
+        let noneFound = ReminderCreateTool.resolvedDue(
+            rawDue: "", userText: "Remind me to call mom", now: now)
+        #expect(noneFound.candidates == 0, "no date in the words is a zero")
+
+        // The model path never counts: the detector is not reached at all.
+        let model = ReminderCreateTool.resolvedDue(
+            rawDue: "16:30", userText: twoDates, now: now)
+        #expect(model.candidates == 0,
+                "a populated argument must not run the detector, got \(model.candidates)")
+
+        // …and neither does the `armed-nofallback` arm, whose whole
+        // contribution is that the fallback did not run.
+        let off = ReminderCreateTool.resolvedDue(
+            rawDue: "", userText: twoDates, now: now, allowUserTextFallback: false)
+        #expect(off.candidates == 0, "the switch is off; nothing was counted")
+    }
+
+    /// A date phrase built from `now` — see the row above.
+    private func monthDay(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "MMMM d"
+        return f.string(from: date)
+    }
 }
 
 /// **The structural half of Task 3 — three pins that no runtime test in this
@@ -252,6 +313,15 @@ struct ReminderDueSourceWitnessTests {
     /// would have made every `parsed` read `nil bareClock=no` — zeroing the
     /// `unreadable` bucket without a single test noticing. This row is that
     /// comment turned into a check.
+    ///
+    /// **Extended by the final fix wave (2026-09-04) to cover `candidates=`,
+    /// which is the SECOND field to land in front of `parsed` under this same
+    /// rule.** The order is pinned as a chain — `bareClock` → `source` →
+    /// `candidates` → `parsed` — rather than as three independent facts,
+    /// because the hazard is positional: any one of them drifting past `parsed`
+    /// corrupts every reading of it, and a pin that only knew about `source`
+    /// would have watched the new field walk straight into the trap it was
+    /// written for.
     @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
                    "reads the repo's own sources — simulator only"))
     func theInstrumentLineCarriesSourceAheadOfParsed() throws {
@@ -263,11 +333,17 @@ struct ReminderDueSourceWitnessTests {
                                      "the scorer's bareClock column is gone from the instrument line")
         let source = try #require(line.range(of: "source="),
                                   "the instrument line carries no source= field")
+        let candidates = try #require(line.range(of: "candidates="),
+                                      "the instrument line carries no candidates= field")
         let parsed = try #require(line.range(of: "parsed="),
                                   "the instrument line carries no parsed= field")
 
         #expect(bareClock.lowerBound < source.lowerBound,
                 "source= must follow bareClock=, matching the scorer's field order")
+        #expect(source.lowerBound < candidates.lowerBound,
+                "candidates= must follow source=, matching the scorer's field order")
+        #expect(candidates.lowerBound < parsed.lowerBound,
+                "candidates= must precede parsed= — parsed runs greedily to end-of-line and would swallow it")
         #expect(source.lowerBound < parsed.lowerBound,
                 "source= must precede parsed= — parsed runs greedily to end-of-line and would swallow it")
     }

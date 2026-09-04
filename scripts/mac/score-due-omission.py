@@ -9,7 +9,7 @@ n per arm in the tens.
 
 It reads #249's own instrument in `ReminderCreateTool.performCreate`:
 
-    createReminder due raw="<what the model sent>" bareClock=<…> source=<…> parsed=<local time or nil>
+    createReminder due raw="<what the model sent>" bareClock=<…> source=<…> candidates=<n> parsed=<local time or nil>
 
 which is `.notice` and gated behind `TalariaLog.isVerbose` — the Developer
 screen toggle MUST be on for the run or this script has nothing to read.
@@ -21,6 +21,12 @@ bar 340-U-C decidable: a `populated-future` rate that rose because the fix is
 working and one that rose because the model got lucky are the same number
 without it. **Absent on every pre-2026-09-04 archive**, and absent must not
 read as `none` — those rows are reported as `legacy`.
+
+`candidates=` (#340's final fix wave, 2026-09-04) is the second clause of
+Owen's decision 2 — *"take the EARLIEST future date and LOG THE CANDIDATE
+COUNT"* — and it is the only way an archive can show the two-date edge that
+ruling is about. It counts the FALLBACK's own candidates, so it is `0` on the
+model path by construction. **Absent is not `0`**, same rule as `source=`.
 
 WHAT IT DELIBERATELY WILL NOT DO. It never reports "0% omission" when it found
 no lines. A run whose instrument was off, whose archive window missed the
@@ -70,12 +76,16 @@ PREDICATE = ('eventMessage CONTAINS "createReminder due" '
 # #340 Task 3 added `source=` under the same rule and in the same place, and the
 # app side is now PINNED: `theInstrumentLineCarriesSourceAheadOfParsed` fails if
 # anyone ever appends a field after `parsed=`.
-# Both trailing groups stay OPTIONAL so pre-#340 archives keep parsing.
+# #340's final fix wave added `candidates=` (2026-09-04) as the THIRD field to
+# land in front of `parsed` under the same rule, and the app-side pin was
+# extended to the whole chain rather than to `source=` alone.
+# All THREE trailing groups stay OPTIONAL so pre-#340 archives keep parsing.
 LINE_RE = re.compile(
     r'(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})[.\d]*\s'
     r'.*createReminder due raw="(?P<raw>.*?)"'
     r'(?: bareClock=(?P<bareclock>\S+))?'
     r'(?: source=(?P<source>\S+))?'
+    r'(?: candidates=(?P<candidates>\d+))?'
     r' parsed=(?P<parsed>.+?)\s*$'
 )
 
@@ -98,6 +108,24 @@ class Call:
     # None on any archive collected before #340 Task 3 (2026-09-04). Three live
     # values: model / userText / none.
     source: "str | None" = None
+    # None on any archive collected before #340's final fix wave (2026-09-04):
+    # how many FUTURE date candidates the user's own sentence carried, and the
+    # second clause of Owen's decision 2 ("take the earliest future date and LOG
+    # THE CANDIDATE COUNT"). Kept as the raw string so `None` and `"0"` stay
+    # distinguishable at the field level — see `candidate_count`.
+    candidates: "str | None" = None
+
+    @property
+    def candidate_count(self) -> "int | None":
+        """The candidate count as a number, or None when the field is ABSENT.
+
+        Absent is not zero, for the same reason `source_label` says `legacy`
+        rather than `none`: `0` is the positive claim that the fallback ran and
+        the sentence carried no future date, and an archive collected before
+        2026-09-04 makes no such claim. Every consumer must branch on None
+        before it reports a rate.
+        """
+        return int(self.candidates) if self.candidates is not None else None
 
     @property
     def source_label(self) -> str:
@@ -167,7 +195,33 @@ class Call:
 
         This is a SEPARATE bucket, never folded into `populated`: a past due is
         a WRONG value, not a present one.
+
+        ⚠️ **EXTENDED 2026-09-04 (#340's final fix wave) to the FALLBACK path,
+        because on that path this bucket could not go non-zero.** Every
+        fallback row has `raw=""`, so `omitted` was true and the guard below
+        early-returned False — a fallback-produced instant that had already
+        elapsed would have read as `populated-future`, and 340-U-C's
+        `already-past = 0` would have been satisfied by construction rather
+        than by fact. A bar whose bucket cannot move is not a measurement; it
+        is the constant denominator this project has already paid for twice.
+
+        There is no `raw` to judge on that path, so the judgement is made on
+        `parsed` — `displayDate`'s own output, which is what actually reached
+        the card. It is gated on `source == "userText"` and nothing else: a
+        LEGACY row (no `source=` at all) carries no claim about where its date
+        came from, so it must keep scoring exactly as it did before this
+        landed, and a `model` row keeps being judged on `raw` as it always was.
+
+        The app does guarantee a strictly-future fallback (bar 340-U-A, six
+        pinned rows), so this is a scorer double-checking a guarantee rather
+        than one expecting violations — which is the point: the guarantee lives
+        in the app, and an instrument that cannot contradict what it measures
+        is not watching it.
         """
+        if self.source == "userText":
+            shown = _display(self.parsed)
+            called = _naive(self.timestamp)
+            return shown is not None and called is not None and shown < called
         if self.omitted or self.unreadable:
             return False
         sent = _naive(self.raw)
@@ -189,6 +243,33 @@ def _naive(text: str) -> "datetime | None":
     return None
 
 
+# `DeviceActionParsing.displayDate` is a `DateFormatter` at `.medium` date /
+# `.short` time: "Sep 5, 2026 at 4:00 PM".
+DISPLAY_FORMAT = "%b %d, %Y at %I:%M %p"
+
+
+def _display(text: str) -> "datetime | None":
+    """Parse the instrument's `parsed=` value — `displayDate`'s own output.
+
+    **The U+202F is the whole reason this is a function.** On a real device
+    `DateFormatter` emits a NARROW NO-BREAK SPACE before the meridiem, not an
+    ASCII space, so a parser written against the ASCII form reads NOTHING from
+    a real archive — and "nothing parsed" reads here as "not past", i.e. the
+    right answer to 340-U-C's `already-past = 0` bar for entirely the wrong
+    reason. Both spacings are fixtured in `self_test`.
+
+    None means CANNOT JUDGE and callers must treat it as such, never as "not
+    past". `%b` and `%p` are read in the C locale, so a device running a
+    non-English locale lands here — a known limit, named rather than hidden,
+    and the same limit `_naive` has always had for `raw`.
+    """
+    try:
+        return datetime.strptime(text.replace("\u202f", " ").strip(),
+                                 DISPLAY_FORMAT)
+    except ValueError:
+        return None
+
+
 @dataclass(frozen=True)
 class Trial:
     timestamp: str
@@ -204,7 +285,7 @@ def extract(text: str) -> list[Call]:
         if m:
             calls.append(Call(m.group("ts"), m.group("raw"),
                               m.group("parsed").strip(), m.group("bareclock"),
-                              m.group("source")))
+                              m.group("source"), m.group("candidates")))
     return calls
 
 
@@ -460,6 +541,26 @@ def report_by_cell(by_cell: "dict[str, list]") -> int:
                   "about where those dates came from.")
         print(f"  app-resolved a bare clock: {resolved}/{n}"
               "   <- #340 route (a) actually firing")
+        # #340 fix wave / Owen's decision 2, second clause: "take the EARLIEST
+        # future date and LOG THE CANDIDATE COUNT". Reported as the 2+ rate
+        # rather than as the raw counts, because 2+ is the only value the ruling
+        # is about — it is the trial where the earliest-future rule CHOSE
+        # between dates instead of passing a single answer through. 0 and 1 are
+        # already better said by `source=` and by the bucket.
+        #
+        # ABSENT IS NOT ZERO. A cell whose calls predate the field carries no
+        # opinion about how many dates its messages named, and `0/N` there would
+        # assert that none named two — the same rule that makes an absent
+        # `source=` read `legacy` rather than `none`.
+        counted = [c for _, c in rows
+                   if c is not None and c.candidate_count is not None]
+        if counted:
+            multi = sum(1 for c in counted if c.candidate_count >= 2)
+            print(f"  words carried 2+ date candidates: {multi}/{n}"
+                  "   <- decision 2's earliest-future rule actually choosing")
+        else:
+            print("  words carried 2+ date candidates: field absent"
+                  "   <- predates candidates= (2026-09-04); NOT a zero")
         if counts["no-call"] == n:
             print("  ⚠️  EVERY trial made no call — this arm measured nothing about due dates.")
             exit_code = 2
@@ -535,12 +636,23 @@ def report(calls: list[Call]) -> int:
             print(f"  {c.timestamp}  raw={c.raw!r}  source={c.source_label}  parsed={c.parsed}")
 
     if past:
-        print("\n🔴 A due that had ALREADY ELAPSED when the model sent it.")
+        # 🔴 THE HEADING IS THE ATTRIBUTION, and it stopped being true on
+        # 2026-09-04. This list used to contain only rows the MODEL populated,
+        # so "when the model sent it" was exact. The fix wave taught
+        # `past_at_call` to judge the FALLBACK's own value too — a row whose
+        # argument was empty and whose date came from the user's sentence — and
+        # a heading naming the model over a list that now contains those rows
+        # is the same defect the per-call heading above already carried once.
+        # The source is printed per row rather than guessed from the heading.
+        print("\n🔴 A due that had ALREADY ELAPSED at call time.")
         print("   This is a WRONG value and is NOT counted as populated. A scorer")
         print("   cannot judge intent, so this bucket catches only the decidable")
         print("   case — the class that slipped past this script's first version.")
+        print("   `source=` says which path produced it: `model` is judged on the")
+        print("   raw argument, `userText` on the date that reached the card.")
         for c in past:
-            print(f"  {c.timestamp}  sent raw={c.raw!r}  (already past when called)")
+            print(f"  {c.timestamp}  source={c.source_label}  raw={c.raw!r}"
+                  f"  parsed={c.parsed}  (already past when called)")
 
     if unreadable:
         print("\n⚠️  NEW FINDING — a non-empty due the app could not parse.")
@@ -626,8 +738,17 @@ def self_test() -> int:
     # fixture cannot prove: this file only sees the lines it was handed.
     sourced = extract(
         'Timestamp               Ty Process[PID:TID]\n'
+        # ⚠️ THIS ROW CARRIES `candidates=` AND THE OTHER TWO DO NOT — on
+        # purpose. The field landed on 2026-09-04's fix wave, after `source=`,
+        # so an archive can legitimately carry either shape and BOTH must parse.
+        # Mixing them inside one fixture is the cheapest way to prove it: a
+        # regex that made the group mandatory would drop two of these three
+        # rows, and a regex that omitted the group entirely would drop THIS one
+        # (` parsed=` no longer follows ` source=…`), which is S-2's lesson —
+        # an old copy of this script over a new archive reports NO DATA rather
+        # than a quietly wrong number.
         '2026-09-04 09:00:01.100 Df Talaria 27[1:1] [org.aethyrion.talaria27:app] '
-        'createReminder due raw="" bareClock=no source=userText parsed=Sep 5, 2026 at 4:00 PM\n'
+        'createReminder due raw="" bareClock=no source=userText candidates=2 parsed=Sep 5, 2026 at 4:00 PM\n'
         '2026-09-04 09:00:03.100 Df Talaria 27[1:1] [org.aethyrion.talaria27:app] '
         'createReminder due raw="16:30" bareClock=resolved source=model parsed=Sep 4, 2026 at 4:30 PM\n'
         '2026-09-04 09:00:05.100 Df Talaria 27[1:1] [org.aethyrion.talaria27:app] '
@@ -644,6 +765,24 @@ def self_test() -> int:
     assert sourced[2].parsed == "nil", sourced[2].parsed
     # The existing columns are untouched by the new field.
     assert [c.bareclock for c in sourced] == ["no", "resolved", "no"]
+
+    # ---- Decision 2's second clause: the CANDIDATE COUNT, in both shapes. ----
+    #
+    # Owen's ruling reads "take the EARLIEST future date and LOG THE CANDIDATE
+    # COUNT". The count answers a question no other field can: whether the
+    # earliest-future rule was CHOOSING between dates or merely passing a single
+    # answer through. Absent is `None`, never 0 — 0 is the positive claim that
+    # the fallback ran and found nothing, which a pre-fix-wave archive does not
+    # make. Same rule as `legacy` for `source=` and `no` for `bareClock=`.
+    assert [c.candidates for c in sourced] == ["2", None, None], \
+        [c.candidates for c in sourced]
+    assert [c.candidate_count for c in sourced] == [2, None, None], \
+        [c.candidate_count for c in sourced]
+    # And the field must not have been eaten by `parsed`, which is the whole
+    # reason it sits ahead of it (pinned app-side by
+    # `theInstrumentLineCarriesSourceAheadOfParsed`).
+    assert sourced[0].parsed == "Sep 5, 2026 at 4:00 PM", \
+        f"candidates= was swallowed into parsed: {sourced[0].parsed!r}"
 
     # ---- The two predicates that came APART on 2026-09-04. ----
     #
@@ -662,6 +801,99 @@ def self_test() -> int:
     assert bucket(sourced[0]) == "populated-future", bucket(sourced[0])
     assert bucket(sourced[1]) == "populated-future", bucket(sourced[1])
     assert bucket(sourced[2]) == "omitted", bucket(sourced[2])
+
+    # ---- 340-U-C's `already-past = 0` must be SCOREABLE on the fallback. ----
+    #
+    # `past_at_call` reads the RAW string, and every fallback row has `raw=""`,
+    # so `omitted` was true and the function early-returned False: a
+    # fallback-produced instant that had ALREADY ELAPSED would have read as
+    # `populated-future`. The bar 340-U-C is written against says
+    # `already-past = 0`, and a bucket that cannot go non-zero is not a
+    # measurement — it is the constant denominator this project has been bitten
+    # by before.
+    #
+    # The app's `detectDue` does guarantee a strictly-future answer (bar
+    # 340-U-A, six pinned rows), so this is a scorer that double-checks a
+    # guarantee rather than one that expects to find violations. That is
+    # exactly the point: the guarantee lives in the app, and an instrument that
+    # cannot contradict the thing it measures is not watching it.
+    #
+    # **The U+202F.** `displayDate` is a `DateFormatter` at `.medium`/`.short`,
+    # and on iOS it emits a NARROW NO-BREAK SPACE before the meridiem, not an
+    # ASCII space. A parser written against the ASCII form would silently fail
+    # to read EVERY row from a real device and report `already-past = 0` — the
+    # right answer for the wrong reason, which is the worst shape a bar can
+    # have. Both spacings are fixtured, and the ASCII form is kept because that
+    # is what the fixtures elsewhere in this file use.
+    past_fallback = extract(
+        'Timestamp               Ty Process[PID:TID]\n'
+        # --- the fallback, future: still populated-future ---
+        '2026-09-04 09:00:01.100 Df Talaria 27[1:1] [x] '
+        'createReminder due raw="" bareClock=no source=userText parsed=Sep 5, 2026 at 4:00 PM\n'
+        # --- the fallback, ALREADY PAST: a wrong value, not a present one ---
+        '2026-09-04 09:00:03.100 Df Talaria 27[1:1] [x] '
+        'createReminder due raw="" bareClock=no source=userText parsed=Sep 3, 2026 at 4:00 PM\n'
+        # --- the same two as the DEVICE writes them, U+202F before the meridiem ---
+        '2026-09-04 09:00:05.100 Df Talaria 27[1:1] [x] '
+        'createReminder due raw="" bareClock=no source=userText parsed=Sep 5, 2026 at 4:00\u202fPM\n'
+        '2026-09-04 09:00:07.100 Df Talaria 27[1:1] [x] '
+        'createReminder due raw="" bareClock=no source=userText parsed=Sep 3, 2026 at 4:00\u202fPM\n'
+        # --- controls ---
+        # the MODEL path is judged on `raw` exactly as it always was…
+        '2026-09-04 09:00:09.100 Df Talaria 27[1:1] [x] '
+        'createReminder due raw="2026-09-04T08:00" bareClock=no source=model parsed=Sep 4, 2026 at 8:00 AM\n'
+        # …a dateless card cannot be judged past at all…
+        '2026-09-04 09:00:11.100 Df Talaria 27[1:1] [x] '
+        'createReminder due raw="" bareClock=no source=none parsed=nil\n'
+        # …and a LEGACY row makes no claim about where its date came from, so
+        # the new branch must not touch it: this line is byte-for-byte the shape
+        # a 2026-08-15 archive carries, with a display date that IS in the past,
+        # and it must still bucket exactly as it did before the fix wave.
+        '2026-09-04 09:00:13.100 Df Talaria 27[1:1] [x] '
+        'createReminder due raw="" bareClock=no parsed=Sep 3, 2026 at 4:00 PM\n'
+        '==========\n'
+    )
+    assert len(past_fallback) == 7, f"expected 7 calls, got {len(past_fallback)}"
+    future_plain, past_plain, future_nnbsp, past_nnbsp, model_past, dateless, legacy_past = past_fallback
+
+    assert not future_plain.past_at_call and bucket(future_plain) == "populated-future"
+    assert past_plain.past_at_call, \
+        "a fallback-produced due that had already elapsed read as populated"
+    assert bucket(past_plain) == "wrong-value", bucket(past_plain)
+    # The device's own spacing must score identically to the ASCII one, in BOTH
+    # directions — a normaliser that ate the whole string would make every row
+    # unparseable and every row would then read `not past`, which looks like a
+    # clean bar.
+    assert not future_nnbsp.past_at_call, "the U+202F future row read as past"
+    assert past_nnbsp.past_at_call, \
+        "the U+202F past row was unparseable, so it read as populated"
+    assert bucket(future_nnbsp) == "populated-future"
+    assert bucket(past_nnbsp) == "wrong-value"
+
+    assert model_past.past_at_call and bucket(model_past) == "wrong-value", \
+        "the model path's own already-past judgement must be unchanged"
+    assert not dateless.past_at_call and bucket(dateless) == "omitted"
+    # THE GATE IS ON `source`, NOT ON THE DATE — and this row is what proves it.
+    # It carries a `parsed=` value that IS in the past and no `source=` field at
+    # all, so a version that judged `parsed` whenever it could parse would flip
+    # it. It must stay exactly where the pre-fix-wave script put it.
+    assert legacy_past.source is None and not legacy_past.past_at_call, \
+        "a legacy row carries no source= and licenses no judgement of its parsed value"
+    assert bucket(legacy_past) == "populated-future", bucket(legacy_past)
+
+    # And the per-CALL view must not ATTRIBUTE the fallback's past value to the
+    # model. This is the heading defect the whole-branch review already caught
+    # once, in the same report, one section down: a list whose members can only
+    # be one thing, under a heading that names another.
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        past_code = report([past_plain, model_past])
+    past_out = buf.getvalue()
+    assert past_code == 0, past_code
+    assert "ALREADY ELAPSED at call time" in past_out, past_out
+    assert "when the model sent it" not in past_out, \
+        "the already-past list now contains fallback rows the model never sent"
+    assert "source=userText" in past_out and "source=model" in past_out, past_out
 
     # ---- The per-CALL view's HEADING must name its own denominator. ----
     #
@@ -774,6 +1006,11 @@ def self_test() -> int:
     # that looks like a measurement.
     assert "populated-future by SOURCE: legacy=1/4" in legacy_out, legacy_out
     assert "the archive predates the source= field" in legacy_out, legacy_out
+    # ABSENT IS NOT ZERO, for `candidates=` exactly as for `source=`. Not one
+    # line of this A/B carries the field, and printing `0/4` would assert that
+    # no message in the run named two dates — a claim the log cannot support.
+    assert "words carried 2+ date candidates: field absent" in legacy_out, legacy_out
+    assert "words carried 2+ date candidates: 0/" not in legacy_out, legacy_out
 
     # ---- #340 Task 3: the CURRENT shape, end to end through the report. ----
     #
@@ -785,14 +1022,18 @@ def self_test() -> int:
         'Timestamp               Ty Process[PID:TID]\n'
         # --- control: the model filled the field itself ---
         '2026-09-04 09:00:00.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed-nofallback p=remind t=1\n'
-        '2026-09-04 09:00:01.100 Df Talaria 27[1:1] [x] createReminder due raw="16:30" bareClock=resolved source=model parsed=Sep 4, 2026 at 4:30 PM\n'
+        '2026-09-04 09:00:01.100 Df Talaria 27[1:1] [x] createReminder due raw="16:30" bareClock=resolved source=model candidates=0 parsed=Sep 4, 2026 at 4:30 PM\n'
         '2026-09-04 09:00:02.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed-nofallback p=remind t=2\n'
-        '2026-09-04 09:00:03.100 Df Talaria 27[1:1] [x] createReminder due raw="" bareClock=no source=none parsed=nil\n'
+        '2026-09-04 09:00:03.100 Df Talaria 27[1:1] [x] createReminder due raw="" bareClock=no source=none candidates=0 parsed=nil\n'
         # --- treatment: one model-filled, one rescued from the user's words ---
+        # The rescued row carries `candidates=2`: the user's sentence named TWO
+        # dates and decision 2's earliest-future rule chose between them. That
+        # is the edge the ruling is about, and until the fix wave it was
+        # invisible in every archive.
         '2026-09-04 09:10:00.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed p=remind t=1\n'
-        '2026-09-04 09:10:01.100 Df Talaria 27[1:1] [x] createReminder due raw="16:30" bareClock=resolved source=model parsed=Sep 4, 2026 at 4:30 PM\n'
+        '2026-09-04 09:10:01.100 Df Talaria 27[1:1] [x] createReminder due raw="16:30" bareClock=resolved source=model candidates=0 parsed=Sep 4, 2026 at 4:30 PM\n'
         '2026-09-04 09:10:02.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed p=remind t=2\n'
-        '2026-09-04 09:10:03.100 Df Talaria 27[1:1] [x] createReminder due raw="" bareClock=no source=userText parsed=Sep 5, 2026 at 4:00 PM\n'
+        '2026-09-04 09:10:03.100 Df Talaria 27[1:1] [x] createReminder due raw="" bareClock=no source=userText candidates=2 parsed=Sep 5, 2026 at 4:00 PM\n'
         '==========\n'
     )
     sourced_cells = attribute(extract(sourced_ab), extract_trials(sourced_ab))
@@ -854,6 +1095,17 @@ def self_test() -> int:
     # The zero is the arm's ONLY userText mention — a stray one elsewhere in the
     # section would leave a reader unsure which number the contrast is against.
     assert nofallback.count("userText") == 1, nofallback
+
+    # ---- Decision 2's second clause, per cell. ----
+    #
+    # The count is reported as "how many trials had a message carrying 2+
+    # candidates", because that is the only question the raw number answers on
+    # its own: 1 is the ordinary case and 0 means the fallback did not run or
+    # found nothing, both of which `source=` already says better. 2+ is the
+    # edge Owen's ruling is ABOUT — the earliest-future rule choosing rather
+    # than passing a single answer through — and it has never been visible.
+    assert "words carried 2+ date candidates: 1/2" in treatment, treatment
+    assert "words carried 2+ date candidates: 0/2" in nofallback, nofallback
     # And a cell with NO populated-future trials at all still prints both live
     # zeros, because that is the arm 340-U-D most hopes to see: a fallback that
     # rescued nothing produces exactly this cell, and "(no populated-future
@@ -937,6 +1189,13 @@ def self_test() -> int:
     print("the reader sent to the card-denominated view), and 340-U-D's per-cell")
     print("split: the two arms read separately, the nofallback arm's userText")
     print("printed as an explicit 0/N zero rather than an absent token.")
+    print("And the 2026-09-04 fix wave: decision 2's candidates= column in both")
+    print("line shapes (absent reads `field absent`, never 0), and already-past")
+    print("made SCOREABLE on the fallback path — parsed= judged against the")
+    print("line's own timestamp in both spacings (ASCII and the device's")
+    print("U+202F), gated on source=userText so legacy and model rows are")
+    print("untouched, and the per-CALL past list no longer attributes a")
+    print("fallback-produced value to the model.")
     return 0
 
 

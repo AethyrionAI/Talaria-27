@@ -275,7 +275,7 @@ enum DeviceActionParsing {
         return calendar.date(byAdding: .day, value: 1, to: today)
     }
 
-    // MARK: - #340 route (b): the due date the USER'S OWN WORDS name
+    // MARK: - #340 route (a): the due date the USER'S OWN WORDS name
 
     /// A matched substring that is **nothing but a clock** — an optional
     /// `at`/`@` frame, one or two hour digits, optional `:mm`, optional
@@ -631,6 +631,17 @@ struct ReminderCreateTool: Tool {
     ///   carried a date.
     /// - `none` — no date at all; the card stays dateless.
     ///
+    /// **`candidates` is decision 2's SECOND clause (2026-09-04).** Owen's
+    /// ruling reads *"take the EARLIEST future date and LOG THE CANDIDATE
+    /// COUNT"*, and until this wave nothing consumed `detectDueCandidates`'
+    /// count: the one edge the ruling is about — a message naming TWO dates,
+    /// where the earliest-future rule is CHOOSING rather than passing a single
+    /// answer through — was invisible in every archive. It counts the
+    /// FALLBACK's own candidates and is therefore `0` on the model path by
+    /// construction, because the detector is never reached there. `0` on its
+    /// own is ambiguous between "did not run" and "ran, found nothing";
+    /// `source=` on the same log line settles it.
+    ///
     /// **The fallback fires ONLY on an EMPTY argument (Owen, 2026-09-04).** A
     /// non-empty value the app cannot read stays on today's wrong-value path
     /// rather than being rescued, because `wrong-value` is a bucket the scorer
@@ -649,7 +660,7 @@ struct ReminderCreateTool: Tool {
     /// silent delta in every A/B those copies are used for.
     nonisolated static func resolvedDue(rawDue: String, userText: String, now: Date,
                                         allowUserTextFallback: Bool = true)
-        -> (date: Date?, source: String, bareClock: String) {
+        -> (date: Date?, source: String, bareClock: String, candidates: Int) {
         // #340 route (a), ruled by Owen 2026-08-18. The model can produce the
         // TIME and cannot produce the DAY (340-G: every value it sent was
         // today at the asked hour, already elapsed), so a bare clock time is
@@ -674,8 +685,23 @@ struct ReminderCreateTool: Tool {
         // `theSwitchGatesTheFallbackTermItself` reads the SOLE line carrying
         // the detector call, because a body-level pin would be satisfied by
         // the parameter's own appearance in the signature above.
-        let parsedDue = modelDue
-            ?? (allowUserTextFallback && rawDue.isEmpty ? DeviceActionParsing.detectDue(in: userText, now: now) : nil)
+        //
+        // #340's final fix wave (2026-09-04) calls the LIST form rather than
+        // the reduction, because Owen's decision 2 has two clauses — "take the
+        // EARLIEST future date and LOG THE CANDIDATE COUNT" — and only the
+        // first was built. `detectDue` is exactly `candidates.first`, so the
+        // answer is unchanged and the count costs no second detector run.
+        //
+        // `modelDue == nil` LEADS the condition so a populated argument
+        // short-circuits before `NSDataDetector` is constructed at all, which
+        // is what `??` was doing implicitly and what keeps today's path
+        // byte-for-byte: that first construction costs ~36 ms in a process
+        // (measured in Task 3's RED, where it hung a test). So the count is 0
+        // on the model path BY CONSTRUCTION — and `source=` on the same log
+        // line is what tells "the fallback did not run" apart from "it ran and
+        // the sentence named nothing".
+        let fallbackCandidates = modelDue == nil && allowUserTextFallback && rawDue.isEmpty ? DeviceActionParsing.detectDueCandidates(in: userText, now: now) : []
+        let parsedDue = modelDue ?? fallbackCandidates.first
         let source: String
         if parsedDue == nil {
             source = "none"
@@ -685,7 +711,8 @@ struct ReminderCreateTool: Tool {
             source = "userText"
         }
         return (parsedDue, source,
-                resolvedBareClock != nil ? "resolved" : (bareClock != nil ? "unresolvable" : "no"))
+                resolvedBareClock != nil ? "resolved" : (bareClock != nil ? "unresolvable" : "no"),
+                fallbackCandidates.count)
     }
 
     /// The whole create flow from staged-title to EventKit save, shared
@@ -733,12 +760,13 @@ struct ReminderCreateTool: Tool {
         // `parsed` group runs greedily to end-of-line, so a trailing field is
         // swallowed into it silently — every `parsed` would read
         // "nil source=none", which is not "nil", which would zero the
-        // `unreadable` bucket with no test noticing. `bareClock=` and
-        // `source=` both sit ahead of it for that reason, and
-        // `theInstrumentLineCarriesSourceAheadOfParsed` now fails if that ever
-        // stops being true.
+        // `unreadable` bucket with no test noticing. `bareClock=`, `source=`
+        // and `candidates=` all sit ahead of it for that reason, and
+        // `theInstrumentLineCarriesSourceAheadOfParsed` fails if that ever
+        // stops being true — it pins the whole chain, not just one field,
+        // because the hazard is positional and applies to every field added.
         if TalariaLog.isVerbose {
-            TalariaLog.logger.notice("createReminder due raw=\"\(rawDue, privacy: .public)\" bareClock=\(resolution.bareClock, privacy: .public) source=\(resolution.source, privacy: .public) parsed=\(parsedDue.map { DeviceActionParsing.displayDate($0) } ?? "nil", privacy: .public)")
+            TalariaLog.logger.notice("createReminder due raw=\"\(rawDue, privacy: .public)\" bareClock=\(resolution.bareClock, privacy: .public) source=\(resolution.source, privacy: .public) candidates=\(resolution.candidates, privacy: .public) parsed=\(parsedDue.map { DeviceActionParsing.displayDate($0) } ?? "nil", privacy: .public)")
         }
         // #249 guard 1: a due already in the past is never what the user
         // meant — two of the three observed cards were hours stale at

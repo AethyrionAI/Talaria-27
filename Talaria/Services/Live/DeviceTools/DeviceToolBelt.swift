@@ -207,8 +207,11 @@ final class ToolEventRelay {
     /// it. When `createReminder` arrives with an empty `due`, the time the user
     /// actually said ("remind me at 4") is nowhere in the tool's arguments, so
     /// there is nothing to resolve a date from. This is the one channel that
-    /// carries the sentence itself down to where `DeviceActionParsing.detectDue`
-    /// can read it.
+    /// carries the sentence itself down to where
+    /// `DeviceActionParsing.detectDueCandidates` can read it. (That was
+    /// `detectDue` until 2026-09-04's fix wave; the resolver now calls the list
+    /// form so decision 2's candidate count can be logged, and `detectDue` is
+    /// exactly `candidates.first`, so nothing about the answer moved.)
     ///
     /// **It is the USER's text, never the assembled prompt.** By the time a turn
     /// reaches `beginToolTurn()` the prompt has grown a memory prefix and any
