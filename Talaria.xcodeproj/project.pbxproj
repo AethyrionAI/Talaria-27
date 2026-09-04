@@ -225,6 +225,7 @@
 		47AC470D1D4B4BFBA0F71624 /* Icon-HoloSushi@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 4FEF4DC986BD45CCA162C8FD /* Icon-HoloSushi@3x.png */; };
 		47CFEAEB6A737963ECFC811B /* ToolActivityStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C5013854AA5BEDDBACE8A0E /* ToolActivityStateTests.swift */; };
 		4805439DA2901ABBA5815ED8 /* TalariaAlarmMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89B6DC0F730603BCA9C94F52 /* TalariaAlarmMetadata.swift */; };
+		490728BF58C3D8E8C8A1060C /* HittableTapParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 360AC72137EE688B8CD57743 /* HittableTapParserTests.swift */; };
 		493EC23352629F619BD5A7C3 /* HostApprovalMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = B33B3D1D2107D0ABF4C31484 /* HostApprovalMode.swift */; };
 		498F494D8E44FE972E89C30C /* BatteryTestContainerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F55FA4A1689E35683E70D4A /* BatteryTestContainerTests.swift */; };
 		49C16770357F4E4A3020373A /* PrivateRelayIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 800F26CA46AD4821B1E3249F /* PrivateRelayIndicator.swift */; };
@@ -854,6 +855,7 @@
 		32FBE88A2B3C7F579C6B5119 /* HostApprovalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostApprovalStore.swift; sourceTree = "<group>"; };
 		3396670D4A59E5D8808A7AB3 /* WidgetTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetTheme.swift; sourceTree = "<group>"; };
 		3435E81CD684734099521C82 /* TalkPreflight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkPreflight.swift; sourceTree = "<group>"; };
+		360AC72137EE688B8CD57743 /* HittableTapParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HittableTapParserTests.swift; sourceTree = "<group>"; };
 		372A065CA7C63D2317AEC9E2 /* HermesControlIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesControlIntents.swift; sourceTree = "<group>"; };
 		37C4631361E43482328C012F /* HermesLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesLiveActivity.swift; sourceTree = "<group>"; };
 		39CC967A4E389C32A713499A /* AttachmentCapabilityCopyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentCapabilityCopyTests.swift; sourceTree = "<group>"; };
@@ -2052,6 +2054,7 @@
 			isa = PBXGroup;
 			children = (
 				FA994833E460686603F752E9 /* HittableTap.swift */,
+				360AC72137EE688B8CD57743 /* HittableTapParserTests.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -3054,6 +3057,7 @@
 				3761D9CE23F6E783C852413F /* AppTemplateUITests.swift in Sources */,
 				7409FEAB390EF888D69B1C55 /* AppTemplateUITestsLaunchTests.swift in Sources */,
 				E5D64AC7D0FA1341E11DE4E7 /* HittableTap.swift in Sources */,
+				490728BF58C3D8E8C8A1060C /* HittableTapParserTests.swift in Sources */,
 				69F3448685D89DCF09247A46 /* MessageIdentityUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -65,20 +65,25 @@ struct ConnectHostWizard: View {
                     .scrollDismissesKeyboard(.interactively)
                 }
             }
-            // #219: the second half of the fixture seam, and MEASURED rather
-            // than assumed — an accessibility element drawn on top does NOT
-            // make what it covers un-hittable (probe run 2026-09-04: the
-            // overlay was in the hierarchy, covering the button's centre, and
-            // `isHittable` stayed true). XCUITest resolves a hit point through
-            // the app's own hit-testing, so the fixture has to reach that:
-            // interaction off beneath, one hit-consuming layer above.
+            // #219: half of the fixture seam — and NOT the half that makes
+            // anything un-hittable. Turning interaction off here is what makes
+            // the fallback tap get SWALLOWED, which is what leaves the wizard
+            // standing for the fixture to assert on. It does not change
+            // `isHittable` at all: probe 2 of 2026-09-04 had this modifier AND
+            // a tap-consuming overlay in place, the tap was genuinely eaten
+            // (the wizard stayed up), and XCUITest still reported
+            // `isHittable == true`. The lever that decides hittability is the
+            // overlay's own accessibility sort priority — stated once, in
+            // `UITestWizardBlockingOverlay`.
             // Inert in Release — see `isUITestTapBlockFixtureArmed`.
             .allowsHitTesting(!isUITestTapBlockFixtureArmed)
 
             #if DEBUG
-            // The named blocker. Only the DONE step, so the wizard stays
-            // drivable and exactly one control — START CHATTING, the tap that
-            // flakes — loses its hit point.
+            // The named blocker, mounted on the DONE step only so the earlier
+            // steps stay drivable. It is full-screen, and the modifier above
+            // disables the whole step — so it is the DONE step's controls that
+            // lose their hit point, of which START CHATTING (the tap that
+            // flakes) is the one the fixture takes.
             if isUITestTapBlockFixtureArmed {
                 UITestWizardBlockingOverlay()
             }
@@ -587,6 +592,18 @@ struct ConnectHostWizard: View {
 private struct UITestWizardBlockingOverlay: View {
     static let identifier = "uitest.overlayBlocksWizard"
 
+    /// **How many taps this layer has swallowed, published as its
+    /// accessibility VALUE.**
+    ///
+    /// Without it neither fixture could tell a tap from no tap: asserting the
+    /// outcome case, the `via` arm, the diagnostic's contents and "the wizard
+    /// is still up" is all equally satisfied by a helper that emitted the
+    /// activities and never tapped at all — which is precisely the claim the
+    /// A/B rests on. The counter is the only thing here that goes up *because
+    /// a tap was issued*, so it is also the arm's isolating mutation: delete
+    /// the fallback tap and both fixtures red on this number.
+    @State private var swallowedTaps = 0
+
     /// Launch-env gate. Inert (and absent from the tree) unless set.
     static var isEnabled: Bool {
         ProcessInfo.processInfo.environment["UITEST_OVERLAY_BLOCKS_WIZARD"] == "1"
@@ -600,13 +617,16 @@ private struct UITestWizardBlockingOverlay: View {
             // A gesture, so the layer genuinely CONSUMES the tap instead of
             // merely sitting over it — the swallowed tap is the whole point of
             // the fixture, and a tap that fell through to the button would
-            // complete the connect and prove nothing.
-            .onTapGesture { }
+            // complete the connect and prove nothing. It COUNTS what it
+            // swallows, which is the only observable a helper that never
+            // tapped would fail to produce.
+            .onTapGesture { swallowedTaps += 1 }
             // An accessibility element, so the helper's centre-point walk can
             // NAME it rather than reporting an anonymous blocker.
             .accessibilityElement()
             .accessibilityIdentifier(Self.identifier)
             .accessibilityLabel("uitest overlay")
+            .accessibilityValue("\(swallowedTaps)")
             // **The lever that actually decides hittability, measured the hard
             // way.** XCUITest resolves "what is on top of this point" from the
             // ORDER of the accessibility snapshot, not from the app's hit
