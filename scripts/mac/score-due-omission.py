@@ -391,14 +391,26 @@ def bucket(call: "Call | None") -> str:
     The argument rate is not lost: it is `omitted + source=userText`, printed
     on its own line.
 
-    ⚠️ **One blind spot this creates, named rather than hidden.**
-    `past_at_call` judges the RAW string, so it cannot judge a fallback-filled
-    row (there is no raw to parse, and `parsed` is a display string). A
-    fallback due that had already elapsed would therefore read as
-    `populated-future`. That is safe only because `detectDue` guarantees a
-    strictly-future answer — bar 340-U-A, six pinned rows — so the guarantee
-    lives in the app, not here. If that ever changes, this scorer will not
-    catch it.
+    ⚠️ **A blind spot this used to create — CLOSED 2026-09-04, same commit
+    (`e7928491`) that added `candidates=`. Until then this was true and was
+    named rather than hidden: `past_at_call` judged only the RAW string, so it
+    could not judge a fallback-filled row (there was no raw to parse, and
+    `parsed` is a display string). A fallback due that had already elapsed
+    would therefore have read as `populated-future`, and that was safe only
+    because `detectDue` guarantees a strictly-future answer — bar 340-U-A, six
+    pinned rows — so the guarantee lived in the app, not here, and a
+    regression there would have gone uncaught.
+
+    ⟵ 2026-09-04: no longer the case.** `Call.past_at_call` (around lines
+    199-224) gained a `source == "userText"` branch that parses `parsed=`
+    (U+202F normalised, via `_display`) and compares it against the call's
+    own timestamp — so a fallback row IS now judged for already-past via its
+    `parsed=` value. The `model` path is unchanged: `raw` is still the judge
+    there, exactly as before. `bucket()` below reflects both routes into
+    `wrong-value` without needing to know which one fired. Pinned in
+    `self_test`'s `past_fallback` fixture (`past_plain`/`past_nnbsp` vs.
+    `future_plain`/`future_nnbsp`, plus `model_past` and `legacy_past` as
+    controls on the other two paths).
     """
     if call is None:
         return "no-call"
@@ -597,6 +609,18 @@ def report(calls: list[Call]) -> int:
           f"  ({100 * len(unreadable) / n:.1f}%)")
     print(f"  due ALREADY PAST at call time      : {len(past)}/{n}"
           f"  ({100 * len(past) / n:.1f}%)   ← a WRONG value, not a present one")
+    # #340-U-C close-out (2026-09-04). The four lines above stopped being a
+    # PARTITION the day `past_at_call` learned to judge the fallback path: a
+    # fallback row that had already elapsed has `raw == ""` (OMITTED) AND
+    # `past_at_call == True` (ALREADY PAST), so it is counted in BOTH lines
+    # above and the four percentages can sum past 100% (measured 150% on a
+    # two-row fixture). The per-cell view is unaffected — `bucket()` pools
+    # such a row into `wrong-value` once, never both — so this line names the
+    # overlap in the WHOLE-ARCHIVE view only, the same way `rescued` below
+    # names its own OMITTED-subset overlap rather than redefining OMITTED.
+    fallback_already_past = [c for c in calls if c.source == "userText" and c.past_at_call]
+    print(f"  of which fallback rows already past (counted in both OMITTED and"
+          f" ALREADY PAST): {len(fallback_already_past)}/{n}")
     # #340 Task 3. This view is denominated on the ARGUMENT and stays that way
     # — it exists for comparability with every pre-340-H4 measurement, so
     # redefining its OMITTED row would destroy the one thing it is for. But
@@ -894,6 +918,28 @@ def self_test() -> int:
     assert "when the model sent it" not in past_out, \
         "the already-past list now contains fallback rows the model never sent"
     assert "source=userText" in past_out and "source=model" in past_out, past_out
+
+    # ---- #340-U-C close-out: the OMITTED/ALREADY-PAST overlap must be NAMED. ----
+    #
+    # A fallback row that had already elapsed has `raw == ""` (OMITTED) AND
+    # `past_at_call == True` (ALREADY PAST), so the whole-archive view's four
+    # headline lines stopped partitioning the day `past_at_call` learned to
+    # judge the fallback path: such a row is counted in BOTH lines, and the
+    # four percentages can sum past 100% (measured 150% on a two-row fixture).
+    # The per-cell view is unaffected — `bucket()` pools the row into
+    # `wrong-value` only, once — so this is a whole-archive-view fix, named
+    # the way `rescued` names its own OMITTED-subset overlap rather than
+    # redefining OMITTED itself.
+    #
+    # `past_plain` (defined above, in `past_fallback`) is exactly that row:
+    # `source=userText`, `raw=""`, and a `parsed=` value already in the past.
+    # Paired with `model_past` (past, but NOT omitted — a populated argument),
+    # this two-row report has exactly one row in the overlap.
+    assert "of which fallback rows already past (counted in both OMITTED and" \
+           " ALREADY PAST): 1/2" in past_out, past_out
+    assert ("due OMITTED" in past_out and "due POPULATED" in past_out
+            and "due UNREADABLE" in past_out and "due ALREADY PAST" in past_out), \
+        "the four headline lines must still print"
 
     # ---- The per-CALL view's HEADING must name its own denominator. ----
     #
