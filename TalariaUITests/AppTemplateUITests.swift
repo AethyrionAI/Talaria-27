@@ -572,7 +572,6 @@ final class TalariaUITests: XCTestCase {
     /// tap — that tap is the flake under investigation, and a test about the
     /// tap cannot share a helper that has already taken it. Returns the
     /// START CHATTING button, existence already asserted.
-    @discardableResult
     @MainActor
     private func advanceWizardToStartChatting(
         in app: XCUIApplication,

@@ -341,13 +341,22 @@ extension XCUIElement {
         var polls = 0
         while true {
             if exists, isHittable {
+                // **STOP THE CLOCK BEFORE THE TAP.** `polledFor` names the
+                // POLL, and a reading taken after `tap()` is the poll plus the
+                // tap's own latency — measured at 0.78s on a site whose budget
+                // is ZERO, i.e. a number that reported 0.78s of polling from a
+                // loop that could not have polled at all. The readers of this
+                // line separate "tapped on first look" from "self-healed
+                // during the poll"; folding tap latency in makes the first of
+                // those unrecognisable.
+                let polledFor = Date().timeIntervalSince(startedPolling)
                 tap()
                 if diagnose {
                     // **The success path has to be separable too.** Without
                     // this line a tap that went out on the first look and one
                     // that went out at t = 9.9s are byte-identical in the log,
                     // and the A/B's whole question is which of those happened.
-                    let waited = String(format: "%.2f", Date().timeIntervalSince(startedPolling))
+                    let waited = String(format: "%.2f", polledFor)
                     XCTContext.runActivity(named: HittableTap.clamp("""
                         \(HittableTap.activityPrefix)tapped \(label) via=\(strategy) \
                         polledFor=\(waited)s polls=\(polls) budget=\(timeout)s
