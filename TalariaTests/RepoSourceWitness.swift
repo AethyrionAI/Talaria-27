@@ -55,6 +55,42 @@ enum RepoSourceWitness {
         .deletingLastPathComponent()   // TalariaTests/
         .deletingLastPathComponent()   // repo root
 
+    /// Every `.swift` source in the four shipping targets, as (absolute path,
+    /// text) pairs — the enumerator a structural ban has to walk.
+    ///
+    /// **Hoisted here by #437 item 5.** `NamingSweepTests` (`:46-62`) and
+    /// `RemoteImageSitePinsTests` (`:34-50`) had grown byte-identical private
+    /// copies, and the second one's own comment said "if a future task hoists
+    /// one of them, hoist both". This is that task.
+    ///
+    /// **Two near-copies are deliberately NOT folded in**, for the same reason
+    /// the two `functionBody` variants above are not: they are different
+    /// functions wearing the same name. `AutoConnectTogglePinTests` (`:50-71`)
+    /// returns REPO-RELATIVE paths because its allowlist is keyed on them, and
+    /// `MemoryStructuralPinsTests` (`:34`) walks a single scoped subtree. Both
+    /// are noted here so the next reader finds them rather than rediscovering
+    /// them.
+    ///
+    /// Fails LOUDLY when it cannot read — a check that did not run must say so
+    /// rather than pass.
+    static func shippingSources() throws -> [(path: String, text: String)] {
+        var out: [(String, String)] = []
+        for dir in ["Talaria", "Shared", "TalariaWidgets", "TalariaShare"] {
+            let root = repoRoot.appendingPathComponent(dir)
+            let walker = try #require(
+                FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil),
+                "cannot enumerate \(dir)/ — this check did not run"
+            )
+            for case let url as URL in walker where url.pathExtension == "swift" {
+                if let text = try? String(contentsOf: url, encoding: .utf8) {
+                    out.append((url.path, text))
+                }
+            }
+        }
+        #expect(!out.isEmpty, "cannot read any shipping source — this check did not run")
+        return out
+    }
+
     /// A repo file's whole text, addressed relative to the repo root.
     static func source(_ relativePath: String) throws -> String {
         let path = repoRoot.appendingPathComponent(relativePath)

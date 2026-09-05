@@ -31,6 +31,79 @@ final class RemoteImageConsent {
     func store(_ image: UIImage, for url: URL) { loaded[url.absoluteString] = image }
     func image(for url: URL) -> UIImage? { loaded[url.absoluteString] }
 
+    // MARK: - A failure the reader can retry (#437-A)
+
+    /// URLs whose load came back empty.
+    ///
+    /// This used to be `@State` on `RemoteImageView`, and that is what made a
+    /// transient failure permanent: the view owned the fact, the store owned
+    /// the finished task that caused it, and nothing could clear both. They
+    /// have to be forgotten TOGETHER — so the fact lives here, next to the
+    /// task.
+    ///
+    /// Observed (not `@ObservationIgnored`): the view's `body` reads it, and
+    /// clearing it is what puts the spinner back.
+    private(set) var failedLoads: Set<String> = []
+    func hasFailed(_ url: URL) -> Bool { failedLoads.contains(url.absoluteString) }
+    func recordFailure(for url: URL) { failedLoads.insert(url.absoluteString) }
+
+    /// How many times this URL's load has been started, counted so a retried
+    /// view gets a `.task(id:)` it has not seen before.
+    ///
+    /// Without it the retry would rest on SwiftUI re-inserting the progress
+    /// branch and re-running a `.task` whose id never changed — plausibly true
+    /// today, and not a property any bar could hold. Bumping a value the id is
+    /// built from makes "the tap starts a new load" mechanical instead.
+    private(set) var attempts: [String: Int] = [:]
+    func attempt(for url: URL) -> Int { attempts[url.absoluteString] ?? 0 }
+
+    /// The tap on the failure row: forget one failed load so the next render
+    /// starts a real one.
+    ///
+    /// All four writes matter. `approved` is a belt — the failure row is only
+    /// reachable past the gate, so this is idempotent, but it means the retry
+    /// cannot be the thing that loads bytes for an unapproved URL.
+    /// `failedLoads` puts the spinner back. `attempts` gives the view a fresh
+    /// `.task` id. And dropping the `inFlight` entry is the one that actually
+    /// costs a network call: the registry deliberately KEEPS finished tasks,
+    /// failures included, so without this line the retry re-reads the same
+    /// recorded `nil` and never reaches the loader at all — the failure row
+    /// would be tappable and useless.
+    ///
+    /// **The dropped task is CANCELLED, not merely forgotten (2026-09-05).**
+    /// Today's failure row only exists after the task finished, so the entry
+    /// this drops is always a finished one and `cancel()` is a no-op — but
+    /// that is a property of the VIEW, not of this type, and this type's API
+    /// lets any caller retry at any moment. Dropping a LIVE task without
+    /// cancelling it would leave two fetches racing for one URL, with the
+    /// loser still talking to a host the reader consented to ping ONCE and its
+    /// late `store(_:for:)` free to land on top of the retry's own result.
+    /// Cancelling makes "at most one live load per URL" a property of the
+    /// store rather than of the only caller that exists today. Pinned by
+    /// `RemoteImageConsentTests.retryCancelsALoadThatIsStillInFlight`.
+    func retry(_ url: URL) {
+        let key = url.absoluteString
+        approved.insert(key)
+        failedLoads.remove(key)
+        attempts[key, default: 0] += 1
+        inFlight.removeValue(forKey: key)?.cancel()
+    }
+
+    /// The decoded bytes for an approved URL, without a second trip to the
+    /// host when the image is already on the device (#437-D).
+    ///
+    /// `ImageViewerScreen`'s Save button used to re-fetch the URL. The reader
+    /// had consented to ONE fetch; the second one told that host they were
+    /// still looking, from a button labelled "Save", with no consent anywhere
+    /// near it. Going through the registry makes the ordinary case free — the
+    /// finished task is still there and hands back its result — and keeps the
+    /// rare one (a memory warning purged the bytes) inside the same approval
+    /// gate as every other load.
+    func loadedImage(for url: URL, using loader: any RemoteImageLoading) async -> UIImage? {
+        if let image = image(for: url) { return image }
+        return await loadTask(for: url, using: loader).value
+    }
+
     // MARK: - One load per URL per launch (#429 Task 2)
 
     /// The single-flight registry, and the ONE dedup mechanism in this lane.
@@ -56,10 +129,25 @@ final class RemoteImageConsent {
     /// The completed task is KEPT, not cleared: a caller arriving after the
     /// load finished gets the same finished task and its recorded result
     /// (`nil` for a failure) without a second network call. That is what makes
-    /// "one load per URL per launch" true of failures as well as successes —
-    /// at the cost that a transient failure is not retried within the launch,
-    /// which is a deliberate trade and not an oversight.
+    /// "one load per URL per launch" true of failures as well as successes.
+    ///
+    /// **#437-A corrects what this comment used to claim.** It said a
+    /// transient failure simply is not retried within the launch — "a
+    /// deliberate trade and not an oversight". It was an oversight: the
+    /// `AsyncImage` this design replaced retried on every re-parse, so a
+    /// blip that used to heal itself became permanent. Nothing about the
+    /// registry changes; what changed is that `retry(_:)` can now drop one
+    /// entry, and the failure row is the control that calls it. Retrying is
+    /// still never automatic — an approved URL is still a beacon, and the
+    /// reader decides when to ping it again.
     func loadTask(for url: URL, using loader: any RemoteImageLoading) -> Task<UIImage?, Never> {
+        // #437-B — defence in depth. The gate lives in `RemoteImageView.body`
+        // and both of today's call sites are correct; this is here so that a
+        // third one added later cannot fetch by forgetting to ask. The
+        // refusal is deliberately NOT registered in `inFlight`: a cached "no"
+        // would turn the reader's own tap into a no-op for the rest of the
+        // launch, fail-closed and silent.
+        guard isApproved(url) else { return Task { nil } }
         if let existing = inFlight[url.absoluteString] { return existing }
         observeMemoryWarnings()
         let task = Task { [weak self] in
@@ -86,6 +174,10 @@ final class RemoteImageConsent {
     /// `inFlight` goes with `loaded` because a finished task still holds its
     /// `UIImage` result; keeping the registry while emptying the dictionary
     /// would free nothing.
+    ///
+    /// `failedLoads` and `attempts` deliberately survive: they hold no bytes,
+    /// and a URL that failed should keep showing its retry row rather than
+    /// silently re-fetching because the system got short of memory.
     func purgeDecodedImages() {
         loaded.removeAll()
         inFlight.removeAll()
@@ -121,4 +213,38 @@ enum RemoteImagePolicy {
     static func placeholderTitle(host: String) -> String { "IMAGE · \(host)" }
     static let placeholderAction = "Tap to load"
     static func placeholderAccessibilityLabel(host: String) -> String { "Image from \(host), not loaded. Tap to load." }
+
+    /// The loaded image's VoiceOver label (#437-C).
+    ///
+    /// The placeholder has named its host since #429; once the reader tapped,
+    /// the label disappeared and the image became the only unlabelled image
+    /// surface in the app. The host stays in the label after loading for the
+    /// same reason it is in the placeholder: it is the fact the reader
+    /// consented to, and a screen-reader user should not lose it by saying
+    /// yes. Alt text leads when the author supplied it, because that is what
+    /// the picture IS.
+    static func loadedAccessibilityLabel(host: String, altText: String) -> String {
+        altText.isEmpty ? "Image from \(host)" : "\(altText). Image from \(host)"
+    }
+
+    /// The failure row (#437-A). One spelling for both modes — the fullscreen
+    /// viewer used to say "Failed to load image" and the inline row "Image
+    /// failed to load", a difference nobody chose.
+    static let failureTitle = "Image failed to load"
+    static let failureAction = "Tap to retry"
+
+    /// The failure row's VoiceOver label.
+    ///
+    /// **Leads with the alt text (2026-09-05), for the same reason
+    /// `loadedAccessibilityLabel` does:** it is what the picture IS, and a
+    /// reader deciding whether to spend a second request on a host wants to
+    /// know which picture is asking. #437-A shipped this without the alt text
+    /// while the visible row already substitutes it for the title, so the
+    /// label was saying less than the pixels — and the reader who most needs
+    /// to know which image broke is exactly the one who cannot see the row.
+    static func failureAccessibilityLabel(host: String, altText: String) -> String {
+        altText.isEmpty
+            ? "Image from \(host) failed to load. Tap to retry."
+            : "\(altText). Image from \(host) failed to load. Tap to retry."
+    }
 }

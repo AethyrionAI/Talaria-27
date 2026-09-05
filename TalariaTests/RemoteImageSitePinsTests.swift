@@ -25,30 +25,9 @@ struct RemoteImageSitePinsTests {
 
     // MARK: - Helpers
 
-    /// Every `.swift` source in the shipping targets, as text.
-    ///
-    /// A copy of `NamingSweepTests.shippingSources()` (`:46-62`) because that
-    /// one is `private static` and this suite is not in that type. Same four
-    /// roots, same loud-failure discipline; if a future task hoists one of
-    /// them, hoist both.
-    private static func shippingSources() throws -> [(path: String, text: String)] {
-        var out: [(String, String)] = []
-        for dir in ["Talaria", "Shared", "TalariaWidgets", "TalariaShare"] {
-            let root = RepoSourceWitness.repoRoot.appendingPathComponent(dir)
-            let walker = try #require(
-                FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil),
-                "cannot enumerate \(dir)/ — this check did not run"
-            )
-            for case let url as URL in walker where url.pathExtension == "swift" {
-                if let text = try? String(contentsOf: url, encoding: .utf8) {
-                    out.append((url.path, text))
-                }
-            }
-        }
-        #expect(!out.isEmpty, "cannot read any shipping source — this check did not run")
-        return out
-    }
-
+    /// The shipping-source enumerator now lives in `RepoSourceWitness`
+    /// (#437 item 5) — this suite's private copy and `NamingSweepTests`' were
+    /// byte-identical, and the copy that used to sit here said so.
     private static func occurrences(of needle: String, in haystack: String) -> Int {
         haystack.components(separatedBy: needle).count - 1
     }
@@ -66,7 +45,7 @@ struct RemoteImageSitePinsTests {
     @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
                    "reads the repo — simulator only"))
     func asyncImageAppearsInNoShippingSource() throws {
-        let sources = try Self.shippingSources()
+        let sources = try RepoSourceWitness.shippingSources()
         let offenders = sources
             .filter { $0.text.contains("AsyncImage(") }
             .map { $0.path }
@@ -185,6 +164,182 @@ struct RemoteImageSitePinsTests {
             let source = try RepoSourceWitness.source(path)
             #expect(!source.lowercased().contains("hermes"), "\(path)")
         }
+    }
+
+    // MARK: - 437-A (source half)
+
+    /// **437-A — the failure row is a `Button` whose action retries.**
+    ///
+    /// The behavioural half lives in `RemoteImageRenderTests` and counts a
+    /// second loader call after `consent.retry(url)`. This half pins the wire
+    /// between the two: that the row the reader actually sees is a control
+    /// they can press, and that pressing it calls the same method the render
+    /// arm drives. Without it a refactor could keep `retry(_:)` working
+    /// perfectly and still ship a dead `HStack` — the shape of I-3's hole,
+    /// one level down.
+    ///
+    /// Bounded on `failureRow` rather than a whole-file `contains`, because
+    /// `Button` occurs three times in this file (placeholder, loaded-image
+    /// tap-to-open, failure row) and only one of them is this claim.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo — simulator only"))
+    func theFailureRowIsAButtonThatRetries() throws {
+        let body = try RepoSourceWitness.functionBody(
+            from: "private var failureRow",
+            in: Self.remoteImageViewPath,
+            boundary: "\n    private "
+        )
+        #expect(body.contains("Button"),
+                "the failure row must be tappable — a failed load is otherwise dead for the launch")
+        #expect(body.contains("consent.retry(url)"),
+                "the failure row's action must call consent.retry(url) — body was: \(body)")
+    }
+
+    // MARK: - 437-C (source half)
+
+    /// **437-C — the LOADED image carries an accessibility label naming the
+    /// host.**
+    ///
+    /// The placeholder has had one since #429 (`429-E-1`, above); after the
+    /// tap the label disappeared, leaving the only unlabelled image surface in
+    /// the app on the branch a reader reaches by consenting. Bounded on
+    /// `loadedImage(` so the placeholder's own label cannot satisfy it.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo — simulator only"))
+    func theLoadedImageIsLabelledFromThePolicy() throws {
+        let body = try RepoSourceWitness.functionBody(
+            from: "private func loadedImage(",
+            in: Self.remoteImageViewPath,
+            boundary: "\n    private "
+        )
+        #expect(body.contains(".accessibilityLabel("),
+                "the loaded image is unlabelled for VoiceOver — body was: \(body)")
+        #expect(body.contains("RemoteImagePolicy.loadedAccessibilityLabel("),
+                "the label must come from the policy, not be re-spelled at the call site")
+    }
+
+    /// **M3 (fix round 1, 2026-09-05) — the FAILURE row's label carries the
+    /// alt text as well.**
+    ///
+    /// The loaded image's label leads with the alt text deliberately (it is
+    /// what the picture IS, `RemoteImageConsent.swift`'s
+    /// `loadedAccessibilityLabel`), and #437-A's failure row dropped it —
+    /// which is the wrong way round. A reader who cannot see the broken row is
+    /// exactly the one who cannot tell WHICH image is asking to be retried,
+    /// and the visible row already shows the alt text in place of the title
+    /// when there is one, so the label was saying less than the pixels.
+    ///
+    /// The label's VALUES are pinned in
+    /// `RemoteImageConsentTests.theFailureCopyIsPinned`; this half pins that
+    /// both of the row's two modes actually pass the alt text in, which no
+    /// value pin can see. Counted rather than `contains`ed, so a fix that
+    /// reached only the inline mode reds here.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo — simulator only"))
+    func theFailureRowLabelCarriesTheAltText() throws {
+        let body = try RepoSourceWitness.functionBody(
+            from: "private var failureRow",
+            in: Self.remoteImageViewPath,
+            boundary: "\n    private "
+        )
+        #expect(Self.occurrences(of: "RemoteImagePolicy.failureAccessibilityLabel(host: host, altText: altText)",
+                                 in: body) == 2,
+                "both failure rows must label with the alt text ahead of the host — body was: \(body)")
+    }
+
+    // MARK: - 437-D (source half)
+
+    /// **437-D — saving to Photos uses the bytes already on the device.**
+    ///
+    /// The reader consented to ONE fetch of this URL. Saving it re-fetched,
+    /// so the host learned a second time — a beacon fired by a button whose
+    /// label says "Save", with no second consent anywhere near it. The
+    /// counting half is in `RemoteImageRenderTests`; this half is what the
+    /// "restore the re-fetch" mutation reds, because a private method on a
+    /// `View` cannot be called from a test.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo — simulator only"))
+    func savingToPhotosDoesNotRefetch() throws {
+        let body = try RepoSourceWitness.functionBody(
+            from: "private func downloadToPhotos()",
+            in: Self.markdownContentViewPath,
+            boundary: "\n// MARK:"
+        )
+        #expect(body.contains("consent.loadedImage("),
+                "save must reuse the loaded bytes — body was: \(body)")
+        #expect(!body.contains("URLSession"),
+                "save re-fetches over the network after the reader already consented once")
+    }
+
+    // MARK: - 437-F
+
+    /// The needles a hand-rolled remote image fetch has to write.
+    ///
+    /// `.data(from:` carries the leading dot on purpose: bare `data(from:`
+    /// also matches `mergeConversationMetadata(from:` (three sites in
+    /// `ChatStore.swift`), and a ban that reds on an unrelated method name is
+    /// a ban the next lane deletes. `.data(for:` is deliberately absent —
+    /// `ServerSettingsScreen` posts a `URLRequest` that way and it is not an
+    /// image fetch; this ban is about fetching bytes BY URL and turning them
+    /// into a picture.
+    ///
+    /// **The ban's KNOWN EDGE (recorded 2026-09-05, #437 fix round 1).** Three
+    /// more spellings fetch bytes by URL and none of them is a needle here.
+    /// `Data(contentsOf:)` is the sharp one: given an `http(s)` URL it fetches
+    /// synchronously, so a hand-rolled remote image could be written with it —
+    /// but the app already has 10 of them across 7 shipping files, every one
+    /// reading a LOCAL file, so adding it as a needle would need an allowlist,
+    /// and an allowlist is a ban that fails open the day someone appends to it
+    /// without thinking. `URLSession.bytes(from:)` and
+    /// `URLSession.download(from:)` are absent for the opposite reason — zero
+    /// sites today, so they would be free to add, and they are named here
+    /// rather than added because a needle nothing has ever matched is a needle
+    /// nobody can tell is still wired up. What closes this edge is not a
+    /// longer list: it is 437-E's wire count, which sees a request whatever
+    /// API put it there.
+    private static let remoteFetchNeedles = [
+        ".data(from:",
+        "dataTask(with:",
+        "UIImage(contentsOf",
+        "Image(url:"
+    ]
+
+    /// **437-F — only `RemoteImageLoading.swift` may fetch image bytes.**
+    ///
+    /// #429's ban was the literal string `AsyncImage(`, which is exactly one
+    /// spelling of the hazard. A future view that hand-rolled
+    /// `URLSession.shared.data(from: url)` + `UIImage(data:)` would fetch at
+    /// render, obey no consent, and pass every bar in this file — the ban has
+    /// to name the OPERATION, not the API that happened to be used in
+    /// September.
+    ///
+    /// The exemption is one file, and the last check is what keeps it from
+    /// being vacuous: if the loader ever stops fetching, the exemption is
+    /// protecting nothing and this says so rather than quietly widening.
+    ///
+    /// **These needles match comments as well as code**, which is a property
+    /// rather than a bug and was measured the awkward way: the scratch view
+    /// planted as this ban's positive control carried a doc comment saying it
+    /// contained no `AsyncImage(`, and that sentence reddened 429-C's literal
+    /// ban all by itself. A comment that spells one of these calls is either
+    /// describing code that is there — in which case the ban is right — or
+    /// describing code that is not, which is a comment worth rewriting.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo — simulator only"))
+    func onlyTheLoaderFetchesRemoteImageBytes() throws {
+        let sources = try RepoSourceWitness.shippingSources()
+        var offenders: [String] = []
+        for source in sources where !source.path.hasSuffix("/RemoteImageLoading.swift") {
+            for needle in Self.remoteFetchNeedles where source.text.contains(needle) {
+                offenders.append("\(needle) in \(source.path)")
+            }
+        }
+        #expect(offenders.isEmpty,
+                "remote bytes must be fetched only by RemoteImageLoading, which the consent gate owns — found: \(offenders)")
+
+        let loader = try RepoSourceWitness.source(Self.remoteImageLoadingPath)
+        #expect(loader.contains(".data(from:"),
+                "the exempt file no longer fetches — this ban is exempting nothing, re-point it")
     }
 
     // MARK: - 429-P

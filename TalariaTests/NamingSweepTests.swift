@@ -42,25 +42,6 @@ struct NamingSweepTests {
             .deletingLastPathComponent()   // repo root
     }
 
-    /// Every `.swift` source in the shipping targets, as text.
-    private static func shippingSources() throws -> [(path: String, text: String)] {
-        var out: [(String, String)] = []
-        for dir in ["Talaria", "Shared", "TalariaWidgets", "TalariaShare"] {
-            let root = repoRoot.appendingPathComponent(dir)
-            let walker = try #require(
-                FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil),
-                "cannot enumerate \(dir)/ — this check did not run"
-            )
-            for case let url as URL in walker where url.pathExtension == "swift" {
-                if let text = try? String(contentsOf: url, encoding: .utf8) {
-                    out.append((url.path, text))
-                }
-            }
-        }
-        #expect(!out.isEmpty, "cannot read any shipping source — this check did not run")
-        return out
-    }
-
     private static func read(_ relativePath: String) throws -> String {
         try #require(
             try? String(contentsOf: repoRoot.appendingPathComponent(relativePath), encoding: .utf8),
@@ -175,7 +156,7 @@ struct NamingSweepTests {
     /// comments discussing the old names (and several do, deliberately) can
     /// never satisfy or break this.
     @Test func oldAppMeaningLiteralsAreGone() throws {
-        let sources = try Self.shippingSources()
+        let sources = try RepoSourceWitness.shippingSources()
 
         for stale in [
             "\"Ask Hermes \\(\\.$question)\"",       // the elected string, at source
@@ -230,7 +211,7 @@ struct NamingSweepTests {
     /// swept up — service errors, reachability, Connect Host, the paywall,
     /// and the sensor-sharing toggle whose subject really IS the host agent.
     @Test func hostMeaningStringFamiliesSurviveTheSweep() throws {
-        let sources = try Self.shippingSources()
+        let sources = try RepoSourceWitness.shippingSources()
 
         for expected in [
             "\"The Hermes host rejected this device's API key.\"",
@@ -346,7 +327,7 @@ struct NamingSweepTests {
     /// `theHostBrainLabelStaysHermes` above — the host's own memory tool ran,
     /// and saying so is correct, not a naming-sweep miss.
     @Test func memoryChipNamingLiteralsSurviveTheSweep() throws {
-        let sources = try Self.shippingSources()
+        let sources = try RepoSourceWitness.shippingSources()
 
         for expected in ["\"ON-DEVICE MEMORY\"", "\"SAVED TO MEMORY\""] {
             #expect(sources.contains { $0.text.contains(expected) },
@@ -364,7 +345,7 @@ struct NamingSweepTests {
     /// moved the constant would satisfy a `MemoryScreenModel.title ==` check
     /// while the shipping string changed.
     @Test @MainActor func theMemoryScreensOwnWordsAreTalarias() throws {
-        let sources = try Self.shippingSources()
+        let sources = try RepoSourceWitness.shippingSources()
 
         for expected in [
             "\"MEMORY\"",
@@ -420,7 +401,7 @@ struct NamingSweepTests {
                     "a host-meaning word on an app-meaning surface: \(notice)")
         }
         // …and the constants are declared in a shipping target, not a harness file.
-        let sources = try Self.shippingSources()
+        let sources = try RepoSourceWitness.shippingSources()
         #expect(sources.contains { $0.text.contains("static let memoryCorrectionNoticeNoIndex") },
                 "the honesty correction left the shipping targets")
     }
@@ -432,7 +413,7 @@ struct NamingSweepTests {
     /// TheSameWords` already guards at the view-model level. This extends the
     /// guard to raw source text, the same shape as `oldAppMeaningLiteralsAreGone`.
     @Test func noAppMeaningHermesMemoryLiteralExists() throws {
-        let sources = try Self.shippingSources()
+        let sources = try RepoSourceWitness.shippingSources()
 
         for stale in [
             "\"Hermes Memory\"",
