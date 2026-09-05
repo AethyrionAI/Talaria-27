@@ -26,6 +26,8 @@
 
 ## Decisions for Owen (one AskUserQuestion round — recommended arm first)
 
+> **✅ BALLOT RULED 2026-09-04 (Owen, AskUserQuestion, the same night the plan was written):** 1 = **3 s bounded join** · 2 = **silent** (one `.notice` line) · 3 = **Task 0 on hardware FIRST** (the five-trial card goes on the Device Runbook §04 for the next device evening) · 4 = **injectable assembler behind a protocol**. Every recommended arm below is now a ruling; the lane builds them without re-asking.
+
 1. **Teardown joins the restart with a 3 s bound (recommended):** `endSession()` waits for an in-flight restart to settle, up to 3 s, then proceeds and logs `restart still in flight after 3 s — proceeding; the capture generation covers the straggler`. Alternative: unbounded join (End waits as long as the restart takes — a wedged analyzer prep would hang End). Alternative: cancel only, no join (relies on the ticket alone; the audit asked for cancel AND join).
 2. **A restart superseded by End is SILENT (recommended):** no `.failed` repaint, no `"Audio capture could not resume."`, the session reads `.idle` as End left it; one `.notice` line records that the abandoned start was refused. Alternative: surface a one-line status ("Ended during an audio route change") — rejected by default; it describes an internal ordering the user never asked about.
 3. **Task 0 on hardware BEFORE the lane (recommended):** ~10 minutes of Owen's evening — five AirPods-connect-then-End trials on the CURRENT build with the existing HOT/COLD instrument, so the lane knows whether it is fixing a measured ordering or a source-inferred one. Alternative: skip and pin 428-D as no-regression only.

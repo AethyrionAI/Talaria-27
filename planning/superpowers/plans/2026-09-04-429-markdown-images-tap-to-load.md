@@ -24,6 +24,8 @@
 
 ## Decisions for Owen (one AskUserQuestion round — recommended arm first)
 
+> **✅ BALLOT RULED 2026-09-04 (Owen, AskUserQuestion, the same night the plan was written):** 1 = **tap to load** · 2 = **per launch, keyed by URL** · 3 = **user bubbles follow the same rule** · 5 = **the privacy sentence ships in THIS lane, PR held for Owen's read**. Decision 4 (the placeholder copy) was not balloted — the default below stands (`IMAGE · host` / `Tap to load` / alt text; a11y `Image from <host>, not loaded. Tap to load.`) and Owen may overrule it at the RESULT read or on the runbook eyeball card. Every arm below is now a ruling; the lane builds them without re-asking.
+
 1. **Tap to load (recommended — your 09-04 ruling):** placeholder naming the host; nothing fetched until tapped; no allowlist. Alternative: trusted origins (configured hosts + the tailnet range load automatically, everything else tap-to-load). Alternative: block entirely (placeholder only, never loads; the URL is shown and copyable).
 2. **Approval lasts for the LAUNCH, keyed by URL (recommended):** tap once, that image stays loaded everywhere it appears until the app relaunches; nothing written to disk. Alternative: per tap only (scrolling away and back re-asks). Alternative: persisted per message (a `Message` field; survives relaunch — the #42 decode rule applies).
 3. **User-authored bubbles follow the same rule (recommended):** one rule, no exception to reason about. Alternative: images in YOUR OWN messages load immediately (you typed the URL).

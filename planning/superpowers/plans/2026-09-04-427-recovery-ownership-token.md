@@ -24,6 +24,8 @@
 
 ## Decisions for Owen (one AskUserQuestion round — recommended arm first)
 
+> **✅ BALLOT RULED 2026-09-04 (Owen, AskUserQuestion, the same night the plan was written):** 1 = **drop it, one `.notice` line** (the host keeps it; reopening A fetches it) · 2 = **cancel `reconcileInFlight` AND bump the generation** on walk-away · 3 = **Stop gets the same protection** (`abandonReconcileWindowOnStop` cancels + bumps) · 4 = **`Conversation.id` is the thread identity**. Every recommended arm below is now a ruling; the lane builds them without re-asking.
+
 1. **A late answer for a thread you left is DROPPED with a log line (recommended).** The host has it; reopening A shows it. Alternative: write it into A's cached conversation behind the scenes — rejected by default: A's cache may be stale or mid-edit by a later open, and #90's journal (`lastExchangeViaActiveHop`) would be asked to describe a thread that is not the active hop.
 2. **Walk-away CANCELS the in-flight pass as well as bumping the generation (recommended):** `reconcileInFlight?.cancel()` joins `reconcileTask?.cancel()` in `abandonPendingRun`. Alternative: token only — correct but wasteful (the read completes and is discarded).
 3. **Stop gets the same protection (recommended):** `abandonReconcileWindowOnStop` (#321) bumps the generation too, so a status read that was in flight when the user tapped Stop cannot adopt after the window closed. Alternative: leave Stop as is — #321's ruling says the window ENDS on Stop; a late adoption would contradict it.
