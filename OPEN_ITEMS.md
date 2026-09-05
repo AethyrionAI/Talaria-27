@@ -13052,7 +13052,7 @@ is the follow-up); **N4** Critical 2's silent return emits no instrument, unlike
 error, not a regression: the fix-wave brief's expected `RunsApprovalTests` count of 27 measures 8
 under the `-only-testing:` filter, matching Tasks 3 and 4's own baselines.
 
-## 429. 🔴 MODEL-AUTHORED MARKDOWN IMAGES FETCH ARBITRARY HTTPS URLS AT RENDER TIME — `AsyncImage(url:)` inside the bubble's button; the only gate is the scheme; ATS permits any HTTPS; the HTML sandbox's egress block does not cover this plane — **FILED 2026-09-04 (audit A4, P1; VERIFIED IN CODE; unfiled before). Owen's default 09-04: TAP TO LOAD. ~~Plan owed~~ → PLAN WRITTEN 2026-09-04 (pointer block below); bars pre-register when the lane opens.**
+## 429. 🔴 MODEL-AUTHORED MARKDOWN IMAGES FETCH ARBITRARY HTTPS URLS AT RENDER TIME — `AsyncImage(url:)` inside the bubble's button; the only gate is the scheme; ATS permits any HTTPS; the HTML sandbox's egress block does not cover this plane — **FILED 2026-09-04 (audit A4, P1; VERIFIED IN CODE; unfiled before). Owen's default 09-04: TAP TO LOAD. ~~Plan owed~~ → PLAN WRITTEN 2026-09-04; ~~bars pre-register when the lane opens~~ → ✅ FIXED 2026-09-05: PR #434 → `0ec8c924` — bars 429-A…E + P + GATE MET (design B; RESULT block below). Owen read the privacy sentence before the merge.**
 
 > **Source:** audit A4. **Verified:** `MarkdownParser.swift:135` — `if let url = URL(string: img.url), url.scheme == "http" || url.scheme == "https"` is the entire gate (the comment at `:132`: "treat it as an image unconditionally"); both `![](…)` (`:63`) and `<img src>` (`:65`) feed it; `MarkdownContentView.swift:164` — `AsyncImage(url: url)` sits INSIDE the Button's label, so the fetch happens at render and the button only sets `fullscreenSegment`; a second unguarded site at `:322` (`ImageViewerScreen`); the model-authored surface is real — `MessageBubble.swift:583` renders the STREAMING assistant transcript through it (also `:185`, `FilePreviewSheet.swift:199`, `BriefingDetailScreen.swift:54`). ATS (`project.yml:391-394`, `Info.plist:635-646`): the only exception is `100.64.0.0/10` + insecure-HTTP; no `NSAllowsArbitraryLoads` — so **arbitrary HTTPS to any host loads by default**; only plain HTTP to a non-tailnet host is blocked, which is not a privacy control. The asymmetry is real: `HTMLPreviewView.swift:79-96` blocks all `http(s)`/`ws(s)` egress in HTML artifacts via a compiled `WKContentRuleList`; the Markdown plane has no equivalent. **Tracker:** `AsyncImage`/`markdown image`/`remote image`/`tracking pixel` — zero hits in either file. **Tests pin the current behaviour:** `MarkdownInterleavingTests.swift:29,49` require an `https://example.com/chart.png` image to produce an `.image` segment with that exact URL. **Realistic vector:** replies come from the user's own self-hosted agent, so the route is indirect prompt injection through content that agent read, or a hostile/compromised host; the leak is bounded to what the model can encode in the URL plus IP/User-Agent — not the gateway key. **Owen's default (AskUserQuestion, 09-04 evening): tap to load** — a remote image renders as a placeholder naming the host; nothing is fetched until the user taps; zero requests by default; no allowlist to maintain. The plan's ballot re-offers trusted-origins (configured hosts + the tailnet range) and block-entirely. Bars will include: zero network requests for unapproved URLs (a URLProtocol-stubbed test that counts), the placeholder's copy, and the same rule on every rendering site (`:164`, `:322`, `FilePreviewSheet`, `BriefingDetailScreen`); the privacy page's third-party list (#433) follows the ruling.
 
@@ -13072,6 +13072,177 @@ under the `-only-testing:` filter, matching Tasks 3 and 4's own baselines.
 
 > **⟵ 🔴 429-B/C/D INSTRUMENT RE-PINNED 2026-09-05 02:2x — Task 0's measurement chose DESIGN B, filed BEFORE any production code (the plan wrote both designs and said Task 0 picks).** Measured on `CC-lane-2` (24A5423a), commit `f592c827` (a TEMPORARY hosted-render probe, deleted by Task 4): a `MarkdownContentView` with an `https` image hosted in a `UIWindow` in the app test host issued **0** requests through a `URLProtocol` registered with `URLProtocol.registerClass`, across six render arms and four run-loop pumping forms — while a direct `URLSession.shared` request in the same process counted **1** (the counter was live). **`AsyncImage` bypasses registered protocols; design A's instrument cannot see it.** The render DOES fetch: the app's own `os_log` carried **9 real URLSession tasks** to the exact image URL (each ending in DNS −1003 on the sim). **Consequences, pinned now:** (1) **429-B's RED is the OS-log count of real URLSession tasks for the image URL (9), not a `URLProtocol` count that never existed;** the permanent bar counts calls on an INJECTED `RemoteImageLoading` seam inside `RemoteImageView` (zero before consent; exactly the approved URL after), with the OS-log arm quoted once in the RESULT as the pre-fix truth. (2) **429-C tightens:** `AsyncImage(` appears in ZERO shipping files (design A allowed one). (3) **429-D gains a finding the plan did not know:** a second render of the same URL refetches, and **the streaming re-parse refetches PER DELTA** (4 tasks for one unchanged URL) — pre-existing behaviour; the bar now asserts loader-level de-duplication per URL per launch (consent and the loaded image live together, keyed by absolute URL) so a tapped image is fetched once, not once per delta. All four pumping forms let `AsyncImage` start — the zeros were never a pumping artefact. Owen's rulings (tap to load · per-launch by URL · user bubbles same rule · privacy sentence in this lane, held) are unchanged.
 
+### ✅ RESULT 2026-09-05 — bars 429-A…E + P + GATE all MET (RED-first, every bar with a measured isolating mutation; 3232/18/Release on `0d29bbf8`), GitHub PR #434 (`429-tap-to-load`, head `0d29bbf8`) — Owen read the privacy sentence before the merge → squash `0ec8c924`. Final whole-branch review (opus): APPROVE WITH FIXES — 0 Critical, 3 Important (I-1 the sentence's scope word, Owen's call → Owen read both wordings 2026-09-05 (AskUserQuestion) and chose **"an image in the app"**; the `<strong>` clause alone changed in a docs-only commit after the gate, and `RemoteImageSitePinsTests` (incl. the 429-P pin, which greps the unchanged second half of the line) was re-run green on that byte state before the merge; I-2 a stale parser comment and I-3 a missing pin on the placeholder's tap, both fixed in `c9984233` and re-reviewed), 9 Minor (12 ship / 6 follow-up, triaged in Reviews below). GATE on the final bytes `c9984233`: `GATE: PASS on 24A5423a` — Swift Testing **3233** (3232 + the I-3 pin, predicted before the number was read), XCUITest 18, Release clean, no re-roll (logs `…/talaria-gate.dM4vPheJgu/`); the earlier gate on `0d29bbf8` read 3232/18/Release.
+
+| bar | verdict | evidence |
+|---|---|---|
+| 429-A | MET | RED: compile failure (`RemoteImageConsent`/`RemoteImagePolicy` didn't exist) → GREEN 3/3 (`220ed021`) → mutation (URL-keying broken via `.uppercased()` on the query side — the brief's literal `.lowercased()` example was a no-op on the all-lowercase test fixture; same class of case-transform mismatch) reds `approvalIsKeyedByURLNotBySegmentIdentity()` only, 2 issues; a second mutation on the pinned copy string reds `thePolicyCopyIsPinned()` only; both restored byte-identical (`diff` confirmed). |
+| 429-B | MET | RED = Task 0's OS-log measurement, not an in-process count: the unmodified tree issues **1 `URLSession` task per hosted render, ~29 ms after `makeKeyAndVisible()`, with no tap and no consent** — un-observable by any registered `URLProtocol` because `AsyncImage` loads through a private, non-configurable `URLSession` (Task 0, commit `f592c827`, arm 8's liveness control proves the counter itself is not blind). GREEN under design B (`60d2b66f`): 0 loader calls before approval, 1 after. Isolating mutation: remove the `isApproved` gate in `RemoteImageView` → 3 tests / 6 issues red, incl. `before.red == 0` failing at `red=39998`. **Plan-prose correction:** the plan's "control arm on the unmodified tree" is unmeasurable under design B (no in-process counter can see `AsyncImage` at all); the actual fail-proof is this mutation. |
+| 429-C | MET | RED on the unmodified tree: `asyncImageAppearsInNoShippingSource()` and `markdownContentViewGoesThroughRemoteImageViewTwice()` failed (`AsyncImage(` present twice in `MarkdownContentView.swift`, `RemoteImageView(` absent) — 4 of 5 tests in the suite red (`60d2b66f`'s RED 1). GREEN: zero `AsyncImage(` in `Talaria/`, `Shared/`, `TalariaWidgets/`, `TalariaShare/`; `RemoteImageView(` appears twice in `MarkdownContentView.swift`. Isolating mutation: planted `AsyncImage(` in an uncompiled scratch file under `Talaria/Features/Chat/` → reds `asyncImageAppearsInNoShippingSource()` alone, proving the sweep reads the filesystem rather than the build. |
+| 429-D | MET | RED: compile failure on the missing `RemoteImageLoading`/`remoteImageLoader` seam (`60d2b66f`'s RED 2) — the errors never name `RemoteImageView`, confirming the test is about behaviour, not a type. GREEN: three copies of one URL in a single render load once; a streaming re-parse across deltas fetches nothing pre-approval, then loads once post-approval. Isolating mutation: remove the single-flight `inFlight` lookup in `RemoteImageConsent.loadTask` → reds only the concurrent-duplicates arm (`fake.calls == [url]` fails), leaving the sequential streaming-delta arm green — proving that arm alone would not have caught a missing dedup mechanism. |
+| 429-E | MET | Source half: RED (`RemoteImageView.swift` unreadable) → GREEN (`.accessibilityLabel(`, `RemoteImagePolicy.placeholderAccessibilityLabel(`/`placeholderTitle(`/`placeholderAction` all present) → `theNewFilesNameNoHost()` green (0 `hermes` hits in the two new files). Rendered half **changed instrument**: an accessibility-tree walk returned zero labels in the test host (SwiftUI builds the tree lazily; nothing in-process asks for it) — a vacuous green caught by its own positive control, so it was replaced with a **pixel probe** (a fake loader paints solid red; window snapshot readback via `CGContext`): `red=0`/`drawn=329160` before the tap, `red=39998` after, `red=39601` across five renders (two of them after approval). **Plan-prose correction:** the plan's rendered placeholder title `IMAGE · images.example` is falsified by `MonoLabel` (`HUDComponents.swift:454`) uppercasing its text — the actual rendered string is `IMAGE · IMAGES.EXAMPLE`. The pinned *value* `RemoteImagePolicy.placeholderTitle(host:)` is unaffected and still reads `IMAGE · images.example`; only the rendered, house-styled form differs. Accepted as house style rather than swapping `MonoLabel` for a case-preserving `Text`. |
+| 429-P | MET | RED: `docs/privacy.html` missing `only when you tap that image to load it` — `privacyPageNamesTheTapToLoadRule()` failed alone, 5/6 other 429-C/E tests unaffected (commit-pending state before `9fcd9b84`). GREEN: one `<li>` added to the "Third parties, exhaustively" list, immediately after the Apple item, verbatim per the brief. One iteration needed — an initial line-wrapped version broke the raw-text substring match (invisible in rendered HTML) and was joined onto one line. Commit `9fcd9b84`. **HELD for Owen's read — `docs/` is the live GitHub Pages root and publishes on merge.** |
+| GATE | MET | `GATE: PASS on 24A5423a` — 3232 Swift Testing tests (3218 baseline @ `3ca31a00` + 14 from this lane: 13 from Tasks 1-2 + 1 from 429-P), 18 XCUITest, Release build succeeded, project.pbxproj drift-free, TCC pre-granted, no known-flake re-roll fired (clean first-run pass, no `suite-reroll.log`). Run on commit `0d29bbf8`. |
+
+### Task 0 — the measurement that chose design B
+
+Task 0's probe (`f592c827`, 8 tests / 1 suite, `** TEST SUCCEEDED **`) put a real number on
+what would otherwise have been an assumption. A `CountingURLProtocol` registered globally
+read **0 hits** across six render arms and four different pumping forms (`RunLoop.main.run`,
+`Task.sleep`/`Task.yield`, `setNeedsLayout` + a 2 s pump, `Task.detached`) — but the same
+counter, in the same process, in the same registration window, read **1 hit** for a direct
+`URLSession.shared.data(from:)` call (arm 8, the liveness control). That single contrast is
+what proves the zeros are not a pumping artifact or a dead harness: `AsyncImage` genuinely
+bypasses any globally registered `URLProtocol`, because it loads through a private,
+per-instance `URLSession` built from its own `URLSessionConfiguration`, which — per Apple's
+documented `protocolClasses` semantics — never consults the global registry. Meanwhile the
+app's own `os_log` saw **9 real `URLSession` tasks**, all DNS failures (`-1003`) against the
+exact rendered URL, across the very same arms — proving the request reaches the wire in
+~29 ms of the view appearing, with no tap and no consent. And arm 7's delta sub-test showed
+the defect compounds under streaming: a per-delta re-parse that leaves an image URL
+unchanged still minted a fresh `AsyncImage` identity and issued a fresh request on **every**
+delta (4 tasks for one URL across 3 deltas) — worse than a single static render suggested.
+This is why the lane could not simply "add a consent check before `AsyncImage`": there is no
+observable, gateable seam on that view at all, so the fix had to be architectural
+(design B) rather than a guard clause.
+
+### Reviews
+
+**Final whole-branch review (opus): APPROVE WITH FIXES.** Every bar met by the evidence; the composed-path
+trace (parse → segment → `RemoteImageView` → consent → loader → viewer) found no path that fetches image
+bytes with `isApproved == false`. Three Importants: **I-1** the privacy sentence's scope word — "an image
+*in a reply*" — is narrower than the code, which gates four surfaces (assistant replies, the user's own
+bubbles per decision 3, briefings, Markdown file previews) under a heading that says "exhaustively"; the
+promise under-claims coverage rather than over-claiming safety, so it is Owen's call at his read
+(proposed: "an image in the app"; 429-P's pin greps only the second half of the line) → Owen chose "an image in the app" (docs-only commit after the gate; the pin suite re-run green).
+**I-2** `MarkdownParser.swift:133` still said "AsyncImage handles the load" — a comment naming a mechanism
+this lane deleted, exactly the close-out rule's shape — fixed in `c9984233`. **I-3** no automated test
+exercised the placeholder's TAP: every render arm called `consent.approve(url)` directly, so deleting the
+approve call from the Button action left all 23 tests and the gate green while shipping a placeholder
+that could never load (fail-closed — a feature-dead hole with full green cover, not a privacy hole) —
+a positional source pin now reds on that deletion (`c9984233`, RED witnessed by the named mutation).
+**Privacy sentence ruled safe to publish** — truthful about the mechanism, correctly placed, byte-exact;
+redirects are deliberately NOT on the page (a tapped image's host may redirect; the consent is for the
+URL the user saw — recorded here, not promised there). Minors triage — ship: the 429-A mutation
+substitution (recorded), `loaded` bounded by the purge, whole-Set observation (few images, a set lookup),
+`loaded ⊆ approved` gated at both sites, purge-without-cancel (a late store is always approved),
+`failed` never reset (unreachable — a new URL is a new identity), the bounded `Task.value` waiter,
+`drawn` as the weaker control (said in 429-E's row), `MonoLabel` uppercasing (house style; Owen may
+overrule at the eyeball card), the ~10 s `.serialized` render suite, the unreachable fullscreen
+placeholder (a correct fail-closed net), no device eyeball yet (the §01 card — now load-bearing, see
+"does NOT claim"). Follow-up: an `isApproved` guard inside `loadTask` (needs its own test);
+`shippingSources()` hoisted to `RepoSourceWitness`; an a11y label on the loaded inline image;
+`downloadToPhotos()` re-using the held bytes; `paintedPixels`' escaping buffer pointer
+(`withUnsafeMutableBytes`); and **the tappable failure row** — a tap that clears the `inFlight` entry
+and allows ONE more load, so the user re-consents to the retry through the same mechanism as the
+first tap; agreed as the right shape, not shipped here because it needs its own bar (a failing loader,
+one retry, no third fetch) and its copy is Owen's.
+
+Both task reviews (Task 1 → `220ed021`, Task 2 → `60d2b66f`) returned **0 Important
+findings**. Deferred minors, carried verbatim from the ledger:
+
+- Task 1: 429-A's pre-registered mutation ("key on the segment id") is structurally
+  impossible against the URL-taking signature — resolved by substituting a case-transform
+  mismatch (recorded above); `loaded` was unbounded per launch at that point (Task 2 later
+  bounded it); Observation tracks the whole set/dictionary, so approving one image
+  invalidates every bound `RemoteImageView`; `loaded ⊆ approved` is not enforced by the
+  store — call sites must gate on `isApproved(url)`, never on `image(for:) != nil` (both
+  current call sites do this correctly).
+- Task 2: the purge drops in-flight tasks without cancelling them (a late store always
+  lands on an approved URL, so this is safe); `loadTask` does not itself check
+  `isApproved` (a one-line guard would close the seam at the only fetch site, currently
+  enforced by callers instead); `failed` (the view's local retry-flicker flag) is never
+  reset on a URL change within one segment identity (unreachable today); `Task.value`'s
+  waiter is not cancellable (bounded, not open-ended); `drawn` in the pixel probe is a
+  weaker control than it reads (the red-pixel arm is the real one); `shippingSources()`
+  duplicates `NamingSweepTests`' helper; the loaded inline image has no accessibility
+  label (pre-existing gap, not introduced here); `ImageViewerScreen.downloadToPhotos()`
+  re-fetches bytes the store already holds (chrome unchanged, per the brief).
+- **Follow-up, recommended by both reviews:** a failed load is not retried within a
+  launch — the completed `Task<UIImage?, Never>` is kept, so a transient failure needs a
+  new launch to self-heal (today's ungated `AsyncImage` refetched every delta and
+  self-healed). The right shape is a tappable failure row: approve-again → clear the
+  `inFlight` entry → one more load. Not built in this lane; the brief pinned the failure
+  row to today's shape.
+
+### Deviations from the plan
+
+- **Design B**, chosen by Task 0's measurement rather than assumed: `RemoteImageView` owns
+  the load through an injectable `RemoteImageLoading`, and `AsyncImage(` is banned from
+  shipping sources entirely (zero occurrences, not "exactly one gated site").
+- **The `nonisolated` construction surface** on `RemoteImageConsent.shared`/`init()` —
+  required to compile `@Entry`'s `nonisolated` default-value evaluator under this
+  project's Swift 6.2 strict concurrency, with no prior `@Entry` precedent in the repo to
+  follow. Every mutable member stays `@MainActor`-isolated; reviewed and ruled sound
+  (safer than an `assumeIsolated` shim).
+- **The loaded-image cache + memory-warning purge** — `loaded`/`inFlight` are bounded
+  together, lazily registered on first real load via
+  `UIApplication.didReceiveMemoryWarningNotification`. `approved` (the consent set) is
+  untouched by the purge — Owen's ruling constrains what may be fetched without a tap, not
+  how long decoded bytes are retained.
+- **The pixel probe** replacing 429-E's originally-planned accessibility-tree read, because
+  SwiftUI builds that tree lazily and a test host never asks for it — a zero-label result
+  would have been a vacuous pass for the wrong reason. Self-controlling in both directions
+  (drawn pixels prove the snapshot ran; red pixels prove the fake loader's paint is
+  findable).
+- **Mutation substitutions**: 429-A's URL-keying mutation used `.uppercased()` on the query
+  side rather than the plan's literal `.lowercased()`-vs-stored-key suggestion, which is a
+  no-op on the all-lowercase test fixture; 429-D's single-flight-drop mutation was added by
+  the Task 2 implementer (not named in the brief) because the two brief-named mutations
+  both left the dedup registry itself unexercised.
+
+### What this lane does NOT claim
+
+- **Coverage hole named by the final review (I-3), now pinned:** until `c9984233` no automated test
+  exercised the placeholder's tap — every render arm approved programmatically — so the tap-to-approve
+  wiring rested entirely on the §01 device eyeball card. The pin is a SOURCE pin (positional: the approve
+  call inside the placeholder Button's action), not a tap-driving render arm; the eyeball card is still
+  the only behavioural witness of the tap.
+- **The app contains exactly TWO remote-image fetch sites after this lane:** the gated loader, and
+  `ImageViewerScreen.downloadToPhotos()` (`MarkdownContentView.swift` ~:353), which is post-approval,
+  behind a second tap, and guarded by construction rather than by a pin.
+- 429-B's control arm, both halves: `harnessIsNotBlind` IS the live control the Global Constraints
+  demanded and it passes (a direct request through the fake loader is counted); what is unmeasurable
+  is only the plan's other clause — "the same harness on the UNMODIFIED tree records the RED" — because
+  no in-process counter sees `AsyncImage` at all; that RED came from Task 0's OS-log measurement
+  (9 URLSession tasks) instead.
+
+- **No device eyeball has run yet.** Everything above is measured on simulator runtime
+  `24A5423a` on `CC-lane-2`; per #398-A a rate carries its runtime, and the phone measured
+  `24A5424a` as of the last device pass. The §01 runbook eyeball card (a reply with
+  `![](https://…)` on Deep Field and Paper Tape; tap loads; tap again opens fullscreen; a
+  second bubble with the same URL is already loaded) is still owed and is not part of this
+  PR.
+- **Redirects are not covered by consent.** `AsyncImage` is gone, but the design-B loader
+  offers no delegate either; a redirect target is fetched under the same approval as the
+  URL the reader tapped. Recorded as a residual in the plan, unchanged by this lane.
+- **A failed load is not retried within a launch** (see Reviews, above) — a deliberate
+  trade, not a bug, and the recommended tappable-failure-row follow-up is unbuilt.
+
+### Close-out landed vs. owed with the merge
+
+- **Landed on the branch (`c9984233`, final review I-2):** `MarkdownParser.swift` ~:133 no longer says
+  the deleted mechanism handles the load — it names the tap-to-load path.
+
+**Landed in this lane (commit `0d29bbf8`):** `MarkdownContentView.swift`'s header doc
+comment now states the tap-to-load truth (placeholder names the host, fetches nothing
+until tapped, `#429`, second tap opens fullscreen) — it was corrected in Task 2's commit
+(`60d2b66f`) rather than Task 4's, verified byte-for-byte still accurate at HEAD and left
+untouched.
+
+**Owed with the merge (controller/close-out, not this PR):**
+- Entry 433's third-party clause needs a dated line noting the image-origin omission is
+  closed by #429's privacy sentence (or handed over — decision 5's text, not re-litigated
+  here).
+- The #259 archive block (the HTML-sandbox entry) needs an append-only dated pointer that
+  the Markdown plane now has its own, separate consent gate — a different rule,
+  deliberately, from the sandbox's.
+- The two plan-prose corrections recorded in the bar table above (429-B's unmeasurable
+  control arm; 429-E's `MonoLabel` uppercasing) belong in the entry's RESULT text verbatim,
+  since they falsify text in the plan document itself.
+- The §01 runbook eyeball card (`scripts/mac/ota-stage.sh main Debug`) — not run in this
+  lane; a device/OTA verification step, out of Task 4's scope as briefed.
+
 ## 430. 🟠 DROPPED-RUN RECOVERY ASKS THE ACTIVE HOST, NOT THE RUN'S HOST — `resolveDroppedRun` calls `readRunStatus(runID:profileID:nil)`; nil resolves to the active profile; `PendingRunRecord` carries no profile; a wrong-host 404 is classified `.gone` — **FILED 2026-09-04 (audit A5, P2; VERIFIED IN CODE — #285's invariant is BELIEVED covered by #368's 3E-J bar and is not, at this entry point). Lane owed after the P1s; bars pre-register when it opens.**
 
 > **Source:** audit A5. **Verified:** `+RunsTransport.swift:1317-1318` — `resolveDroppedRun(runID:sessionID:)` → `readRunStatus(runID: runID, profileID: nil)`; `SessionsHermesClient.swift:1314` `let resolved = try endpoint ?? resolveTurnEndpoint(profileID: profileID)` with `:1441` nil ⇒ active profile; `PendingRunRecord.swift:12-26` fields are `sessionId, runId, userMessageID, conversationID, sentAt, partialReasoning` — no profile; nor `ChatStore.PendingRun` (`ChatStore.swift:663-677`) nor the protocol signature (`HermesClientProtocol.swift:316`) — the blindness is in the interface. **The data to fix it exists and is used elsewhere:** `SessionsHermesClient.swift:633` `birthProfileID = profileIndex?.profileID(forSessionID: id) ?? activeProfileIDProvider()` — `openSession` resolves the birth host from the same session id the recovery path already receives. **The tracker believes the opposite:** #285's Part 3 block (archive `:16855` — "the catch-path recovery poll") and #368's `3E-J` bar (`OPEN_ITEMS.md:11896/:12024`) assert the frozen-endpoint rule is untouched — true for the IN-TURN catch-path poll (which carries the frozen `endpoint`), false for 3E's cold-launch entry at `:1317`. **Tests:** all five `resolveDroppedRun` occurrences in `TalariaTests/` are stub fixtures that never reach endpoint resolution. **Fix shape:** persist the originating profile id with the pending run (identity, never a second plaintext key), resolve recovery against it, freeze endpoint ownership for a live attempt; unit bar with distinct A/B mock endpoints, warm and cold. Severity: moderate — multi-profile users whose active host changes between a dropped run and recovery lose a real answer as "gone".
@@ -13087,6 +13258,8 @@ under the `-only-testing:` filter, matching Tasks 3 and 4's own baselines.
 ## 433. 📄 THE PRIVACY POLICY'S TWO CLAIMS THAT BEHAVIOUR FALSIFIES — "deleting the app removes everything local" (the Keychain deliberately rehydrates profile/pairing identity after deletion, by design) and the "third parties, exhaustively" list (which omits arbitrary Markdown image origins until #429 lands) — **FILED 2026-09-04 (audit A8, P2). `docs/` is the LIVE Pages root — merging publishes; the wording is Owen's read.**
 
 > **Source:** audit A8. **Verified by cross-reference:** `docs/privacy.html:143` (the deletion promise) vs `UserDefaultsAppPersistenceStore.swift:132-135` ("the stamp survives both [disconnect and app deletion], which is the whole point") — the durability is decided and shipped (#41 "shipped + survived delete/reinstall on device", #46; 2026-08-02/03); no entry ever cross-referenced the policy sentence against it. `docs/privacy.html:130` (the third-party list) was last touched under #386/#422-N (PCC wording) and never re-examined for image origins. **Shape:** describe which credentials/profile identity survive uninstall and how to remove them through the app's own controls (never change the durable identity to make the sentence true — the audit's own caveat and #133/#143's lesson); describe or eliminate external image fetches per #429's ruling (tap-to-load means "only when you tap" — say so). Recheck the whole page against local chat, PCC, hosted chat, voice, images, Keychain, backups. Publishes on merge → Owen reads the exact text first.
+
+> **⟵ 📌 POINTER 2026-09-05 (#429, PR #434 → `0ec8c924`):** the second of this entry's two falsified claims — the "third parties, exhaustively" list omitting arbitrary Markdown image origins — is CLOSED by #429's sentence in `docs/privacy.html` (Owen read the exact wording before the merge; `docs/` publishes on merge): an image host is contacted only when the user taps that image to load it, and nothing is fetched until they do. The first claim ("deleting the app removes everything local" vs the Keychain's deliberate rehydration) is untouched and still this entry's. Tracker #429.**
 
 ## 434. 📄 NO THIRD-PARTY NOTICES SHIP IN THE APP, AND THE THREE OFL FONT FAMILIES ARE NOT LISTED ANYWHERE — `THIRD_PARTY_LICENSES.md` is outside the resource tree; the Release app and both extensions carry no license/OFL/acknowledgment file; nine bundled font files (Chakra Petch, Space Grotesk, JetBrains Mono) are absent from the notice document — **FILED 2026-09-04 (audit A9, P2; built-product inspection by the audit, cross-referenced here). Pre-submission.**
 

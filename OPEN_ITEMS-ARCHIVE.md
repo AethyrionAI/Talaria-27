@@ -13717,6 +13717,8 @@ egress (links, forms, meta-refresh, window.open) and stays unmodified.
 > under the shipped egress-blocked configuration. **Scripts on, network
 > blocked, verified end to end on device. All six bars MET.**
 
+> **⟵ 📌 POINTER 2026-09-05 (#429, PR #434 → `0ec8c924`; append-only, the bytes above are untouched):** this item's egress BLOCK (scripts on, network blocked) covers the `.html` artifact plane only. The Markdown plane one screen over (`MarkdownContentView`) fetched any `https` image at render through `AsyncImage` (audit A4). #429 gives that plane a DIFFERENT rule, deliberately — CONSENT rather than a blocker: a placeholder naming the host, nothing fetched until the user taps, approval per launch keyed by URL, one load per URL per launch through one injectable loader (`RemoteImageView` is the only image-loading site; `AsyncImage(` appears in zero shipping files, pinned). The two planes stay two rules because an image the user WANTS to see is the common case there and never here. Tracker #429.**
+
 ## 258. 🖼️ ARTIFACT PANES v2: agent files appear WHILE the turn streams, and SVG renders instead of "unsupported" — **ROUTED + APPROVED 2026-08-06 (Owen: "5. approved" then "f1 looks good"); design proposal read and blessed; bars pre-registered below BEFORE the build** — **✅ CLOSED 2026-08-06 late evening: all five bars MET (258-E on device), white canvas DECIDED (stays white), chip relocation spun off to #262**
 
 > **⚠️ SUPERSEDED IN PART, 2026-08-07 — the artifact chips this item shipped
