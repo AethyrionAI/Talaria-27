@@ -12350,7 +12350,7 @@ routes through it), #180 (asserting what cannot be measured).
 > **📌 GO on 425-D (Owen, 2026-09-04 ~19:00, AskUserQuestion: "Go, tomorrow after the batches"):** the lane runs first thing 09-05 once the #219 DET-C/E batches have printed done; bars 425-D1/D2 above are the pre-registration; the §01 card's PASS wording is re-cut with the build that carries it.
 
 
-## 426. 🔴 TRANSPLANTED CONTEXT IS LOST FROM THE SECOND RUN ON — the runs-plane history is built from the DISPLAY mapping, which replaces the transplant primer with a `.system` notice that `runsHistory` then drops — **FILED 2026-09-04 (external launch audit A1, P1; VERIFIED IN CODE the same evening — a REGRESSION from #330's fix, PR #383, 2026-08-26). ~~Plan owed~~ → PLAN WRITTEN 2026-09-04 (pointer block below); bars pre-register when the lane opens.**
+## 426. 🔴 TRANSPLANTED CONTEXT IS LOST FROM THE SECOND RUN ON — the runs-plane history is built from the DISPLAY mapping, which replaces the transplant primer with a `.system` notice that `runsHistory` then drops — **FILED 2026-09-04 (external launch audit A1, P1; VERIFIED IN CODE the same evening — a REGRESSION from #330's fix, PR #383, 2026-08-26). ~~Plan owed~~ → PLAN WRITTEN 2026-09-04; ~~bars pre-register when the lane opens~~ → ✅ FIXED 2026-09-05: PR #433 → `b6c68fd5` — bars 426-A/B/C/D + GATE MET; 426-E (the host-side wire count and Owen's planted fact) OWED to a device/host session (RESULT block below).**
 
 > **Source:** the launch-readiness audit of `5485ec8e` (`planning/reports/2026-09-04-launch-audit-astra.md`, finding A1). **Verified:** `fetchRunsHistory` (`SessionsHermesClient+RunsTransport.swift:972`) sources the wire body from `fetchSessionConversation` → `collapsingTransplantAcknowledgments(rows.compactMap { mapStoredMessage(...) })` (`SessionsHermesClient.swift:723`); the primer row is REWRITTEN, content and all (`:778-783`: `sender: .system, content: ContextTransplanter.transplantNoticeLabel(usage: nil)`); the acknowledgment is dropped (`:749`); `conversationHistory` skips `.system` (`+RunsTransport.swift:990` — "system notices are ours, not the thread's"); a reused hop re-primes nothing (`:990-991`, `priming: nil`). So the ~1,500-token transplanted prehistory rides ONLY the priming turn; every later `POST /v1/runs` on that hop ships history without it, and per the runs contract the host never reads the transcript back. **A regression:** `runsHistory` landed 08-07 (`be318f3a`, #283) with the primer as a plain `.user` row on the wire; the remap AND the ack collapse both arrived in `faa725df` (08-26, #330's "receipts sidecar", PR #383) — a display fix that changed the wire body. **The tracker did not know:** `runsHistory`/`conversationHistory` appear in neither file. **A test pins the bug:** `RunsHistoryMappingTests.mapsUserAndHermesRolesAndDropsEveryoneElse` (`RunsPlaneTransportTests.swift:2124-2136`, written 08-07) asserts a `"Context transplanted."` `.system` row is dropped; `SessionTotalsAfterReopenTests` exercises the display map but never composes it with `runsHistory`; no test inspects a `RunsTurnBody` built from a mapped transcript. **Fix shape (the plan's):** build the wire history from raw stored rows (or a representation that keeps the primer's content), apply primer hiding to presentation only; the integration bar feeds stored primer + acknowledgment + later turns through the real history fetch and inspects the next POST body; the 08-07 pin flips. **Device:** a Hermes thread born local, transplanted, then asked a question that depends on the prehistory on turn 2+. Severity: high — every transplanted thread, silent, plausible answers.
 
@@ -12368,6 +12368,123 @@ routes through it), #180 (asserting what cannot be measured).
 - **426-GATE** — positive `GATE: PASS`, count moved by exactly this lane's tests (the mapping suite's count is unchanged: four rewritten + one new).
 
 > **⟵ 🔴 426-E RE-PINNED 2026-09-05 01:5x — a Task 0(b) FALSIFICATION of the bar's written RED, filed BEFORE any code (the plan's own stop rule: "if it reads `history=2`, STOP: the premise is wrong on this build and the lane's first job is to find out why").** Task 0(b) measured, read-only on the Mac gateway (`~/.hermes/hermes-agent` @ `71f8c60f6a`): the host's `history=N` IS the body's `conversation_history` — EXCEPT two overrides that substitute the host's own stored transcript: **(a) a NEW empty-body backfill from the session DB** (`gateway/platforms/api_server_runs.py:419-420`, landed between 2026-09-02 and 09-04 — on this gateway an EMPTY `conversation_history` is filled from the stored transcript), and **(b) the turn-lease reload** (`turn_facade_lease.py:284-294`; `run_agent.py:8827-8846` on the 08-31 code). **The 08-31 `history=2` anomaly is (b):** the app shipped `[]` (one stored row — the primer — remapped to `.system` and dropped), the run waited **35.7 s** for the priming run's session lease, then reloaded a transcript that by then held primer + ack. **Consequence:** on today's gateway the first turn after a transplant reads `history=2` under BOTH the bug and the fix (the backfill fills the bug's empty body) — the written RED (`history=0` on turn 1) is UNOBSERVABLE and the bar as pinned cannot discriminate. **Re-pin (before Task 1, not after a run): 426-E (i)/(ii) are measured on the SECOND and THIRD real turns after the priming run has COMPLETED: RED (current build) `history=2` then `4`; GREEN (fix build) `history=4` then `6`.** The mechanism bar 426-B (the POST body inspected in the integration fixture) is unaffected and was measured RED deterministically the same session: `conversation_history.count=2` — `[0] user ping`, `[1] assistant pong` — primer and ack absent (commit `4abfe060`, the TEMPORARY probe Task 3 deletes). **Two more findings:** (1) **no credential-free route exists to point a SIMULATOR at the Mac gateway** — the UI-test hook (`UITEST_GATEWAY_URL`/`UITEST_API_KEY`, `/tmp/talariamobile-uitest-config.json`) is credential-bearing and its `127.0.0.1` default is not ATS-exempt; the QR path carries the key and is camera-only; no `talaria://` pairing route — so decision 2's "sim → Mac gateway" arm needs Owen's hand for the key or moves to the phone card (Owen's call; the lane does not block on it). (2) **CLOSE-OUT DEBT for the lane's merge:** CLAUDE.md's "runs WRITE the session transcript but never READ it" is FALSE on ≥ 09-03 gateways for an EMPTY body — the (a) backfill reads it; the principle survives for any non-empty body, which is every turn the app sends after the first.
+
+### ✅ RESULT 2026-09-05 — bars 426-A, 426-B, 426-C, 426-D, GATE MET; 426-E RE-PINNED and OWED to a host-side/device pass — GitHub PR #433 (`426-transplant-prehistory`, head `3ad90685`) squash-merged → `b6c68fd5`. Final whole-branch review (opus): APPROVE WITH FIXES — 0 Critical, 2 Important (both prose, both landed before or with the merge), 10 Minor (triaged in Reviews below).
+
+| bar | verdict | evidence |
+|---|---|---|
+| 426-A (stored primer rides the wire verbatim, unit) | ✅ MET | RED-first: `-only-testing:TalariaTests/RunsHistoryMappingTests` failed to COMPILE (`runsHistory(fromStored:)` did not exist — 17 error lines, `RunsPlaneTransportTests.swift:2218-2219`, Task 1's report). GREEN: `RunsHistoryMappingTests` 5/5 (Task 2's green log). Isolating mutation (`row("user", primer)` → `row("system", ContextTransplanter.transplantNoticeLabel(usage: nil))`, the display shape): all 4 primer assertions red (`Expectation failed: history.map(\.role) == [...]`, `.hasPrefix(transplantMarker)`, `.contains("PREHISTORY-KUMQUAT")`, `[1].content == "Acknowledged."` — Task 1's report §5), restored byte-identical. Commits: Task 1 `39f7905f`. |
+| 426-B (the next POST carries it, integration) | ✅ MET | RED witnessed via isolating mutation (reverting `fetchRunsHistory` to the pre-#426 `fetchSessionConversation`/`[Message]`-overload shape, sourced from `git show 4abfe060:…`): `history.count == 4` → `2`; `firstContent.hasPrefix(transplantMarker)` → false, `firstContent` = `"ping"`; ack assertion → `"pong"` not `"Acknowledged."` (Task 2's `red.log:325-343`). GREEN: `history.count == 4`, `[0]` = primer (marker + `PREHISTORY-KUMQUAT` intact), `[1]` = `"Acknowledged."`; GET-before-POST ordering (3A-G) preserved (Task 2 green log, test `aTransplantedHopShipsItsPrehistoryOnTheNextRun`). Restore verified by `git checkout --` + `git status --short` showing one file (test-only). Commit: Task 2 `36fde1cb`. **Scope:** the bar stands in the transplant WITH A FIXTURE — the real client and the real pre-fetch are driven and the recorded POST bytes are asserted, but no `ContextTransplanter` run and no priming turn execute; 426-E is what closes the full path. |
+| 426-C (the three surviving rules, unit) | ✅ MET | Same file, same suite as 426-A — blank/whitespace rows dropped, only a trailing row equal to the outgoing turn dropped, a non-trailing tail kept; 2026-08-07 bodies verbatim over stored rows. Green in the same `RunsHistoryMappingTests` run above. Commit `39f7905f`. |
+| 426-D (display untouched + witness) | ✅ MET | `SessionTotalsAfterReopenTests` byte-identical (`git diff 1be94d36 cb1acd89` on the file is empty) and green in the gate; the rest of `RunsPlaneTransportTests` byte-identical throughout Tasks 1-2. Witness RED (Task 2 `red.log:717-773`): `body.contains("fetchStoredMessages(")` → false; `!body.contains("fetchSessionConversation(")` → false (the old body was captured verbatim in the failure message); whole-tree sweep found the restored `[Message]`-overload argument label in `SessionsHermesClient+RunsTransport.swift`. GREEN: both witness tests pass (Task 2 green log, `RunsWireHistoryWitnessTests` 2/2); whole-tree sweep scans 529 files, 0 offenders. One honest gap: the witness's `mappedTranscript(` negative was not itself exercised by the mutation (the display map is reached inside `fetchSessionConversation`, not named at the call site) — present as a guard, not separately proven red. Commit `36fde1cb`. |
+| 426-E (host-measured wire number) | 🟡 **OWED — RE-PINNED** | Original form (RED = `history=0` on the first post-transplant turn, GREEN = `history=2`) is **unobservable on the current Mac gateway** (`71f8c60f6a`, 2026-09-04 checkout): an empty-body backfill (`api_server_runs.py:419-420`, landed between the 2026-09-02 and 2026-09-04 checkouts) makes RED and GREEN both read `history=2` on turn 1, and a turn-lease reload (`turn_facade_lease.py:284-294`) can mask it a second time — this is exactly what produced the 2026-08-31 `history=2` anomaly on the OLD (buggy) build (Task 0(b) report, full chain + timing proof). **Re-pinned to turns 2 and 3, after the priming run reaches `completed`:** predicted RED `history=2` / GREEN `history=4` (turn 2), RED `history=4` / GREEN `history=6` (turn 3). **What would be measured, and where:** a real transplant + 2-3 turns against the Mac gateway (`100.79.222.100:8642`), read back from `~/.hermes/logs/agent.log`'s `agent.turn_context … history=N` lines, with the lease-wait tell (elapsed time between that run's `Memory provider … activated` and its `turn_context: conversation turn:` line — anything above a couple of seconds means the number is the host's reload, not the app's body) recorded alongside each reading, plus host provenance (checkout head, listener PID/start time, reflog-vs-start-time). **Why it's owed rather than done:** Task 0(b) found no credential-free sim→gateway route (the UI-test harness's `UITEST_GATEWAY_URL`/`UITEST_API_KEY` hook is credential-bearing and forbidden to an agent under the hard rules; `127.0.0.1` isn't ATS-exempt so it would need `100.79.222.100` explicitly; the QR pairing payload carries the key and needs a camera the sim lacks; no launch-environment host/key seed and no pairing deep link exist in the app). Needs Owen's hands (typing Connect Host on `CC-lane-3`, or running the UI-test harness himself) or the phone, which is already paired. **Bound on what 426-E can ever measure:** with `runsSyncBudget` at 20 s against a ~56 s priming run, the first post-priming turn can legitimately ship ONE entry (the primer, no ack yet) — strictly better than the bug's zero, and the second reason the bar lives on turns 2/3. |
+| GATE | ✅ MET | `GATE: PASS on 24A5423a` — Swift Testing **3211 tests / 271 suites** (predicted before the number was read: the lane base `1be94d36` gates at 3207/270; +1 probe in Task 0(b) → 3208; Task 1 net 0; Task 2 +4 tests +1 suite → 3212/271; Task 3 −1 probe → 3211/271 — net **+4 tests / +1 suite** for the lane), XCUITest **18** tests, **no re-roll** (no `known-flake` verdict fired), Release build clean. Logs: `/tmp/426-gate.log`, `.../talaria-gate.MGRI9J5o6R/{suite.log,release.log}`. **The gate ran on `cb1acd89`.** The one later commit, `3ad90685`, is COMMENT-ONLY (7 lines in one file — the final review's I2, the third N4 doc comment) and was verified by an incremental Debug test build plus the three touched suites on CC-lane-3 (`RunsPlaneTransportTests` · `RunsHistoryMappingTests` · `RunsWireHistoryWitnessTests`: 47 tests / 3 suites, `** TEST SUCCEEDED **`) rather than a second 45-minute gate — recorded so the gate line is not read as covering bytes it did not see. |
+
+**Cost note (the plan's Global Constraints required it here).** The primer is ~1,500 tokens per
+turn from now on, forever, on transplanted hops. That is the PRE-08-26 behaviour RESTORED, not a
+new cost. #279's uncounted-history instrumentation (`RunsTurnBody.make`'s `historyBytes` warning,
+`+RunsTransport.swift` ~:100-115) will see it on every such turn — read that warning on a
+transplanted hop as the restored primer, not as a leak.
+
+**Task 0(b) — what the host does with history.** Read-only against `~/.hermes/hermes-agent`
+(nothing edited, no gateway restart, no turn sent). Two backfill paths exist that can make a
+run's history NOT equal what the app's body carried: (1) an **empty-body backfill**, landed
+between the 2026-09-02 and 2026-09-04 checkouts (absent in the first, present in the second) —
+if `conversation_history` in the POST body is empty and a `session_id` is present with no
+`previous_response_id`, the host substitutes its own stored transcript
+(`api_server_runs.py:419-420` → `db.get_messages_as_conversation`); (2) a **turn-lease
+reload** — a turn that had to wait for another run on the same session to release the turn
+lease gets its supplied history discarded and reloaded from the stored transcript after
+admission (`agent/turn_facade_lease.py:284-294`), present in this shape since at least
+2026-08-28 (`run_agent.py:8827-8846` pre-extraction). The **2026-08-31 `history=2`
+anomaly is fully explained** as case (2): access-log User-Agent (`Talaria%2027/3147`)
+confirms the client was the app the whole session; byte-calibrated `GET /messages` response
+sizes confirm only the primer row existed in the DB at the moment the app pre-fetched (so
+the buggy body should have shipped 0 entries); the turn-1 agent was built 35.7s before its
+turn actually began (a lease wait, ending 0.71s after the priming run's own turn ended) —
+so the reload served the by-then-2-row transcript. Turns 2-4 fit the bug's steady state
+exactly (non-empty bodies accepted verbatim, no masking), confirming no separate display-map
+hole exists (`hasPrefix` matched byte-for-byte against the stored primer row). **No
+credential-free sim→gateway route exists** — checked against every environment seed, deep
+link, and QR/pairing path in the app; all require a human to type, paste, scan, or
+file-inject the real key, which the hard rules forbid an agent from doing.
+
+**Reviews.** Zero Important findings across Tasks 1 and 2 (both approved on first review). **Final
+whole-branch review (opus): APPROVE WITH FIXES.** I1 — CLAUDE.md's two "runs … never READ" lines,
+falsified by this lane's own Task 0(b) evidence: sharpened in the close-out commit (this one). I2 —
+the third N4 sentence, in `streamTurnViaRuns`' doc block, 70 lines above the two sharpened call-site
+notes: fixed on the branch (`3ad90685`, comment-only) because two-of-three corrected reads as
+freshly audited and the stale one is met first. Ten minors, all ship-or-follow-up: M1 the witness
+boundary comment overclaims that a moved boundary "fails loud"; M2 the positive assertion's failure
+message misreads on a rename; **M3 the joined literal `runsHistory(from:` is now UNWRITABLE anywhere
+under `Talaria/` or `TalariaTests/` — the whole-tree pin reds on any occurrence, comments included
+(future authors: write "the deleted `[Message]` overload")**; M4 the sharpened comments cite upstream
+line numbers whose anchor is the Mac checkout `71f8c60f6a` (2026-09-04); M5 "≥ 09-03" → "between
+09-02 and 09-04" (corrected in this block); M6 the runs pre-fetch no longer emits the `#330 seam 1`
+`verboseNotice` (device-log readers: the shared helper's row-count line still fires); M7 426-B is
+fixture-scoped (stated in its row); M8 the `mappedTranscript(` negative is unproven red (stated in
+426-D's row); M9 two report prose slips, not copied here; M10 `RunsPlaneTransportTests.swift` now
+hosts three suites, one of them a source witness — a rename is a follow-up, not owed.
+Deferred minors, verbatim from the ledger:
+1. 426-A indexed `history[0]`/`[1]` directly rather than requiring a count first — a
+   malformed fixture would trap the test process instead of failing cleanly. **Taken**: both
+   426-A and 426-B now `try #require` a count before indexing.
+2. The row-fixture helper always emitted both `role` and `content` keys, so the
+   nil-role/nil-content decode guards in `StoredMessage.init(from:)` were unexercised.
+   **Taken**: `dropsRowsMissingRoleOrContentEntirely` pins a role-only row, a content-only
+   row, and a fully-shaped row via a new `rawRow(_:)` helper.
+3. The runs pre-fetch no longer emits the `#330 seam 1` `verboseNotice` the display path
+   still does. **Not acted on** — an attribution note for device-log readers, not a defect.
+4. The witness's `mappedTranscript(` negative assertion is not exercised by the isolating
+   mutation used for RED (the display map is reached inside `fetchSessionConversation`, not
+   named at the pre-fetch call site). **Not acted on** — the string remains a real guard
+   against a different regression shape; its own RED was never separately proven, and the
+   report says so rather than implying it was.
+
+**Deviations from the plan.**
+- `fetchSessionConversation` composes over a new private `fetchStoredMessagesResponse`
+  rather than being rebuilt purely from the brief's public `fetchStoredMessages(_:) ->
+  [StoredMessage]` signature — that signature cannot carry the response envelope's
+  `session_id`, which `fetchSessionConversation` returns as `response.sessionId ?? id` and
+  `openSession` adopts. One request, one decode either way; disclosed and reviewed clean.
+- The witness's window boundary is the next member's `///` doc-comment marker
+  (`"\n    ///"`), not the brief's suggested `"\n    nonisolated static func "` — chosen
+  because the next member's doc comment is itself about the display map, and bounding at
+  the next `func` would swallow that prose into the window, redding the pin on an unrelated
+  comment edit. The RED that was measured shows the boundary is exactly right (the failure
+  message printed precisely the signature and body, nothing more).
+- RED for 426-B/D was witnessed via an isolating mutation restoring the exact pre-fix
+  `fetchRunsHistory` body (sourced verbatim from `git show 4abfe060:…`, marked and reverted),
+  not by checking out the probe commit's production files directly — those don't compile
+  against Task 1's already-rewritten mapping suite, so the mutation is the only vehicle that
+  reaches an assertion rather than a build error.
+- The Swift Testing count expectation needed explicit reconciliation: net +3 tests / +1
+  suite against the lane's true base (`1be94d36`), not the brief's "+1 … +2 if the witness
+  is its own test" shorthand, which predates the nil-row minor. The gate's actual number,
+  3211, matches the reconciled arithmetic exactly.
+
+**What this lane does NOT claim.**
+- No host-side wire number exists yet for the FIX build — 426-E(ii) is owed, not measured.
+- The agent's ANSWERS were not measured by this lane. Owen's planted-fact device card
+  (426-E(iii): a local thread states a new fact he's never told the agent, switches to
+  Hermes, and asks for it back) is a separate, scheduled evening pass, deliberately not
+  recorded in this repo per the ballot, and is out of this PR's scope.
+- The witness's `mappedTranscript(` absence assertion was not exercised by the isolating
+  mutation (Reviews #4) — it is present and correct by inspection, not proven red.
+
+**Close-out corrections landed (this PR).** Three in-code comments in
+`SessionsHermesClient+RunsTransport.swift` — the two `fetchRunsHistory` call-site notes (near
+`streamTurnViaRuns`' pre-fetch and in `syncTurnViaRuns`, `cb1acd89`) and the function's own doc-block
+bullet (`3ad90685`) — each amended with a dated sentence naming #426, stating the empty-body backfill
+and the lease-reload exception to the old "never READS it" claim.
+
+**Landed with the merge (the close-out commit).** CLAUDE.md's Clean Chat Path section and its
+`:8642` route-table section, both of which stated the unqualified "never READ" claim, carry the same
+dated sharpening (two locations, Task 1's original finding). Archive pointer blocks: under
+`OPEN_ITEMS-ARCHIVE.md` #330's fix block (*the display remap was correct; the wire followed it and
+should not have — #426*) and under #283's 3A-G bar text (*"history rides the submit body"* — the
+builder is now `fetchStoredMessages`/`runsHistory(fromStored:)`). `CLEAN_CHAT_PATH.md` was grepped
+before this commit: no joined literal and no "never READ" claim — nothing owed there.
 
 ## 427. 🔴 A LATE RUN-RECOVERY RESPONSE WRITES INTO WHICHEVER CONVERSATION IS CURRENT — `adoptRecoveredRun` appends into the live `conversation` with no ownership check between the await and the mutation, and the in-flight pass survives walk-away — **FILED 2026-09-04 (audit A2, P1; VERIFIED IN CODE). ~~Plan owed~~ → PLAN WRITTEN 2026-09-04; ~~bars pre-register when the lane opens~~ → ✅ FIXED 2026-09-05: PR #431 → `42feed5d` — bars 427-A…W + GATE MET (RESULT block below).**
 

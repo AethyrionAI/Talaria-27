@@ -28139,6 +28139,7 @@ ships behind a Developer switch (plan §5 Q3 as recommended — dual path during
 > board audit (ballot: `planning/2026-08-18-close-ballot.md`). All eight 3A bars MET on device 2026-08-07; the 3E evidence-clock note moves to #368, which now owns the cutover (RULED GO tonight).
 > Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
 
+> **⟵ 📌 POINTER 2026-09-05 (#426, PR #433 → `b6c68fd5`; append-only):** bar 3A-G's "history rides the submit body" is unchanged in shape and changed in SOURCE — the body is now built from the host's stored rows (`runsHistory(fromStored:)`), not from the display-mapped `[Message]`; the `[Message]` overload is deleted and a witness pins the builder to stored rows. Tracker #426.**
 
 ## 282. 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` user row can eat the claim minted by a LATER identical prompt and silently leave the transcript — **FILED 2026-08-07 by the tracker tidy pass, carried verbatim out of #281's closure so it does not sit in the archive unnumbered. ~~NOT STARTED — no lane, no bars, and the scope question is Owen's call.~~ **SCOPE RULED 2026-08-10 (§7: RANK the consumers) and BARS 282R-A..F PRE-REGISTERED 2026-08-11.** ✅ **THE RANKING IS BUILT — bars 282R-A..F ALL MET 2026-08-11 on branch `t27-282-rank-consumers` (base `5c8fed7`); case (a)'s common shape closes, the ban's three duplicate populations stay green, and the settled-successor residual is an ACCEPTED, DOCUMENTED gap. Not merged, no PR opened — awaiting Owen. The measurement lane (PR #304) stays parked.****
 
@@ -48540,6 +48541,8 @@ not free and must be visible" is that lane's own sentence, in the code at
 > digit-for-digit by the same-day `#330 seam 2` log line. **#312 (f) flips with
 > it.** One question is recorded above as OPEN-but-not-a-reopening: whether the
 > receipts sidecar is retroactive for threads created before it shipped.
+
+> **⟵ 📌 POINTER 2026-09-05 (#426, PR #433 → `b6c68fd5`; append-only, the bytes above are untouched):** the fix lane's display remap (the stored primer → the priming NOTICE, the ack collapsed) was RIGHT for the user and WRONG for the agent — `fetchRunsHistory` built the `POST /v1/runs` body from the same mapping, so from `faa725df` (2026-08-26) every run after the priming turn shipped without the transplanted prehistory (audit A1). #426 builds the wire history from the host's stored rows (`fetchStoredMessages` + `runsHistory(fromStored:)`); the display path here is byte-untouched. The 08-07 pin `mapsUserAndHermesRolesAndDropsEveryoneElse` had been pinning the defect. Tracker #426.**
 
 ## 416. 🐛 THE INSTRUMENT HARNESS CANNOT RESOLVE `whoGoesThere` ANY MORE — every device instrument run has been dead since the phone's identifier changed form, and `preota-subset.sh` reports the wipeout as **EXIT 0** — **FILED 2026-08-27 evening, found by RUNNING the batteries rather than reading code (Owen: "lets go ahead and knock that out"). All five subset members "FAILED" in the SAME SECOND and no run directory was ever created.**
 
