@@ -751,6 +751,14 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   UI 4.6 min)**, on top of the `simctl diagnose` window below. That is the RE-ROLL,
   which is `-only-testing:TalariaUITests`; the 35-40 min figures elsewhere in these
   scripts describe the MANUAL re-run of the whole gate and are still right.
+  - **⟵ 2026-09-05 — THE INTEGRATION GATE (found by the post-merge review of the
+    four audit lanes): a lane's gate runs on ITS branch, so when several lanes
+    merge in one day the LAST merge's gate is the only one that saw the combined
+    tree — and only by luck of ordering.** #428's gate ran on `5620e0bd`, which
+    predates #427's merge; #429's later gate on `c9984233` happened to cover both.
+    **Rule: after a day with two or more merges to `main`, run `lane-gate.sh` once
+    on `main` HEAD before OTA-staging it; the OTA build number in the runbook
+    quotes that gate.** A green gate on a branch is not a green gate on `main`.
   - **Read the gate's FAILURE ADVICE, but know what it is now (#300, fixed
     2026-08-10).** Until that fix it could not tell a real failure from a flake at
     all: its discriminator was `grep '\.swift:[0-9]+: error:'`, which matches only
