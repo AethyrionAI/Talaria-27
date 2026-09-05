@@ -957,7 +957,8 @@ extension SessionsHermesClient {
 
     // MARK: - History pre-fetch (N4)
 
-    /// The conversation history a run must be handed, read from server truth.
+    /// The conversation history a run must be handed, read from server truth —
+    /// the host's STORED rows, not the display transcript (#426).
     ///
     /// `excludingTrailing` is the turn about to be sent: ChatStore's
     /// optimistic row is client-side only, so the server should not be
@@ -969,27 +970,47 @@ extension SessionsHermesClient {
         endpoint: ResolvedEndpoint,
         excludingTrailing outgoing: String = ""
     ) async throws -> [RunsTurnBody.HistoryEntry] {
-        let (_, conversation) = try await fetchSessionConversation(sessionId, profileID: nil, endpoint: endpoint)
-        return Self.runsHistory(from: conversation.messages, excludingTrailing: outgoing)
+        let rows = try await fetchStoredMessages(sessionId, profileID: nil, endpoint: endpoint)
+        return Self.runsHistory(fromStored: rows, excludingTrailing: outgoing)
     }
 
-    /// Pure mapping half of the pre-fetch. Prose strings only — the server
-    /// coerces history content with `str()` (`api_server.py:6360-6370` at the
-    /// pre-`3dcbe9001` read; #304 C1: re-resolve before quoting), so a
-    /// structured value would arrive as its Python repr.
+    /// Pure mapping half of the pre-fetch, over the host's stored rows.
+    ///
+    /// **It deliberately does NOT go through `mappedTranscript`, and that is
+    /// the whole of #426.** That map exists to make a reopened thread honest
+    /// to the USER: it re-writes the stored transplant primer into a one-line
+    /// `.system` notice and collapses the acknowledgment, because nobody
+    /// should be shown 1,500 tokens of the app's own bookkeeping under their
+    /// own name. Building the wire body out of its output deleted exactly the
+    /// rows the AGENT most needs — the transplanted prehistory and its ack —
+    /// from every run after the priming turn, because `runsHistory` then
+    /// dropped the `.system` notice the map had just minted. Display and wire
+    /// are two audiences with opposite needs from the same row, so they read
+    /// the same rows through two mappers.
+    ///
+    /// Roles come from the host's own `role` field, case-insensitively:
+    /// `user` and `assistant` ride, and every other value — `system`, `tool`,
+    /// anything unknown — is dropped, because those rows are the host's
+    /// bookkeeping and not the thread. Content rides VERBATIM; the only edit
+    /// is a whitespace trim.
+    ///
+    /// Prose strings only — the server coerces history content with `str()`
+    /// (`api_server.py:6360-6370` at the pre-`3dcbe9001` read; #304 C1:
+    /// re-resolve before quoting), so a structured value would arrive as its
+    /// Python repr.
     nonisolated static func runsHistory(
-        from messages: [Message],
+        fromStored rows: [SessionMessagesResponse.StoredMessage],
         excludingTrailing outgoing: String
     ) -> [RunsTurnBody.HistoryEntry] {
         var entries: [RunsTurnBody.HistoryEntry] = []
-        for message in messages {
+        for row in rows {
             let role: String
-            switch message.sender {
-            case .user: role = "user"
-            case .hermes: role = "assistant"
-            default: continue   // system notices are ours, not the thread's
+            switch (row.role ?? "").lowercased() {
+            case "user": role = "user"
+            case "assistant": role = "assistant"
+            default: continue   // host bookkeeping, not the thread
             }
-            let text = message.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            let text = (row.content ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else { continue }
             entries.append(RunsTurnBody.HistoryEntry(role: role, content: text))
         }

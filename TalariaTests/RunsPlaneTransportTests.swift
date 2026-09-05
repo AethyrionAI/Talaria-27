@@ -2174,37 +2174,71 @@ struct RunsPlaneTransportTests {
 
 // MARK: - History mapping (the pre-fetch's pure half)
 
-/// Direct unit coverage for the three drop/mapping rules `runsHistory`
-/// implements. Pure and `nonisolated` — no network, no client.
+/// Direct unit coverage for the drop/mapping rules the WIRE history builder
+/// implements — over the host's STORED rows, which is what `fetchRunsHistory`
+/// hands it since #426. Pure and `nonisolated` — no network, no client.
+///
+/// It deliberately does NOT go through `mappedTranscript`: that map exists to
+/// make a reopened thread honest to the USER (it re-writes the stored
+/// transplant primer into a one-line notice and collapses its
+/// acknowledgment), and running the wire body through it deleted the
+/// transplanted prehistory from every run after the priming turn. Display and
+/// wire are two audiences with two truths; this suite pins the wire's.
 struct RunsHistoryMappingTests {
 
-    private func message(_ sender: MessageSender, _ content: String) -> Message {
-        Message(sender: sender, content: content, status: .delivered)
+    /// `StoredMessage` has a hand-written `init(from:)` and no memberwise
+    /// init, so a fixture row is built the way the wire builds one — by
+    /// decoding JSON. `JSONEncoder` does the escaping, so a primer full of
+    /// newlines and quotes survives into the fixture verbatim.
+    private func row(_ role: String, _ content: String) -> SessionsHermesClient.SessionMessagesResponse.StoredMessage {
+        let escaped = String(data: try! JSONEncoder().encode(content), encoding: .utf8)!
+        let json = #"{"role":"\#(role)","content":\#(escaped)}"#
+        return try! JSONDecoder().decode(
+            SessionsHermesClient.SessionMessagesResponse.StoredMessage.self,
+            from: Data(json.utf8)
+        )
     }
 
-    @Test func mapsUserAndHermesRolesAndDropsEveryoneElse() {
+    /// 426-A — and this is the 2026-08-07 pin FLIPPED, deliberately.
+    ///
+    /// The test that stood here asserted that a `.system` row reading
+    /// "Context transplanted." was dropped from the wire body. That row was
+    /// the DISPLAY map's re-write of the stored primer (`mapStoredMessage`),
+    /// so the assertion was pinning the very defect #426 names: the
+    /// transplanted prehistory never reached the agent. There is no display
+    /// notice on the wire any more, because the wire builder no longer reads
+    /// the display map — the primer rides as the host stored it, marker and
+    /// all. What survives unchanged is the other half of the old rule: a row
+    /// the HOST stored under a `system` / `tool` / unknown role is still
+    /// dropped, because those are the host's bookkeeping, not the thread.
+    @Test func aStoredTransplantPrimerRidesTheWireVerbatimAndHostRolesStillDrop() {
+        let primer = ContextTransplanter.primingText(
+            body: "The user's dentist is Dr Patel on Lamar. PREHISTORY-KUMQUAT"
+        )
         let history = SessionsHermesClient.runsHistory(
-            from: [
-                message(.user, "ping"),
-                message(.hermes, "pong"),
-                // System notices are the APP's own text (priming receipts,
-                // outage banners) — never part of the thread the agent is
-                // being handed.
-                message(.system, "Context transplanted."),
+            fromStored: [
+                row("user", primer),
+                row("assistant", "Acknowledged."),
+                row("system", "a host-side system row"),
+                row("tool", "{}"),
+                row("user", "ping"),
+                row("hermes", "pong-with-an-unknown-role"),
             ],
             excludingTrailing: ""
         )
-        #expect(history.map(\.role) == ["user", "assistant"])
-        #expect(history.map(\.content) == ["ping", "pong"])
+        #expect(history.map(\.role) == ["user", "assistant", "user"])
+        #expect(history[0].content.hasPrefix(ContextTransplanter.transplantMarker))
+        #expect(history[0].content.contains("PREHISTORY-KUMQUAT"))
+        #expect(history[1].content == "Acknowledged.")
     }
 
     @Test func dropsEmptyAndWhitespaceOnlyRows() {
         let history = SessionsHermesClient.runsHistory(
-            from: [
-                message(.user, "real"),
-                message(.hermes, ""),
-                message(.hermes, "   \n\t "),
-                message(.hermes, "  also real  "),
+            fromStored: [
+                row("user", "real"),
+                row("assistant", ""),
+                row("assistant", "   \n\t "),
+                row("assistant", "  also real  "),
             ],
             excludingTrailing: ""
         )
@@ -2215,10 +2249,10 @@ struct RunsHistoryMappingTests {
 
     @Test func dropsATrailingRowEqualToTheOutgoingTurn() {
         let history = SessionsHermesClient.runsHistory(
-            from: [
-                message(.user, "what is the weather"),
-                message(.hermes, "sunny"),
-                message(.user, "what is the weather"),
+            fromStored: [
+                row("user", "what is the weather"),
+                row("assistant", "sunny"),
+                row("user", "what is the weather"),
             ],
             excludingTrailing: "what is the weather"
         )
@@ -2232,21 +2266,21 @@ struct RunsHistoryMappingTests {
 
     @Test func keepsATrailingRowThatIsNotTheOutgoingTurn() {
         let assistantTail = SessionsHermesClient.runsHistory(
-            from: [message(.user, "hi"), message(.hermes, "hello")],
+            fromStored: [row("user", "hi"), row("assistant", "hello")],
             excludingTrailing: "hello"
         )
         // Same text, but it is the ASSISTANT's — never the outgoing turn.
         #expect(assistantTail.map(\.content) == ["hi", "hello"])
 
         let differentTail = SessionsHermesClient.runsHistory(
-            from: [message(.user, "hi"), message(.hermes, "hello")],
+            fromStored: [row("user", "hi"), row("assistant", "hello")],
             excludingTrailing: "something else"
         )
         #expect(differentTail.count == 2)
 
         // Whitespace-only outgoing text never drops anything.
         let blankOutgoing = SessionsHermesClient.runsHistory(
-            from: [message(.user, "hi")],
+            fromStored: [row("user", "hi")],
             excludingTrailing: "   "
         )
         #expect(blankOutgoing.count == 1)
