@@ -69,12 +69,24 @@ final class RemoteImageConsent {
     /// failures included, so without this line the retry re-reads the same
     /// recorded `nil` and never reaches the loader at all — the failure row
     /// would be tappable and useless.
+    ///
+    /// **The dropped task is CANCELLED, not merely forgotten (2026-09-05).**
+    /// Today's failure row only exists after the task finished, so the entry
+    /// this drops is always a finished one and `cancel()` is a no-op — but
+    /// that is a property of the VIEW, not of this type, and this type's API
+    /// lets any caller retry at any moment. Dropping a LIVE task without
+    /// cancelling it would leave two fetches racing for one URL, with the
+    /// loser still talking to a host the reader consented to ping ONCE and its
+    /// late `store(_:for:)` free to land on top of the retry's own result.
+    /// Cancelling makes "at most one live load per URL" a property of the
+    /// store rather than of the only caller that exists today. Pinned by
+    /// `RemoteImageConsentTests.retryCancelsALoadThatIsStillInFlight`.
     func retry(_ url: URL) {
         let key = url.absoluteString
         approved.insert(key)
         failedLoads.remove(key)
         attempts[key, default: 0] += 1
-        inFlight[key] = nil
+        inFlight.removeValue(forKey: key)?.cancel()
     }
 
     /// The decoded bytes for an approved URL, without a second trip to the
@@ -220,7 +232,19 @@ enum RemoteImagePolicy {
     /// failed to load", a difference nobody chose.
     static let failureTitle = "Image failed to load"
     static let failureAction = "Tap to retry"
-    static func failureAccessibilityLabel(host: String) -> String {
-        "Image from \(host) failed to load. Tap to retry."
+
+    /// The failure row's VoiceOver label.
+    ///
+    /// **Leads with the alt text (2026-09-05), for the same reason
+    /// `loadedAccessibilityLabel` does:** it is what the picture IS, and a
+    /// reader deciding whether to spend a second request on a host wants to
+    /// know which picture is asking. #437-A shipped this without the alt text
+    /// while the visible row already substitutes it for the title, so the
+    /// label was saying less than the pixels — and the reader who most needs
+    /// to know which image broke is exactly the one who cannot see the row.
+    static func failureAccessibilityLabel(host: String, altText: String) -> String {
+        altText.isEmpty
+            ? "Image from \(host) failed to load. Tap to retry."
+            : "\(altText). Image from \(host) failed to load. Tap to retry."
     }
 }

@@ -36,7 +36,13 @@ struct RemoteImageView: View {
     @Environment(\.remoteImageConsent) private var consent
     @Environment(\.remoteImageLoader) private var loader
 
-    /// This URL's host, named in three labels below.
+    /// This URL's host, named by every label this view builds — six sites: the
+    /// placeholder's title and its VoiceOver label, the loaded image's label
+    /// in each of the two modes, and the failure row's in each of the two.
+    ///
+    /// The count was wrong (it said three) and `placeholder` still computed
+    /// and SHADOWED its own local copy, so two of the six read a different
+    /// binding than the rest; both finished 2026-09-05.
     private var host: String { RemoteImagePolicy.host(of: url) }
 
     var body: some View {
@@ -50,8 +56,7 @@ struct RemoteImageView: View {
     // MARK: - Before the tap
 
     private var placeholder: some View {
-        let host = RemoteImagePolicy.host(of: url)
-        return Button {
+        Button {
             consent.approve(url)
         } label: {
             VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
@@ -179,7 +184,7 @@ struct RemoteImageView: View {
                 .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.md))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(RemoteImagePolicy.failureAccessibilityLabel(host: host))
+            .accessibilityLabel(RemoteImagePolicy.failureAccessibilityLabel(host: host, altText: altText))
 
         case .fullscreen:
             Button {
@@ -195,7 +200,7 @@ struct RemoteImageView: View {
                 .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(RemoteImagePolicy.failureAccessibilityLabel(host: host))
+            .accessibilityLabel(RemoteImagePolicy.failureAccessibilityLabel(host: host, altText: altText))
         }
     }
 }

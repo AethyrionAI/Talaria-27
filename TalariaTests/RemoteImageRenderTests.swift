@@ -22,6 +22,20 @@ import UIKit
 /// therefore owns the load through `RemoteImageLoading`, and this suite counts
 /// calls on the injected loader.
 ///
+/// **⟵ 2026-09-05 (#437 fix round 1). "A bar that cannot fail" was true of the
+/// bar #429 could have written, and is NOT true of the one this file now
+/// carries.** `theShippingLoaderMakesNoRequestUntilTheTap` (437-E, at the foot
+/// of this file) is exactly a `URLProtocol`-counting bar, and it passes and
+/// fails correctly: 0 requests before the tap, 1 after, and the "remove both
+/// gates" mutation reds it at the pre-consent check with the shipping loader's
+/// own request in the counter. The paragraph above stays because its
+/// measurement is still exactly right about what it measured — no registered
+/// `URLProtocol` can see an `AsyncImage` request, so a counting bar over
+/// design A would have read 0 both times. What changed is the subject: design
+/// B moved the fetch onto a protocol we own, which routes it through
+/// `URLSession.shared`, which the counter CAN see. The move that made the ban
+/// enforceable is the same move that made the wire bar possible.
+///
 /// **The liveness arm is not decoration.** `harnessIsNotBlind` renders the
 /// same content with consent ALREADY granted and requires exactly one call. If
 /// that arm ever goes to zero, every zero in this file means "the harness
@@ -184,13 +198,32 @@ struct RemoteImageRenderTests {
 
     /// Every non-empty `accessibilityLabel` in a view hierarchy.
     ///
-    /// **Not the walk #429 tried and abandoned.** That one read
-    /// `accessibilityElements` / `accessibilityElementCount()`, which SwiftUI
-    /// builds lazily and never built in a test host, so it collected zero
-    /// labels and made "the placeholder is gone" true for the wrong reason.
-    /// This reads the `accessibilityLabel` PROPERTY off each backing `UIView`,
-    /// which SwiftUI sets eagerly — and every arm that uses it asserts the
-    /// placeholder's own label first, so a blind walk reds instead of passing.
+    /// **A third route at the same wall, and it is MEASURED BLIND on this
+    /// runtime.** #429 tried `accessibilityElements` and the dynamic
+    /// `accessibilityElementCount()`/`accessibilityElement(at:)` pair, which
+    /// SwiftUI builds lazily and never built in a test host. This is a
+    /// different mechanism — the `accessibilityLabel` PROPERTY read off each
+    /// backing `UIView` — and on the unmodified tree it returns `[]` as well,
+    /// including for the PLACEHOLDER's label, which has been in the source
+    /// since #429 (printed by the arm below as `437-C [labels …] []`). The
+    /// view is not unlabelled; this walk cannot see labels here.
+    ///
+    /// **So the one arm that uses it DEGRADES rather than reds when the walk
+    /// is blind.** `theLoadedImageIsLabelledForVoiceOver` asserts the real
+    /// label whenever any route can see one; otherwise it requires the walk to
+    /// be entirely empty — "some labels but not the placeholder's" still reds,
+    /// which is what keeps the fallback from being an excuse — and falls
+    /// through to the paint probe, printing which branch it took.
+    ///
+    /// **Corrected 2026-09-05 (#437 fix round 1).** This comment used to say
+    /// the property is one "which SwiftUI sets eagerly" and that "every arm
+    /// that uses it asserts the placeholder's own label first, so a blind walk
+    /// reds instead of passing". Both halves are false at HEAD, and the second
+    /// one described the very safeguard whose absence the fallback exists to
+    /// handle. What actually holds the label is the SOURCE pin
+    /// (`RemoteImageSitePinsTests.theLoadedImageIsLabelledFromThePolicy`) plus
+    /// the policy's value pins; the only thing that can confirm what VoiceOver
+    /// SPEAKS is a device pass with VoiceOver on, which is owed and not done.
     private func accessibilityLabels(in view: UIView) -> [String] {
         var out: [String] = []
         if let label = view.accessibilityLabel, !label.isEmpty { out.append(label) }

@@ -218,6 +218,35 @@ struct RemoteImageSitePinsTests {
                 "the label must come from the policy, not be re-spelled at the call site")
     }
 
+    /// **M3 (fix round 1, 2026-09-05) — the FAILURE row's label carries the
+    /// alt text as well.**
+    ///
+    /// The loaded image's label leads with the alt text deliberately (it is
+    /// what the picture IS, `RemoteImageConsent.swift`'s
+    /// `loadedAccessibilityLabel`), and #437-A's failure row dropped it —
+    /// which is the wrong way round. A reader who cannot see the broken row is
+    /// exactly the one who cannot tell WHICH image is asking to be retried,
+    /// and the visible row already shows the alt text in place of the title
+    /// when there is one, so the label was saying less than the pixels.
+    ///
+    /// The label's VALUES are pinned in
+    /// `RemoteImageConsentTests.theFailureCopyIsPinned`; this half pins that
+    /// both of the row's two modes actually pass the alt text in, which no
+    /// value pin can see. Counted rather than `contains`ed, so a fix that
+    /// reached only the inline mode reds here.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo — simulator only"))
+    func theFailureRowLabelCarriesTheAltText() throws {
+        let body = try RepoSourceWitness.functionBody(
+            from: "private var failureRow",
+            in: Self.remoteImageViewPath,
+            boundary: "\n    private "
+        )
+        #expect(Self.occurrences(of: "RemoteImagePolicy.failureAccessibilityLabel(host: host, altText: altText)",
+                                 in: body) == 2,
+                "both failure rows must label with the alt text ahead of the host — body was: \(body)")
+    }
+
     // MARK: - 437-D (source half)
 
     /// **437-D — saving to Photos uses the bytes already on the device.**
@@ -253,6 +282,21 @@ struct RemoteImageSitePinsTests {
     /// `ServerSettingsScreen` posts a `URLRequest` that way and it is not an
     /// image fetch; this ban is about fetching bytes BY URL and turning them
     /// into a picture.
+    ///
+    /// **The ban's KNOWN EDGE (recorded 2026-09-05, #437 fix round 1).** Three
+    /// more spellings fetch bytes by URL and none of them is a needle here.
+    /// `Data(contentsOf:)` is the sharp one: given an `http(s)` URL it fetches
+    /// synchronously, so a hand-rolled remote image could be written with it —
+    /// but the app already has 10 of them across 7 shipping files, every one
+    /// reading a LOCAL file, so adding it as a needle would need an allowlist,
+    /// and an allowlist is a ban that fails open the day someone appends to it
+    /// without thinking. `URLSession.bytes(from:)` and
+    /// `URLSession.download(from:)` are absent for the opposite reason — zero
+    /// sites today, so they would be free to add, and they are named here
+    /// rather than added because a needle nothing has ever matched is a needle
+    /// nobody can tell is still wired up. What closes this edge is not a
+    /// longer list: it is 437-E's wire count, which sees a request whatever
+    /// API put it there.
     private static let remoteFetchNeedles = [
         ".data(from:",
         "dataTask(with:",
