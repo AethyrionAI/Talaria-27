@@ -2477,6 +2477,16 @@ final class ChatStore {
     /// (`hardStopActiveRun` / `abandonActiveRun` already ran, unconditionally,
     /// at the top of `cancelStreaming`).
     ///
+    /// **#427 — one thing that CAN record a run around a Stop, and it is not
+    /// this function.** Clearing `pendingRun` here strips the ownership a
+    /// run-status read already in flight was carrying, so that read comes
+    /// back to `attemptRunStatusReconcile`'s superseded arm. If the host's
+    /// verdict is TERMINAL, that arm records the run — not as an adoption
+    /// (nothing was adopted, and nothing here fires), but so a late duplicate
+    /// interrupt for a run the host has finished with is treated as the noise
+    /// it is. A `.gone` verdict records nothing. The rule above is unchanged:
+    /// Stop itself still writes no entry.
+    ///
     /// Ruling (a)'s deciding fact, recorded here because it is what makes the
     /// abandon safe: abandoning the reconcile does not burn a host-side
     /// answer. A run that completes anyway still arrives through the ordinary
@@ -4120,7 +4130,17 @@ final class ChatStore {
         // host 404'd the run id) must NOT — grinding a budget against a run
         // the host has already forgotten is the #145 shape wearing a new
         // face, and the answer will never change.
-        if await attemptReconcile(pending) == .keepPolling {
+        //
+        // #427: `.superseded` arms it too, and that is not a third kind of
+        // "keep polling" — it is the absence of a verdict about the run that
+        // is pending NOW. The pass answered about a run this store has
+        // walked away from; if a REPLACEMENT was armed while the read was in
+        // flight (a second dropped turn on the same thread), that run is
+        // watched by nothing unless this line arms it. `startReconcileLoopIfNeeded`
+        // is itself guarded on `pendingRun != nil` and on there being no loop
+        // already, so the no-replacement case stays a no-op.
+        let outcome = await attemptReconcile(pending)
+        if outcome == .keepPolling || outcome == .superseded {
             startReconcileLoopIfNeeded()
         }
     }
@@ -4151,7 +4171,23 @@ final class ChatStore {
                 // #368 (3E): `.resolved` and `.unrecoverable` both end the
                 // loop — one because there is an answer, one because there
                 // never will be. Only `.keepPolling` goes round again.
-                if await self.attemptReconcile(pending) != .keepPolling { break }
+                //
+                // #427: `.superseded` goes round again too, and MUST NOT
+                // break. Breaking drops this loop into the budget-expired
+                // tail below, which fires `resolveHeldTurn`, may settle a
+                // restored row and clear `pendingRun`, and always nils
+                // `reconcileTask` — every one of them acting on the run that
+                // is pending NOW, which is precisely the run the token
+                // refused to write for. The exposed case is a replacement
+                // armed without a cancel (`armPendingRunRecovery` on a second
+                // dropped turn): that run inherits this loop as its watcher,
+                // so the loop re-reads `self.pendingRun` on the next turn of
+                // the while rather than tearing itself down. Cancellation and
+                // a vanished pending run are still handled — by the
+                // while-condition and the `guard let pending` above.
+                let outcome = await self.attemptReconcile(pending)
+                if outcome == .superseded { continue }
+                if outcome != .keepPolling { break }
             }
             // #306 matrix row 3's other tail: the budget ran out with no
             // adoption and the run is still unresolved — SURFACE the held
@@ -4228,15 +4264,34 @@ final class ChatStore {
         )
     }
 
+    /// #427: WHICH clause refused the write. The notice used to say "after
+    /// the thread changed" on every arm, which is false on the one that costs
+    /// most to diagnose: a second dropped turn on the SAME thread replaces
+    /// the pending run without the conversation moving at all. A log line
+    /// that names the wrong cause is worse than one that names none.
+    private enum RecoveryOwnershipMiss: String {
+        case passCancelled = "the pass was cancelled"
+        case generationBumped = "the recovery generation moved on"
+        case threadChanged = "the thread changed"
+        case pendingRunCleared = "the pending run was cleared"
+        case pendingRunReplaced = "the pending run was replaced"
+    }
+
+    private func recoveryOwnershipMiss(_ token: RecoveryOwnership) -> RecoveryOwnershipMiss? {
+        if Task.isCancelled { return .passCancelled }
+        if recoveryGeneration != token.generation { return .generationBumped }
+        if conversation?.id != token.conversationID { return .threadChanged }
+        guard let pending = pendingRun else { return .pendingRunCleared }
+        if pending.sessionId != token.sessionID || pending.runId != token.runID {
+            return .pendingRunReplaced
+        }
+        return nil
+    }
+
     /// True only while the thread, the pending run and the generation are all
     /// still the ones the pass was armed for.
     private func recoveryStillOwned(_ token: RecoveryOwnership) -> Bool {
-        guard !Task.isCancelled, recoveryGeneration == token.generation else { return false }
-        guard conversation?.id == token.conversationID else { return false }
-        guard let pending = pendingRun,
-              pending.sessionId == token.sessionID,
-              pending.runId == token.runID else { return false }
-        return true
+        recoveryOwnershipMiss(token) == nil
     }
 
     /// One recovery pass. **Two instruments behind one door, chosen by
@@ -4274,9 +4329,13 @@ final class ChatStore {
     ///   rule). Stop watching; claim nothing.
     /// - `.gone` → the host has forgotten this run. `.unrecoverable`.
     /// - `nil` → still live, or the read failed. `.keepPolling`.
+    ///
     /// **#427 — a fifth verdict that is not the host's:** `.superseded`. The
     /// ownership token is captured BEFORE the read and checked immediately
     /// after it, because this await is where the user gets to walk away.
+    /// `.superseded` says nothing about the run that is pending NOW, so
+    /// neither caller may treat it as an ending: the loop goes round again
+    /// and `performReconcilePendingRuns` still arms one.
     private func attemptRunStatusReconcile(_ pending: PendingRun, runID: String) async -> ReconcilePassOutcome {
         let token = ownership(for: pending)
         guard let resolution = await hermesClient.resolveDroppedRun(
@@ -4290,12 +4349,21 @@ final class ChatStore {
         // already be a later open's. Nothing is lost: the run WROTE its turn
         // into its own server session, so reopening that thread fetches it
         // through the ordinary transcript merge (#321's finding).
-        guard recoveryStillOwned(token) else {
-            // #237 still applies — this run really did resolve on the host,
-            // so a late duplicate interrupt for it is noise from here on,
-            // whatever thread happens to be showing.
-            resolvedRunIDs.insert(runID)
-            chatLog.notice("run recovery: verdict for \(runID, privacy: .public) arrived after the thread changed — dropped, the host still has it (#427)")
+        if let miss = recoveryOwnershipMiss(token) {
+            // #237 still applies — but only to what #237 actually records.
+            // A TERMINAL verdict means this run really did resolve on the
+            // host, so a late duplicate interrupt for it is noise from here
+            // on, whatever thread happens to be showing. `.gone` is not a
+            // resolution: the owned path answers it `.unrecoverable` and
+            // records nothing, and a pass that LOST its thread must not
+            // claim more than the pass that kept it would have.
+            switch resolution {
+            case .answered, .failed, .endedWithoutAnswer:
+                resolvedRunIDs.insert(runID)
+            case .gone:
+                break
+            }
+            chatLog.notice("run recovery: verdict for \(runID, privacy: .public) arrived after \(miss.rawValue, privacy: .public) — dropped, the host still has it (#427)")
             return .superseded
         }
 
@@ -4401,8 +4469,9 @@ final class ChatStore {
     /// journal, not `resolveHeldTurn`. Every one of those would be acting on
     /// another thread's state on the strength of a verdict about this one.
     /// `resolvedRunIDs` is the single exception and it is the caller's:
-    /// `attemptRunStatusReconcile`'s superseded arm records it, because the
-    /// run really did resolve on the host.
+    /// `attemptRunStatusReconcile`'s superseded arm records it when — and
+    /// only when — the host's verdict was TERMINAL, because only then did
+    /// the run really resolve.
     private func settlePendingRun(
         _ pending: PendingRun,
         runID: String,
