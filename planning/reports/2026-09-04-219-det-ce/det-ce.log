@@ -1,0 +1,9 @@
+18:09:57  DET-C/E start; repo HEAD 5b65f449; out /Users/owenjones/talaria-batches/det-ce-20260904
+18:09:57  DET-C: ui-bundle-batch.sh 10 (arm: default/element)
+19:10:16  DET-C batch exit=0
+19:10:16  DET-C: 0 red(s) on testConnectedRelaunchSkipsTheConnectEntry over 10 run(s)
+19:10:16  DET-E sized: n=20 (descriptive-prediction-falsified)
+19:10:16  DET-E: ui-bundle-batch.sh 20 (arm: coordinate)
+21:19:21  DET-E batch exit=0
+21:19:21  DET-E: 0 red(s) on testConnectedRelaunchSkipsTheConnectEntry over 20 run(s) (sized n=20, descriptive-prediction-falsified)
+21:19:21  DET-C/E done. Ledgers: /Users/owenjones/talaria-batches/det-ce-20260904/det-c/ledger.tsv  /Users/owenjones/talaria-batches/det-ce-20260904/det-e/ledger.tsv

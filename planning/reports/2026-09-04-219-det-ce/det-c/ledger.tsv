@@ -1,0 +1,26 @@
+# ui-bundle-batch 10 trial(s)
+# commit	f32c651edb23177684010ade4cd5da11deacd7db
+# simulator	CC-lane-2	99CD2CC9-2D33-42EB-8FFF-FCC02BAD0A94
+# runtime	iOS 27.0	24A5423a
+# tap_strategy	unset
+# started	2026-09-04T23:10:57Z
+# columns	hittap_lines / xflake_lines = activity lines prefixed "HITTAP " / "XFLAKE "
+# columns	sc_* = the START CHATTING tap in completeConnect (budget 10.0s) — the ONLY site this batch varies:
+# columns	  sc_first_look  = tapped on the first look (polls=0)
+# columns	  sc_self_healed = became hittable DURING the poll (polls>0) — late, not lost
+# columns	  sc_timed_out   = never hittable; the fallback tap went out (outcome=tappedAfterTimeout)
+# columns	  the three sum to the number of connect journeys in the bundle (3 today)
+# columns	  the two DEBUG overlay fixtures tap the same button on a SHORTER budget with their
+# columns	  arms pinned in the source; they are excluded from all three and are not this site
+run	result	failing_tests	hittap_lines	xflake_lines	sc_first_look	sc_self_healed	sc_timed_out	xcuitest_ledger
+01	FAIL	-	48	0	3	0	0	18 ran / 18 passed / 0 failed
+02	FAIL	-	48	0	3	0	0	18 ran / 18 passed / 0 failed
+03	FAIL	-	48	0	3	0	0	18 ran / 18 passed / 0 failed
+04	FAIL	-	48	0	3	0	0	18 ran / 18 passed / 0 failed
+05	FAIL	-	48	0	3	0	0	18 ran / 18 passed / 0 failed
+06	FAIL	-	48	0	3	0	0	18 ran / 18 passed / 0 failed
+07	FAIL	-	48	0	3	0	0	18 ran / 18 passed / 0 failed
+08	FAIL	-	48	0	3	0	0	18 ran / 18 passed / 0 failed
+09	FAIL	-	48	0	3	0	0	18 ran / 18 passed / 0 failed
+10	FAIL	-	48	0	3	0	0	18 ran / 18 passed / 0 failed
+# finished	2026-09-05T00:10:16Z

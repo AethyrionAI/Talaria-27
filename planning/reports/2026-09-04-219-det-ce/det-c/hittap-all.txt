@@ -1,0 +1,480 @@
+    t =     6.65s HITTAP tapped chat.composer via=elementTap polledFor=0.06s polls=0 budget=0.0s
+    t =    25.49s HITTAP tapped chat.composer via=elementTap polledFor=0.11s polls=0 budget=0.0s
+    t =    44.29s HITTAP tapped chat.composer via=elementTap polledFor=0.11s polls=0 budget=0.0s
+    t =    21.67s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    23.43s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.53s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.47s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    23.18s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.02s polls=0 budget=10.0s
+    t =    23.29s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.58s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    23.33s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.44s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.38s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.06s polls=0 budget=0.0s
+    t =    25.67s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    25.67s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    25.67s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=coordinateAfterTimeout timeout=3.0s
+    t =    25.67s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.67s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.67s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.67s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.67s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.67s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.67s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    25.67s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.67s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.67s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.67s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.67s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.67s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    25.68s HITTAP fallback connectHostWizard.startChatting via=coordinateAfterTimeout under=19
+    t =    21.32s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.05s polls=0 budget=0.0s
+    t =    25.53s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    25.53s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    25.53s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=elementTap timeout=3.0s
+    t =    25.53s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.54s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.54s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.54s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.54s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.54s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.54s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    25.54s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.54s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.54s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.54s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.54s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.54s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    25.54s HITTAP fallback connectHostWizard.startChatting via=elementTap under=19
+    t =     6.43s HITTAP tapped chat.composer via=elementTap polledFor=0.06s polls=0 budget=0.0s
+    t =    24.94s HITTAP tapped chat.composer via=elementTap polledFor=0.11s polls=0 budget=0.0s
+    t =    43.61s HITTAP tapped chat.composer via=elementTap polledFor=0.10s polls=0 budget=0.0s
+    t =    21.55s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    23.30s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.40s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.64s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    23.42s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.52s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.53s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    23.26s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.36s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.45s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    25.70s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    25.70s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    25.70s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=coordinateAfterTimeout timeout=3.0s
+    t =    25.70s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    25.70s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    25.70s HITTAP fallback connectHostWizard.startChatting via=coordinateAfterTimeout under=19
+    t =    21.29s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    25.58s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    25.58s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    25.58s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=elementTap timeout=3.0s
+    t =    25.58s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.58s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.58s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.58s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.58s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.58s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.58s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    25.58s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.58s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.58s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.58s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.58s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.58s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    25.58s HITTAP fallback connectHostWizard.startChatting via=elementTap under=19
+    t =     6.50s HITTAP tapped chat.composer via=elementTap polledFor=0.06s polls=0 budget=0.0s
+    t =    25.15s HITTAP tapped chat.composer via=elementTap polledFor=0.11s polls=0 budget=0.0s
+    t =    44.02s HITTAP tapped chat.composer via=elementTap polledFor=0.11s polls=0 budget=0.0s
+    t =    22.06s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.05s polls=0 budget=0.0s
+    t =    23.80s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.91s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    22.40s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.10s polls=0 budget=0.0s
+    t =    24.19s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.02s polls=0 budget=10.0s
+    t =    24.29s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    23.62s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    25.34s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.02s polls=0 budget=10.0s
+    t =    25.46s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.57s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.05s polls=0 budget=0.0s
+    t =    25.79s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    25.79s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    25.79s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=coordinateAfterTimeout timeout=3.0s
+    t =    25.79s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.79s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.79s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.79s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.79s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.79s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.79s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    25.79s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.79s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.79s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.79s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.79s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.79s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    25.79s HITTAP fallback connectHostWizard.startChatting via=coordinateAfterTimeout under=19
+    t =    22.20s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.05s polls=0 budget=0.0s
+    t =    26.74s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    26.74s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    26.74s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=elementTap timeout=3.0s
+    t =    26.74s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.74s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.74s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.74s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.75s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.75s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.75s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    26.75s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.75s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.75s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.75s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.75s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.75s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    26.75s HITTAP fallback connectHostWizard.startChatting via=elementTap under=19
+    t =     6.52s HITTAP tapped chat.composer via=elementTap polledFor=0.06s polls=0 budget=0.0s
+    t =    25.56s HITTAP tapped chat.composer via=elementTap polledFor=0.09s polls=0 budget=0.0s
+    t =    44.41s HITTAP tapped chat.composer via=elementTap polledFor=0.12s polls=0 budget=0.0s
+    t =    21.95s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.05s polls=0 budget=0.0s
+    t =    23.73s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.83s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.86s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    23.62s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.73s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    22.11s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    23.91s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    24.01s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    24.85s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.03s polls=0 budget=0.0s
+    t =    29.32s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    29.33s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    29.33s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=coordinateAfterTimeout timeout=3.0s
+    t =    29.33s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.33s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.33s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.33s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.33s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.33s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.33s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    29.33s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.33s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.33s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.33s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.33s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.33s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    29.33s HITTAP fallback connectHostWizard.startChatting via=coordinateAfterTimeout under=19
+    t =    25.16s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.05s polls=0 budget=0.0s
+    t =    29.57s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    29.57s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    29.57s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=elementTap timeout=3.0s
+    t =    29.57s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.57s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.57s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.57s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.57s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.57s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.57s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    29.57s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.57s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.57s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.57s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.57s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    29.57s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    29.57s HITTAP fallback connectHostWizard.startChatting via=elementTap under=19
+    t =     6.44s HITTAP tapped chat.composer via=elementTap polledFor=0.06s polls=0 budget=0.0s
+    t =    25.20s HITTAP tapped chat.composer via=elementTap polledFor=0.11s polls=0 budget=0.0s
+    t =    43.90s HITTAP tapped chat.composer via=elementTap polledFor=0.12s polls=0 budget=0.0s
+    t =    21.82s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.05s polls=0 budget=0.0s
+    t =    23.62s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.73s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.71s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.05s polls=0 budget=0.0s
+    t =    23.47s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.57s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.64s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.05s polls=0 budget=0.0s
+    t =    23.40s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.51s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    27.34s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.14s polls=0 budget=0.0s
+    t =    31.79s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    31.79s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    31.79s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=coordinateAfterTimeout timeout=3.0s
+    t =    31.79s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    31.79s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    31.79s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    31.79s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    31.79s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    31.79s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    31.79s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    31.79s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    31.80s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    31.80s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    31.80s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    31.80s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    31.80s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    31.80s HITTAP fallback connectHostWizard.startChatting via=coordinateAfterTimeout under=19
+    t =    33.39s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.09s polls=0 budget=0.0s
+    t =    37.80s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    37.80s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    37.80s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=elementTap timeout=3.0s
+    t =    37.80s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    37.80s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    37.80s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    37.80s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    37.80s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    37.80s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    37.80s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    37.80s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    37.80s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    37.80s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    37.80s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    37.80s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    37.80s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    37.80s HITTAP fallback connectHostWizard.startChatting via=elementTap under=19
+    t =     6.80s HITTAP tapped chat.composer via=elementTap polledFor=0.06s polls=0 budget=0.0s
+    t =    25.74s HITTAP tapped chat.composer via=elementTap polledFor=0.10s polls=0 budget=0.0s
+    t =    44.57s HITTAP tapped chat.composer via=elementTap polledFor=0.11s polls=0 budget=0.0s
+    t =    22.37s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.10s polls=0 budget=0.0s
+    t =    24.15s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    24.25s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.93s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.05s polls=0 budget=0.0s
+    t =    23.65s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.02s polls=0 budget=10.0s
+    t =    23.76s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.96s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.05s polls=0 budget=0.0s
+    t =    23.70s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.81s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.58s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.05s polls=0 budget=0.0s
+    t =    25.81s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    25.81s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    25.81s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=coordinateAfterTimeout timeout=3.0s
+    t =    25.81s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.81s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.81s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.81s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.81s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.81s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.81s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    25.82s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.82s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.82s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.82s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.82s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.82s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    25.82s HITTAP fallback connectHostWizard.startChatting via=coordinateAfterTimeout under=19
+    t =    21.46s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    25.70s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    25.70s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    25.70s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=elementTap timeout=3.0s
+    t =    25.70s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    25.70s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.70s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    25.70s HITTAP fallback connectHostWizard.startChatting via=elementTap under=19
+    t =     6.50s HITTAP tapped chat.composer via=elementTap polledFor=0.06s polls=0 budget=0.0s
+    t =    25.33s HITTAP tapped chat.composer via=elementTap polledFor=0.11s polls=0 budget=0.0s
+    t =    44.00s HITTAP tapped chat.composer via=elementTap polledFor=0.12s polls=0 budget=0.0s
+    t =    21.82s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    23.59s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.68s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.53s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    23.28s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.39s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.49s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.05s polls=0 budget=0.0s
+    t =    23.24s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.34s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.45s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    25.73s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    25.73s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    25.73s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=coordinateAfterTimeout timeout=3.0s
+    t =    25.73s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.73s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.73s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.73s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.73s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.73s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.73s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    25.73s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.73s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.73s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.73s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.73s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.73s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    25.73s HITTAP fallback connectHostWizard.startChatting via=coordinateAfterTimeout under=19
+    t =    21.89s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.10s polls=0 budget=0.0s
+    t =    26.18s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    26.18s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    26.18s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=elementTap timeout=3.0s
+    t =    26.18s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.18s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.18s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.18s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.18s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.18s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.18s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    26.18s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.18s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.18s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.18s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.18s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.18s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    26.18s HITTAP fallback connectHostWizard.startChatting via=elementTap under=19
+    t =     6.58s HITTAP tapped chat.composer via=elementTap polledFor=0.06s polls=0 budget=0.0s
+    t =    25.53s HITTAP tapped chat.composer via=elementTap polledFor=0.11s polls=0 budget=0.0s
+    t =    44.17s HITTAP tapped chat.composer via=elementTap polledFor=0.11s polls=0 budget=0.0s
+    t =    22.13s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.08s polls=0 budget=0.0s
+    t =    23.88s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.02s polls=0 budget=10.0s
+    t =    23.98s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.91s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.05s polls=0 budget=0.0s
+    t =    23.69s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.80s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    22.34s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.10s polls=0 budget=0.0s
+    t =    24.06s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.02s polls=0 budget=10.0s
+    t =    24.17s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.92s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.08s polls=0 budget=0.0s
+    t =    26.18s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    26.18s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    26.18s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=coordinateAfterTimeout timeout=3.0s
+    t =    26.18s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.18s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.18s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.19s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.19s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.19s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.19s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    26.19s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.19s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.19s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.19s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.19s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.19s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    26.19s HITTAP fallback connectHostWizard.startChatting via=coordinateAfterTimeout under=19
+    t =    21.43s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.05s polls=0 budget=0.0s
+    t =    25.92s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    25.92s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    25.92s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=elementTap timeout=3.0s
+    t =    25.92s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    25.92s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    25.92s HITTAP fallback connectHostWizard.startChatting via=elementTap under=19
+    t =     6.41s HITTAP tapped chat.composer via=elementTap polledFor=0.06s polls=0 budget=0.0s
+    t =    25.23s HITTAP tapped chat.composer via=elementTap polledFor=0.09s polls=0 budget=0.0s
+    t =    43.90s HITTAP tapped chat.composer via=elementTap polledFor=0.08s polls=0 budget=0.0s
+    t =    21.44s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    23.22s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.33s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.75s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.08s polls=0 budget=0.0s
+    t =    23.48s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.02s polls=0 budget=10.0s
+    t =    23.57s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.32s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.05s polls=0 budget=0.0s
+    t =    23.06s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.16s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.42s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    25.65s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    25.65s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    25.65s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=coordinateAfterTimeout timeout=3.0s
+    t =    25.65s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.65s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.65s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.65s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.65s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.65s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.65s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    25.65s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.66s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.66s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.66s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.66s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.66s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    25.66s HITTAP fallback connectHostWizard.startChatting via=coordinateAfterTimeout under=19
+    t =    21.27s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    25.51s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    25.51s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    25.51s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=elementTap timeout=3.0s
+    t =    25.51s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.51s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.51s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.51s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.51s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.51s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.51s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    25.51s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.51s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.51s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.51s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.51s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.51s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    25.51s HITTAP fallback connectHostWizard.startChatting via=elementTap under=19
+    t =     6.42s HITTAP tapped chat.composer via=elementTap polledFor=0.06s polls=0 budget=0.0s
+    t =    24.95s HITTAP tapped chat.composer via=elementTap polledFor=0.11s polls=0 budget=0.0s
+    t =    43.57s HITTAP tapped chat.composer via=elementTap polledFor=0.11s polls=0 budget=0.0s
+    t =    22.17s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.05s polls=0 budget=0.0s
+    t =    23.98s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    24.09s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.68s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    23.41s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.51s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.56s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.03s polls=0 budget=0.0s
+    t =    23.30s HITTAP tapped connectHostWizard.startChatting via=elementTap polledFor=0.03s polls=0 budget=10.0s
+    t =    23.39s HITTAP post outcome=tapped wizardUp=false composerIn5s=true wizardUpAfter=false
+    t =    21.77s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.05s polls=0 budget=0.0s
+    t =    26.08s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    26.08s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    26.08s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=coordinateAfterTimeout timeout=3.0s
+    t =    26.08s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.08s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.08s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.08s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.08s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.08s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.08s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    26.08s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.08s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.08s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.08s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.08s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    26.08s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    26.08s HITTAP fallback connectHostWizard.startChatting via=coordinateAfterTimeout under=19
+    t =    21.66s HITTAP tapped connectHostWizard.continue via=coordinateAfterTimeout polledFor=0.04s polls=0 budget=0.0s
+    t =    25.92s HITTAP pre connectHostWizard.startChatting exists=true hittable=false enabled=true selected=false frame=(24.0, 509.0, 372.0, 56.0)
+    t =    25.92s HITTAP app connectHostWizard.startChatting state=runningForeground windows=2 keyboards=0 alerts=0 buttons=3 window=(0.0, 0.0, 420.0, 912.0) scroll=(0.0, 127.0, 420.0, 785.0)
+    t =    25.92s HITTAP centre connectHostWizard.startChatting point=(210.0, 537.0) strategy=elementTap timeout=3.0s
+    t =    25.92s HITTAP under[1/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[2/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[3/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[4/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[5/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[6/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[14/19] Other id=uitest.overlayBlocksWizard frame=(0.0, 68.0, 420.0, 810.0)
+    t =    25.92s HITTAP under[15/19] Toolbar id=Toolbar frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[16/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[17/19] Window id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[18/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under[19/19] Other id= frame=(0.0, 0.0, 420.0, 912.0)
+    t =    25.92s HITTAP under truncated total=19 shown=12 elided=7…13
+    t =    25.92s HITTAP fallback connectHostWizard.startChatting via=elementTap under=19
