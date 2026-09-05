@@ -25,7 +25,7 @@ write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta6**.
   #368 (2026-08-19), and the ONLY transport since #382 deleted the sessions
   turn transport (2026-08-23, PR #360): `POST /v1/runs` (202 + `run_id`;
   history rides the body — runs WRITE the session transcript but never READ
-  it **⟵ SHARPENED 2026-09-05 (#426): true for every NON-EMPTY body; on gateways ≥ 2026-09-03 an EMPTY `conversation_history` is BACKFILLED from the session DB (`api_server_runs.py:419-420`), and a run that waited on a session lease reloads the transcript (`turn_facade_lease.py:284-294`) — so the app must send the history it wants seen, which after #426 includes the transplant primer and its ack**) → `GET /v1/runs/{id}/events` (SSE, `data:`-only frames, event name
+  it **⟵ SHARPENED 2026-09-05 (#426): true for every NON-EMPTY body; on gateways newer than the 2026-09-02 checkout (the backfill landed between the 09-02 and 09-04 Mac checkouts) an EMPTY `conversation_history` is BACKFILLED from the session DB (`api_server_runs.py:419-420`), and a run that waited on a session lease reloads the transcript (`turn_facade_lease.py:284-294`) — so the app must send the history it wants seen, which after #426 includes the transplant primer and its ack**) → `GET /v1/runs/{id}/events` (SSE, `data:`-only frames, event name
   INSIDE the JSON) → `GET /v1/runs/{id}` (status + output + usage; recovery's
   status read). `/api/sessions*` survives ONLY as create/open/list/messages/
   fork/model — `POST /api/sessions` → id at **`.session.id`**. There is no
@@ -428,7 +428,7 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   the JSON — there are **no `event:` lines**, unlike `/chat/stream`; a run carrying an
   existing `session_id` **WRITES its turns into SessionDB but never READS them** (history
   must ride the request, and a missing history does NOT error — the agent answers
-  plausibly from long-term memory instead) **⟵ SHARPENED 2026-09-05 (#426, measured on the Mac at `71f8c60f6a`): two host-side exceptions read the transcript — an EMPTY body is backfilled from the session DB on gateways ≥ 2026-09-03, and a turn that waited on the session lease reloads it; a NON-EMPTY body is used verbatim, which is why #426's regression (the display remap feeding the wire builder) lost the transplanted prehistory from the SECOND run on and never the first**; and a freshly created, never-used session
+  plausibly from long-term memory instead) **⟵ SHARPENED 2026-09-05 (#426, measured on the Mac at `71f8c60f6a`): two host-side exceptions read the transcript — an EMPTY body is backfilled from the session DB on gateways newer than the 2026-09-02 checkout (the backfill landed between the 09-02 and 09-04 Mac checkouts), and a turn that waited on the session lease reloads it; a NON-EMPTY body is used verbatim, which is why #426's regression (the display remap feeding the wire builder) lost the transplanted prehistory from the SECOND run on and never the first**; and a freshly created, never-used session
   returns **200 with an empty list** on `/api/sessions/{id}/messages`, not 404.
   **The APPROVAL family (`approval.request` on the events stream +
   `POST /v1/runs/{id}/approval`) has three behaviours of its own (#304, 2026-08-09 —
