@@ -44,8 +44,12 @@ import Testing
 /// `NotificationCenter.default` and the observers are never removed, so a
 /// posted route change reaches EVERY live `NativeVoicePipelineService` in the
 /// process. One service per test, ended before the test returns, and no two
-/// tests in flight at once. (`NativeVoiceCaptureProbeTests` posts route changes
-/// too — run this suite alone when it is the evidence.)
+/// tests in flight at once. (The one other suite that posted route changes,
+/// `NativeVoiceCaptureProbeTests`, was Task 0's temporary scaffolding and was
+/// deleted in Task 4 — so this suite is now the only poster in the process.
+/// Run it alone anyway when it is the evidence: `.serialized` orders tests
+/// WITHIN a suite, not across suites, and any future poster reintroduces the
+/// hazard silently.)
 @Suite("428-A/C restart vs teardown", .serialized)
 @MainActor
 struct NativeVoiceRestartTeardownTests {
@@ -308,6 +312,113 @@ struct NativeVoiceRestartTeardownTests {
         #expect(service.voiceState == .idle)
         #expect(service.statusMessage == nil)
         #expect(service.blockedReason == nil)
+    }
+
+    // MARK: - Critical 1: the join yields to a cancelled caller
+
+    /// **The join's poll is reachable under caller cancellation, and it is on
+    /// the MainActor.** `endSession()` is called from stored, cancellable
+    /// tasks: `TalkStore.coverWatchTask` (`TalkStore.swift:238-244`) runs
+    /// `coverArmedMidFlight` → `discardAbandonedStart()` →
+    /// `voiceService.endSession()`, and that task is cancelled by
+    /// `beginCoverWatch`, `TalkStore.endSession()`, `abandonSession()` and
+    /// `reset()`. `VoiceOverlayScreen`'s `.task` is a weaker second path
+    /// (SwiftUI auto-cancels it on disappear).
+    ///
+    /// A cancelled `Task.sleep` throws IMMEDIATELY and `joinRestart`'s `try?`
+    /// swallows it — so without the `if Task.isCancelled { break }` the loop
+    /// stops sleeping and starts spinning at executor rate for the whole 3 s
+    /// bound, on the actor that draws the UI. This test drives exactly that
+    /// chain: the phone-lock cover park's `endSession()` arriving as a task
+    /// someone then cancels, with a restart still parked.
+    ///
+    /// The bar is the ELAPSED time after the cancel, because the outcome is
+    /// correct either way — the busy-wait is invisible to state assertions.
+    @Test func aCancelledCallerDoesNotBusyWaitOutTheJoinBound() async throws {
+        let capture = FakeCapture(parkOnStart: 2, parkedOutcome: .throwsGeneric)
+        let service = try await connectedService(capture)
+
+        let parked = await driveToParkedRestart(capture)
+        #expect(parked, "the restart never reached the parked start — nothing below is evidence")
+
+        // Never released: the restart is genuinely still in flight, so the join
+        // is inside its poll rather than past it.
+        let ended = Task { @MainActor in
+            await service.endSession()
+            return ContinuousClock.now
+        }
+        try? await Task.sleep(for: .milliseconds(200))
+        #expect(await capture.isParked, "the start left its park before the cancel — the join was not polling")
+
+        let cancelledAt = ContinuousClock.now
+        ended.cancel()
+        let endedAt = await ended.value
+        let afterCancel = endedAt - cancelledAt
+
+        #expect(
+            afterCancel < .seconds(1),
+            "a cancelled caller must leave the join at once, not spin the MainActor out to the 3 s bound: \(afterCancel)"
+        )
+        #expect(service.connectionState == .idle, "the shutdown must still complete")
+        #expect(service.voiceState == .idle)
+
+        // The straggler resumes ~4 s later and must find an ended session it
+        // cannot repaint — the same cover the bound-elapsed exit relies on.
+        let threw = await waitUntil(8.0) { await capture.calls.contains("start-threw") }
+        #expect(threw, "the straggler never resumed — the arm below is not evidence")
+        try? await Task.sleep(for: .milliseconds(300))
+        #expect(service.connectionState == .idle)
+        #expect(service.statusMessage == nil)
+    }
+
+    // MARK: - Critical 2: a superseded INITIAL connect is silent too
+
+    /// The other lifecycle. #415's cover park (and a plain End) can land while
+    /// the INITIAL connect is suspended inside `assemble`: teardown's
+    /// `capture.stop()` bumps the capture generation, the resumed start throws
+    /// `.superseded`, and before this fix `startSession()`'s catch painted
+    /// `.failed` + `blockedReason` + "Local voice couldn't start: Voice
+    /// capture start was superseded by a session teardown." — an internal
+    /// mechanism sentence on a user surface, on a designed-correct shutdown.
+    /// Each of those `didSet`s publishes a snapshot `TalkStore` adopts.
+    ///
+    /// Driven through `connectSessionForHarness()` because `startSession()`
+    /// parks on the speech TCC prompt in this test host (Task 0(b) probe 1).
+    /// The door adds no copy of the catch — it calls the same
+    /// `connectSession()` production method `startSession()` calls.
+    @Test func aSupersededInitialConnectNeverPaintsAFailure() async throws {
+        let capture = FakeCapture(parkOnStart: 1, parkedOutcome: .throwsSuperseded)
+        let speech = SpeechOutputService()
+        speech.managesAudioSession = false
+        let service = NativeVoicePipelineService(
+            backendProvider: { nil },
+            speechOutput: speech,
+            capture: capture
+        )
+
+        let connect = Task { @MainActor in await service.connectSessionForHarness() }
+        let parked = await waitUntil(3.0) { await capture.isParked }
+        #expect(parked, "the initial connect never parked — nothing below is evidence")
+
+        await service.endSession()
+        await capture.release()
+        let threw = await waitUntil(3.0) { await capture.calls.contains("start-threw") }
+        #expect(threw, "the parked start never threw .superseded — nothing below is evidence")
+        await connect.value
+        // Give the resumed catch every chance to paint before believing it did not.
+        try? await Task.sleep(for: .milliseconds(300))
+
+        #expect(service.blockedReason == nil,
+                "a superseded initial connect must not leave a blocked reason: \(String(describing: service.blockedReason))")
+        #expect(service.connectionState == .idle,
+                "End left this session idle; the abandoned start must not repaint it .failed")
+        #expect(service.voiceState == .idle)
+        #expect(service.statusMessage == nil,
+                "\(String(describing: service.statusMessage))")
+        #expect(
+            service.statusMessage?.contains("superseded") != true,
+            "an internal mechanism sentence reached a user surface: \(String(describing: service.statusMessage))"
+        )
     }
 
     // MARK: - Negative control

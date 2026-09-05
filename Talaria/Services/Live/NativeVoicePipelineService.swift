@@ -239,6 +239,20 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             return
         }
 
+        await connectSession()
+    }
+
+    /// The connect half of `startSession()` — everything after the preflight,
+    /// including the failure paint.
+    ///
+    /// Extracted (#428 final fix) so the failure path has exactly ONE home the
+    /// harness can drive. `startSession()` itself cannot be called in the test
+    /// host: #428 Task 0(b) probe 1 measured it parking indefinitely inside
+    /// `SFSpeechRecognizer.requestAuthorization` on the simulator, and a
+    /// second copy of the paint block would be a second thing to keep in step
+    /// with the guard below. One mechanism, two callers (the second is
+    /// `connectSessionForHarness()`, `#if DEBUG`).
+    private func connectSession() async {
         connectionState = .connecting
         voiceState = .thinking
         statusMessage = "Starting local voice."
@@ -264,6 +278,23 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         } catch {
             await teardownSessionResources()
             localSessionID = nil
+            // #428 (decision 2 — a superseded start is SILENT): End, or
+            // #415's cover park, landing while this INITIAL connect is
+            // suspended inside `assemble` is a designed-correct shutdown, not
+            // a device failure. Teardown's `capture.stop()` bumps the capture
+            // generation, so the resumed start throws `.superseded` and lands
+            // here — and every paint below has a `didSet` that publishes a
+            // snapshot `TalkStore` adopts, so without this guard a correct
+            // shutdown writes an internal sentence ("Voice capture start was
+            // superseded by a session teardown.") onto a user surface.
+            //
+            // Returning without painting is safe rather than merely quiet:
+            // `endSession()`'s tail paints idle unconditionally after its own
+            // teardown, and on the cover path `TalkStore
+            // .discardAbandonedStart()` paints again after it. This mirrors
+            // `restartCapture`'s `guard !self.isEndingSession` in front of its
+            // own `.failed` paint — the same rule on the other lifecycle.
+            guard !isEndingSession else { return }
             blockedReason = error.localizedDescription
             canStartSession = false
             connectionState = .failed
@@ -473,6 +504,28 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 //    It is coalesced by `restartTask` and bounded by the
                 //    thrash breaker above (>3 in 30 s trips it), so it cannot
                 //    become the #82 loop the gate exists to prevent.
+                //
+                // #428 (final review, Important 3): **silence about STATE is
+                // not silence about the ARCHIVE.** On the live-session arm
+                // this return can leave a session reading `.connected` /
+                // `.listening` with no capture chain behind it: the old
+                // analyzer's failure path yields `.failed` into an
+                // `outputContinuation` that `capture.stop()` has already
+                // finished and nil'd — so the event is DROPPED, not painted —
+                // and that same `stop()` is what supersedes us here. Narrow
+                // (it needs a genuine analyzer failure interleaved with a
+                // route restart) but silent, so it gets a positive control:
+                // one `.notice` naming the ordering, at #302-A's level, so an
+                // archive can distinguish "no capture chain" from "no restart
+                // was attempted". Repairing the state is NOT done here — the
+                // controller cannot yet tell a supersession by a bare `stop()`
+                // from one by a newer `start()`, and re-arming on the latter
+                // is the #82 thrash. That fuller fix is filed OPEN.
+                if !self.isEndingSession {
+                    Self.logger.notice(
+                        "\(Self.restartSupersededOnLiveSessionLogDetail(), privacy: .public)"
+                    )
+                }
                 return
             } catch is CancellationError {
                 // #428 (428-A): **this is the fix's own success path, so it
@@ -537,6 +590,19 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         return "capture restart abandoned by teardown — \(reason); nothing installed, nothing painted (#428)"
     }
 
+    /// The live-session supersession line (#428 final review, Important 3), as
+    /// a pure function so a grep-read archive line is pinned by a test.
+    ///
+    /// Names the ORDERING rather than a fault, because that is what happened:
+    /// a `stop()` ran while this restart was still in its startup stretch, so
+    /// the restart installed nothing and the session it left behind has no
+    /// capture chain until something triggers the next one. It is a positive
+    /// control for an absence — without it, an archive cannot tell a session
+    /// that lost its capture chain this way from one that never restarted.
+    nonisolated static func restartSupersededOnLiveSessionLogDetail() -> String {
+        "capture restart superseded on a LIVE session — a stop ran during the restart's startup; no capture chain until the next route change (#428)"
+    }
+
     /// #428 (428-A): cancel the in-flight capture restart and WAIT for it to
     /// leave — bounded, because a shutdown the user is waiting on must not be
     /// hostage to a capture stack that has stopped answering.
@@ -552,13 +618,52 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     /// tap that the same `stop()` then tears down.
     private func joinRestart(within bound: Duration) async {
         restartTask?.cancel()
-        let deadline = ContinuousClock.now + bound
+        let startedAt = ContinuousClock.now
+        let deadline = startedAt + bound
         while restartInFlight, ContinuousClock.now < deadline {
             try? await Task.sleep(for: .milliseconds(25))
+            // #428 (final review, Critical 1): **the CALLER can be cancelled,
+            // and this loop is on the MainActor.** `endSession()` is reached
+            // from stored, cancellable tasks — `TalkStore.coverWatchTask`
+            // (cancelled by `beginCoverWatch`, `endSession()`,
+            // `abandonSession()` and `reset()`) runs
+            // `discardAbandonedStart()` → `voiceService.endSession()`, and
+            // `VoiceOverlayScreen`'s `.task` is auto-cancelled on disappear.
+            // A cancelled `Task.sleep` throws IMMEDIATELY and `try?` swallows
+            // it, so without this break the loop degrades to a main-actor
+            // busy-wait spinning at executor rate for the full bound.
+            //
+            // Breaking is safe for the same reason the bound is: teardown's
+            // own `capture.stop()` runs right after and bumps the capture
+            // generation, so the straggler installs nothing (428-B).
+            if Task.isCancelled { break }
         }
-        if restartInFlight {
+        guard restartInFlight else { return }
+        if Task.isCancelled {
+            // Not "after 3 s" — this exit did not wait out the bound, and an
+            // instrument that said it did would misreport the shutdown that
+            // produced it.
+            Self.logger.notice(
+                "\(Self.restartJoinAbandonedLogDetail(elapsed: ContinuousClock.now - startedAt), privacy: .public)"
+            )
+        } else {
             Self.logger.notice("restart still in flight after \(bound.description, privacy: .public) — proceeding; the capture generation covers the straggler (#428)")
         }
+    }
+
+    /// The cancelled-join line, as a pure function so its text is pinned by a
+    /// test rather than by a device archive (`VoiceInstrumentLogLineTests`).
+    ///
+    /// It exists because the two over-bound exits are different events: one
+    /// waited the whole bound out, the other was cut short by a caller that
+    /// walked away (the cover watch, the overlay's `.task`). Rendering them
+    /// identically would leave an archive unable to tell a wedged capture
+    /// stack from a cancelled shutdown.
+    nonisolated static func restartJoinAbandonedLogDetail(elapsed: Duration) -> String {
+        let milliseconds =
+            elapsed.components.seconds * 1000
+            + elapsed.components.attoseconds / 1_000_000_000_000_000
+        return "restart join abandoned — caller cancelled after \(milliseconds) ms; the capture generation covers the straggler (#428)"
     }
 
     private func teardownSessionResources() async {
@@ -567,6 +672,11 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         // tear down; cancelling it without joining leaves it to finish building
         // on the far side of a completed shutdown.
         await joinRestart(within: .seconds(3))
+        // #428 (final review, minor 8): drop the settled handle. `restartCapture`
+        // coalesces on `if let inFlight = restartTask { await inFlight.value;
+        // return }` — a COMPLETED handle left here returns instantly and
+        // swallows the next session's first route change.
+        restartTask = nil
         stopTimer()
         disarmFlatlineTripwire()
         audioRouteSummary = nil
@@ -1097,8 +1207,9 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     // (428-A / 428-C) reach `.connected` through this door instead, with an
     // injected `NativeVoiceCapturing` (Task 1's seam) standing in for the mic.
     //
-    // This is the only surviving member of what was originally a larger
-    // Task 0 probe-door block (`probeCaptureController`,
+    // Two doors live here — this one and `connectSessionForHarness()` (added
+    // by #428's final fix wave for the initial-connect failure path). They are
+    // what survived a larger Task 0 probe-door block (`probeCaptureController`,
     // `probeIsConfiguringAudioSession`, `probeSetConfiguringAudioSession(_:)`,
     // `probeBeginCapture()`) — those four were temporary scaffolding for
     // `NativeVoiceCaptureProbeTests` (deleted, #428 Task 4) and are gone with
@@ -1123,6 +1234,23 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         voiceState = .listening
         blockedReason = nil
         statusMessage = "Listening"
+    }
+
+    /// harness-visible (#428 final fix). Runs `startSession()`'s connect half —
+    /// the REAL `beginCapture()` and the REAL failure paint — with no
+    /// preflight in front of it.
+    ///
+    /// This is the door for Critical 2's bar: an End (or #415's cover park)
+    /// landing while the INITIAL connect is parked inside `assemble` must not
+    /// leave `.failed` + "Voice capture start was superseded by a session
+    /// teardown." on a user surface. There is nothing duplicated here — the
+    /// catch under test is `connectSession()`'s own, and this call is the only
+    /// thing this method does. `startSession()` itself cannot be driven in the
+    /// test host (Task 0(b) probe 1: it parks in
+    /// `SFSpeechRecognizer.requestAuthorization` on the simulator).
+    func connectSessionForHarness() async {
+        isEndingSession = false
+        await connectSession()
     }
 #endif
 }

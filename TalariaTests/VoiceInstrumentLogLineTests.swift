@@ -540,6 +540,125 @@ struct VoiceInstrumentLogLineTests {
         )
     }
 
+    // MARK: - #428 the CANCELLED join, and the LIVE-session supersession
+    //         (final review, Critical 1 and Important 3)
+
+    /// **Two over-bound exits, two different events.** `joinRestart` can leave
+    /// its poll because the 3 s bound elapsed (a capture stack that stopped
+    /// answering) or because its CALLER was cancelled — the cover watch task,
+    /// the overlay's `.task` — which is not a wait at all. The bound-elapsed
+    /// line says "after 3.0 seconds"; saying that on a join cut short at
+    /// 40 ms would misreport the shutdown that produced it, which is #419's
+    /// under-specified-discriminator defect in the other direction.
+    @Test("a cancelled join reports the cancel, never the bound")
+    func theCancelledJoinLineReportsTheCancelNotTheBound() {
+        let line = NativeVoicePipelineService.restartJoinAbandonedLogDetail(
+            elapsed: .milliseconds(120)
+        )
+        #expect(line.contains("caller cancelled"))
+        #expect(!line.contains("still in flight"))
+        #expect(line.contains("#428"))
+        // The whole shape, because the archive reader is a grep — and the
+        // elapsed value is rendered, so a join cut short at 40 ms cannot be
+        // mistaken for one that waited the bound out.
+        #expect(
+            line
+                == "restart join abandoned — caller cancelled after 120 ms; the capture generation covers the straggler (#428)"
+        )
+        #expect(
+            NativeVoicePipelineService.restartJoinAbandonedLogDetail(elapsed: .milliseconds(2_500))
+                == "restart join abandoned — caller cancelled after 2500 ms; the capture generation covers the straggler (#428)"
+        )
+    }
+
+    /// The wiring pin for the cancelled exit, structural for the same reason
+    /// the abandoned-restart one is: `Logger.notice` swallows its argument, so
+    /// nothing behavioural can see which of the two branches ran. The
+    /// behavioural test (`aCancelledCallerDoesNotBusyWaitOutTheJoinBound`)
+    /// pins the BREAK; this pins that the break's exit is instrumented, and
+    /// that the bound line is not what reports it.
+    ///
+    /// **Positional, not `contains`.** `if Task.isCancelled { break }` already
+    /// appears elsewhere in this file (the turn-stream loop), so a whole-file
+    /// `contains` would stay green with `joinRestart`'s break deleted — a pin
+    /// that cannot fail. It is bounded to the method's own body instead.
+    @Test("the join's cancelled exit is wired to its own line")
+    func theJoinsCancelledExitIsWiredToItsOwnLine() throws {
+        let source = try Self.pipelineServiceSource()
+        let joinStart = try #require(
+            source.range(of: "private func joinRestart(within bound: Duration) async {"),
+            "`joinRestart` is gone or renamed — this pin can no longer say where it is looking"
+        )
+        let formatterCall = try #require(
+            source.range(of: "Self.restartJoinAbandonedLogDetail(elapsed:"),
+            "the cancelled exit no longer calls the pinned formatter — the shape pin above is pinned to nothing (#428 Critical 1)"
+        )
+        let body = source[joinStart.upperBound..<formatterCall.lowerBound]
+        #expect(
+            body.contains("if Task.isCancelled { break }"),
+            "the cancelled-caller break is gone from `joinRestart` — a cancelled `Task.sleep` throws instantly and the poll busy-waits the MainActor out to its bound (#428 Critical 1)"
+        )
+        // The bound line must not be what reports a cancelled exit.
+        let boundLine = try #require(
+            source.range(of: "restart still in flight after \\("),
+            "the bound-elapsed line is gone — this pin can no longer prove the two exits are distinguished"
+        )
+        #expect(
+            formatterCall.lowerBound < boundLine.lowerBound,
+            "the cancelled exit must be reported before, and separately from, the bound-elapsed line"
+        )
+    }
+
+    /// **A positive control for an absence.** On the live-session arm the
+    /// `.superseded` catch returns silently and can leave `.connected` /
+    /// `.listening` with no capture chain behind it (the old analyzer's
+    /// `.failed` event is yielded into a continuation `capture.stop()` already
+    /// finished, so it is dropped). Narrow, but with no line at all an archive
+    /// cannot tell that session from one where no restart was ever attempted.
+    @Test("the live-session supersession names the ordering, not a fault")
+    func theLiveSessionSupersessionLineNamesTheOrdering() {
+        let line = NativeVoicePipelineService.restartSupersededOnLiveSessionLogDetail()
+        #expect(line.contains("LIVE session"))
+        #expect(line.contains("#428"))
+        // It is an ordering, not a device fault: no failure vocabulary, and no
+        // claim the user must act on.
+        #expect(!line.lowercased().contains("failed"))
+        #expect(!line.contains("could not resume"))
+        #expect(
+            line
+                == "capture restart superseded on a LIVE session — a stop ran during the restart's startup; no capture chain until the next route change (#428)"
+        )
+    }
+
+    /// The wiring pin, and it must pin the line INSIDE the `.superseded` arm:
+    /// the same call placed in the generic catch or after the arm would log
+    /// the wrong event. Pinned by offset between the two catch markers, the
+    /// established pattern of the ordering pin above.
+    @Test("the live-session line is emitted from the .superseded arm itself")
+    func theLiveSessionLineIsEmittedFromTheSupersededArm() throws {
+        let source = try Self.pipelineServiceSource()
+        let supersededArm = try #require(
+            source.range(of: "} catch NativeVoiceCaptureController.CaptureError.superseded {"),
+            "the typed `.superseded` arm is gone — this pin can no longer prove where the line is emitted"
+        )
+        let cancellationArm = try #require(
+            source.range(of: "} catch is CancellationError {"),
+            "the `catch is CancellationError` arm is gone — this pin can no longer bound the `.superseded` arm"
+        )
+        let call = try #require(
+            source.range(of: "Self.restartSupersededOnLiveSessionLogDetail()"),
+            "the live-session supersession is silent again — a session left with no capture chain emits nothing (#428 Important 3)"
+        )
+        #expect(
+            call.lowerBound > supersededArm.upperBound && call.upperBound < cancellationArm.lowerBound,
+            "the line must be emitted from INSIDE the `.superseded` arm, or it names an event that did not happen"
+        )
+        #expect(
+            source.contains("if !self.isEndingSession {"),
+            "the line is no longer gated on a LIVE session — an ordinary shutdown would emit it too (#428 decision 2)"
+        )
+    }
+
     private static func pipelineServiceSource() throws -> String {
         let url = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()  // TalariaTests/
