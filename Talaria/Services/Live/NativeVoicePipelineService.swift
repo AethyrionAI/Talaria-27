@@ -900,6 +900,34 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     private func publishSnapshot() {
         eventHub.publish(snapshot: snapshot)
     }
+
+#if DEBUG
+    // MARK: - #428 Task 0 probe doors (TEMPORARY)
+    //
+    // harness-visible (#428, Task 0 probe). These exist ONLY so
+    // `NativeVoiceCaptureProbeTests` can measure the premises the #428 plan
+    // rests on (does the sim clear the preflight; does the real capture chain
+    // start; does a posted route-change reach `restartCapture`, and does the
+    // 750 ms configuration cooldown gate it). Task 4 deletes them together
+    // with the probe file — nothing in production reads them.
+
+    /// The real capture controller, so a probe can read `probeStartCount`.
+    var probeCaptureController: NativeVoiceCaptureController { capture }
+
+    /// The route-change gate's flag, so a probe can see the cooldown clear.
+    var probeIsConfiguringAudioSession: Bool { isConfiguringAudioSession }
+
+    /// Arms/disarms the gate without going through a real capture start.
+    func probeSetConfiguringAudioSession(_ value: Bool) {
+        isConfiguringAudioSession = value
+    }
+
+    /// The real `beginCapture()`, so a probe can measure the REAL cooldown
+    /// rather than a hand-set flag.
+    func probeBeginCapture() async throws {
+        try await beginCapture()
+    }
+#endif
 }
 
 // MARK: - Capture controller
@@ -913,7 +941,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
 /// tap installs, so assistant TTS playback isn't re-transcribed as new user
 /// input. Voice processing changes the input format — the format is read
 /// AFTER enabling it.
-private actor NativeVoiceCaptureController {
+// harness-visible (#428, Task 0 probe) — widened from `private` so
+// `NativeVoiceCaptureProbeTests` can drive the REAL controller. TEMPORARY:
+// Task 4 restores `private` when the probe file is deleted.
+actor NativeVoiceCaptureController {
     private static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "NativeVoiceCapture")
 
     enum Event: Sendable {
@@ -927,6 +958,13 @@ private actor NativeVoiceCaptureController {
     private let muteState = OSAllocatedUnfairLock(initialState: false)
 
     private let audioEngine = AVAudioEngine()
+    /// harness-visible (#428, Task 0 probe) — the engine's own state, read by
+    /// probe 2. TEMPORARY, deleted with the probe file (Task 4).
+    var isEngineRunning: Bool { audioEngine.isRunning }
+    /// harness-visible (#428, Task 0 probe) — counts `start(muted:)` entries so
+    /// probe 3 can see a route-change restart as a SECOND start even when that
+    /// start then throws. TEMPORARY, deleted with the probe file (Task 4).
+    private(set) var probeStartCount = 0
     private var analyzer: SpeechAnalyzer?
     private var reservedLocale: Locale?
     private var analyzerTask: Task<Void, Never>?
@@ -983,6 +1021,7 @@ private actor NativeVoiceCaptureController {
     }
 
     func start(muted: Bool) async throws -> AsyncStream<Event> {
+        probeStartCount += 1  // harness-visible (#428, Task 0 probe)
         stop()
         muteState.withLock { $0 = muted }
 
