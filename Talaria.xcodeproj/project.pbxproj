@@ -122,6 +122,7 @@
 		22F48F91FF6426E5A751032B /* ChartSpecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 481E7932F34BD96E19482B68 /* ChartSpecTests.swift */; };
 		23BDB5F7E650A9858DBDCCBC /* IconPreview-AutumnHarvest.png in Resources */ = {isa = PBXBuildFile; fileRef = 058B8D699AF44F536D6AD863 /* IconPreview-AutumnHarvest.png */; };
 		24042E96E19518EC6DB49654 /* HermesBrandIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85363AC73A2D535ED9B2ADDC /* HermesBrandIcon.swift */; };
+		245827540A33A8DFB63B01D5 /* RecoveryOwnershipTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1EF5151AD6A4814FB4F1A1 /* RecoveryOwnershipTests.swift */; };
 		247776F4580B529B30F75D06 /* Icon-SolarForge@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 14534B1F938AC24C273D0F31 /* Icon-SolarForge@2x.png */; };
 		24B16B107A6D7001E50E5E23 /* NativeVoicePipelineService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64C042CCDAA333F54214D067 /* NativeVoicePipelineService.swift */; };
 		24C71BA853C3ED51C9657835 /* AppLockController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A470FB52569D59F1AC2FCAD0 /* AppLockController.swift */; };
@@ -1392,6 +1393,7 @@
 		FCC2A42D9789054064DE93C6 /* Icon-Terminal@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-Terminal@2x.png"; sourceTree = "<group>"; };
 		FCDA88A494348CA2669EA79C /* HermesHostStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesHostStore.swift; sourceTree = "<group>"; };
 		FCEB34BDA045BEF5C8451A95 /* SkillsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsService.swift; sourceTree = "<group>"; };
+		FE1EF5151AD6A4814FB4F1A1 /* RecoveryOwnershipTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryOwnershipTests.swift; sourceTree = "<group>"; };
 		FE228B59C207BFBF05340E26 /* TasksScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksScreen.swift; sourceTree = "<group>"; };
 		FE4E5DF860386F6868109130 /* HonestyGuardWiringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HonestyGuardWiringTests.swift; sourceTree = "<group>"; };
 		FE89D6FDD034197FC6784D7A /* ConnectHostProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectHostProbe.swift; sourceTree = "<group>"; };
@@ -1667,6 +1669,7 @@
 				BED8B67DE2C63EF0FC999D38 /* RealtimeVoiceIndicatorTests.swift */,
 				6BB71CCECAE06823EA97EEDA /* ReasoningChannelTests.swift */,
 				CBFF1B1F3430AE071F4EC0C1 /* RecorderCaptureIntegrityTests.swift */,
+				FE1EF5151AD6A4814FB4F1A1 /* RecoveryOwnershipTests.swift */,
 				D989D02F2565BA376F01FFC5 /* RefusalWordsInstrumentTests.swift */,
 				4DBF84937168DAD82080C480 /* ReminderDueFallbackTests.swift */,
 				8773E04986D3946C5BFAEFBD /* RepoSourceWitness.swift */,
@@ -3238,6 +3241,7 @@
 				3FA62CFB23383532F664D192 /* RealtimeVoiceIndicatorTests.swift in Sources */,
 				542E125ADE6CFAD3AADC94AF /* ReasoningChannelTests.swift in Sources */,
 				E90A685B26E6B40E31C54A9F /* RecorderCaptureIntegrityTests.swift in Sources */,
+				245827540A33A8DFB63B01D5 /* RecoveryOwnershipTests.swift in Sources */,
 				3EEAC38DC0A4F59BD4B6447A /* RefusalWordsInstrumentTests.swift in Sources */,
 				C9EA5713EC6D6D7E1D4BC849 /* ReminderDueFallbackTests.swift in Sources */,
 				46F89742B603B5E75943C414 /* RepoSourceWitness.swift in Sources */,
