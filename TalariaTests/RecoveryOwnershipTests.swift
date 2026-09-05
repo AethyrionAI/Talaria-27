@@ -60,6 +60,16 @@ struct RecoveryOwnershipTests {
     /// (The post-await guard's OWN contribution — the `resolvedRunIDs` entry
     /// no other site writes — is pinned separately, by
     /// `aSupersededTerminalVerdictStillDisarmsALateDuplicateInterrupt`.)
+    ///
+    /// **The `pendingRunSessionId` pair is a STAYS-NIL pin and has no
+    /// isolating mutation** — recorded rather than dressed up. The bar asks
+    /// for nil "for the right reason", so the nil is asserted twice: once
+    /// straight after the walk-away (which is what cleared it) and once after
+    /// the release (the superseded pass re-armed nothing and re-cleared
+    /// nothing). No mutation in this lane can turn either red — nothing on
+    /// the recovery path arms a pending run, and `settlePendingRun`'s
+    /// `pendingRun = nil` is a no-op against a nil — so these two lines are
+    /// regression coverage for a future write, not evidence of this one.
     @Test
     func aLateAnswerForTheThreadYouLeftNeverLandsInTheThreadYouOpened() async throws {
         let client = GatedRecoveryClient()
@@ -79,6 +89,8 @@ struct RecoveryOwnershipTests {
         #expect(store.conversation?.id == client.bID,
                 "the switch must be REAL (the protocol's default openSession returns A again)")
         #expect(resolved == ["A-session"], "walk-away fires onRunResolved for A exactly once")
+        #expect(store.pendingRunSessionId == nil,
+                "the WALK-AWAY cleared A's pending run — asserted HERE so the same assertion after the release is a nil for that reason and not the pass's")
 
         client.release("run-A")
         await pass.value
@@ -86,6 +98,9 @@ struct RecoveryOwnershipTests {
         #expect(store.conversation?.messages.map(\.content) == ["B's own history"])
         #expect(!(store.conversation?.messages.contains { $0.content == "A's late answer" } ?? true))
         #expect(resolved == ["A-session"], "the superseded pass fires nothing")
+        #expect(store.pendingRunSessionId == nil,
+                "and it re-armed no watch and re-cleared nothing — bar 427-A's own clause, stays-nil (see the note above: no mutation reds this)")
+        #expect(store.pendingRunRunId == nil)
         let cached = try #require(store.persistence.loadConversationCache())
         #expect(!cached.messages.contains { $0.content == "A's late answer" },
                 "the cache is ONE global slot — A's answer written here is A's answer persisted under B")
@@ -418,11 +433,25 @@ struct RecoveryOwnershipTests {
     /// **How "promptly" is measured, because a stopwatch would be flaky.**
     /// The second call is launched into a `Task` that sets a latch when it
     /// returns, and the bar is: the latch is set within a bounded pump of
-    /// 1 s **while run-A's gate is still closed** — a quarter of the
+    /// 1 s **with run-A's gate never released** — a quarter of the
     /// fixture's own 4 s park ceiling, so the two outcomes are an order of
     /// magnitude apart rather than a photo finish. The gate assertion is what
     /// makes it a real discriminator: a second call that returned only
     /// because someone released the read would prove nothing.
+    ///
+    /// **⚠️ DISCLOSED RELAXATION of a pre-registered bound.** Bar 427-D was
+    /// written as *"bounded: < 100 ms"*; the bar AS RUN is **≤ 1 s**
+    /// (`waitUntil(limit: 100)` = 100 pumps × 10 ms). A missed bar is a
+    /// falsification, never a redefinition, so this is recorded as a
+    /// deviation rather than quietly met: 100 ms would be the tightest
+    /// wall-clock bar in the suite, on a Mac that routinely runs three lanes'
+    /// simulators at once, and the discriminator does not need it — 1 s
+    /// against the fixture's 4 s park is still a 4× separation, and the
+    /// measured GREEN returns in **0.028–0.062 s**, an order of magnitude
+    /// inside even the original figure. The bound was NOT tightened back:
+    /// a bar that fails on host load is a bar that teaches people to re-roll.
+    /// This is also the suite's only wall-clock assertion — if it ever
+    /// flakes, raise this pump limit, never the fixture's park ceiling.
     ///
     /// Mutation (**MD** — the two lines together, and the report says why
     /// neither alone suffices): delete `reconcileInFlight?.cancel()` AND
@@ -459,8 +488,15 @@ struct RecoveryOwnershipTests {
 
         #expect(latch.isSet,
                 "the arriving thread's reconcile coalesced onto the departed thread's parked read")
+        // What this observes is that the TEST never released run-A's gate —
+        // not that the read was still suspended at that instant, which it
+        // need not be: a cancelled park unwinds immediately through `try?`.
+        // That is the claim the bound needs. A second call that returned
+        // because someone released the read would prove nothing; a second
+        // call that returned with the gate never opened returned for its own
+        // reasons.
         #expect(client.isInside("run-A"),
-                "and it returned while run-A's gate was STILL closed — a released gate would make the bound meaningless")
+                "run-A's gate was never released — so the prompt return cannot be explained by A's read having been let go")
         #expect(client.resolveCalls.filter { $0 == "run-A" }.count == 1,
                 "one read for run-A, ever — the second pass must not issue another")
 
@@ -489,10 +525,23 @@ struct RecoveryOwnershipTests {
     /// it this way; what is new here is parking the re-read so the user can
     /// walk away mid-flight.
     ///
+    /// **The bar's METADATA clause, and it is the stronger half.** 427-E was
+    /// pre-registered as "no `mergeConversationMetadata` write — B's `title`
+    /// and `latestUsage` unchanged", and the transcript assertions alone do
+    /// not say that: the merge writes conversation-level fields as well as
+    /// rows. Both are real discriminators here by construction —
+    /// `mergeConversationMetadata` carries the LOCAL title forward only when
+    /// the refreshed one is a placeholder (`"A, as the host sees it"` is
+    /// not), and it carries the local usage forward only when the refreshed
+    /// one is nil (the fixture gives A's server view a usage precisely so it
+    /// is not). Unguarded, B's title becomes the host's name for A and B's
+    /// gauge adopts A's tokens.
+    ///
     /// Mutation (**ME**): delete the `recoveryOwnershipMiss` guard from
     /// `attemptSessionReconcile` → the server's view of A replaces B's
-    /// transcript → RED. Nothing else in the tree refuses this write, so
-    /// unlike 427-A/427-B the single-guard mutation is the isolating one.
+    /// transcript, its title and its usage → RED. Nothing else in the tree
+    /// refuses this write, so unlike 427-A/427-B the single-guard mutation is
+    /// the isolating one.
     @Test
     func aLateSessionReReadForTheThreadYouLeftNeverLandsInTheThreadYouOpened() async throws {
         let client = GatedRecoveryClient()
@@ -503,7 +552,11 @@ struct RecoveryOwnershipTests {
                 Message(sender: .user, content: "a question", timestamp: Date().addingTimeInterval(-60)),
                 Message(sender: .hermes, content: "A's late answer",
                         timestamp: Date().addingTimeInterval(600), status: .delivered)
-            ]
+            ],
+            // Non-nil on purpose: the merge only carries the LOCAL usage
+            // forward when the server's is nil, so a nil here would make the
+            // `latestUsage` assertion below pass in both directions.
+            latestUsage: TokenUsage(promptTokens: 4271, completionTokens: 427, totalTokens: 4698)
         )
         let store = makeStore(client: client)
         var resolved: [String] = []
@@ -533,6 +586,13 @@ struct RecoveryOwnershipTests {
         #expect(store.conversation?.id == client.bID, "the store is still on B")
         #expect(store.conversation?.messages.map(\.content) == ["B's own history"])
         #expect(!(store.conversation?.messages.contains { $0.content == "A's late answer" } ?? true))
+        // The bar's metadata half. The title is the stronger of the two: an
+        // unguarded merge renames the thread the user is LOOKING at to the
+        // host's name for the one they left.
+        #expect(store.conversation?.title == "B",
+                "no `mergeConversationMetadata` write — an unguarded merge would rename B to the host's title for A")
+        #expect(store.conversation?.latestUsage == nil,
+                "and B's gauge would have adopted A's token usage with it")
         #expect(resolved == ["A-session"], "the walk-away's own resolution and no other")
         let cached = try #require(store.persistence.loadConversationCache())
         #expect(!cached.messages.contains { $0.content == "A's late answer" },
@@ -560,11 +620,27 @@ struct RecoveryOwnershipTests {
     /// `= nil` pair beside it, and `recoveryOwnershipMiss`'s
     /// `.pendingRunCleared` arm (`guard let pending = pendingRun` → `return
     /// nil`) → A's answer is adopted into the thread the user just stopped →
-    /// RED. On this path the bump is DEFENCE IN DEPTH by construction: Stop
-    /// clears `pendingRun`, so the token's own pending-run clause refuses the
-    /// write with or without it. The bump covers the ordering where a token
-    /// was captured before that clear, which no fixture can stage from
-    /// outside the store.
+    /// RED. On this path the token's pending-run clause would refuse the
+    /// write anyway — Stop clears `pendingRun` — which is why the mutation
+    /// has to take that clause out too before it can ask about the rest.
+    ///
+    /// **The isolating control the Task 2 review sketched WAS stageable, and
+    /// the final fix wave RAN it — this comment used to claim "no fixture can
+    /// stage this from outside the store", which was wrong.** Two runs, one
+    /// test each:
+    /// - **MFa** — the `reconcileInFlight?.cancel()` / `= nil` pair removed
+    ///   AND the `.pendingRunCleared` arm removed, the generation bump
+    ///   **KEPT** → **GREEN** (0 issues). Every other belt is gone, so the
+    ///   bump is the only thing that can be refusing the write.
+    /// - **MFb** — MFa plus `recoveryGeneration &+= 1` removed → **RED**
+    ///   (3 issues: A's answer in the transcript, a second `onRunResolved`,
+    ///   A's answer in the cache).
+    ///
+    /// So the bump is load-bearing on the Stop leg **in its own right**, not
+    /// merely as a member of a set. What remains genuinely un-staged is the
+    /// narrower ordering it was added for — a token captured before the
+    /// `pendingRun` clear, on an unmutated tree — and that is defence in
+    /// depth pinned by argument.
     @Test
     func aStopInsideTheReconcileWindowInvalidatesTheReadItLeftInFlight() async throws {
         let client = GatedRecoveryClient()
@@ -612,16 +688,26 @@ struct RecoveryOwnershipTests {
     /// the boolean. A union check would keep passing if a site swapped one for
     /// the other and stopped naming the reason.
     ///
-    /// The body is bounded at the next member's doc comment (`\n    ///`) —
-    /// verified to stop at each function's own closing brace, so a pin cannot
-    /// be satisfied by the NEXT function's guard. The second `#expect` on each
-    /// row is the anti-vacuity check: a slice that no longer contains the
-    /// function's own distinctive line is a slice pointing at the wrong thing.
+    /// The body is bounded at the next member's doc comment (`\n    ///`).
+    /// **That boundary terminates at the next DOC COMMENT, not at the
+    /// anchor's closing brace** — so a member that grows an undocumented
+    /// neighbour beneath it would silently widen every slice, and a pin could
+    /// then be satisfied by that neighbour's guard. Two checks close the gap
+    /// rather than the comment claiming it is closed: the slice must contain
+    /// no second `func ` declaration (a widened slice has swallowed one), and
+    /// it must contain the anchor's own distinctive line — a fingerprint that
+    /// appears **exactly once in the whole file**, so a slice pointing
+    /// anywhere else cannot satisfy it. Two of the five fingerprints used to
+    /// fail that second condition (`resolveHeldTurn(after: .reconciled)`
+    /// occurs twice, `mergeConversationMetadata(` six times) despite the
+    /// comment above them promising "a line only that body has"; they were
+    /// swapped for unique ones, with the counts recorded in the lane report.
     @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
                    "reads the repo's own sources — simulator only"))
     func everyWriteBehindTheRecoveryReadIsGuardedByTheOwnershipToken() throws {
         let store = "Talaria/Stores/ChatStore.swift"
-        // anchor · the predicate that site calls · a line only that body has
+        // anchor · the predicate that site calls · a line that occurs exactly
+        // once in the whole file, and inside this body
         let sites: [(String, String, String)] = [
             ("private func attemptRunStatusReconcile(", "recoveryOwnershipMiss(",
              "hermesClient.resolveDroppedRun("),
@@ -630,15 +716,20 @@ struct RecoveryOwnershipTests {
             ("private func adoptRecoveredRun(", "recoveryStillOwned(",
              "stableRecoveredRunMessageID("),
             ("private func settlePendingRun(", "recoveryStillOwned(",
-             "resolveHeldTurn(after: .reconciled)"),
+             "if !adopted, let restoredRowID = pending.restoredRowID"),
             ("private func attemptSessionReconcile(", "recoveryOwnershipMiss(",
-             "mergeConversationMetadata(")
+             "Self.placingRecoveredReply(")
         ]
 
+        let wholeFile = try RepoSourceWitness.source(store)
         for (anchor, needle, fingerprint) in sites {
             let body = try RepoSourceWitness.functionBody(from: anchor, in: store, boundary: "\n    ///")
+            #expect(wholeFile.components(separatedBy: fingerprint).count == 2,
+                    "\(anchor) — \(fingerprint) is not unique in \(store); a fingerprint that appears twice cannot tell a correct slice from a widened one")
             #expect(body.contains(fingerprint),
                     "\(anchor) — the extracted body does not contain \(fingerprint); the pin is reading the wrong slice")
+            #expect(!body.contains("func "),
+                    "\(anchor) — the slice swallowed another declaration: the boundary stops at the next DOC COMMENT, so an undocumented neighbour widens it and its guard could satisfy this pin")
             #expect(body.contains(needle),
                     "\(anchor) — a recovery write that does not pass \(needle) can land in a thread the verdict does not own (#427)")
         }

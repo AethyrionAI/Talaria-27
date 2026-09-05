@@ -4389,6 +4389,13 @@ final class ChatStore {
     /// and `performReconcilePendingRuns` still arms one.
     private func attemptRunStatusReconcile(_ pending: PendingRun, runID: String) async -> ReconcilePassOutcome {
         let token = ownership(for: pending)
+        // #427: this arm returns WITHOUT consulting the token, and that is
+        // safe because it writes nothing — `.keepPolling` is an instruction
+        // to the caller, and both walk-away doors (`abandonPendingRun`,
+        // `abandonReconcileWindowOnStop`) nil `pendingRun`, so a loop that
+        // goes round after a departed thread's nil read finds nothing left to
+        // poll for and ends on its own. A future edit that makes this arm
+        // TOUCH state (a counter, a notice row, a settle) needs the guard.
         guard let resolution = await hermesClient.resolveDroppedRun(
             runID: runID,
             sessionID: pending.sessionId
@@ -4585,6 +4592,11 @@ final class ChatStore {
     /// there is no id to record.
     private func attemptSessionReconcile(_ pending: PendingRun) async -> ReconcilePassOutcome {
         let token = ownership(for: pending)
+        // #427: the run-status leg's mirror — this nil arm writes nothing, so
+        // it needs no token check; `.keepPolling` only asks the caller to go
+        // round, and by then the walk-away has nil'd `pendingRun` and the
+        // loop ends. The same caveat applies: give this arm a side effect and
+        // it needs the guard.
         guard let serverConvo = await hermesClient.reconcileFromServer() else { return .keepPolling }
 
         // #427: DROP, never redirect — the same rule, and the same reason:
