@@ -81,7 +81,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     /// pipeline owns the `.playAndRecord` session, and the shared read-aloud
     /// instance stays gated off while a Talk session is active.
     private let speechOutput: SpeechOutputService
-    private let capture = NativeVoiceCaptureController()
+    /// #428: injectable so a test can drive the capture stack without an
+    /// `AVAudioEngine`. Production always gets `NativeVoiceCaptureController`
+    /// via the convenience initializer below.
+    private let capture: any NativeVoiceCapturing
     private let eventHub = TalkSessionEventHub()
 
     /// Locally minted per session so the end-of-session transcript hand-off
@@ -125,11 +128,26 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
 
     init(
         backendProvider: @escaping @MainActor () -> (any HermesClientProtocol)?,
-        speechOutput: SpeechOutputService
+        speechOutput: SpeechOutputService,
+        capture: any NativeVoiceCapturing
     ) {
         self.backendProvider = backendProvider
         self.speechOutput = speechOutput
+        self.capture = capture
         registerAudioSessionObservers()
+    }
+
+    /// The production shape — every existing call site (#428: `AppContainer`
+    /// and the test host) reaches the real capture controller through this.
+    convenience init(
+        backendProvider: @escaping @MainActor () -> (any HermesClientProtocol)?,
+        speechOutput: SpeechOutputService
+    ) {
+        self.init(
+            backendProvider: backendProvider,
+            speechOutput: speechOutput,
+            capture: NativeVoiceCaptureController()
+        )
     }
 
     func events() -> AsyncStream<TalkSessionEvent> {
@@ -413,7 +431,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
 
     // MARK: - Transcription → turns
 
-    private func handleTranscriptionEvent(_ event: NativeVoiceCaptureController.Event) {
+    private func handleTranscriptionEvent(_ event: NativeVoiceCaptureEvent) {
         switch event {
         case .volatile(let text):
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
@@ -912,7 +930,11 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     // with the probe file — nothing in production reads them.
 
     /// The real capture controller, so a probe can read `probeStartCount`.
-    var probeCaptureController: NativeVoiceCaptureController { capture }
+    /// Optional since #428's Task 1 seam: `capture` is now `any
+    /// NativeVoiceCapturing`, and only the production controller has probes.
+    var probeCaptureController: NativeVoiceCaptureController? {
+        capture as? NativeVoiceCaptureController
+    }
 
     /// The route-change gate's flag, so a probe can see the cooldown clear.
     var probeIsConfiguringAudioSession: Bool { isConfiguringAudioSession }
@@ -944,13 +966,16 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
 // harness-visible (#428, Task 0 probe) — widened from `private` so
 // `NativeVoiceCaptureProbeTests` can drive the REAL controller. TEMPORARY:
 // Task 4 restores `private` when the probe file is deleted.
-actor NativeVoiceCaptureController {
+actor NativeVoiceCaptureController: NativeVoiceCapturing {
     private static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "NativeVoiceCapture")
 
-    enum Event: Sendable {
-        case volatile(String)
-        case finalized(String)
-        case failed(String)
+    /// #428: every suspension point between the audio-session configuration
+    /// and the tap install lives behind this. Production gets
+    /// `SpeechTranscriberAssembler`; a test can park a start here.
+    private let assembler: any SpeechAnalysisAssembling
+
+    init(assembler: any SpeechAnalysisAssembling = SpeechTranscriberAssembler()) {
+        self.assembler = assembler
     }
 
     /// Realtime-safe mute flag: written from the service (MainActor), read on
@@ -970,7 +995,7 @@ actor NativeVoiceCaptureController {
     private var analyzerTask: Task<Void, Never>?
     private var resultsTask: Task<Void, Never>?
     private var inputContinuation: AsyncStream<AnalyzerInput>.Continuation?
-    private var outputContinuation: AsyncStream<Event>.Continuation?
+    private var outputContinuation: AsyncStream<NativeVoiceCaptureEvent>.Continuation?
 
     enum CaptureError: LocalizedError {
         case transcriptionUnavailable
@@ -1020,7 +1045,7 @@ actor NativeVoiceCaptureController {
         muteState.withLock { $0 = muted }
     }
 
-    func start(muted: Bool) async throws -> AsyncStream<Event> {
+    func start(muted: Bool) async throws -> AsyncStream<NativeVoiceCaptureEvent> {
         probeStartCount += 1  // harness-visible (#428, Task 0 probe)
         stop()
         muteState.withLock { $0 = muted }
@@ -1048,27 +1073,28 @@ actor NativeVoiceCaptureController {
         // until the HOT line below reports the ENGINE's own state.
         Self.logger.notice("audio session activated for capture (#302-A)")
 
-        // Prefer SpeechTranscriber (the full model); fall back to
-        // DictationTranscriber when the model isn't available on-device.
-        // Both flavors get the SpeechDetector VAD module first, and retry
-        // without it if the analyzer refuses to start (iOS 26.0 conformance
-        // bug hedge — the fallback endpointer upstream covers endpointing).
-        if SpeechTranscriber.isAvailable,
-           let locale = await SpeechTranscriber.supportedLocale(equivalentTo: .current) {
-            let transcriber = SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
-            try await reserveLocaleIfPossible(locale)
-            return try await startAnalyzer(transcriber: transcriber, resultsLoop: { [weak self] in
-                await self?.consumeSpeechTranscriberResults(transcriber)
-            })
+        // Echo cancellation FIRST — it changes the input format, and the
+        // format is what the assembly negotiates against. (#428: this pair
+        // moved up out of `startAnalyzer`; both calls are synchronous, so
+        // nothing suspends between the session going active and the assembly.)
+        let inputNode = audioEngine.inputNode
+        do {
+            try inputNode.setVoiceProcessingEnabled(true)
+        } catch {
+            // Non-fatal: without the voice-processing chain the pipeline still
+            // works, but TTS playback may be re-transcribed. Barge-in handling
+            // upstream tolerates it; log loudly for the device checklist.
+            Self.logger.warning("voice processing unavailable: \(error.localizedDescription, privacy: .public)")
         }
-        guard let locale = await DictationTranscriber.supportedLocale(equivalentTo: .current) else {
-            throw CaptureError.transcriptionUnavailable
-        }
-        let transcriber = DictationTranscriber(locale: locale, preset: .progressiveShortDictation)
-        try await reserveLocaleIfPossible(locale)
-        return try await startAnalyzer(transcriber: transcriber, resultsLoop: { [weak self] in
-            await self?.consumeDictationTranscriberResults(transcriber)
-        })
+        inputNode.removeTap(onBus: 0)
+        let inputFormat = inputNode.outputFormat(forBus: 0)
+
+        // The ONE suspension point of a capture start (#428). Everything the
+        // analyzer needs — transcriber selection, locale reservation, format
+        // negotiation, `prepareToAnalyze` — happens in here; everything after
+        // it is a single synchronous stretch that ends with a live tap.
+        let assembly = try await assembler.assemble(inputFormat: inputFormat)
+        return try startEngine(assembly: assembly, inputNode: inputNode, inputFormat: inputFormat)
     }
 
     func stop() {
@@ -1104,67 +1130,25 @@ actor NativeVoiceCaptureController {
         outputContinuation = nil
     }
 
-    // MARK: - Analyzer assembly
+    // MARK: - Engine start
+    //
+    // #428: the analyzer ASSEMBLY (transcriber selection, locale reservation,
+    // format negotiation, `prepareToAnalyze` + the no-VAD retry) moved to
+    // `SpeechTranscriberAssembler`; `reserveLocaleIfPossible` went with it, as
+    // the reservation's only caller. What is left below is the synchronous
+    // stretch — it contains NO `await`, which is precisely the property #428's
+    // capture generation needs.
 
-    private func reserveLocaleIfPossible(_ locale: Locale) async throws {
-        if try await AssetInventory.reserve(locale: locale) {
-            reservedLocale = locale
-        }
-    }
-
-    private func startAnalyzer(
-        transcriber: some SpeechModule,
-        resultsLoop consumeResults: @escaping @Sendable () async -> Void
-    ) async throws -> AsyncStream<Event> {
-        // Echo cancellation FIRST — it changes the input format.
-        let inputNode = audioEngine.inputNode
-        do {
-            try inputNode.setVoiceProcessingEnabled(true)
-        } catch {
-            // Non-fatal: without the voice-processing chain the pipeline still
-            // works, but TTS playback may be re-transcribed. Barge-in handling
-            // upstream tolerates it; log loudly for the device checklist.
-            Self.logger.warning("voice processing unavailable: \(error.localizedDescription, privacy: .public)")
-        }
-        inputNode.removeTap(onBus: 0)
-        let inputFormat = inputNode.outputFormat(forBus: 0)
-        // #82 wedge backstop: installTap with a degenerate hardware format
-        // raises an uncatchable NSException. Fail honestly with the #84
-        // reboot guidance before any tap touches the engine.
-        guard TalkMicPreflight.isViableCaptureFormat(
-            sampleRate: inputFormat.sampleRate,
-            channelCount: inputFormat.channelCount
-        ) else {
-            Self.logger.error("capture format degenerate (rate=\(inputFormat.sampleRate, privacy: .public) ch=\(inputFormat.channelCount, privacy: .public)) — #82 wedge shape; refusing tap install")
-            throw CaptureError.noAudioInput
-        }
-
-        // SpeechDetector gates analysis to detected speech; retry without it
-        // if the analyzer/module combination refuses to start.
-        var modules: [any SpeechModule] = [
-            SpeechDetector(detectionOptions: .init(sensitivityLevel: .medium), reportResults: false),
-            transcriber,
-        ]
-
-        var analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(
-            compatibleWith: [transcriber],
-            considering: inputFormat
-        ) ?? inputFormat
-        var analyzer: SpeechAnalyzer
-        do {
-            analyzer = SpeechAnalyzer(modules: modules)
-            try await analyzer.prepareToAnalyze(in: analyzerFormat) { _ in }
-        } catch {
-            Self.logger.warning("analyzer with SpeechDetector failed (\(error.localizedDescription, privacy: .public)) — retrying without VAD module")
-            modules = [transcriber]
-            analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(
-                compatibleWith: [transcriber],
-                considering: inputFormat
-            ) ?? inputFormat
-            analyzer = SpeechAnalyzer(modules: modules)
-            try await analyzer.prepareToAnalyze(in: analyzerFormat) { _ in }
-        }
-        self.analyzer = analyzer
+    private func startEngine(
+        assembly: SpeechAnalysisAssembly,
+        inputNode: AVAudioInputNode,
+        inputFormat: AVAudioFormat
+    ) throws -> AsyncStream<NativeVoiceCaptureEvent> {
+        // Adopt the assembly's resources FIRST, so any throw below still
+        // leaves `stop()` able to cancel the analyzer and release the locale.
+        let analyzerFormat = assembly.analyzerFormat
+        self.analyzer = assembly.analyzer
+        self.reservedLocale = assembly.reservedLocale
 
         let formatsMatch =
             inputFormat.sampleRate == analyzerFormat.sampleRate &&
@@ -1179,20 +1163,37 @@ actor NativeVoiceCaptureController {
             localInputContinuation = continuation
             self.inputContinuation = continuation
         }
-        let outputStream = AsyncStream<Event> { continuation in
+        let outputStream = AsyncStream<NativeVoiceCaptureEvent> { continuation in
             self.outputContinuation = continuation
         }
 
         let muteState = muteState
         let capturedFormat = analyzerFormat
+        // #82 wedge backstop, check 2 of 2 (#428 — DEFENCE IN DEPTH, not a
+        // move). `SpeechTranscriberAssembler.assemble` runs the same predicate
+        // as its first statement, so on device the fail-fast is unchanged;
+        // this second call guards the thing a degenerate format actually
+        // breaks — the install below, which with a 0 Hz / 0 ch format raises
+        // an uncatchable NSException. It is repeated here because the
+        // assembler is INJECTABLE: a test double skips check 1, and the
+        // engine must still refuse. Same predicate both times, never a copy
+        // of its body.
+        guard TalkMicPreflight.isViableCaptureFormat(
+            sampleRate: inputFormat.sampleRate,
+            channelCount: inputFormat.channelCount
+        ) else {
+            Self.logger.error("capture format degenerate (rate=\(inputFormat.sampleRate, privacy: .public) ch=\(inputFormat.channelCount, privacy: .public)) — #82 wedge shape; refusing tap install")
+            throw CaptureError.noAudioInput
+        }
         // #128: this remove must be IMMEDIATELY adjacent to the install —
-        // the earlier defensive removeTap sits before four suspension points
-        // (format negotiation + analyzer prep), and actor serialization does
-        // not survive awaits: two interleaved capture starts both passed it
-        // and double-installed, throwing AVAudioEngine's
-        // `CreateRecordingTap: nullptr == Tap()` (device crash 2026-07-17,
-        // mid-session voice change). Remove-then-install in the same
-        // synchronous stretch makes the last writer win cleanly instead.
+        // the earlier defensive removeTap sits before the assembly's
+        // suspension point (#428 collapsed the four that used to sit here into
+        // one), and actor serialization does not survive awaits: two
+        // interleaved capture starts both passed it and double-installed,
+        // throwing AVAudioEngine's `CreateRecordingTap: nullptr == Tap()`
+        // (device crash 2026-07-17, mid-session voice change). Remove-then-
+        // install in the same synchronous stretch makes the last writer win
+        // cleanly instead.
         inputNode.removeTap(onBus: 0)
         // #198: the iOS 27 installer REPORTS the failure this comment
         // describes instead of raising it, so a double-install that slips past
@@ -1215,7 +1216,7 @@ actor NativeVoiceCaptureController {
         let engineRunning = audioEngine.isRunning
         Self.logger.notice("capture chain HOT — AVAudioEngine.isRunning=\(engineRunning, privacy: .public) inputTap=installed (#302-A)")
 
-        let startedAnalyzer = analyzer
+        let startedAnalyzer = assembly.analyzer
         analyzerTask = Task { [weak self] in
             do {
                 try await startedAnalyzer.start(inputSequence: inputStream)
@@ -1225,8 +1226,17 @@ actor NativeVoiceCaptureController {
                 await self?.stop()
             }
         }
-        resultsTask = Task {
-            await consumeResults()
+        // #428: the results loop used to arrive as a closure built at the
+        // transcriber-selection site; it now switches on the assembly's own
+        // choice. Same two loops, same typing.
+        let transcriber = assembly.transcriber
+        resultsTask = Task { [weak self] in
+            switch transcriber {
+            case .speech(let transcriber):
+                await self?.consumeSpeechTranscriberResults(transcriber)
+            case .dictation(let transcriber):
+                await self?.consumeDictationTranscriberResults(transcriber)
+            }
         }
 
         return outputStream
@@ -1258,7 +1268,7 @@ actor NativeVoiceCaptureController {
         }
     }
 
-    private func emit(_ event: Event) {
+    private func emit(_ event: NativeVoiceCaptureEvent) {
         outputContinuation?.yield(event)
     }
 

@@ -289,14 +289,20 @@ struct NativeVoiceCaptureProbeTests {
         voiceA.connectionState = .connected
         voiceA.voiceState = .listening
         voiceA.statusMessage = "Listening"
-        let beforeA = await voiceA.probeCaptureController.probeStartCount
+        // #428 Task 1: `capture` is now `any NativeVoiceCapturing`, so the
+        // probe door hands back the production controller as an optional.
+        guard let captureA = voiceA.probeCaptureController else {
+            Issue.record("harness: voiceA's capture is not the production controller")
+            return
+        }
+        let beforeA = await captureA.probeStartCount
         say("P3-A gate isConfiguringAudioSession=\(voiceA.probeIsConfiguringAudioSession) startCountBefore=\(beforeA)")
 
         postRouteChange(.newDeviceAvailable)
         let sawA = await waitUntil(5.0) {
-            await voiceA.probeCaptureController.probeStartCount > beforeA
+            await captureA.probeStartCount > beforeA
         }
-        let afterA = await voiceA.probeCaptureController.probeStartCount
+        let afterA = await captureA.probeStartCount
         say("P3-A restart observed=\(sawA.met) after \(String(format: "%.3f", sawA.elapsed)) s "
             + "startCount \(beforeA) → \(afterA)")
         say("P3-A connectionState=\(String(describing: voiceA.connectionState)) "
@@ -315,23 +321,27 @@ struct NativeVoiceCaptureProbeTests {
         voiceB.voiceState = .listening
         voiceB.statusMessage = "Listening"
         voiceB.probeSetConfiguringAudioSession(true)
-        let beforeB = await voiceB.probeCaptureController.probeStartCount
+        guard let captureB = voiceB.probeCaptureController else {
+            Issue.record("harness: voiceB's capture is not the production controller")
+            return
+        }
+        let beforeB = await captureB.probeStartCount
         postRouteChange(.newDeviceAvailable)
         let blockedB = await waitUntil(1.0) {
-            await voiceB.probeCaptureController.probeStartCount > beforeB
+            await captureB.probeStartCount > beforeB
         }
         say("P3-B gate CLOSED: restart observed=\(blockedB.met) (expected false) "
-            + "startCount=\(await voiceB.probeCaptureController.probeStartCount) "
+            + "startCount=\(await captureB.probeStartCount) "
             + "statusMessage=\(voiceB.statusMessage ?? "nil")")
 
         voiceB.probeSetConfiguringAudioSession(false)
         postRouteChange(.newDeviceAvailable)
         let openedB = await waitUntil(5.0) {
-            await voiceB.probeCaptureController.probeStartCount > beforeB
+            await captureB.probeStartCount > beforeB
         }
         say("P3-B gate REOPENED: restart observed=\(openedB.met) after "
             + "\(String(format: "%.3f", openedB.elapsed)) s "
-            + "startCount=\(await voiceB.probeCaptureController.probeStartCount) "
+            + "startCount=\(await captureB.probeStartCount) "
             + "statusMessage=\(voiceB.statusMessage ?? "nil")")
         if blockedB.met || !openedB.met {
             say("P3-B 🔴 the cooldown gate did not discriminate — closed=\(blockedB.met) opened=\(openedB.met)")
