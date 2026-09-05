@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import Talaria
 
@@ -457,6 +458,96 @@ struct VoiceInstrumentLogLineTests {
         #expect(
             NativeVoiceCaptureController.abandonedStartLogDetail(point: "prepared")
                 == "capture start ABANDONED — capture generation moved during startup at prepared; nothing installed (#428)"
+        )
+    }
+
+    // MARK: - #428 the abandoned capture RESTART (bar 428-A, fix round 1)
+
+    /// **Why this line exists.** The primary 428-A path — the user ends the
+    /// session while a route-change restart is parked inside `capture.start`
+    /// — is the fix WORKING. Until fix round 1 that path fell into
+    /// `restartCapture`'s generic catch and wrote
+    /// `capture restart failed: … (Swift.CancellationError error 1.)` at
+    /// `Logger.warning`, which OSLog records at ERROR severity. So the
+    /// designed-correct teardown left an error row naming a failure — every
+    /// time, not as a race — and dragged a raw Swift error description into
+    /// every collected archive with it.
+    ///
+    /// The typed `catch is CancellationError` arm replaces that with a
+    /// `.notice` that says what actually happened. Its text is pinned here
+    /// because a device archive is read by grep, not by this suite.
+    @Test("an abandoned restart reads as an abandonment, never as a failure")
+    func theAbandonedRestartLineReadsAsAnAbandonment() {
+        let line = NativeVoicePipelineService.restartAbandonedLogDetail(sessionEnding: true)
+        #expect(line.contains("abandoned"))
+        #expect(line.contains("#428"))
+        #expect(!line.lowercased().contains("failed"))
+        // The raw error description is what the old warning carried. This
+        // formatter takes no error at all, and that is the pin.
+        #expect(!line.contains("CancellationError"))
+        #expect(!line.contains("couldn't be completed"))
+        // The WHOLE shape, because the archive reader is a grep.
+        #expect(
+            line
+                == "capture restart abandoned by teardown — the session is ending; nothing installed, nothing painted (#428)"
+        )
+    }
+
+    /// A cancellation with the session still live is a different event from a
+    /// clean shutdown. An instrument that rendered both identically would be
+    /// #419's under-specified-discriminator defect over again.
+    @Test("a live-session cancellation is distinguished from an ending session")
+    func aLiveSessionCancellationIsDistinguishedFromAnEndingSession() {
+        let live = NativeVoicePipelineService.restartAbandonedLogDetail(sessionEnding: false)
+        #expect(live.contains("still live"))
+        #expect(!live.contains("the session is ending"))
+        #expect(
+            live
+                == "capture restart abandoned by teardown — the restart task was cancelled with the session still live; nothing installed, nothing painted (#428)"
+        )
+    }
+
+    /// **The wiring pin, and it is here because nothing behavioural can stand
+    /// in for it.** The call site's value is swallowed by `Logger.notice`, and
+    /// the typed arm's STATE outcome is identical to the generic catch's
+    /// (`isEndingSession` guard ⇒ return) — so deleting the arm leaves both
+    /// tests above green, leaves `NativeVoiceRestartTeardownTests` green, and
+    /// silently restores the warning-severity error row this fix exists to
+    /// remove. The arm is therefore pinned structurally: it must exist, it
+    /// must call the formatter above, and it must sit AHEAD of the generic
+    /// catch — a typed arm placed after the generic one never runs.
+    ///
+    /// Fails LOUDLY when it cannot read the file: a check that did not run
+    /// must say so rather than pass (`NamingSweepTests`' rule).
+    @Test("the typed cancellation arm is wired, and sits ahead of the generic catch")
+    func theTypedCancellationArmIsWiredAheadOfTheGenericCatch() throws {
+        let source = try Self.pipelineServiceSource()
+        let typedArm = try #require(
+            source.range(of: "} catch is CancellationError {"),
+            "the `catch is CancellationError` arm is gone — a restart abandoned by teardown logs `capture restart failed` at warning severity again (#428 fix round 1)"
+        )
+        let genericArm = try #require(
+            source.range(of: "Self.logger.warning(\"capture restart failed:"),
+            "the generic catch's warning line is gone — this pin can no longer prove the ordering it asserts"
+        )
+        #expect(
+            typedArm.lowerBound < genericArm.lowerBound,
+            "the typed arm must precede the generic catch, or a CancellationError never reaches it"
+        )
+        #expect(
+            source.contains("Self.restartAbandonedLogDetail(sessionEnding: self.isEndingSession)"),
+            "the typed arm no longer calls the pinned formatter — the two shape pins above are pinned to nothing"
+        )
+    }
+
+    private static func pipelineServiceSource() throws -> String {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()  // TalariaTests/
+            .deletingLastPathComponent()  // repo root
+            .appendingPathComponent("Talaria/Services/Live/NativeVoicePipelineService.swift")
+        return try #require(
+            try? String(contentsOf: url, encoding: .utf8),
+            "cannot read NativeVoicePipelineService.swift at \(url.path) — this check did not run"
         )
     }
 }

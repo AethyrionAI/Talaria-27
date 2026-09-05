@@ -446,10 +446,61 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 // logged the abandonment at `.notice` where it happened, so a
                 // second line here would only duplicate it.
                 //
-                // Nothing touches `isConfiguringAudioSession` on this path: the
-                // start that superseded us may already have armed the gate, and
-                // clearing it from here would open a window the 750 ms cooldown
-                // is holding shut.
+                // **The configuration gate is already released, and it was
+                // released UPSTREAM rather than here.** `beginCapture()`'s own
+                // `catch` sets `isConfiguringAudioSession = false` before
+                // rethrowing — on every throw, this one included — so by the
+                // time this arm runs the gate is down. This arm neither clears
+                // it again nor re-arms it; the earlier wording here claimed the
+                // opposite outcome ("the newer owner's cooldown stays armed")
+                // and that outcome does not obtain (fix round 1, #428).
+                //
+                // Why the upstream clear was judged acceptable rather than
+                // moved behind a type check:
+                //
+                //  * On the supersession this arm actually sees, the newer
+                //    owner is a TEARDOWN's `capture.stop()`, not a newer
+                //    start. Nobody is holding the gate for a rebuild, and
+                //    nothing else disarms it — the 750 ms cooldown task is
+                //    only scheduled on `beginCapture`'s SUCCESS path. Leaving
+                //    it armed there would wedge `restartCapture`'s
+                //    `guard !isConfiguringAudioSession` permanently, which is
+                //    strictly worse than releasing it early.
+                //  * The residual case — a newer START superseded us, having
+                //    armed the gate for its own attempt — costs at most ONE
+                //    extra restart, if a route change lands in the window
+                //    between our clear and that start's own success cooldown.
+                //    It is coalesced by `restartTask` and bounded by the
+                //    thrash breaker above (>3 in 30 s trips it), so it cannot
+                //    become the #82 loop the gate exists to prevent.
+                return
+            } catch is CancellationError {
+                // #428 (428-A): **this is the fix's own success path, so it
+                // must not be logged as a failure.** When the user ends a
+                // session while a route-change restart is parked in
+                // `capture.start`, `beginCapture()`'s belt hands the capture
+                // stack back and throws `CancellationError` — every time, by
+                // design, not as a race. Before fix round 1 that landed in the
+                // generic catch below and wrote
+                // `capture restart failed: … (Swift.CancellationError error 1.)`
+                // at `Logger.warning`, which OSLog records at ERROR severity:
+                // the designed-correct teardown left an error row naming a
+                // failure in every archive, and the raw Swift error string with
+                // it.
+                //
+                // A cancelled restart is an ABANDONMENT, not a fault: it
+                // installed nothing and there is nothing to report to the user,
+                // so no state is painted here either (the generic catch's
+                // `isEndingSession` guard would have reached the same outcome —
+                // this arm makes the reason legible instead of incidental).
+                //
+                // `.notice`, `privacy: .public`, un-gated — #302-A's rule for
+                // the capture chain, and the positive control for an absence:
+                // without it an archive cannot tell "the teardown caught a
+                // parked restart" from "no restart was ever attempted".
+                Self.logger.notice(
+                    "\(Self.restartAbandonedLogDetail(sessionEnding: self.isEndingSession), privacy: .public)"
+                )
                 return
             } catch {
                 Self.logger.warning("capture restart failed: \(error.localizedDescription, privacy: .public)")
@@ -467,6 +518,23 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         restartTask = task
         await task.value
         restartTask = nil
+    }
+
+    /// The abandoned-restart line, as a pure function so its text is pinned by
+    /// a test rather than by a device archive (`VoiceInstrumentLogLineTests`).
+    ///
+    /// `sessionEnding` is the discriminator and it earns its place: a
+    /// `CancellationError` reaches that arm either from `beginCapture()`'s belt
+    /// (a teardown is in progress — the 428-A path, the common one) or from a
+    /// bare task cancellation with the session still live. A line that could
+    /// not say which would leave the next archive unable to tell a correct
+    /// shutdown from a restart someone cancelled out from under.
+    nonisolated static func restartAbandonedLogDetail(sessionEnding: Bool) -> String {
+        let reason =
+            sessionEnding
+            ? "the session is ending"
+            : "the restart task was cancelled with the session still live"
+        return "capture restart abandoned by teardown — \(reason); nothing installed, nothing painted (#428)"
     }
 
     /// #428 (428-A): cancel the in-flight capture restart and WAIT for it to
