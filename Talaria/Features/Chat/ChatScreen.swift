@@ -571,7 +571,7 @@ struct ChatScreen: View {
         // publishing it over one would be a dim-then-un-dim flicker on every
         // forced refresh against a healthy host — the wrong state this fix is
         // forbidden to flash.
-        let interim: @MainActor @Sendable ([HermesSessionInfo]) -> Void = { [sessionsModel] infos in
+        let interim: @MainActor ([HermesSessionInfo]) -> Void = { [sessionsModel] infos in
             guard sessionsModel.sessions.isEmpty else { return }
             sessionsModel.sessions = infos.map {
                 Self.sessionSummary(from: $0, activeProfileID: activeProfileID)

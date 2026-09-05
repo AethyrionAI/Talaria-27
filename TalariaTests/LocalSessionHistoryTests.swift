@@ -788,11 +788,14 @@ struct LocalSessionHistoryTests {
         func release() { released = true }
     }
 
-    /// Every interim list the client published, in order. A class because the
-    /// interim closure is `@Sendable` (it crosses into the nonisolated
-    /// protocol requirement) and a `@Sendable` closure cannot mutate a
-    /// captured local `var` — the `Latch` shape `RecoveryOwnershipTests`
-    /// uses, for the same reason.
+    /// Every interim list the client published, in order.
+    ///
+    /// A class rather than a captured local `var`, and the reason is NOT the
+    /// interim closure — that one is not `@Sendable` at all (the protocol is
+    /// `@MainActor`, so it never crosses isolation). It is that two of the
+    /// rows below build the closure INSIDE a `Task { }`, whose own closure IS
+    /// `@Sendable` and therefore cannot capture a mutable local. The `Latch`
+    /// shape `RecoveryOwnershipTests` uses, for the same reason.
     @MainActor
     private final class InterimLog {
         var publications: [[HermesSessionInfo]] = []
@@ -918,6 +921,66 @@ struct LocalSessionHistoryTests {
                 "the FINAL list is the search corpus; an interim must never be cached as one")
     }
 
+    /// **425-D3 (fix round 1).** A COLD load that is CANCELLED after the
+    /// interim was painted must not blank the shelf it just filled.
+    ///
+    /// The sequence the review found: blank → local rows appear (the interim)
+    /// → **blank again, "NO SESSIONS YET"**. `ChatStore.loadSessions`' catch
+    /// serves `lastLoadedSessions`, which on a launch that has not yet
+    /// completed one successful host list is `[]`, and `refreshSessions`
+    /// assigns the return unconditionally. The router degrades every host
+    /// failure EXCEPT a cancellation, so this is reachable exactly where a
+    /// `URLError(.cancelled)` comes back out of the single-profile path with
+    /// nobody having walked away.
+    ///
+    /// The rule is "the better of the two, never the emptier": a NON-EMPTY
+    /// `lastLoadedSessions` still wins — that is
+    /// `failedSessionsRefreshServesLastRealList`, unchanged — and only an
+    /// EMPTY one yields to an interim that was actually published.
+    ///
+    /// Isolating mutation: restore the bare `return lastLoadedSessions` →
+    /// this row reds and nothing else does.
+    @Test @MainActor
+    func aCancelledColdLoadServesTheInterimItAlreadyPainted() async throws {
+        let hermes = ScriptedClient()
+        let local = ScriptedClient()
+        hermes.listError = URLError(.cancelled)
+        let localID = UUID().uuidString
+        local.sessions = [
+            HermesSessionInfo(
+                id: localID, title: "Local", preview: nil, model: "on-device",
+                source: "local", messageCount: 2,
+                lastActive: Date(timeIntervalSince1970: 4_000), isActive: false
+            ),
+        ]
+        let router = makeRouter(hermes: hermes, local: local, configured: true)
+        router.remoteSessionStubs = { [self.remoteInfo(id: "h-stub", lastActive: Date(timeIntervalSince1970: 5_000))] }
+        let chatStore = ChatStore(hermesClient: router, persistence: makePersistence())
+        #expect(chatStore.lastLoadedSessions.isEmpty,
+                "the premise: a cold launch that has never completed a host list — without it this row measures nothing")
+
+        let observed = InterimLog()
+        let final = await chatStore.loadSessions(force: true, interim: { observed.publications.append($0) })
+
+        #expect(observed.publications.map { $0.map(\.id) } == [["h-stub", localID]],
+                "the interim was painted BEFORE the cancellation — that is what makes this the shelf-blanking case rather than an ordinary empty load")
+        #expect(final.map(\.id) == ["h-stub", localID],
+                "the shelf must keep the rows it just painted: returning [] here is blank → local rows → blank again, which is the defect wearing the fix's clothes")
+        #expect(final.first(where: { $0.id == localID })?.isResumable == true,
+                "and the local row it serves is the real one — a cancelled host cannot make an on-device thread unopenable")
+        #expect(chatStore.lastLoadedSessions.isEmpty,
+                "serving the interim is still not CACHING it: the search corpus stays a list a host actually answered")
+
+        // The other half of "not cached": a served interim must not stamp
+        // `lastSessionsLoadAt` either, or the next unforced load would answer
+        // from a 15 s snapshot no host ever produced. `lastSessionsLoadAt` is
+        // private, so this reads it the only honest way — by whether the next
+        // load reaches the client at all.
+        _ = await chatStore.loadSessions()
+        #expect(hermes.listCallCount == 2,
+                "the next unforced load must RETRY the host — an interim served on the throw path is not a snapshot")
+    }
+
     /// **425-D1, source witness.** The drawer is the site that matters: a
     /// store that publishes an interim nobody assigns fixes nothing. No
     /// runtime test can reach `ChatScreen.refreshSessions` (a private method
@@ -941,6 +1004,21 @@ struct LocalSessionHistoryTests {
                 "the drawer no longer consumes the interim publication — the local rows are held hostage by the host's timeout again (425-D)")
         #expect(body.contains("sessionsModel.sessions.isEmpty"),
                 "the interim must be suppressed while the shelf already has rows; replacing a good list with a dimmed preview is the flicker 425-D forbids")
+        // Fix round 1: the two checks above pass a closure that PAINTS
+        // NOTHING. Deleting the assignment inside it — keeping the guard and
+        // the `interim:` argument — leaves the shelf blank for the host's
+        // full timeout with this pin still green, which is the defect itself.
+        // So pin the assignment: twice in the body (interim, then final), and
+        // the FIRST of them before the await, i.e. inside the closure.
+        let assignment = "sessionsModel.sessions = infos.map"
+        #expect(body.components(separatedBy: assignment).count - 1 == 2,
+                "refreshSessions must assign the shelf TWICE — once from the interim, once from the return; one assignment means the closure it passes paints nothing")
+        let firstAssignment = try #require(body.range(of: assignment)?.lowerBound,
+                                           "no shelf assignment at all in refreshSessions")
+        let hostAwait = try #require(body.range(of: "await chatStore.loadSessions(force: force, interim:")?.lowerBound,
+                                     "no awaited load in refreshSessions")
+        #expect(firstAssignment < hostAwait,
+                "the interim's assignment must sit INSIDE the closure, BEFORE the host is awaited — an assignment that runs only after the await is the 20 s blank shelf again")
     }
 
     /// **425-D2.** A REACHABLE host's FINAL list is what it was before this

@@ -199,8 +199,12 @@ protocol HermesClientProtocol {
     /// all, because its one list is already the final one. So `interim` is
     /// never the answer — the returned value always is, and a caller that
     /// paints the interim must repaint with the return.
+    ///
+    /// Not `@Sendable`: this protocol is `@MainActor`, so the closure is
+    /// formed, stored and called on the main actor and never crosses an
+    /// isolation boundary.
     func listSessions(
-        interim: (@MainActor @Sendable ([HermesSessionInfo]) -> Void)?
+        interim: (@MainActor ([HermesSessionInfo]) -> Void)?
     ) async throws -> [HermesSessionInfo]
 
     /// Opens an existing session: adopts its id and returns its message history
@@ -387,7 +391,7 @@ extension HermesClientProtocol {
     // Only `ChatBackendRouter` (two halves) and `ResilientHermesClient`
     // (which forwards to it) override this.
     func listSessions(
-        interim: (@MainActor @Sendable ([HermesSessionInfo]) -> Void)?
+        interim: (@MainActor ([HermesSessionInfo]) -> Void)?
     ) async throws -> [HermesSessionInfo] {
         try await listSessions()
     }

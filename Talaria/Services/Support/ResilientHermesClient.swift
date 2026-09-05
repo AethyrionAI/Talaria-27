@@ -140,7 +140,7 @@ final class ResilientHermesClient: HermesClientProtocol {
     /// the whole defect — a shelf that waits on the host's timeout — with
     /// every router-level test still green.
     func listSessions(
-        interim: (@MainActor @Sendable ([HermesSessionInfo]) -> Void)?
+        interim: (@MainActor ([HermesSessionInfo]) -> Void)?
     ) async throws -> [HermesSessionInfo] {
         try await primary.listSessions(interim: interim)
     }

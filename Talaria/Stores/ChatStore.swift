@@ -3839,9 +3839,14 @@ final class ChatStore {
     /// once, from the final list). The snapshot path below returns without
     /// calling it at all: an answer already in hand needs no preview of
     /// itself.
+    ///
+    /// One thing it does remember, and only for the duration of THIS call:
+    /// the interim it forwarded, so that a throw on a launch which has no
+    /// real list yet returns those rows instead of `[]` (fix round 1 — the
+    /// reasoning is at the catch below).
     func loadSessions(
         force: Bool = false,
-        interim: (@MainActor @Sendable ([HermesSessionInfo]) -> Void)? = nil
+        interim: (@MainActor ([HermesSessionInfo]) -> Void)? = nil
     ) async -> [HermesSessionInfo] {
         if !force,
            let loadedAt = lastSessionsLoadAt,
@@ -3849,8 +3854,23 @@ final class ChatStore {
             chatLog.verbose("loadSessions: served \(lastLoadedSessions.count) from snapshot (#175)")
             return lastLoadedSessions
         }
+        // 425-D (fix round 1): a LOCAL, never a stored property. A store that
+        // kept an interim between rounds would be exactly the cache this
+        // method is careful not to become; this one dies with the call, and
+        // its only reader is the catch below, which needs to tell "rows were
+        // already painted" from "nothing was".
+        var painted: [HermesSessionInfo]?
+        let forwarded: (@MainActor ([HermesSessionInfo]) -> Void)?
+        if let interim {
+            forwarded = { infos in
+                painted = infos
+                interim(infos)
+            }
+        } else {
+            forwarded = nil
+        }
         do {
-            let sessions = try await hermesClient.listSessions(interim: interim)
+            let sessions = try await hermesClient.listSessions(interim: forwarded)
             chatLog.verbose("loadSessions: got \(sessions.count) sessions")
             lastLoadedSessions = sessions
             lastSessionsLoadAt = .now
@@ -3884,11 +3904,26 @@ final class ChatStore {
             // For those the snapshot-preserving behaviour below is unchanged.
             //
             // 425-D: an interim may ALREADY have been published on this path
-            // (the router publishes before it awaits the host, so before it
-            // can know the round will be cancelled). That is why the return
-            // below is the caller's last word and the interim never is: a
-            // caller that painted the interim repaints with this stale-but-
-            // real list, which is strictly the better of the two.
+            // — the router publishes before it awaits the host, so before it
+            // can know the round will be cancelled — and the caller assigns
+            // whatever this returns, unconditionally. So the rule here is the
+            // BETTER of the two, never the emptier.
+            //
+            // A non-empty `lastLoadedSessions` still wins, exactly as before:
+            // it is a list a host actually answered, and stale-but-real beats
+            // a preview (#190B). But on a COLD launch it is `[]`, and
+            // returning that over rows the caller has just painted reads on
+            // screen as blank → local rows → blank again, "NO SESSIONS YET" —
+            // this fix re-creating the defect it was written for, in the one
+            // window the router still rethrows through (a cancellation, or a
+            // local-side failure). Neither branch caches anything:
+            // `lastLoadedSessions` and `lastSessionsLoadAt` stay untouched, so
+            // the next unforced load still retries the host rather than
+            // serving a snapshot no host produced.
+            if lastLoadedSessions.isEmpty, let painted {
+                chatLog.error("loadSessions: FAILED — \(error.localizedDescription, privacy: .public); no real list yet — keeping the \(painted.count) interim row(s) already painted")
+                return painted
+            }
             chatLog.error("loadSessions: FAILED — \(error.localizedDescription, privacy: .public); serving \(self.lastLoadedSessions.count) from the last real list")
             return lastLoadedSessions
         }

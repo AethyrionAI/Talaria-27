@@ -661,7 +661,7 @@ final class ChatBackendRouter: HermesClientProtocol {
     }
 
     func listSessions(
-        interim: (@MainActor @Sendable ([HermesSessionInfo]) -> Void)?
+        interim: (@MainActor ([HermesSessionInfo]) -> Void)?
     ) async throws -> [HermesSessionInfo] {
         // #190: ONE unified list, sorted globally by recency — never two
         // lanes. The local store's sessions always participate; the Hermes
