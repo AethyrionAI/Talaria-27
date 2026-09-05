@@ -1085,37 +1085,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     }
 
 #if DEBUG
-    // MARK: - #428 Task 0 probe doors (TEMPORARY)
-    //
-    // harness-visible (#428, Task 0 probe). These exist ONLY so
-    // `NativeVoiceCaptureProbeTests` can measure the premises the #428 plan
-    // rests on (does the sim clear the preflight; does the real capture chain
-    // start; does a posted route-change reach `restartCapture`, and does the
-    // 750 ms configuration cooldown gate it). Task 4 deletes them together
-    // with the probe file — nothing in production reads them.
-
-    /// The real capture controller, so a probe can read `probeStartCount`.
-    /// Optional since #428's Task 1 seam: `capture` is now `any
-    /// NativeVoiceCapturing`, and only the production controller has probes.
-    var probeCaptureController: NativeVoiceCaptureController? {
-        capture as? NativeVoiceCaptureController
-    }
-
-    /// The route-change gate's flag, so a probe can see the cooldown clear.
-    var probeIsConfiguringAudioSession: Bool { isConfiguringAudioSession }
-
-    /// Arms/disarms the gate without going through a real capture start.
-    func probeSetConfiguringAudioSession(_ value: Bool) {
-        isConfiguringAudioSession = value
-    }
-
-    /// The real `beginCapture()`, so a probe can measure the REAL cooldown
-    /// rather than a hand-set flag.
-    func probeBeginCapture() async throws {
-        try await beginCapture()
-    }
-
-    // MARK: - #428 harness door (PERMANENT — Task 4 keeps this one)
+    // MARK: - #428 harness door (PERMANENT)
     //
     // harness-visible (#428). A CONNECTED capture session with NO preflight.
     // `startSession()` cannot be used by a service-level test on a simulator:
@@ -1126,6 +1096,14 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     // `.failed` rather than `.connected`. So the restart-vs-teardown bars
     // (428-A / 428-C) reach `.connected` through this door instead, with an
     // injected `NativeVoiceCapturing` (Task 1's seam) standing in for the mic.
+    //
+    // This is the only surviving member of what was originally a larger
+    // Task 0 probe-door block (`probeCaptureController`,
+    // `probeIsConfiguringAudioSession`, `probeSetConfiguringAudioSession(_:)`,
+    // `probeBeginCapture()`) — those four were temporary scaffolding for
+    // `NativeVoiceCaptureProbeTests` (deleted, #428 Task 4) and are gone with
+    // the probe file. This door stays because `NativeVoiceRestartTeardownTests`
+    // (428-A / 428-C) is the only way to reach `.connected` for those bars.
     //
     // It is `#if DEBUG` and no production file references it — the Release
     // build is the pin (#218's rule).
@@ -1187,14 +1165,6 @@ actor NativeVoiceCaptureController: NativeVoiceCapturing {
     /// PERMANENT (it outlives Task 0's probe file): 428-B's bar is "nothing
     /// installed", and the only honest reading of that is the engine's.
     var isEngineRunning: Bool { audioEngine.isRunning }
-#if DEBUG
-    /// harness-visible (#428, Task 0 probe) — counts `start(muted:)` entries so
-    /// probe 3 can see a route-change restart as a SECOND start even when that
-    /// start then throws. TEMPORARY, deleted with the probe file (Task 4).
-    /// `#if DEBUG` because nothing in production reads it (#218's rule: a
-    /// harness-only member does not ship).
-    private(set) var probeStartCount = 0
-#endif
     /// #428 (428-B): monotonic teardown counter. `stop()` bumps it first thing;
     /// a start captures it after its own leading `stop()` and refuses to touch
     /// the engine if it has moved by the time the start resumes. Same shape as
@@ -1267,9 +1237,6 @@ actor NativeVoiceCaptureController: NativeVoiceCapturing {
     }
 
     func start(muted: Bool) async throws -> AsyncStream<NativeVoiceCaptureEvent> {
-#if DEBUG
-        probeStartCount += 1  // harness-visible (#428, Task 0 probe)
-#endif
         stop()
         // #428 (428-B): the ticket. Taken AFTER this start's own leading
         // `stop()` (which bumped the generation) and before the one suspension
