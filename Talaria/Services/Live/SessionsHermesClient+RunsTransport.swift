@@ -437,7 +437,12 @@ extension SessionsHermesClient {
     /// - **No `.modelResolved`.** The runs `run.completed` carries no
     ///   `runtime` block; inventing one would be a fabricated attribution.
     /// - **History rides the body** (N4: runs WRITE the session transcript but
-    ///   never READ it).
+    ///   never READ it — SHARPENED 2026-09-05, #426: true for a NON-EMPTY body;
+    ///   a gateway ≥ 2026-09-03 backfills an EMPTY history from the session DB
+    ///   and a lease-waited turn reloads the stored transcript regardless — see
+    ///   the note at this function's `fetchRunsHistory` call below). Since #426
+    ///   that body is built from the host's STORED rows, so the transplant
+    ///   primer and its ack ride verbatim.
     ///
     /// Exactly-once discipline: `finishedYielded` guards a single terminal
     /// yield (`.finished` OR `.failed` OR `.interrupted`) per turn, and every
