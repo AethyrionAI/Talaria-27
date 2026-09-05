@@ -272,6 +272,14 @@ struct RemoteImageSitePinsTests {
     /// The exemption is one file, and the last check is what keeps it from
     /// being vacuous: if the loader ever stops fetching, the exemption is
     /// protecting nothing and this says so rather than quietly widening.
+    ///
+    /// **These needles match comments as well as code**, which is a property
+    /// rather than a bug and was measured the awkward way: the scratch view
+    /// planted as this ban's positive control carried a doc comment saying it
+    /// contained no `AsyncImage(`, and that sentence reddened 429-C's literal
+    /// ban all by itself. A comment that spells one of these calls is either
+    /// describing code that is there — in which case the ban is right — or
+    /// describing code that is not, which is a comment worth rewriting.
     @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
                    "reads the repo — simulator only"))
     func onlyTheLoaderFetchesRemoteImageBytes() throws {

@@ -117,9 +117,17 @@ final class RemoteImageConsent {
     /// The completed task is KEPT, not cleared: a caller arriving after the
     /// load finished gets the same finished task and its recorded result
     /// (`nil` for a failure) without a second network call. That is what makes
-    /// "one load per URL per launch" true of failures as well as successes —
-    /// at the cost that a transient failure is not retried within the launch,
-    /// which is a deliberate trade and not an oversight.
+    /// "one load per URL per launch" true of failures as well as successes.
+    ///
+    /// **#437-A corrects what this comment used to claim.** It said a
+    /// transient failure simply is not retried within the launch — "a
+    /// deliberate trade and not an oversight". It was an oversight: the
+    /// `AsyncImage` this design replaced retried on every re-parse, so a
+    /// blip that used to heal itself became permanent. Nothing about the
+    /// registry changes; what changed is that `retry(_:)` can now drop one
+    /// entry, and the failure row is the control that calls it. Retrying is
+    /// still never automatic — an approved URL is still a beacon, and the
+    /// reader decides when to ping it again.
     func loadTask(for url: URL, using loader: any RemoteImageLoading) -> Task<UIImage?, Never> {
         // #437-B — defence in depth. The gate lives in `RemoteImageView.body`
         // and both of today's call sites are correct; this is here so that a
