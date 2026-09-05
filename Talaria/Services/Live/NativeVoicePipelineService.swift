@@ -81,7 +81,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     /// pipeline owns the `.playAndRecord` session, and the shared read-aloud
     /// instance stays gated off while a Talk session is active.
     private let speechOutput: SpeechOutputService
-    private let capture = NativeVoiceCaptureController()
+    /// #428: injectable so a test can drive the capture stack without an
+    /// `AVAudioEngine`. Production always gets `NativeVoiceCaptureController`
+    /// via the convenience initializer below.
+    private let capture: any NativeVoiceCapturing
     private let eventHub = TalkSessionEventHub()
 
     /// Locally minted per session so the end-of-session transcript hand-off
@@ -92,6 +95,12 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     private var captureTask: Task<Void, Never>?
     /// Serializes route/interruption capture restarts (see restartCapture).
     private var restartTask: Task<Void, Never>?
+    /// #428 (428-A): true for exactly as long as the restart task's BODY is
+    /// running. `restartTask != nil` is not the same fact — the handle is set
+    /// before the body starts and cleared only when `restartCapture` resumes —
+    /// and the join needs the body's own liveness. Set where the task is
+    /// created; cleared by the body's `defer`, so no early return can leak it.
+    private var restartInFlight = false
     /// Sliding window of restart timestamps feeding the thrash breaker.
     private var recentCaptureRestarts: [Date] = []
     private var endpointTask: Task<Void, Never>?
@@ -125,11 +134,26 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
 
     init(
         backendProvider: @escaping @MainActor () -> (any HermesClientProtocol)?,
-        speechOutput: SpeechOutputService
+        speechOutput: SpeechOutputService,
+        capture: any NativeVoiceCapturing
     ) {
         self.backendProvider = backendProvider
         self.speechOutput = speechOutput
+        self.capture = capture
         registerAudioSessionObservers()
+    }
+
+    /// The production shape — every existing call site (#428: `AppContainer`
+    /// and the test host) reaches the real capture controller through this.
+    convenience init(
+        backendProvider: @escaping @MainActor () -> (any HermesClientProtocol)?,
+        speechOutput: SpeechOutputService
+    ) {
+        self.init(
+            backendProvider: backendProvider,
+            speechOutput: speechOutput,
+            capture: NativeVoiceCaptureController()
+        )
     }
 
     func events() -> AsyncStream<TalkSessionEvent> {
@@ -215,6 +239,20 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             return
         }
 
+        await connectSession()
+    }
+
+    /// The connect half of `startSession()` — everything after the preflight,
+    /// including the failure paint.
+    ///
+    /// Extracted (#428 final fix) so the failure path has exactly ONE home the
+    /// harness can drive. `startSession()` itself cannot be called in the test
+    /// host: #428 Task 0(b) probe 1 measured it parking indefinitely inside
+    /// `SFSpeechRecognizer.requestAuthorization` on the simulator, and a
+    /// second copy of the paint block would be a second thing to keep in step
+    /// with the guard below. One mechanism, two callers (the second is
+    /// `connectSessionForHarness()`, `#if DEBUG`).
+    private func connectSession() async {
         connectionState = .connecting
         voiceState = .thinking
         statusMessage = "Starting local voice."
@@ -240,6 +278,23 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         } catch {
             await teardownSessionResources()
             localSessionID = nil
+            // #428 (decision 2 — a superseded start is SILENT): End, or
+            // #415's cover park, landing while this INITIAL connect is
+            // suspended inside `assemble` is a designed-correct shutdown, not
+            // a device failure. Teardown's `capture.stop()` bumps the capture
+            // generation, so the resumed start throws `.superseded` and lands
+            // here — and every paint below has a `didSet` that publishes a
+            // snapshot `TalkStore` adopts, so without this guard a correct
+            // shutdown writes an internal sentence ("Voice capture start was
+            // superseded by a session teardown.") onto a user surface.
+            //
+            // Returning without painting is safe rather than merely quiet:
+            // `endSession()`'s tail paints idle unconditionally after its own
+            // teardown, and on the cover path `TalkStore
+            // .discardAbandonedStart()` paints again after it. This mirrors
+            // `restartCapture`'s `guard !self.isEndingSession` in front of its
+            // own `.failed` paint — the same rule on the other lifecycle.
+            guard !isEndingSession else { return }
             blockedReason = error.localizedDescription
             canStartSession = false
             connectionState = .failed
@@ -303,6 +358,15 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         isConfiguringAudioSession = true
         do {
             let stream = try await capture.start(muted: isMuted)
+            // #428 (428-A): the session ended while `start` was awaiting. Do
+            // not adopt the stream — hand the capture stack straight back
+            // rather than leave a live tap behind a finished shutdown. The
+            // throw lands in this method's own `catch` below, which gives the
+            // configuration gate back too (this attempt armed it).
+            guard !isEndingSession else {
+                await capture.stop()
+                throw CancellationError()
+            }
             captureTask = Task { @MainActor [weak self] in
                 for await event in stream {
                     guard let self, !self.isEndingSession else { return }
@@ -360,19 +424,145 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             statusMessage = blockedReason
             return
         }
+        restartInFlight = true
         let task = Task { @MainActor [weak self] in
+            // #428 (428-A): cleared on EVERY exit — the guards below are early
+            // returns, and a join that polls a flag no early return clears
+            // would wait out its whole bound every time.
+            defer { self?.restartInFlight = false }
             guard let self else { return }
             self.captureTask?.cancel()
             self.captureTask = nil
             await self.capture.stop()
+            // #428 (428-A): a teardown arrived while we were inside
+            // `capture.stop()`. It owns the pipeline now — rebuild nothing.
+            guard !self.isEndingSession, !Task.isCancelled else {
+                Self.logger.notice("capture restart abandoned before rebuild — the session is ending (#428)")
+                return
+            }
             do {
                 try await self.beginCapture()
+                // Belt behind the guard inside `beginCapture()`. **Today it
+                // cannot fire, and that is a fact about the code rather than a
+                // claim about the world:** nothing suspends between that guard
+                // and this line (the two `Task { }` creations there are
+                // synchronous), so on the MainActor no teardown can interleave
+                // between them. It is here because it becomes live the moment
+                // anyone adds an `await` to that stretch — the cheap half of
+                // "STOP FIRST" — and because the cost of being wrong about
+                // which of the two notices first is a live tap behind a
+                // finished shutdown. Its `.notice` is what would witness it.
+                if self.isEndingSession {
+                    Self.logger.notice("capture restart rebuilt into an ending session — handing the capture stack back (#428)")
+                    await self.capture.stop()
+                    return
+                }
                 if self.voiceState == .interrupted {
                     self.voiceState = .listening
                     self.statusMessage = "Listening"
                 }
+            } catch NativeVoiceCaptureController.CaptureError.superseded {
+                // #428 (428-C): a newer teardown — or a newer start — owns the
+                // pipeline now. This restart installed nothing and must claim
+                // nothing: no `.failed`, no "Audio capture could not resume.",
+                // no state write at all, and NOT a re-arm.
+                //
+                // The no-re-arm half is the ruling from Task 2's review: when
+                // the supersession came from the old analyzer's own failure
+                // path calling `stop()`, that path's `.failed` event is what
+                // paints the state, and a retry here would clobber it and
+                // start the #82 thrash the breaker above exists to stop.
+                //
+                // Silent means silent about STATE — the controller already
+                // logged the abandonment at `.notice` where it happened, so a
+                // second line here would only duplicate it.
+                //
+                // **The configuration gate is already released, and it was
+                // released UPSTREAM rather than here.** `beginCapture()`'s own
+                // `catch` sets `isConfiguringAudioSession = false` before
+                // rethrowing — on every throw, this one included — so by the
+                // time this arm runs the gate is down. This arm neither clears
+                // it again nor re-arms it; the earlier wording here claimed the
+                // opposite outcome ("the newer owner's cooldown stays armed")
+                // and that outcome does not obtain (fix round 1, #428).
+                //
+                // Why the upstream clear was judged acceptable rather than
+                // moved behind a type check:
+                //
+                //  * On the supersession this arm actually sees, the newer
+                //    owner is a TEARDOWN's `capture.stop()`, not a newer
+                //    start. Nobody is holding the gate for a rebuild, and
+                //    nothing else disarms it — the 750 ms cooldown task is
+                //    only scheduled on `beginCapture`'s SUCCESS path. Leaving
+                //    it armed there would wedge `restartCapture`'s
+                //    `guard !isConfiguringAudioSession` permanently, which is
+                //    strictly worse than releasing it early.
+                //  * The residual case — a newer START superseded us, having
+                //    armed the gate for its own attempt — costs at most ONE
+                //    extra restart, if a route change lands in the window
+                //    between our clear and that start's own success cooldown.
+                //    It is coalesced by `restartTask` and bounded by the
+                //    thrash breaker above (>3 in 30 s trips it), so it cannot
+                //    become the #82 loop the gate exists to prevent.
+                //
+                // #428 (final review, Important 3): **silence about STATE is
+                // not silence about the ARCHIVE.** On the live-session arm
+                // this return can leave a session reading `.connected` /
+                // `.listening` with no capture chain behind it: the old
+                // analyzer's failure path yields `.failed` into an
+                // `outputContinuation` that `capture.stop()` has already
+                // finished and nil'd — so the event is DROPPED, not painted —
+                // and that same `stop()` is what supersedes us here. Narrow
+                // (it needs a genuine analyzer failure interleaved with a
+                // route restart) but silent, so it gets a positive control:
+                // one `.notice` naming the ordering, at #302-A's level, so an
+                // archive can distinguish "no capture chain" from "no restart
+                // was attempted". Repairing the state is NOT done here — the
+                // controller cannot yet tell a supersession by a bare `stop()`
+                // from one by a newer `start()`, and re-arming on the latter
+                // is the #82 thrash. That fuller fix is filed OPEN.
+                if !self.isEndingSession {
+                    Self.logger.notice(
+                        "\(Self.restartSupersededOnLiveSessionLogDetail(), privacy: .public)"
+                    )
+                }
+                return
+            } catch is CancellationError {
+                // #428 (428-A): **this is the fix's own success path, so it
+                // must not be logged as a failure.** When the user ends a
+                // session while a route-change restart is parked in
+                // `capture.start`, `beginCapture()`'s belt hands the capture
+                // stack back and throws `CancellationError` — every time, by
+                // design, not as a race. Before fix round 1 that landed in the
+                // generic catch below and wrote
+                // `capture restart failed: … (Swift.CancellationError error 1.)`
+                // at `Logger.warning`, which OSLog records at ERROR severity:
+                // the designed-correct teardown left an error row naming a
+                // failure in every archive, and the raw Swift error string with
+                // it.
+                //
+                // A cancelled restart is an ABANDONMENT, not a fault: it
+                // installed nothing and there is nothing to report to the user,
+                // so no state is painted here either (the generic catch's
+                // `isEndingSession` guard would have reached the same outcome —
+                // this arm makes the reason legible instead of incidental).
+                //
+                // `.notice`, `privacy: .public`, un-gated — #302-A's rule for
+                // the capture chain, and the positive control for an absence:
+                // without it an archive cannot tell "the teardown caught a
+                // parked restart" from "no restart was ever attempted".
+                Self.logger.notice(
+                    "\(Self.restartAbandonedLogDetail(sessionEnding: self.isEndingSession), privacy: .public)"
+                )
+                return
             } catch {
                 Self.logger.warning("capture restart failed: \(error.localizedDescription, privacy: .public)")
+                // #428 (428-C): a restart that fails on the far side of a
+                // teardown must not repaint a session that is already gone.
+                // Reachable when the join's 3 s bound elapses and the straggler
+                // lands afterwards — teardown has finished, so this paint would
+                // be the last writer.
+                guard !self.isEndingSession else { return }
                 self.connectionState = .failed
                 self.voiceState = .disconnected
                 self.statusMessage = "Audio capture could not resume."
@@ -383,7 +573,110 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         restartTask = nil
     }
 
+    /// The abandoned-restart line, as a pure function so its text is pinned by
+    /// a test rather than by a device archive (`VoiceInstrumentLogLineTests`).
+    ///
+    /// `sessionEnding` is the discriminator and it earns its place: a
+    /// `CancellationError` reaches that arm either from `beginCapture()`'s belt
+    /// (a teardown is in progress — the 428-A path, the common one) or from a
+    /// bare task cancellation with the session still live. A line that could
+    /// not say which would leave the next archive unable to tell a correct
+    /// shutdown from a restart someone cancelled out from under.
+    nonisolated static func restartAbandonedLogDetail(sessionEnding: Bool) -> String {
+        let reason =
+            sessionEnding
+            ? "the session is ending"
+            : "the restart task was cancelled with the session still live"
+        return "capture restart abandoned by teardown — \(reason); nothing installed, nothing painted (#428)"
+    }
+
+    /// The live-session supersession line (#428 final review, Important 3), as
+    /// a pure function so a grep-read archive line is pinned by a test.
+    ///
+    /// Names the ORDERING rather than a fault, because that is what happened:
+    /// a `stop()` ran while this restart was still in its startup stretch, so
+    /// the restart installed nothing and the session it left behind has no
+    /// capture chain until something triggers the next one. It is a positive
+    /// control for an absence — without it, an archive cannot tell a session
+    /// that lost its capture chain this way from one that never restarted.
+    nonisolated static func restartSupersededOnLiveSessionLogDetail() -> String {
+        "capture restart superseded on a LIVE session — a stop ran during the restart's startup; no capture chain until the next route change (#428)"
+    }
+
+    /// #428 (428-A): cancel the in-flight capture restart and WAIT for it to
+    /// leave — bounded, because a shutdown the user is waiting on must not be
+    /// hostage to a capture stack that has stopped answering.
+    ///
+    /// Polling, not `await restartTask?.value`: a non-throwing `Task.value`
+    /// cannot be timeout-raced (a `TaskGroup` around it hangs on the stranded
+    /// waiter), which is the house rule this method exists to respect.
+    ///
+    /// Past the bound we proceed rather than block. That is safe, not merely
+    /// pragmatic: teardown's own `await capture.stop()` runs immediately after
+    /// and bumps the capture generation, so a straggler either finds its ticket
+    /// stale and installs nothing (Task 2's 428-B) or has already installed a
+    /// tap that the same `stop()` then tears down.
+    private func joinRestart(within bound: Duration) async {
+        restartTask?.cancel()
+        let startedAt = ContinuousClock.now
+        let deadline = startedAt + bound
+        while restartInFlight, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(25))
+            // #428 (final review, Critical 1): **the CALLER can be cancelled,
+            // and this loop is on the MainActor.** `endSession()` is reached
+            // from stored, cancellable tasks — `TalkStore.coverWatchTask`
+            // (cancelled by `beginCoverWatch`, `endSession()`,
+            // `abandonSession()` and `reset()`) runs
+            // `discardAbandonedStart()` → `voiceService.endSession()`, and
+            // `VoiceOverlayScreen`'s `.task` is auto-cancelled on disappear.
+            // A cancelled `Task.sleep` throws IMMEDIATELY and `try?` swallows
+            // it, so without this break the loop degrades to a main-actor
+            // busy-wait spinning at executor rate for the full bound.
+            //
+            // Breaking is safe for the same reason the bound is: teardown's
+            // own `capture.stop()` runs right after and bumps the capture
+            // generation, so the straggler installs nothing (428-B).
+            if Task.isCancelled { break }
+        }
+        guard restartInFlight else { return }
+        if Task.isCancelled {
+            // Not "after 3 s" — this exit did not wait out the bound, and an
+            // instrument that said it did would misreport the shutdown that
+            // produced it.
+            Self.logger.notice(
+                "\(Self.restartJoinAbandonedLogDetail(elapsed: ContinuousClock.now - startedAt), privacy: .public)"
+            )
+        } else {
+            Self.logger.notice("restart still in flight after \(bound.description, privacy: .public) — proceeding; the capture generation covers the straggler (#428)")
+        }
+    }
+
+    /// The cancelled-join line, as a pure function so its text is pinned by a
+    /// test rather than by a device archive (`VoiceInstrumentLogLineTests`).
+    ///
+    /// It exists because the two over-bound exits are different events: one
+    /// waited the whole bound out, the other was cut short by a caller that
+    /// walked away (the cover watch, the overlay's `.task`). Rendering them
+    /// identically would leave an archive unable to tell a wedged capture
+    /// stack from a cancelled shutdown.
+    nonisolated static func restartJoinAbandonedLogDetail(elapsed: Duration) -> String {
+        let milliseconds =
+            elapsed.components.seconds * 1000
+            + elapsed.components.attoseconds / 1_000_000_000_000_000
+        return "restart join abandoned — caller cancelled after \(milliseconds) ms; the capture generation covers the straggler (#428)"
+    }
+
     private func teardownSessionResources() async {
+        // #428 (428-A): STOP FIRST, and stopping means the restart too. A
+        // route-change restart rebuilds the very capture stack the lines below
+        // tear down; cancelling it without joining leaves it to finish building
+        // on the far side of a completed shutdown.
+        await joinRestart(within: .seconds(3))
+        // #428 (final review, minor 8): drop the settled handle. `restartCapture`
+        // coalesces on `if let inFlight = restartTask { await inFlight.value;
+        // return }` — a COMPLETED handle left here returns instantly and
+        // swallows the next session's first route change.
+        restartTask = nil
         stopTimer()
         disarmFlatlineTripwire()
         audioRouteSummary = nil
@@ -413,7 +706,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
 
     // MARK: - Transcription → turns
 
-    private func handleTranscriptionEvent(_ event: NativeVoiceCaptureController.Event) {
+    private func handleTranscriptionEvent(_ event: NativeVoiceCaptureEvent) {
         switch event {
         case .volatile(let text):
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
@@ -900,6 +1193,66 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     private func publishSnapshot() {
         eventHub.publish(snapshot: snapshot)
     }
+
+#if DEBUG
+    // MARK: - #428 harness door (PERMANENT)
+    //
+    // harness-visible (#428). A CONNECTED capture session with NO preflight.
+    // `startSession()` cannot be used by a service-level test on a simulator:
+    // #428 Task 0(b) probe 1 measured it PARKING indefinitely inside
+    // `SFSpeechRecognizer.requestAuthorization` in 4 of 5 runs (there is no
+    // `simctl privacy` service for speech recognition, and `grant all` does not
+    // stand in for one), and in the one run that returned it still landed on
+    // `.failed` rather than `.connected`. So the restart-vs-teardown bars
+    // (428-A / 428-C) reach `.connected` through this door instead, with an
+    // injected `NativeVoiceCapturing` (Task 1's seam) standing in for the mic.
+    //
+    // Two doors live here — this one and `connectSessionForHarness()` (added
+    // by #428's final fix wave for the initial-connect failure path). They are
+    // what survived a larger Task 0 probe-door block (`probeCaptureController`,
+    // `probeIsConfiguringAudioSession`, `probeSetConfiguringAudioSession(_:)`,
+    // `probeBeginCapture()`) — those four were temporary scaffolding for
+    // `NativeVoiceCaptureProbeTests` (deleted, #428 Task 4) and are gone with
+    // the probe file. This door stays because `NativeVoiceRestartTeardownTests`
+    // (428-A / 428-C) is the only way to reach `.connected` for those bars.
+    //
+    // It is `#if DEBUG` and no production file references it — the Release
+    // build is the pin (#218's rule).
+
+    /// Brings the pipeline to `.connected` / `.listening` through the REAL
+    /// `beginCapture()`, skipping the mic / speech / backend preflight.
+    ///
+    /// Deliberately does NOT start the session timer, the endpoint watchdog or
+    /// the flatline tripwire: the bars this serves are about the capture
+    /// stack's lifecycle, and the fewer live tasks a fixture starts, the fewer
+    /// ways it can be wrong about what it measured.
+    func beginConnectedCaptureForHarness() async throws {
+        isEndingSession = false
+        try await beginCapture()
+        localSessionID = UUID()
+        connectionState = .connected
+        voiceState = .listening
+        blockedReason = nil
+        statusMessage = "Listening"
+    }
+
+    /// harness-visible (#428 final fix). Runs `startSession()`'s connect half —
+    /// the REAL `beginCapture()` and the REAL failure paint — with no
+    /// preflight in front of it.
+    ///
+    /// This is the door for Critical 2's bar: an End (or #415's cover park)
+    /// landing while the INITIAL connect is parked inside `assemble` must not
+    /// leave `.failed` + "Voice capture start was superseded by a session
+    /// teardown." on a user surface. There is nothing duplicated here — the
+    /// catch under test is `connectSession()`'s own, and this call is the only
+    /// thing this method does. `startSession()` itself cannot be driven in the
+    /// test host (Task 0(b) probe 1: it parks in
+    /// `SFSpeechRecognizer.requestAuthorization` on the simulator).
+    func connectSessionForHarness() async {
+        isEndingSession = false
+        await connectSession()
+    }
+#endif
 }
 
 // MARK: - Capture controller
@@ -913,13 +1266,22 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
 /// tap installs, so assistant TTS playback isn't re-transcribed as new user
 /// input. Voice processing changes the input format — the format is read
 /// AFTER enabling it.
-private actor NativeVoiceCaptureController {
+// harness-visible (#428) — widened from `private` so tests can drive the REAL
+// controller. This is now PERMANENT, not the temporary widening Task 0's probe
+// asked for: 428-B's `NativeVoiceCaptureGenerationTests` constructs this type
+// directly with an injected assembler, and its `CaptureError.superseded` is the
+// discriminator the whole capture-generation bar rests on. The tag still means
+// "private in spirit" — nothing outside this file and the suites constructs it.
+actor NativeVoiceCaptureController: NativeVoiceCapturing {
     private static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "NativeVoiceCapture")
 
-    enum Event: Sendable {
-        case volatile(String)
-        case finalized(String)
-        case failed(String)
+    /// #428: every suspension point between the audio-session configuration
+    /// and the tap install lives behind this. Production gets
+    /// `SpeechTranscriberAssembler`; a test can park a start here.
+    private let assembler: any SpeechAnalysisAssembling
+
+    init(assembler: any SpeechAnalysisAssembling = SpeechTranscriberAssembler()) {
+        self.assembler = assembler
     }
 
     /// Realtime-safe mute flag: written from the service (MainActor), read on
@@ -927,12 +1289,24 @@ private actor NativeVoiceCaptureController {
     private let muteState = OSAllocatedUnfairLock(initialState: false)
 
     private let audioEngine = AVAudioEngine()
-    private var analyzer: SpeechAnalyzer?
-    private var reservedLocale: Locale?
+    /// harness-visible (#428) — the engine's own state, not a wrapper flag.
+    /// PERMANENT (it outlives Task 0's probe file): 428-B's bar is "nothing
+    /// installed", and the only honest reading of that is the engine's.
+    var isEngineRunning: Bool { audioEngine.isRunning }
+    /// #428 (428-B): monotonic teardown counter. `stop()` bumps it first thing;
+    /// a start captures it after its own leading `stop()` and refuses to touch
+    /// the engine if it has moved by the time the start resumes. Same shape as
+    /// `TalkStore.sessionGeneration` — no new mechanism.
+    private var captureGeneration = 0
+    /// #428 (428-B2): the adopted assembly's release hook — the ONE mechanism
+    /// that gives back a prepared analyzer and its locale reservation. Replaces
+    /// the separate `analyzer` / `reservedLocale` stored properties, whose only
+    /// readers were `stop()`'s two hand-rolled releases.
+    private var releaseAdoptedResources: (@Sendable () async -> Void)?
     private var analyzerTask: Task<Void, Never>?
     private var resultsTask: Task<Void, Never>?
     private var inputContinuation: AsyncStream<AnalyzerInput>.Continuation?
-    private var outputContinuation: AsyncStream<Event>.Continuation?
+    private var outputContinuation: AsyncStream<NativeVoiceCaptureEvent>.Continuation?
 
     enum CaptureError: LocalizedError {
         case transcriptionUnavailable
@@ -940,6 +1314,12 @@ private actor NativeVoiceCaptureController {
         /// degenerate format (0 Hz / 0 ch) — installing a tap would raise an
         /// uncatchable NSException. Carries the #84 third-state wording.
         case noAudioInput
+        /// #428: a `stop()` moved the capture generation while this start was
+        /// parked in the analyzer assembly, so the start was abandoned before
+        /// anything touched the engine. `point` names the suspension point it
+        /// resumed from. This is a control signal, not a device fault — the
+        /// restart path swallows it rather than surfacing it (Task 3).
+        case superseded(point: String)
 
         var errorDescription: String? {
             switch self {
@@ -947,6 +1327,8 @@ private actor NativeVoiceCaptureController {
                 "On-device speech transcription isn't available on this device."
             case .noAudioInput:
                 TalkMicPreflight.noMicInputMessage
+            case .superseded:
+                "Voice capture start was superseded by a session teardown."
             }
         }
     }
@@ -982,8 +1364,15 @@ private actor NativeVoiceCaptureController {
         muteState.withLock { $0 = muted }
     }
 
-    func start(muted: Bool) async throws -> AsyncStream<Event> {
+    func start(muted: Bool) async throws -> AsyncStream<NativeVoiceCaptureEvent> {
         stop()
+        // #428 (428-B): the ticket. Taken AFTER this start's own leading
+        // `stop()` (which bumped the generation) and before the one suspension
+        // point below — so it equals the generation for exactly as long as no
+        // OTHER teardown runs. `checkTicket` re-reads the counter after the
+        // suspension; a mismatch means a `stop()` interleaved and this start
+        // must install nothing.
+        let ticket = captureGeneration
         muteState.withLock { $0 = muted }
 
         // Session category: playAndRecord because TTS plays while the mic
@@ -1009,30 +1398,78 @@ private actor NativeVoiceCaptureController {
         // until the HOT line below reports the ENGINE's own state.
         Self.logger.notice("audio session activated for capture (#302-A)")
 
-        // Prefer SpeechTranscriber (the full model); fall back to
-        // DictationTranscriber when the model isn't available on-device.
-        // Both flavors get the SpeechDetector VAD module first, and retry
-        // without it if the analyzer refuses to start (iOS 26.0 conformance
-        // bug hedge — the fallback endpointer upstream covers endpointing).
-        if SpeechTranscriber.isAvailable,
-           let locale = await SpeechTranscriber.supportedLocale(equivalentTo: .current) {
-            let transcriber = SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
-            try await reserveLocaleIfPossible(locale)
-            return try await startAnalyzer(transcriber: transcriber, resultsLoop: { [weak self] in
-                await self?.consumeSpeechTranscriberResults(transcriber)
-            })
+        // Echo cancellation FIRST — it changes the input format, and the
+        // format is what the assembly negotiates against. (#428: this pair
+        // moved up out of `startAnalyzer`; both calls are synchronous, so
+        // nothing suspends between the session going active and the assembly.)
+        let inputNode = audioEngine.inputNode
+        do {
+            try inputNode.setVoiceProcessingEnabled(true)
+        } catch {
+            // Non-fatal: without the voice-processing chain the pipeline still
+            // works, but TTS playback may be re-transcribed. Barge-in handling
+            // upstream tolerates it; log loudly for the device checklist.
+            Self.logger.warning("voice processing unavailable: \(error.localizedDescription, privacy: .public)")
         }
-        guard let locale = await DictationTranscriber.supportedLocale(equivalentTo: .current) else {
-            throw CaptureError.transcriptionUnavailable
+        inputNode.removeTap(onBus: 0)
+        let inputFormat = inputNode.outputFormat(forBus: 0)
+
+        // The ONE suspension point of a capture start (#428). Everything the
+        // analyzer needs — transcriber selection, locale reservation, format
+        // negotiation, `prepareToAnalyze` — happens in here; everything after
+        // it is a single synchronous stretch that ends with a live tap.
+        let assembly = try await assembler.assemble(inputFormat: inputFormat)
+        do {
+            try checkTicket(ticket, at: "assembled")
+        } catch {
+            // #428 (428-B2): the assembly RETURNED, so the assembler's own
+            // error path cannot clean it up — and `startEngine`, the only thing
+            // that adopts it, is never reached. Give back what it built before
+            // throwing, or the fix trades a stray tap for a stray analyzer and
+            // a stray locale reservation. Awaited (not fired into a `Task`)
+            // because this start has nothing left to do: the release completes
+            // before the abandonment is visible to the caller.
+            await assembly.releaseResources()
+            throw error
         }
-        let transcriber = DictationTranscriber(locale: locale, preset: .progressiveShortDictation)
-        try await reserveLocaleIfPossible(locale)
-        return try await startAnalyzer(transcriber: transcriber, resultsLoop: { [weak self] in
-            await self?.consumeDictationTranscriberResults(transcriber)
-        })
+        return try startEngine(assembly: assembly, inputNode: inputNode, inputFormat: inputFormat)
+    }
+
+    /// #428 (428-B): refuse a startup that a `stop()` interleaved with.
+    ///
+    /// Actor serialization does not survive a suspension, so every suspension
+    /// point between "the audio session is configured" and "a tap is installed"
+    /// is a window where a teardown can run to completion and return. After
+    /// each one, this asks whether it did. A mismatch means the engine this
+    /// start is about to touch belongs to a session that has already ended.
+    ///
+    /// There is exactly ONE such window today (`assemble`); the `point`
+    /// parameter exists so a second one cannot be added without naming itself
+    /// in the log.
+    private func checkTicket(_ ticket: Int, at point: String) throws {
+        guard captureGeneration != ticket else { return }
+        // #302-A's rule for the capture chain: `.notice` (Console hides
+        // `.info`), `privacy: .public` (or it redacts), never gated behind
+        // Verbose Logging. This line is the positive control for an ABSENCE —
+        // without it an archive cannot tell "the ticket caught a superseded
+        // start" from "no restart was ever attempted".
+        Self.logger.notice("\(Self.abandonedStartLogDetail(point: point), privacy: .public)")
+        throw CaptureError.superseded(point: point)
+    }
+
+    /// The abandoned-start line, as a pure function so its text is pinned by a
+    /// test rather than by a device archive (`VoiceInstrumentLogLineTests`).
+    nonisolated static func abandonedStartLogDetail(point: String) -> String {
+        "capture start ABANDONED — capture generation moved during startup at \(point); nothing installed (#428)"
     }
 
     func stop() {
+        // #428 (428-B): the generation moves FIRST, before a single resource is
+        // torn down. A start parked in `assemble` compares its ticket against
+        // this counter when it resumes — so a bump that happened at the END of
+        // the teardown would leave a window in which a start resumes mid-
+        // teardown and still matches.
+        captureGeneration &+= 1
         // #302-A: read the engine's own state BEFORE tearing it down, so the
         // COLD line can say whether this stop ended a hot chain (was=true)
         // or was a defensive no-op (was=false — negative evidence that the
@@ -1050,82 +1487,45 @@ private actor NativeVoiceCaptureController {
         analyzerTask = nil
         resultsTask = nil
 
-        let analyzer = analyzer
-        self.analyzer = nil
-        if let analyzer {
-            Task { await analyzer.cancelAndFinishNow() }
-        }
-        let reservedLocale = reservedLocale
-        self.reservedLocale = nil
-        if let reservedLocale {
-            Task { _ = await AssetInventory.release(reservedLocale: reservedLocale) }
+        // #428 (428-B2): ONE release mechanism. This used to be two hand-rolled
+        // releases reading two stored properties — cancel the analyzer, release
+        // the locale — which is the shape a SUPERSEDED start (which never
+        // adopts either) would have had to duplicate to avoid leaking. The
+        // assembly now carries its own release; `startEngine` adopts it and
+        // this hands it back. Fire-and-forget because `stop()` is synchronous
+        // by protocol; the two releases are now sequential inside one `Task`
+        // (cancel, then release the locale) rather than racing in two.
+        let releaseAdopted = releaseAdoptedResources
+        releaseAdoptedResources = nil
+        if let releaseAdopted {
+            Task { await releaseAdopted() }
         }
 
         outputContinuation?.finish()
         outputContinuation = nil
     }
 
-    // MARK: - Analyzer assembly
+    // MARK: - Engine start
+    //
+    // #428: the analyzer ASSEMBLY (transcriber selection, locale reservation,
+    // format negotiation, `prepareToAnalyze` + the no-VAD retry) moved to
+    // `SpeechTranscriberAssembler`; `reserveLocaleIfPossible` went with it, as
+    // the reservation's only caller. What is left below is the synchronous
+    // stretch — it contains NO `await`, which is precisely the property #428's
+    // capture generation needs.
 
-    private func reserveLocaleIfPossible(_ locale: Locale) async throws {
-        if try await AssetInventory.reserve(locale: locale) {
-            reservedLocale = locale
-        }
-    }
-
-    private func startAnalyzer(
-        transcriber: some SpeechModule,
-        resultsLoop consumeResults: @escaping @Sendable () async -> Void
-    ) async throws -> AsyncStream<Event> {
-        // Echo cancellation FIRST — it changes the input format.
-        let inputNode = audioEngine.inputNode
-        do {
-            try inputNode.setVoiceProcessingEnabled(true)
-        } catch {
-            // Non-fatal: without the voice-processing chain the pipeline still
-            // works, but TTS playback may be re-transcribed. Barge-in handling
-            // upstream tolerates it; log loudly for the device checklist.
-            Self.logger.warning("voice processing unavailable: \(error.localizedDescription, privacy: .public)")
-        }
-        inputNode.removeTap(onBus: 0)
-        let inputFormat = inputNode.outputFormat(forBus: 0)
-        // #82 wedge backstop: installTap with a degenerate hardware format
-        // raises an uncatchable NSException. Fail honestly with the #84
-        // reboot guidance before any tap touches the engine.
-        guard TalkMicPreflight.isViableCaptureFormat(
-            sampleRate: inputFormat.sampleRate,
-            channelCount: inputFormat.channelCount
-        ) else {
-            Self.logger.error("capture format degenerate (rate=\(inputFormat.sampleRate, privacy: .public) ch=\(inputFormat.channelCount, privacy: .public)) — #82 wedge shape; refusing tap install")
-            throw CaptureError.noAudioInput
-        }
-
-        // SpeechDetector gates analysis to detected speech; retry without it
-        // if the analyzer/module combination refuses to start.
-        var modules: [any SpeechModule] = [
-            SpeechDetector(detectionOptions: .init(sensitivityLevel: .medium), reportResults: false),
-            transcriber,
-        ]
-
-        var analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(
-            compatibleWith: [transcriber],
-            considering: inputFormat
-        ) ?? inputFormat
-        var analyzer: SpeechAnalyzer
-        do {
-            analyzer = SpeechAnalyzer(modules: modules)
-            try await analyzer.prepareToAnalyze(in: analyzerFormat) { _ in }
-        } catch {
-            Self.logger.warning("analyzer with SpeechDetector failed (\(error.localizedDescription, privacy: .public)) — retrying without VAD module")
-            modules = [transcriber]
-            analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(
-                compatibleWith: [transcriber],
-                considering: inputFormat
-            ) ?? inputFormat
-            analyzer = SpeechAnalyzer(modules: modules)
-            try await analyzer.prepareToAnalyze(in: analyzerFormat) { _ in }
-        }
-        self.analyzer = analyzer
+    private func startEngine(
+        assembly: SpeechAnalysisAssembly,
+        inputNode: AVAudioInputNode,
+        inputFormat: AVAudioFormat
+    ) throws -> AsyncStream<NativeVoiceCaptureEvent> {
+        // Adopt the assembly's resources FIRST, so any throw below still
+        // leaves `stop()` able to cancel the analyzer and release the locale.
+        // (#428, 428-B2: "adopt" now means taking over the assembly's own
+        // release hook — from this line on `stop()` owns it, which is exactly
+        // why the superseded path, which never gets here, must call it itself.)
+        let analyzerFormat = assembly.analyzerFormat
+        self.releaseAdoptedResources = assembly.releaseResources
 
         let formatsMatch =
             inputFormat.sampleRate == analyzerFormat.sampleRate &&
@@ -1140,20 +1540,37 @@ private actor NativeVoiceCaptureController {
             localInputContinuation = continuation
             self.inputContinuation = continuation
         }
-        let outputStream = AsyncStream<Event> { continuation in
+        let outputStream = AsyncStream<NativeVoiceCaptureEvent> { continuation in
             self.outputContinuation = continuation
         }
 
         let muteState = muteState
         let capturedFormat = analyzerFormat
+        // #82 wedge backstop, check 2 of 2 (#428 — DEFENCE IN DEPTH, not a
+        // move). `SpeechTranscriberAssembler.assemble` runs the same predicate
+        // as its first statement, so on device the fail-fast is unchanged;
+        // this second call guards the thing a degenerate format actually
+        // breaks — the install below, which with a 0 Hz / 0 ch format raises
+        // an uncatchable NSException. It is repeated here because the
+        // assembler is INJECTABLE: a test double skips check 1, and the
+        // engine must still refuse. Same predicate both times, never a copy
+        // of its body.
+        guard TalkMicPreflight.isViableCaptureFormat(
+            sampleRate: inputFormat.sampleRate,
+            channelCount: inputFormat.channelCount
+        ) else {
+            Self.logger.error("capture format degenerate (rate=\(inputFormat.sampleRate, privacy: .public) ch=\(inputFormat.channelCount, privacy: .public)) — #82 wedge shape; refusing tap install")
+            throw CaptureError.noAudioInput
+        }
         // #128: this remove must be IMMEDIATELY adjacent to the install —
-        // the earlier defensive removeTap sits before four suspension points
-        // (format negotiation + analyzer prep), and actor serialization does
-        // not survive awaits: two interleaved capture starts both passed it
-        // and double-installed, throwing AVAudioEngine's
-        // `CreateRecordingTap: nullptr == Tap()` (device crash 2026-07-17,
-        // mid-session voice change). Remove-then-install in the same
-        // synchronous stretch makes the last writer win cleanly instead.
+        // the earlier defensive removeTap sits before the assembly's
+        // suspension point (#428 collapsed the four that used to sit here into
+        // one), and actor serialization does not survive awaits: two
+        // interleaved capture starts both passed it and double-installed,
+        // throwing AVAudioEngine's `CreateRecordingTap: nullptr == Tap()`
+        // (device crash 2026-07-17, mid-session voice change). Remove-then-
+        // install in the same synchronous stretch makes the last writer win
+        // cleanly instead.
         inputNode.removeTap(onBus: 0)
         // #198: the iOS 27 installer REPORTS the failure this comment
         // describes instead of raising it, so a double-install that slips past
@@ -1176,7 +1593,7 @@ private actor NativeVoiceCaptureController {
         let engineRunning = audioEngine.isRunning
         Self.logger.notice("capture chain HOT — AVAudioEngine.isRunning=\(engineRunning, privacy: .public) inputTap=installed (#302-A)")
 
-        let startedAnalyzer = analyzer
+        let startedAnalyzer = assembly.analyzer
         analyzerTask = Task { [weak self] in
             do {
                 try await startedAnalyzer.start(inputSequence: inputStream)
@@ -1186,8 +1603,17 @@ private actor NativeVoiceCaptureController {
                 await self?.stop()
             }
         }
-        resultsTask = Task {
-            await consumeResults()
+        // #428: the results loop used to arrive as a closure built at the
+        // transcriber-selection site; it now switches on the assembly's own
+        // choice. Same two loops, same typing.
+        let transcriber = assembly.transcriber
+        resultsTask = Task { [weak self] in
+            switch transcriber {
+            case .speech(let transcriber):
+                await self?.consumeSpeechTranscriberResults(transcriber)
+            case .dictation(let transcriber):
+                await self?.consumeDictationTranscriberResults(transcriber)
+            }
         }
 
         return outputStream
@@ -1219,7 +1645,7 @@ private actor NativeVoiceCaptureController {
         }
     }
 
-    private func emit(_ event: Event) {
+    private func emit(_ event: NativeVoiceCaptureEvent) {
         outputContinuation?.yield(event)
     }
 
