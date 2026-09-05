@@ -60,9 +60,28 @@ struct SpeechAnalysisAssembly: @unchecked Sendable {
     let analyzer: SpeechAnalyzer
     let analyzerFormat: AVAudioFormat
     /// Non-nil when `AssetInventory.reserve` actually took the reservation —
-    /// the actor stores it so `stop()` releases the same locale.
+    /// the datum `releaseResources` hands back. The actor no longer stores it
+    /// (#428, 428-B2: the hook below is the single release mechanism), so this
+    /// is the assembly's own record of what was reserved rather than a value
+    /// anything downstream reads.
     let reservedLocale: Locale?
     let transcriber: TranscriberChoice
+    /// **The one way to give back what this assembly took** (#428, 428-B2).
+    ///
+    /// An assembly owns two live resources — a prepared `SpeechAnalyzer` and
+    /// (sometimes) an `AssetInventory` locale reservation — and there are now
+    /// TWO paths that must give them back: `stop()`, which releases the
+    /// assembly the actor adopted, and a SUPERSEDED start, which must release
+    /// an assembly the actor never adopted at all. Two hand-written copies of
+    /// "cancel the analyzer, release the locale" is how the second path would
+    /// silently grow a leak, so the assembly carries the release itself and
+    /// both paths call this.
+    ///
+    /// Idempotence is the caller's business: each path nils out its reference
+    /// after calling, and the two paths are mutually exclusive by construction
+    /// (adoption happens in `startEngine`, which a superseded start never
+    /// reaches).
+    let releaseResources: @Sendable () async -> Void
 }
 
 /// The one seam the whole #428 lane rests on: every suspension point between
@@ -149,7 +168,19 @@ struct SpeechTranscriberAssembler: SpeechAnalysisAssembling {
                 analyzer: analyzer,
                 analyzerFormat: analyzerFormat,
                 reservedLocale: reservedLocale,
-                transcriber: choice
+                transcriber: choice,
+                // #428 (428-B2): the release the actor's `stop()` used to
+                // hand-roll from two stored properties. Built here, where both
+                // resources are in scope and neither can be forgotten; the
+                // captures are by value (both `Sendable`), so the closure holds
+                // exactly what it will give back. Cancel first, then release —
+                // the locale belongs to the analyzer until it has finished.
+                releaseResources: { [analyzer, reservedLocale] in
+                    await analyzer.cancelAndFinishNow()
+                    if let reservedLocale {
+                        _ = await AssetInventory.release(reservedLocale: reservedLocale)
+                    }
+                }
             )
         } catch {
             // #428, and the one place the seam would otherwise LOSE behaviour:

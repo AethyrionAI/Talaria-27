@@ -420,4 +420,43 @@ struct VoiceInstrumentLogLineTests {
         #expect(line.contains("800ms"))
         #expect(line == "#138 onset gate: speech_started suppressed 312ms into the 800ms window")
     }
+
+    // MARK: - #428 the abandoned capture start (bar 428-B)
+
+    /// **Why this line exists.** #428's fix is an ABSENCE: a capture start that
+    /// a `stop()` interleaved with installs nothing. An archive cannot tell
+    /// "the ticket caught a superseded start" from "no restart was ever
+    /// attempted" unless the abandonment says so itself — the same
+    /// absence-bar-needs-a-positive-control trap #198B-A was built to close.
+    ///
+    /// It rides at `.notice`, `privacy: .public` and un-gated (#302-A's rule
+    /// for the capture chain), alongside that instrument's own HOT/COLD pair:
+    /// an ABANDONED between a COLD and no following HOT is the whole fix,
+    /// visible in one grep.
+    @Test("the abandoned-start line names where the generation moved and that nothing installed")
+    func theAbandonedStartLineNamesThePointAndTheAbsence() {
+        let line = NativeVoiceCaptureController.abandonedStartLogDetail(point: "assembled")
+        #expect(line.contains("ABANDONED"))
+        #expect(line.contains("assembled"))
+        #expect(line.contains("nothing installed"))
+        #expect(line.contains("#428"))
+        // The WHOLE shape, because a device archive is read by grep and not by
+        // this suite — a reordered or reworded line breaks that reader silently.
+        #expect(
+            line
+                == "capture start ABANDONED — capture generation moved during startup at assembled; nothing installed (#428)"
+        )
+    }
+
+    /// The point is the line's only variable, and it exists for the day a
+    /// second suspension point returns to the startup path: a line that could
+    /// not say WHERE the generation moved would leave the next archive
+    /// ambiguous about which window the stop landed in.
+    @Test("a different point renders a different line")
+    func aDifferentAbandonPointRendersADifferentLine() {
+        #expect(
+            NativeVoiceCaptureController.abandonedStartLogDetail(point: "prepared")
+                == "capture start ABANDONED — capture generation moved during startup at prepared; nothing installed (#428)"
+        )
+    }
 }

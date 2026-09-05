@@ -963,9 +963,12 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
 /// tap installs, so assistant TTS playback isn't re-transcribed as new user
 /// input. Voice processing changes the input format — the format is read
 /// AFTER enabling it.
-// harness-visible (#428, Task 0 probe) — widened from `private` so
-// `NativeVoiceCaptureProbeTests` can drive the REAL controller. TEMPORARY:
-// Task 4 restores `private` when the probe file is deleted.
+// harness-visible (#428) — widened from `private` so tests can drive the REAL
+// controller. This is now PERMANENT, not the temporary widening Task 0's probe
+// asked for: 428-B's `NativeVoiceCaptureGenerationTests` constructs this type
+// directly with an injected assembler, and its `CaptureError.superseded` is the
+// discriminator the whole capture-generation bar rests on. The tag still means
+// "private in spirit" — nothing outside this file and the suites constructs it.
 actor NativeVoiceCaptureController: NativeVoiceCapturing {
     private static let logger = Logger(subsystem: "org.aethyrion.talaria", category: "NativeVoiceCapture")
 
@@ -983,15 +986,28 @@ actor NativeVoiceCaptureController: NativeVoiceCapturing {
     private let muteState = OSAllocatedUnfairLock(initialState: false)
 
     private let audioEngine = AVAudioEngine()
-    /// harness-visible (#428, Task 0 probe) — the engine's own state, read by
-    /// probe 2. TEMPORARY, deleted with the probe file (Task 4).
+    /// harness-visible (#428) — the engine's own state, not a wrapper flag.
+    /// PERMANENT (it outlives Task 0's probe file): 428-B's bar is "nothing
+    /// installed", and the only honest reading of that is the engine's.
     var isEngineRunning: Bool { audioEngine.isRunning }
+#if DEBUG
     /// harness-visible (#428, Task 0 probe) — counts `start(muted:)` entries so
     /// probe 3 can see a route-change restart as a SECOND start even when that
     /// start then throws. TEMPORARY, deleted with the probe file (Task 4).
+    /// `#if DEBUG` because nothing in production reads it (#218's rule: a
+    /// harness-only member does not ship).
     private(set) var probeStartCount = 0
-    private var analyzer: SpeechAnalyzer?
-    private var reservedLocale: Locale?
+#endif
+    /// #428 (428-B): monotonic teardown counter. `stop()` bumps it first thing;
+    /// a start captures it after its own leading `stop()` and refuses to touch
+    /// the engine if it has moved by the time the start resumes. Same shape as
+    /// `TalkStore.sessionGeneration` — no new mechanism.
+    private var captureGeneration = 0
+    /// #428 (428-B2): the adopted assembly's release hook — the ONE mechanism
+    /// that gives back a prepared analyzer and its locale reservation. Replaces
+    /// the separate `analyzer` / `reservedLocale` stored properties, whose only
+    /// readers were `stop()`'s two hand-rolled releases.
+    private var releaseAdoptedResources: (@Sendable () async -> Void)?
     private var analyzerTask: Task<Void, Never>?
     private var resultsTask: Task<Void, Never>?
     private var inputContinuation: AsyncStream<AnalyzerInput>.Continuation?
@@ -1003,6 +1019,12 @@ actor NativeVoiceCaptureController: NativeVoiceCapturing {
         /// degenerate format (0 Hz / 0 ch) — installing a tap would raise an
         /// uncatchable NSException. Carries the #84 third-state wording.
         case noAudioInput
+        /// #428: a `stop()` moved the capture generation while this start was
+        /// parked in the analyzer assembly, so the start was abandoned before
+        /// anything touched the engine. `point` names the suspension point it
+        /// resumed from. This is a control signal, not a device fault — the
+        /// restart path swallows it rather than surfacing it (Task 3).
+        case superseded(point: String)
 
         var errorDescription: String? {
             switch self {
@@ -1010,6 +1032,8 @@ actor NativeVoiceCaptureController: NativeVoiceCapturing {
                 "On-device speech transcription isn't available on this device."
             case .noAudioInput:
                 TalkMicPreflight.noMicInputMessage
+            case .superseded:
+                "Voice capture start was superseded by a session teardown."
             }
         }
     }
@@ -1046,8 +1070,17 @@ actor NativeVoiceCaptureController: NativeVoiceCapturing {
     }
 
     func start(muted: Bool) async throws -> AsyncStream<NativeVoiceCaptureEvent> {
+#if DEBUG
         probeStartCount += 1  // harness-visible (#428, Task 0 probe)
+#endif
         stop()
+        // #428 (428-B): the ticket. Taken AFTER this start's own leading
+        // `stop()` (which bumped the generation) and before the one suspension
+        // point below — so it equals the generation for exactly as long as no
+        // OTHER teardown runs. `checkTicket` re-reads the counter after the
+        // suspension; a mismatch means a `stop()` interleaved and this start
+        // must install nothing.
+        let ticket = captureGeneration
         muteState.withLock { $0 = muted }
 
         // Session category: playAndRecord because TTS plays while the mic
@@ -1094,10 +1127,57 @@ actor NativeVoiceCaptureController: NativeVoiceCapturing {
         // negotiation, `prepareToAnalyze` — happens in here; everything after
         // it is a single synchronous stretch that ends with a live tap.
         let assembly = try await assembler.assemble(inputFormat: inputFormat)
+        do {
+            try checkTicket(ticket, at: "assembled")
+        } catch {
+            // #428 (428-B2): the assembly RETURNED, so the assembler's own
+            // error path cannot clean it up — and `startEngine`, the only thing
+            // that adopts it, is never reached. Give back what it built before
+            // throwing, or the fix trades a stray tap for a stray analyzer and
+            // a stray locale reservation. Awaited (not fired into a `Task`)
+            // because this start has nothing left to do: the release completes
+            // before the abandonment is visible to the caller.
+            await assembly.releaseResources()
+            throw error
+        }
         return try startEngine(assembly: assembly, inputNode: inputNode, inputFormat: inputFormat)
     }
 
+    /// #428 (428-B): refuse a startup that a `stop()` interleaved with.
+    ///
+    /// Actor serialization does not survive a suspension, so every suspension
+    /// point between "the audio session is configured" and "a tap is installed"
+    /// is a window where a teardown can run to completion and return. After
+    /// each one, this asks whether it did. A mismatch means the engine this
+    /// start is about to touch belongs to a session that has already ended.
+    ///
+    /// There is exactly ONE such window today (`assemble`); the `point`
+    /// parameter exists so a second one cannot be added without naming itself
+    /// in the log.
+    private func checkTicket(_ ticket: Int, at point: String) throws {
+        guard captureGeneration != ticket else { return }
+        // #302-A's rule for the capture chain: `.notice` (Console hides
+        // `.info`), `privacy: .public` (or it redacts), never gated behind
+        // Verbose Logging. This line is the positive control for an ABSENCE —
+        // without it an archive cannot tell "the ticket caught a superseded
+        // start" from "no restart was ever attempted".
+        Self.logger.notice("\(Self.abandonedStartLogDetail(point: point), privacy: .public)")
+        throw CaptureError.superseded(point: point)
+    }
+
+    /// The abandoned-start line, as a pure function so its text is pinned by a
+    /// test rather than by a device archive (`VoiceInstrumentLogLineTests`).
+    nonisolated static func abandonedStartLogDetail(point: String) -> String {
+        "capture start ABANDONED — capture generation moved during startup at \(point); nothing installed (#428)"
+    }
+
     func stop() {
+        // #428 (428-B): the generation moves FIRST, before a single resource is
+        // torn down. A start parked in `assemble` compares its ticket against
+        // this counter when it resumes — so a bump that happened at the END of
+        // the teardown would leave a window in which a start resumes mid-
+        // teardown and still matches.
+        captureGeneration &+= 1
         // #302-A: read the engine's own state BEFORE tearing it down, so the
         // COLD line can say whether this stop ended a hot chain (was=true)
         // or was a defensive no-op (was=false — negative evidence that the
@@ -1115,15 +1195,18 @@ actor NativeVoiceCaptureController: NativeVoiceCapturing {
         analyzerTask = nil
         resultsTask = nil
 
-        let analyzer = analyzer
-        self.analyzer = nil
-        if let analyzer {
-            Task { await analyzer.cancelAndFinishNow() }
-        }
-        let reservedLocale = reservedLocale
-        self.reservedLocale = nil
-        if let reservedLocale {
-            Task { _ = await AssetInventory.release(reservedLocale: reservedLocale) }
+        // #428 (428-B2): ONE release mechanism. This used to be two hand-rolled
+        // releases reading two stored properties — cancel the analyzer, release
+        // the locale — which is the shape a SUPERSEDED start (which never
+        // adopts either) would have had to duplicate to avoid leaking. The
+        // assembly now carries its own release; `startEngine` adopts it and
+        // this hands it back. Fire-and-forget because `stop()` is synchronous
+        // by protocol; the two releases are now sequential inside one `Task`
+        // (cancel, then release the locale) rather than racing in two.
+        let releaseAdopted = releaseAdoptedResources
+        releaseAdoptedResources = nil
+        if let releaseAdopted {
+            Task { await releaseAdopted() }
         }
 
         outputContinuation?.finish()
@@ -1146,9 +1229,11 @@ actor NativeVoiceCaptureController: NativeVoiceCapturing {
     ) throws -> AsyncStream<NativeVoiceCaptureEvent> {
         // Adopt the assembly's resources FIRST, so any throw below still
         // leaves `stop()` able to cancel the analyzer and release the locale.
+        // (#428, 428-B2: "adopt" now means taking over the assembly's own
+        // release hook — from this line on `stop()` owns it, which is exactly
+        // why the superseded path, which never gets here, must call it itself.)
         let analyzerFormat = assembly.analyzerFormat
-        self.analyzer = assembly.analyzer
-        self.reservedLocale = assembly.reservedLocale
+        self.releaseAdoptedResources = assembly.releaseResources
 
         let formatsMatch =
             inputFormat.sampleRate == analyzerFormat.sampleRate &&
