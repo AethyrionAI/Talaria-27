@@ -142,4 +142,18 @@ struct RemoteImageSitePinsTests {
             #expect(!source.lowercased().contains("hermes"), "\(path)")
         }
     }
+
+    // MARK: - 429-P
+
+    /// **429-P — the privacy page names image hosts and the tap-to-load rule.**
+    ///
+    /// `docs/` is the live GitHub Pages root — merging this PR publishes it —
+    /// so the sentence itself is held for Owen's read, but the pin that it
+    /// landed is a normal RED-first test like any other bar in this lane.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo — simulator only"))
+    func privacyPageNamesTheTapToLoadRule() throws {
+        let source = try RepoSourceWitness.source("docs/privacy.html")
+        #expect(source.contains("only when you tap that image to load it"))
+    }
 }
