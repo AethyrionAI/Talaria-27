@@ -73,6 +73,13 @@ final class ChatStore {
     /// these two loops were the only ones in the file not applying.
     private var pollingGeneration = 0
     private var reconcileGeneration = 0
+    /// #427: identity for a recovery PASS's right to write, as distinct from
+    /// `reconcileGeneration`'s right to own the loop HANDLE. Same shape as
+    /// `finalStatusReadGeneration` (#322 bar 322-D) and for the same reason:
+    /// a walk-away taken while a status read is in flight must not let that
+    /// read land on the arriving thread. Captured into `RecoveryOwnership`
+    /// before the read and re-checked before every write after it.
+    private var recoveryGeneration = 0
     private var streamingTask: Task<Void, Never>?
     private(set) var streamingMessageID: UUID?
     /// #291: the USER row belonging to the turn `streamingMessageID`'s
@@ -663,6 +670,15 @@ final class ChatStore {
     private struct PendingRun {
         let sessionId: String
         let runId: String?
+        /// #427: the thread this run belongs to — the DESTINATION half of
+        /// ownership. `PendingRunRecord` has carried it since #329 and the
+        /// cold-load restore already refuses a record for another thread
+        /// (*"adoption into the wrong thread is #307's corruption arriving
+        /// through a new door"*); the in-memory pending run is the half that
+        /// never learned it, which is how a status read for A could write
+        /// into B. Nil only when a run is armed against no conversation at
+        /// all — the token matches that case on equal terms.
+        let conversationID: UUID?
         let userMessageID: UUID
         let sentAt: Date
         /// Reasoning streamed before the drop (#4.15). The server transcript
@@ -1053,6 +1069,9 @@ final class ChatStore {
         pendingRun = PendingRun(
             sessionId: record.sessionId,
             runId: record.runId,
+            // #427: the record's own thread — which the guard above has just
+            // proven equals `conversation?.id`.
+            conversationID: record.conversationID,
             userMessageID: record.userMessageID,
             sentAt: record.sentAt,
             partialReasoning: record.partialReasoning,
@@ -1937,6 +1956,8 @@ final class ChatStore {
         pendingRun = PendingRun(
             sessionId: sessionId,
             runId: runId,
+            // #427: the thread that is arming this recovery owns its verdict.
+            conversationID: conversation?.id,
             userMessageID: userMessageID,
             sentAt: pendingMessageSentAt ?? .now,
             partialReasoning: partialReasoning
@@ -4059,6 +4080,7 @@ final class ChatStore {
         pendingRun = PendingRun(
             sessionId: sessionId,
             runId: runId,
+            conversationID: conversation?.id,
             userMessageID: UUID(),
             sentAt: .distantPast,
             partialReasoning: nil
@@ -4167,6 +4189,54 @@ final class ChatStore {
         /// grinding. The pending run stays live (nothing was adopted and
         /// nothing is claimed), but this client stops asking.
         case unrecoverable
+        /// #427: the thread moved on underneath the read. Nothing adopted,
+        /// nothing settled, nothing journaled, nothing fired — this pass
+        /// stops. Distinct from `.unrecoverable`: the host answered fine, it
+        /// is this client that no longer has a place to put the answer (the
+        /// run wrote its turn into its own server session, so reopening that
+        /// thread fetches it).
+        case superseded
+    }
+
+    /// #427: who a recovery pass is allowed to write for. Captured BEFORE the
+    /// status read and checked before EVERY mutation after it.
+    ///
+    /// A cancellation request alone is insufficient and that is the whole
+    /// point — `abandonPendingRun` cancels the polling LOOP, never the
+    /// single-flight pass, and even a cancelled task may already be past its
+    /// own `Task.isCancelled` check when the walk-away happens. The house
+    /// already knows this shape three times (`reconcileGeneration`,
+    /// `pollingGeneration`, `finalStatusReadGeneration`); the recovery pass
+    /// was the one await-then-write in the family applying none of them, and
+    /// here the stale thing is not a gauge but a DESTINATION.
+    private struct RecoveryOwnership: Equatable {
+        let conversationID: UUID?
+        let sessionID: String
+        let runID: String?
+        let generation: Int
+    }
+
+    private func ownership(for pending: PendingRun) -> RecoveryOwnership {
+        RecoveryOwnership(
+            // The RUN's thread, not merely whichever thread was current when
+            // this pass started — the two are equal at every arming site
+            // today, and this is the one that stays right if they ever part.
+            conversationID: pending.conversationID,
+            sessionID: pending.sessionId,
+            runID: pending.runId,
+            generation: recoveryGeneration
+        )
+    }
+
+    /// True only while the thread, the pending run and the generation are all
+    /// still the ones the pass was armed for.
+    private func recoveryStillOwned(_ token: RecoveryOwnership) -> Bool {
+        guard !Task.isCancelled, recoveryGeneration == token.generation else { return false }
+        guard conversation?.id == token.conversationID else { return false }
+        guard let pending = pendingRun,
+              pending.sessionId == token.sessionID,
+              pending.runId == token.runID else { return false }
+        return true
     }
 
     /// One recovery pass. **Two instruments behind one door, chosen by
@@ -4204,24 +4274,43 @@ final class ChatStore {
     ///   rule). Stop watching; claim nothing.
     /// - `.gone` → the host has forgotten this run. `.unrecoverable`.
     /// - `nil` → still live, or the read failed. `.keepPolling`.
+    /// **#427 — a fifth verdict that is not the host's:** `.superseded`. The
+    /// ownership token is captured BEFORE the read and checked immediately
+    /// after it, because this await is where the user gets to walk away.
     private func attemptRunStatusReconcile(_ pending: PendingRun, runID: String) async -> ReconcilePassOutcome {
+        let token = ownership(for: pending)
         guard let resolution = await hermesClient.resolveDroppedRun(
             runID: runID,
             sessionID: pending.sessionId
         ) else { return .keepPolling }
 
+        // #427: DROP, never redirect. Writing this answer into the departed
+        // thread's cache behind the user's back would ask #90's journal to
+        // describe a thread that is not the active hop, and that cache may
+        // already be a later open's. Nothing is lost: the run WROTE its turn
+        // into its own server session, so reopening that thread fetches it
+        // through the ordinary transcript merge (#321's finding).
+        guard recoveryStillOwned(token) else {
+            // #237 still applies — this run really did resolve on the host,
+            // so a late duplicate interrupt for it is noise from here on,
+            // whatever thread happens to be showing.
+            resolvedRunIDs.insert(runID)
+            chatLog.notice("run recovery: verdict for \(runID, privacy: .public) arrived after the thread changed — dropped, the host still has it (#427)")
+            return .superseded
+        }
+
         switch resolution {
         case .answered(let content, let usage):
-            adoptRecoveredRun(pending, runID: runID, content: content, usage: usage)
+            adoptRecoveredRun(pending, runID: runID, content: content, usage: usage, token: token)
             return .resolved
         case .failed(let text):
             chatLog.notice("run recovery: \(runID, privacy: .public) reached a FAILED status — surfacing the host's own words")
-            appendRunFailureNotice(text)
-            settlePendingRun(pending, runID: runID, adopted: false)
+            appendRunFailureNotice(text, token: token)
+            settlePendingRun(pending, runID: runID, adopted: false, token: token)
             return .resolved
         case .endedWithoutAnswer:
             chatLog.notice("run recovery: \(runID, privacy: .public) ended with nothing to show — clearing the watch without a claim")
-            settlePendingRun(pending, runID: runID, adopted: false)
+            settlePendingRun(pending, runID: runID, adopted: false, token: token)
             return .resolved
         case .gone:
             return .unrecoverable
@@ -4233,7 +4322,12 @@ final class ChatStore {
     /// same reasons (no new rendered state, survives the transcript cache).
     /// The text arrives already honest: `runFailureText` invents no reason
     /// for a bare `error: true` (296-C1's union).
-    private func appendRunFailureNotice(_ text: String) {
+    ///
+    /// #427: takes the token and re-checks it. Belt — its only caller today
+    /// is the guarded arm above, with no await in between — but a future
+    /// caller must not be able to reach this write without one.
+    private func appendRunFailureNotice(_ text: String, token: RecoveryOwnership) {
+        guard recoveryStillOwned(token) else { return }
         guard var conv = conversation else { return }
         conv.messages.append(Message(sender: .system, content: text, status: .failed))
         conversation = conv
@@ -4249,16 +4343,26 @@ final class ChatStore {
     /// **The reply lands at the TAIL by construction**, which is Owen's #235
     /// F3 placement rule getting for free what the legacy path needs
     /// `placingRecoveredReply` to arrange.
-    private func adoptRecoveredRun(_ pending: PendingRun, runID: String, content: String, usage: TokenUsage?) {
+    ///
+    /// #427: takes the token and re-checks it before touching `conversation`
+    /// — the same belt `appendRunFailureNotice` wears, for the same reason.
+    private func adoptRecoveredRun(
+        _ pending: PendingRun,
+        runID: String,
+        content: String,
+        usage: TokenUsage?,
+        token: RecoveryOwnership
+    ) {
+        guard recoveryStillOwned(token) else { return }
         guard var conv = conversation else {
-            settlePendingRun(pending, runID: runID, adopted: false)
+            settlePendingRun(pending, runID: runID, adopted: false, token: token)
             return
         }
         let replyID = SessionsHermesClient.stableRecoveredRunMessageID(runID: runID)
         // Idempotence: a second pass resolving the same terminal status
         // computes the same id and finds this row already present.
         guard !conv.messages.contains(where: { $0.id == replyID }) else {
-            settlePendingRun(pending, runID: runID, adopted: true)
+            settlePendingRun(pending, runID: runID, adopted: true, token: token)
             return
         }
         // #4.15: the server transcript filters `_thinking`, so reasoning that
@@ -4284,13 +4388,28 @@ final class ChatStore {
         }
         conversation = conv
         if let usage { lastTokenUsage = usage }
-        settlePendingRun(pending, runID: runID, adopted: true)
+        settlePendingRun(pending, runID: runID, adopted: true, token: token)
     }
 
     /// The bookkeeping every run-status verdict shares, in ONE place so the
     /// four arms cannot drift apart the way two copies of a teardown do.
     /// `adopted` gates only the parts that presuppose a reply.
-    private func settlePendingRun(_ pending: PendingRun, runID: String, adopted: Bool) {
+    ///
+    /// **#427: a stale token touches NOTHING here.** Not `pendingRun` —
+    /// which by then may be the ARRIVING thread's own run — not
+    /// `onRunResolved`, not the restored row, not the cache, not the
+    /// journal, not `resolveHeldTurn`. Every one of those would be acting on
+    /// another thread's state on the strength of a verdict about this one.
+    /// `resolvedRunIDs` is the single exception and it is the caller's:
+    /// `attemptRunStatusReconcile`'s superseded arm records it, because the
+    /// run really did resolve on the host.
+    private func settlePendingRun(
+        _ pending: PendingRun,
+        runID: String,
+        adopted: Bool,
+        token: RecoveryOwnership
+    ) {
+        guard recoveryStillOwned(token) else { return }
         // #237: this run has resolved — a late duplicate interrupt for it is
         // noise from here on, never a re-arm.
         resolvedRunIDs.insert(runID)
