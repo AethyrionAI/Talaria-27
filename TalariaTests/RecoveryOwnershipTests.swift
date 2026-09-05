@@ -8,10 +8,14 @@ import Testing
 /// The defect: `attemptRunStatusReconcile` awaits `GET /v1/runs/{id}` for
 /// conversation A and then writes whatever came back into the store's LIVE
 /// `conversation` — which is B, if the user opened another thread while the
-/// read was in flight. `openSession` → `abandonPendingRun` cancels the
-/// polling LOOP but never the single-flight pass, so the pass is
+/// read was in flight. `openSession` → `abandonPendingRun` cancelled the
+/// polling LOOP but never the single-flight pass, so the pass was
 /// architecturally free to survive the walk-away and land on the arriving
-/// thread.
+/// thread. **That door is closed as of Task 2** (`abandonPendingRun` and
+/// `abandonReconcileWindowOnStop` now cancel `reconcileInFlight` and bump
+/// `recoveryGeneration`); the token remains the thing that decides what a
+/// verdict may WRITE, because a cancelled task can already be past its own
+/// cancellation check.
 ///
 /// Bars 427-A (the answer never lands in B), 427-B (B's own pending run is
 /// untouched by A's verdict) and 427-C (the positive control — the gate
@@ -20,7 +24,11 @@ import Testing
 /// verdict is superseded with nobody having walked away, and the loop must
 /// not tear itself down over it), the two halves of what the superseded arm
 /// RECORDS (`resolvedRunIDs` on a terminal verdict, nothing on `.gone`), and
-/// the thread clause in isolation.
+/// the thread clause in isolation — and Task 2's four: 427-D (the walk-away
+/// releases the in-flight pass instead of leaving the arriving thread to
+/// coalesce onto it), 427-E (the LEGACY session re-read carries the same
+/// token), 427-F (Stop is protected exactly as the walk-away is) and 427-W
+/// (a source witness enumerating every guarded write).
 ///
 /// Each names the mutation that turns it red, because a test that cannot be
 /// made to fail is not evidence — **and every mutation named here was
@@ -113,9 +121,10 @@ struct RecoveryOwnershipTests {
         #expect(store.conversation?.id == client.bID, "the switch must be REAL")
 
         // B's own turn drops the same way. Its recovery is driven by B's OWN
-        // reconcile loop, not a second `reconcilePendingRuns()` — the
-        // single-flight would coalesce onto A's still-parked pass (that
-        // cancellation is 427-D's bar, Task 2).
+        // reconcile loop, not a second `reconcilePendingRuns()` — before
+        // Task 2 the single-flight would have COALESCED onto A's still-parked
+        // pass, and this bar predates that fix and does not depend on it
+        // (427-D is the bar for the release itself).
         client.nextRunID = "run-B"
         client.nextSessionID = "B-session"
         store.runRecoveryPollInterval = .milliseconds(10)
@@ -397,6 +406,244 @@ struct RecoveryOwnershipTests {
         #expect(resolved.isEmpty, "and fires no resolution")
     }
 
+    // MARK: - 427-D (the walk-away releases the in-flight pass)
+
+    /// **427-D.** The walk-away must CANCEL the single-flight pass and clear
+    /// the handle, not merely stop watching it. Otherwise the arriving
+    /// thread's own foreground reconcile — `AppContainer` fires one on every
+    /// foreground and on appear — coalesces onto the departed thread's parked
+    /// read (`reconcilePendingRuns`'s `await running.value`) and is stuck
+    /// behind an answer it can never use.
+    ///
+    /// **How "promptly" is measured, because a stopwatch would be flaky.**
+    /// The second call is launched into a `Task` that sets a latch when it
+    /// returns, and the bar is: the latch is set within a bounded pump of
+    /// 1 s **while run-A's gate is still closed** — a quarter of the
+    /// fixture's own 4 s park ceiling, so the two outcomes are an order of
+    /// magnitude apart rather than a photo finish. The gate assertion is what
+    /// makes it a real discriminator: a second call that returned only
+    /// because someone released the read would prove nothing.
+    ///
+    /// Mutation (**MD** — the two lines together, and the report says why
+    /// neither alone suffices): delete `reconcileInFlight?.cancel()` AND
+    /// `reconcileInFlight = nil` from `abandonPendingRun` → the second call
+    /// parks on A's read for the full 4 s and the latch is unset at 1 s →
+    /// RED. Keeping either line alone leaves this bound green — `= nil` sends
+    /// the second caller down a fresh task, and `cancel()` alone makes the
+    /// stale task unwind fast enough to satisfy it — so the mutation is named
+    /// as the pair.
+    @Test
+    func aSecondReconcileAfterTheWalkAwayNeverParksOnTheDepartedThreadsRead() async throws {
+        let client = GatedRecoveryClient()
+        client.answers["run-A"] = .answered(content: "A's late answer", usage: nil)
+        let store = makeStore(client: client)
+
+        await store.sendMessage("a question")                       // arms run-A on A
+        #expect(store.pendingRunRunId == "run-A", "the fixture must arm a run-id-carrying pending run")
+
+        let passA = Task { await store.reconcilePendingRuns() }
+        await waitUntil { client.isInside("run-A") }
+        #expect(client.isInside("run-A"), "the pass never parked — every assertion below is vacuous")
+
+        await store.openSession("B")                                // the walk-away
+        #expect(store.conversation?.id == client.bID,
+                "the switch must be REAL (the protocol's default openSession returns A again)")
+
+        // The arriving thread's own foreground reconcile.
+        let latch = Latch()
+        let passB = Task { @MainActor in
+            await store.reconcilePendingRuns()
+            latch.isSet = true
+        }
+        await waitUntil(limit: 100) { latch.isSet }                 // ≤ 1 s
+
+        #expect(latch.isSet,
+                "the arriving thread's reconcile coalesced onto the departed thread's parked read")
+        #expect(client.isInside("run-A"),
+                "and it returned while run-A's gate was STILL closed — a released gate would make the bound meaningless")
+        #expect(client.resolveCalls.filter { $0 == "run-A" }.count == 1,
+                "one read for run-A, ever — the second pass must not issue another")
+
+        client.release("run-A")
+        await passA.value
+        await passB.value
+
+        #expect(store.conversation?.messages.map(\.content) == ["B's own history"])
+        #expect(!(store.conversation?.messages.contains { $0.content == "A's late answer" } ?? true))
+    }
+
+    // MARK: - 427-E (the legacy session re-read)
+
+    /// **427-E.** The LEGACY leg — a pending run with no run id, reconciled by
+    /// re-reading the whole session — carries the same token. It needs it
+    /// more than the run-status leg does: that one APPENDS one row, this one
+    /// REPLACES the live conversation with the server's view of a session
+    /// (`conversation = mergeConversationMetadata(from:into:)`), and it does
+    /// its own inline teardown rather than calling `settlePendingRun`, so
+    /// Task 1's guards cover none of it.
+    ///
+    /// **The arming route is behavioural, not a reach-in** (Task 0, step 3):
+    /// `StreamingUpdate.interrupted(sessionId:runId:)` takes `String?`, so the
+    /// fixture yields `runId: nil` and `attemptReconcile` routes to
+    /// `attemptSessionReconcile`. Five tests in `AppStoresTests` already arm
+    /// it this way; what is new here is parking the re-read so the user can
+    /// walk away mid-flight.
+    ///
+    /// Mutation (**ME**): delete the `recoveryOwnershipMiss` guard from
+    /// `attemptSessionReconcile` → the server's view of A replaces B's
+    /// transcript → RED. Nothing else in the tree refuses this write, so
+    /// unlike 427-A/427-B the single-guard mutation is the isolating one.
+    @Test
+    func aLateSessionReReadForTheThreadYouLeftNeverLandsInTheThreadYouOpened() async throws {
+        let client = GatedRecoveryClient()
+        client.nextRunID = nil                                      // no run id ⇒ the legacy leg
+        client.serverConversation = Conversation(
+            title: "A, as the host sees it",
+            messages: [
+                Message(sender: .user, content: "a question", timestamp: Date().addingTimeInterval(-60)),
+                Message(sender: .hermes, content: "A's late answer",
+                        timestamp: Date().addingTimeInterval(600), status: .delivered)
+            ]
+        )
+        let store = makeStore(client: client)
+        var resolved: [String] = []
+        store.onRunResolved = { resolved.append($0) }
+
+        await store.sendMessage("a question")                       // arms A with NO run id
+        #expect(store.pendingRunSessionId == "A-session", "the fixture must arm a pending run")
+        #expect(store.pendingRunRunId == nil, "and it must carry no run id — this is the legacy leg's bar")
+
+        let pass = Task { await store.reconcilePendingRuns() }
+        await waitUntil { client.isInside(GatedRecoveryClient.sessionReconcileKey) }
+        #expect(client.isInside(GatedRecoveryClient.sessionReconcileKey),
+                "the session re-read never parked — every assertion below is vacuous")
+
+        await store.openSession("B")                                // the walk-away
+        #expect(store.conversation?.id == client.bID, "the switch must be REAL")
+
+        client.release(GatedRecoveryClient.sessionReconcileKey)
+        await pass.value
+
+        // Measured during the RED run and recorded so nobody reads this as
+        // the bar: the id survives the unguarded merge too, because #90's
+        // `mergeConversationMetadata` deliberately keeps the LOCAL id
+        // ("conversation identity is LOCAL and durable"). So this is a
+        // precondition on the store, and the transcript assertions below are
+        // what actually fail when the merge lands in B.
+        #expect(store.conversation?.id == client.bID, "the store is still on B")
+        #expect(store.conversation?.messages.map(\.content) == ["B's own history"])
+        #expect(!(store.conversation?.messages.contains { $0.content == "A's late answer" } ?? true))
+        #expect(resolved == ["A-session"], "the walk-away's own resolution and no other")
+        let cached = try #require(store.persistence.loadConversationCache())
+        #expect(!cached.messages.contains { $0.content == "A's late answer" },
+                "the cache is ONE global slot — A's rows written here are A's rows persisted under B")
+    }
+
+    // MARK: - 427-F (Stop)
+
+    /// **427-F.** Stop inside the #278 reconcile window gets the same
+    /// protection as the walk-away (Owen's ruling 3). Nothing of the
+    /// abandoned run may land after the user pressed Stop, and the user row
+    /// settles `.delivered` exactly as #321 ruling (b) says.
+    ///
+    /// **Deviation from the brief, recorded:** it prescribes
+    /// `cancelStreaming(hardStopHost: false)`, which does NOT reach
+    /// `abandonReconcileWindowOnStop` — `abandonsTheReconcileWindow` is
+    /// `hardStopHost && streamingMessageID == nil && pendingRun != nil`, and
+    /// the `false` path is the background-expiration arm that deliberately
+    /// KEEPS the recovery armed (`cancelStreaming`'s own doc says so). The
+    /// explicit Stop is `hardStopHost: true`, the default.
+    ///
+    /// Mutation (**MF** — three lines, and the report says why): delete
+    /// `recoveryGeneration &+= 1` from `abandonReconcileWindowOnStop`, plus
+    /// the two belts that mask it — the `reconcileInFlight?.cancel()` /
+    /// `= nil` pair beside it, and `recoveryOwnershipMiss`'s
+    /// `.pendingRunCleared` arm (`guard let pending = pendingRun` → `return
+    /// nil`) → A's answer is adopted into the thread the user just stopped →
+    /// RED. On this path the bump is DEFENCE IN DEPTH by construction: Stop
+    /// clears `pendingRun`, so the token's own pending-run clause refuses the
+    /// write with or without it. The bump covers the ordering where a token
+    /// was captured before that clear, which no fixture can stage from
+    /// outside the store.
+    @Test
+    func aStopInsideTheReconcileWindowInvalidatesTheReadItLeftInFlight() async throws {
+        let client = GatedRecoveryClient()
+        client.answers["run-A"] = .answered(content: "A's late answer", usage: nil)
+        let store = makeStore(client: client)
+        var resolved: [String] = []
+        store.onRunResolved = { resolved.append($0) }
+
+        await store.sendMessage("a question")
+        #expect(store.pendingRunRunId == "run-A", "the window is open")
+        let pass = Task { await store.reconcilePendingRuns() }
+        await waitUntil { client.isInside("run-A") }
+        #expect(client.isInside("run-A"), "the pass never parked — every assertion below is vacuous")
+
+        store.cancelStreaming()                                     // the explicit Stop
+
+        #expect(store.pendingRunRunId == nil, "#321 ruling (a): Stop abandons the window")
+        #expect(resolved == ["A-session"], "the abandon fires exactly one resolution")
+        #expect(store.conversation?.messages.first { $0.content == "a question" }?.status == .delivered,
+                "#321 ruling (b): the window Stop's user row settles where a live Stop's does")
+
+        client.release("run-A")
+        await pass.value
+
+        #expect(!(store.conversation?.messages.contains { $0.content == "A's late answer" } ?? true),
+                "the answer to a run the user stopped never lands")
+        #expect(store.conversation?.messages.first { $0.content == "a question" }?.status == .delivered,
+                "and the settled row is not re-opened by the late verdict")
+        #expect(store.pendingRunRunId == nil, "the superseded pass re-arms nothing")
+        #expect(resolved == ["A-session"], "and fires no resolution of its own")
+        let cached = try #require(store.persistence.loadConversationCache())
+        #expect(!cached.messages.contains { $0.content == "A's late answer" })
+    }
+
+    // MARK: - 427-W (the source witness)
+
+    /// **427-W.** Every write a recovery pass makes after its read sits behind
+    /// the token — enumerated by reading production's own bytes, because no
+    /// runtime test can prove a NEGATIVE about a function nobody called.
+    /// 427-A…F each drive one path; this one says there are no others.
+    ///
+    /// Each function is pinned to the predicate it actually calls rather than
+    /// to a union of both: the two run-status entry points need the MISS (the
+    /// notice names which clause refused), the three write helpers need only
+    /// the boolean. A union check would keep passing if a site swapped one for
+    /// the other and stopped naming the reason.
+    ///
+    /// The body is bounded at the next member's doc comment (`\n    ///`) —
+    /// verified to stop at each function's own closing brace, so a pin cannot
+    /// be satisfied by the NEXT function's guard. The second `#expect` on each
+    /// row is the anti-vacuity check: a slice that no longer contains the
+    /// function's own distinctive line is a slice pointing at the wrong thing.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo's own sources — simulator only"))
+    func everyWriteBehindTheRecoveryReadIsGuardedByTheOwnershipToken() throws {
+        let store = "Talaria/Stores/ChatStore.swift"
+        // anchor · the predicate that site calls · a line only that body has
+        let sites: [(String, String, String)] = [
+            ("private func attemptRunStatusReconcile(", "recoveryOwnershipMiss(",
+             "hermesClient.resolveDroppedRun("),
+            ("private func appendRunFailureNotice(", "recoveryStillOwned(",
+             "Message(sender: .system, content: text"),
+            ("private func adoptRecoveredRun(", "recoveryStillOwned(",
+             "stableRecoveredRunMessageID("),
+            ("private func settlePendingRun(", "recoveryStillOwned(",
+             "resolveHeldTurn(after: .reconciled)"),
+            ("private func attemptSessionReconcile(", "recoveryOwnershipMiss(",
+             "mergeConversationMetadata(")
+        ]
+
+        for (anchor, needle, fingerprint) in sites {
+            let body = try RepoSourceWitness.functionBody(from: anchor, in: store, boundary: "\n    ///")
+            #expect(body.contains(fingerprint),
+                    "\(anchor) — the extracted body does not contain \(fingerprint); the pin is reading the wrong slice")
+            #expect(body.contains(needle),
+                    "\(anchor) — a recovery write that does not pass \(needle) can land in a thread the verdict does not own (#427)")
+        }
+    }
+
     // MARK: - Helpers
 
     /// Bounded pump. Every wait in this file has a ceiling: a condition that
@@ -427,8 +674,17 @@ struct RecoveryOwnershipTests {
     }
 }
 
-/// `RunStatusRecoveryTests.RunRecoveryClient` (`:346-449`) with three
-/// changes, and only three:
+/// A one-way flag a `Task` can set. `Task`'s closure is `@Sendable`, so a
+/// captured local `var` cannot be mutated inside one; a main-actor class
+/// reference can (and `@MainActor` makes the class itself `Sendable`). Used
+/// by 427-D to observe that a call RETURNED without timing how long it took.
+@MainActor
+private final class Latch {
+    var isSet = false
+}
+
+/// `RunStatusRecoveryTests.RunRecoveryClient` (`:346-449`) with four
+/// changes, and only four:
 ///
 /// 1. `resolveDroppedRun` PARKS on a per-run gate the test releases, so the
 ///    store can be driven while a status read is genuinely in flight.
@@ -439,7 +695,12 @@ struct RecoveryOwnershipTests {
 ///    "the user reopened the same thread" and every 427 assertion passes
 ///    vacuously.
 /// 3. The run/session identifiers the stream commits are settable, so one
-///    fixture can arm A's run and then B's.
+///    fixture can arm A's run and then B's — and `nextRunID` is OPTIONAL, so
+///    a test can arm the legacy (run-id-less) leg through the ordinary
+///    `.interrupted` route rather than by reaching into the store.
+/// 4. `reconcileFromServer` parks on a gate of its own (427-E), but ONLY when
+///    a test has given it something to return — otherwise it stays the
+///    immediate `nil` the other six bars were written against.
 @MainActor
 private final class GatedRecoveryClient: HermesClientProtocol {
     struct Gate {
@@ -454,12 +715,21 @@ private final class GatedRecoveryClient: HermesClientProtocol {
     /// every test asserts on BEFORE releasing a gate.
     let bID = UUID()
 
+    /// The legacy session re-read has no run id to key a gate on, so it parks
+    /// on this one. Named, not a literal, because two files' worth of
+    /// assertions read it.
+    static let sessionReconcileKey = "session-reconcile"
+
     /// Keyed by run id, so A's read and B's read park independently.
     var gates: [String: Gate] = [:]
     var answers: [String: DroppedRunResolution] = [:]
     private(set) var resolveCalls: [String] = []
 
-    var nextRunID = "run-A"
+    /// What the LEGACY leg's `reconcileFromServer` hands back. `nil` (the
+    /// default) keeps that method the immediate no-op it has always been.
+    var serverConversation: Conversation?
+
+    var nextRunID: String? = "run-A"
     var nextSessionID = "A-session"
 
     func isInside(_ runID: String) -> Bool {
@@ -508,25 +778,41 @@ private final class GatedRecoveryClient: HermesClientProtocol {
 
     var activeRunID: String? { nextRunID }
 
-    /// The legacy instrument is deliberately empty here: every pending run
-    /// this fixture arms carries a run id, so a call to this at all would
-    /// mean the run-status leg was not taken.
-    func reconcileFromServer() async -> Conversation? { nil }
+    /// The legacy instrument. Empty unless a test sets `serverConversation`:
+    /// six of the bars here arm run-id-carrying pending runs, so a call at all
+    /// would mean the run-status leg was not taken, and giving THOSE a 4 s
+    /// park would turn a routing mistake into a slow suite instead of a loud
+    /// one. 427-E sets it and parks like the run-status leg does.
+    func reconcileFromServer() async -> Conversation? {
+        guard serverConversation != nil else { return nil }
+        resolveCalls.append(Self.sessionReconcileKey)
+        await park(Self.sessionReconcileKey)
+        return serverConversation
+    }
 
     func resolveDroppedRun(runID: String, sessionID: String) async -> DroppedRunResolution? {
         resolveCalls.append(runID)
-        gates[runID, default: Gate()].entered = true
-        // Bounded park — 4 s ceiling, and a REAL early exit: `for … where`
-        // does not stop when the condition turns false, it merely skips the
-        // body, so the released gate used to spin out its remaining
-        // iterations before returning. A gate the test forgets to release
-        // must not hang the suite; the `isInside` assertions are what make
-        // a park that ended early visible rather than silently vacuous.
+        await park(runID)
+        return answers[runID]
+    }
+
+    /// Bounded park — 4 s ceiling, and a REAL early exit: `for … where`
+    /// does not stop when the condition turns false, it merely skips the
+    /// body, so the released gate used to spin out its remaining
+    /// iterations before returning. A gate the test forgets to release
+    /// must not hang the suite; the `isInside` assertions are what make
+    /// a park that ended early visible rather than silently vacuous.
+    ///
+    /// `try?` on the sleep is deliberate: a CANCELLED pass (which is what
+    /// #427's walk-away now does to an in-flight read) unwinds this loop
+    /// immediately and still returns the host's answer, so the token — not
+    /// the cancellation — is what has to refuse the write.
+    private func park(_ key: String) async {
+        gates[key, default: Gate()].entered = true
         var pumps = 0
-        while gates[runID]?.released != true, pumps < 400 {
+        while gates[key]?.released != true, pumps < 400 {
             try? await Task.sleep(for: .milliseconds(10))
             pumps += 1
         }
-        return answers[runID]
     }
 }

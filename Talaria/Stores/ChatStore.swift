@@ -732,6 +732,11 @@ final class ChatStore {
     /// callers coalesce onto this one in-flight pass. Distinct from
     /// `reconcileTask`, which is the polling LOOP started when a reconcile
     /// finds the run unfinished.
+    ///
+    /// #427: cancelled AND cleared by both walk-away primitives
+    /// (`abandonPendingRun`, `abandonReconcileWindowOnStop`) — so the handle
+    /// can go nil while its task is still unwinding, which is why
+    /// `reconcilePendingRuns`'s teardown compares identity before niling.
     private var reconcileInFlight: Task<Void, Never>?
 
     /// #145 Part C — the reconcile loop's budget is WALL CLOCK, not an attempt
@@ -1970,7 +1975,9 @@ final class ChatStore {
     /// switch, pairing-lifecycle reset) calls this instead of hand-rolling
     /// its own subset. It releases everything the departing run holds: the
     /// reconcile loop, the pending run, the streaming task, the poll loop,
-    /// and the Live Activity. Firing `onRunResolved` on the way out is
+    /// the Live Activity — and, since #427, the in-flight recovery PASS,
+    /// which is a separate task from the loop and used to survive every
+    /// walk-away. Firing `onRunResolved` on the way out is
     /// deliberate — the user chose to walk away, so the relay watch stands
     /// down rather than staying armed against a session this store has
     /// stopped tracking (#38; AppContainer expects paired watches).
@@ -1987,6 +1994,25 @@ final class ChatStore {
         persistDepartingLocalSession()
         reconcileTask?.cancel()
         reconcileTask = nil
+        // #427 (Owen's ruling 2): `reconcileTask` is the polling LOOP. The
+        // SINGLE-FLIGHT pass is a different task — `reconcileInFlight`, the
+        // one every concurrent `reconcilePendingRuns()` coalesces onto — and
+        // until these lines it survived every walk-away: parked on a status
+        // read for the thread the user just left, free to return into the one
+        // they opened.
+        //
+        // Both lines, and they answer different questions. `cancel()` ends
+        // the read. Clearing the handle is what stops the ARRIVING thread's
+        // own foreground reconcile from awaiting a departed thread's pass
+        // (`reconcilePendingRuns`'s `await running.value`) — a wait for an
+        // answer it could never use. And the generation bump is the same
+        // belt-and-token pairing the final status read wears below, for the
+        // same reason: a cancelled task may already be past its own
+        // `Task.isCancelled` check, and cancellation says nothing about WHERE
+        // a verdict may be written.
+        reconcileInFlight?.cancel()
+        reconcileInFlight = nil
+        recoveryGeneration &+= 1
         // #322 bar 322-D: a walk-away taken while a cancel's final status
         // read is still in flight must not let that read land on the arriving
         // thread's gauge. Cancelling AND bumping the generation covers both
@@ -2455,9 +2481,10 @@ final class ChatStore {
     /// #321 ruling (a) — Stop means STOP inside the #278 reconcile window.
     ///
     /// **What it releases and why that is the whole list.** The window holds
-    /// exactly two things: a `pendingRun` (which is half of `isTranscriptBusy`,
-    /// so clearing it is what frees the composer) and the reconcile loop
-    /// watching for its reply. Both go. `onRunResolved` fires for the same
+    /// a `pendingRun` (which is half of `isTranscriptBusy`, so clearing it is
+    /// what frees the composer), the reconcile loop watching for its reply,
+    /// and — since #427 — whatever single-flight pass was already in flight
+    /// for it. All three go. `onRunResolved` fires for the same
     /// reason `abandonPendingRun` fires it — the relay's completion watcher
     /// must stand down rather than stay armed against a run this store has
     /// stopped tracking (#38).
@@ -2495,6 +2522,17 @@ final class ChatStore {
         guard let abandoned = pendingRun else { return }
         reconcileTask?.cancel()
         reconcileTask = nil
+        // #427 (Owen's ruling 3): Stop is protected exactly as the walk-away
+        // is — the three lines are `abandonPendingRun`'s, for the reasons
+        // given there. On THIS path the token would refuse the write anyway
+        // (clearing `pendingRun` below is itself an ownership miss), so read
+        // these as ending the read rather than only disowning it: the user
+        // said stop, and a read that outlives the Stop is still a read the
+        // user did not ask for. The generation bump is defence in depth for
+        // the ordering where a token was captured before that clear.
+        reconcileInFlight?.cancel()
+        reconcileInFlight = nil
+        recoveryGeneration &+= 1
         pendingRun = nil
         pendingMessageSentAt = nil
         settleAbandonedUserRow(abandoned.userMessageID)
@@ -4121,6 +4159,10 @@ final class ChatStore {
         }
         reconcileInFlight = task
         await task.value
+        // #427: a walk-away or a Stop may have cleared this handle already
+        // (and cancelled `task`), in which case a NEWER pass may own the slot
+        // — which is exactly why this compares identity rather than niling
+        // unconditionally. Nothing to do then; the equality holds.
         if reconcileInFlight == task { reconcileInFlight = nil }
     }
 
@@ -4238,13 +4280,18 @@ final class ChatStore {
     /// status read and checked before EVERY mutation after it.
     ///
     /// A cancellation request alone is insufficient and that is the whole
-    /// point — `abandonPendingRun` cancels the polling LOOP, never the
-    /// single-flight pass, and even a cancelled task may already be past its
-    /// own `Task.isCancelled` check when the walk-away happens. The house
-    /// already knows this shape three times (`reconcileGeneration`,
-    /// `pollingGeneration`, `finalStatusReadGeneration`); the recovery pass
-    /// was the one await-then-write in the family applying none of them, and
-    /// here the stale thing is not a gauge but a DESTINATION.
+    /// point. `abandonPendingRun` and `abandonReconcileWindowOnStop` DO
+    /// cancel the single-flight pass now (#427, Task 2 — before that they
+    /// cancelled only the polling LOOP, which is how the defect was reachable
+    /// at all), but a cancelled task may already be past its own
+    /// `Task.isCancelled` check, and cancellation is silent about the
+    /// question that matters here: not "should this stop" but "WHERE may this
+    /// write". Nothing cancels a pass whose thread merely changed underneath
+    /// it. The house already knows this shape three times
+    /// (`reconcileGeneration`, `pollingGeneration`,
+    /// `finalStatusReadGeneration`); the recovery pass was the one
+    /// await-then-write in the family applying none of them, and here the
+    /// stale thing is not a gauge but a DESTINATION.
     private struct RecoveryOwnership: Equatable {
         let conversationID: UUID?
         let sessionID: String
@@ -4517,8 +4564,33 @@ final class ChatStore {
     /// host never matches at all (#293(b), logged below and deliberately
     /// never "fixed" on a hypothesis). Neither is reachable from
     /// `attemptRunStatusReconcile`.
+    ///
+    /// **#427 — the same door as the run-status leg, on the leg that needs it
+    /// more.** That one APPENDS one row; this one REPLACES the live
+    /// conversation with the server's view of a session
+    /// (`mergeConversationMetadata`), and it settles the pending run through
+    /// its OWN inline teardown rather than `settlePendingRun` — so none of
+    /// the guards on that path cover a single write here. The token is
+    /// captured before the read and checked immediately after it; every write
+    /// below is synchronous, so one check covers all of them. If that ever
+    /// stops being true, the new `await` needs its own check after it.
+    ///
+    /// The superseded arm records NOTHING (contrast the run-status leg's
+    /// terminal insert): a session re-read is a snapshot, not a verdict about
+    /// a run, and this leg only ever runs for a pending run with no run id —
+    /// there is no id to record.
     private func attemptSessionReconcile(_ pending: PendingRun) async -> ReconcilePassOutcome {
+        let token = ownership(for: pending)
         guard let serverConvo = await hermesClient.reconcileFromServer() else { return .keepPolling }
+
+        // #427: DROP, never redirect — the same rule, and the same reason:
+        // the thread this snapshot describes is not the thread on screen, and
+        // reopening it fetches these rows through the ordinary transcript
+        // merge.
+        if let miss = recoveryOwnershipMiss(token) {
+            chatLog.notice("run recovery: the session re-read for '\(pending.sessionId, privacy: .public)' arrived after \(miss.rawValue, privacy: .public) — dropped, the host still has it (#427)")
+            return .superseded
+        }
         let reply = serverConvo.messages.last(where: {
             $0.sender == .hermes
                 && $0.timestamp > pending.sentAt
