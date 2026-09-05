@@ -197,6 +197,7 @@
 		3BB573A82110374D3EC5F24D /* DeviceMediaTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DA769E9A5190E37983334B8 /* DeviceMediaTools.swift */; };
 		3BE7A2D8D149A6522D0292A6 /* ApprovalModesPhase12Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68412AEF0557CFB4DB5AA94D /* ApprovalModesPhase12Tests.swift */; };
 		3C697FC7A463E6A5C3D9A14E /* ArtifactMirrorCorrelatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCA6612E067E4718C46FB7D /* ArtifactMirrorCorrelatorTests.swift */; };
+		3CCA33A737BC22B27E39270F /* RemoteImageConsentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BAB936C5D4AED77C47DD8A5 /* RemoteImageConsentTests.swift */; };
 		3CE466CA7744735C858CF942 /* Icon-PaperTape@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 40C7EB0FCE8B0F81AAAA1E30 /* Icon-PaperTape@3x.png */; };
 		3D6E621D59AAE975F418C345 /* ChatStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2D5D9BB35C5C3D189C711E /* ChatStore.swift */; };
 		3DDB62A494936DCE3BDB6E53 /* SwiftDataLocalSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AFB15076C630F7831CCF5DE /* SwiftDataLocalSessionStore.swift */; };
@@ -362,6 +363,7 @@
 		82F228AAC1E00F0F85AB4707 /* Icon-KaraokeSupernova@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 3FDA18B4B440179EED51B685 /* Icon-KaraokeSupernova@3x.png */; };
 		833F59688DD58FD56BEF8802 /* HermesLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37C4631361E43482328C012F /* HermesLiveActivity.swift */; };
 		835FE1F3B6871E5A4015A5CC /* CarPlayVoiceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D347133A2D2AA45285B7CD /* CarPlayVoiceManager.swift */; };
+		83BAD5B5F6325C163A7838C4 /* RemoteImageConsent.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFD8C8CAB678B8AF5117EC3E /* RemoteImageConsent.swift */; };
 		844C28B6544240045C725683 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1EAB9C98E5FE27B257BF2EA /* ShareSheet.swift */; };
 		84910211701ED7F0569C741E /* MemoryScreenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7C05991BB8F0A0B50394D61 /* MemoryScreenTests.swift */; };
 		8561A63423E007C0C15733DB /* LocalChatBackend+SurfaceProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93AD88967C9611D3386FE53D /* LocalChatBackend+SurfaceProbe.swift */; };
@@ -871,6 +873,7 @@
 		39E46CE71DF45FCD29B22771 /* LocalSessionStoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalSessionStoring.swift; sourceTree = "<group>"; };
 		3B460D7581A6DCBA4B2770E8 /* InboxItemType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxItemType.swift; sourceTree = "<group>"; };
 		3B74F1CB8FCF67C1AEBA04BE /* Icon-DiscoInferno@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-DiscoInferno@2x.png"; sourceTree = "<group>"; };
+		3BAB936C5D4AED77C47DD8A5 /* RemoteImageConsentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteImageConsentTests.swift; sourceTree = "<group>"; };
 		3C102CC9A9B7B18C77F6D1DB /* CapabilitySurfaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilitySurfaceTests.swift; sourceTree = "<group>"; };
 		3C32704D09D8549CF9B13C88 /* PermissionsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsScreen.swift; sourceTree = "<group>"; };
 		3C3EB8490FC0D1812A984D01 /* GuardrailImageDegradeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuardrailImageDegradeTests.swift; sourceTree = "<group>"; };
@@ -1404,6 +1407,7 @@
 		FEF08683A65A3385BA613B20 /* Icon-ComicFunnies@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-ComicFunnies@3x.png"; sourceTree = "<group>"; };
 		FF17BA389F0A775916C4A56F /* InsightsFetchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsFetchTests.swift; sourceTree = "<group>"; };
 		FF7F59DBFE279351F54E44D1 /* ActionBatteryCellSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionBatteryCellSelection.swift; sourceTree = "<group>"; };
+		FFD8C8CAB678B8AF5117EC3E /* RemoteImageConsent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteImageConsent.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1674,6 +1678,7 @@
 				FE1EF5151AD6A4814FB4F1A1 /* RecoveryOwnershipTests.swift */,
 				D989D02F2565BA376F01FFC5 /* RefusalWordsInstrumentTests.swift */,
 				4DBF84937168DAD82080C480 /* ReminderDueFallbackTests.swift */,
+				3BAB936C5D4AED77C47DD8A5 /* RemoteImageConsentTests.swift */,
 				B6E7CCFD7B17AB16CFC22B99 /* RemoteImageProbeTests.swift */,
 				8773E04986D3946C5BFAEFBD /* RepoSourceWitness.swift */,
 				928B03CEA5240B87D4B99D7A /* RequiredPropertyDecodeTests.swift */,
@@ -2384,6 +2389,7 @@
 				57CF6F188E6A3E52F6D1204B /* MessageBubble.swift */,
 				F44FC928449FEFDDB4ABB8E3 /* MessageListIdentityProbe.swift */,
 				F56B88980E7DC0E9240525FC /* PluginSetupCard.swift */,
+				FFD8C8CAB678B8AF5117EC3E /* RemoteImageConsent.swift */,
 				77A5740AD793BC1A65482BD0 /* SlashCommandMenu.swift */,
 				DC388517E5C6F45D742F0E43 /* StatusCardView.swift */,
 				C4FDA4808AB56DE98DA248FB /* ThinkingIndicatorView.swift */,
@@ -2973,6 +2979,7 @@
 				14953DFDF06380FFAEA59D8D /* RealtimeVoiceIndicator.swift in Sources */,
 				10178F8D353D61919D2FC400 /* RelayCoders.swift in Sources */,
 				1F459DBAEBF4D7B73B45213C /* RelayCredentialHygiene.swift in Sources */,
+				83BAD5B5F6325C163A7838C4 /* RemoteImageConsent.swift in Sources */,
 				7D1E913B92F72BB1BD6CB6C6 /* ResilientHermesClient.swift in Sources */,
 				F9D5CAB68163B1941D5CDECA /* Router.swift in Sources */,
 				F83DF841914A74E748213F1C /* RunApprovalRequest.swift in Sources */,
@@ -3247,6 +3254,7 @@
 				245827540A33A8DFB63B01D5 /* RecoveryOwnershipTests.swift in Sources */,
 				3EEAC38DC0A4F59BD4B6447A /* RefusalWordsInstrumentTests.swift in Sources */,
 				C9EA5713EC6D6D7E1D4BC849 /* ReminderDueFallbackTests.swift in Sources */,
+				3CCA33A737BC22B27E39270F /* RemoteImageConsentTests.swift in Sources */,
 				D9398AB9A873D4774A815FAB /* RemoteImageProbeTests.swift in Sources */,
 				46F89742B603B5E75943C414 /* RepoSourceWitness.swift in Sources */,
 				7ED6B37BFBA2622B436E0881 /* RequiredPropertyDecodeTests.swift in Sources */,
