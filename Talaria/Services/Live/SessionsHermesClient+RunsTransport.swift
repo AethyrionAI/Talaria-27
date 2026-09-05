@@ -511,6 +511,15 @@ extension SessionsHermesClient {
             // to ride the submit body. Server truth is current precisely
             // because of that write half.
             //
+            // ⟵ SHARPENED 2026-09-05 (#426, Task 0(b)): true for every
+            // NON-EMPTY body. On gateways ≥ 2026-09-03 an EMPTY
+            // `conversation_history` is silently backfilled from the session
+            // DB (`api_server_runs.py:419-420`), and a turn that had to wait
+            // on the session's turn lease gets its supplied history discarded
+            // and reloaded from the stored transcript regardless
+            // (`turn_facade_lease.py:284-294`) — this pre-fetch is what keeps
+            // the body non-empty and current, so it stays mandatory either way.
+            //
             // A failure here is NOT swallowed: a contextless turn does not
             // fail loudly, it answers plausibly from long-term memory — the
             // exact shape the probe caught. Better a visible error the user
@@ -857,6 +866,10 @@ extension SessionsHermesClient {
         // the streamed path. Including on a session's first-ever turn: this
         // GET returns 200/[] on a never-used session, not 404 — see the note
         // at `streamTurnViaRuns`'s own `fetchRunsHistory` call above.
+        // ⟵ SHARPENED 2026-09-05 (#426): true for a non-empty body only — a
+        // gateway ≥ 2026-09-03 backfills an EMPTY history from the session DB,
+        // and a lease-waited turn gets the stored transcript regardless of
+        // what this pre-fetch supplied (see the sibling note above).
         let history = try await fetchRunsHistory(
             sessionId: hop.sessionId,
             endpoint: endpoint,

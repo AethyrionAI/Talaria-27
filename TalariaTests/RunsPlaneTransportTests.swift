@@ -619,68 +619,6 @@ struct RunsPlaneTransportTests {
         #expect(messagesIndex < submitIndex)
     }
 
-    // MARK: - #426 Task 0(b): TEMPORARY wire-body PROBE (Task 3 deletes this)
-
-    /// #426-T0b — **a measurement, not a bar.** Serves a FOUR-row stored
-    /// transcript whose head is a transplant primer and its acknowledgment,
-    /// runs one streamed turn, and PRINTS the `conversation_history` the
-    /// current tree actually put on the wire. It asserts nothing about the
-    /// count on purpose: bar 426-B (Task 2) is the assertion, and pinning the
-    /// RED number here would make this test change meaning when the fix lands.
-    /// `Issue.record` fires only for harness failures (no POST recorded, or an
-    /// undecodable body) — those are "the probe did not run", not a result.
-    @Test @MainActor
-    func probe426TransplantPrehistoryOnTheWire() async throws {
-        RunsStubURLProtocol.reset()
-        let primer = ContextTransplanter.primingText(
-            body: "The user's dentist is Dr Patel on Lamar. PREHISTORY-KUMQUAT"
-        )
-        let storedRows: [[String: Any]] = [
-            ["id": 1, "role": "user", "content": primer, "timestamp": 1754000000.0],
-            ["id": 2, "role": "assistant", "content": "Acknowledged.", "timestamp": 1754000005.0],
-            ["id": 3, "role": "user", "content": "ping", "timestamp": 1754000010.0],
-            ["id": 4, "role": "assistant", "content": "pong", "timestamp": 1754000015.0],
-        ]
-        let messagesData = try JSONSerialization.data(
-            withJSONObject: ["session_id": "sess-r", "data": storedRows]
-        )
-        RunsStubURLProtocol.script = Self.script(
-            sseBody: Self.runsSSE([
-                #"{"event":"run.completed","run_id":"run-r1","timestamp":1.5,"output":"ok","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}"#,
-            ]),
-            messagesBody: String(decoding: messagesData, as: UTF8.self)
-        )
-        defer { RunsStubURLProtocol.reset() }
-
-        let client = makeClient(label: "probe-426")
-        _ = await collect(from: client, message: "who is my dentist")
-
-        guard let submit = RunsStubURLProtocol.request("POST", "/v1/runs") else {
-            Issue.record("#426-T0b harness failure: no POST /v1/runs was recorded")
-            return
-        }
-        guard let body = (try? JSONSerialization.jsonObject(with: Data(submit.body.utf8)))
-                as? [String: Any] else {
-            Issue.record("#426-T0b harness failure: submit body did not decode as JSON")
-            return
-        }
-        guard let history = body["conversation_history"] as? [[String: Any]] else {
-            Issue.record("#426-T0b harness failure: submit body carried no conversation_history array")
-            return
-        }
-        print("#426-T0b PROBE stored_rows=4 (primer, ack, ping, pong)"
-              + " input=\(body["input"] as? String ?? "?")"
-              + " session_id=\(body["session_id"] as? String ?? "?")")
-        print("#426-T0b PROBE conversation_history.count=\(history.count)")
-        for (index, entry) in history.enumerated() {
-            let role = entry["role"] as? String ?? "?"
-            let content = entry["content"] as? String ?? ""
-            let head = String(content.prefix(60)).replacingOccurrences(of: "\n", with: "\\n")
-            print("#426-T0b PROBE [\(index)] role=\(role) content[0..<60]=\(head)")
-        }
-        print("#426-T0b PROBE END")
-    }
-
     // MARK: - 3A-D: honest artifact absence
 
     @Test @MainActor
