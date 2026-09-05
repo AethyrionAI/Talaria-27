@@ -104,6 +104,13 @@ struct NativeVoiceRestartTeardownTests {
         /// byte-pinned to those arrays, and every #436 row reads
         /// `stopOrigins.last`, so mirroring the leading stop into either would
         /// have made a fidelity fix read as a regression in nine rows.
+        ///
+        /// Written and, as of this lane, unread anywhere in `TalariaTests/` —
+        /// a mirror kept for a future assertion, not a discharged one. The
+        /// fidelity this fake's fix actually relies on is the adjacent
+        /// `lastStopOrigin = .restart` write below, which every #436 row does
+        /// read (via `stopOrigins.last`); this counter is not what makes those
+        /// rows trustworthy.
         private(set) var leadingStops = 0
 
         private let parkOnStart: Int
@@ -145,7 +152,11 @@ struct NativeVoiceRestartTeardownTests {
             // suspension point — and that stop is a WRITER of the origin slot.
             // The fake had no leading stop at all, which is why mutating the
             // production line to `.bareStop` passed every row in the project.
-            // Only the ORIGIN effect is mirrored here (see `leadingStops`).
+            // The fidelity the fix relies on is the `lastStopOrigin = .restart`
+            // write below, which every #436 row reads via `stopOrigins.last`;
+            // `leadingStops` just above only counts the call and is not itself
+            // read by anything yet — an unread mirror kept for a future
+            // assertion.
             leadingStops += 1
             lastStopOrigin = .restart
             startCount += 1

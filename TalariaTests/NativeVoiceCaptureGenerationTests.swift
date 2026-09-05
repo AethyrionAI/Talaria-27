@@ -309,10 +309,15 @@ struct NativeVoiceCaptureGenerationTests {
     /// synchronous — it runs before `start(muted:)`'s single suspension point,
     /// which is why a second start can supersede a parked first one at all.
     ///
-    /// The `enterCount >= 2` wait is load-bearing, not decorative: releasing
-    /// while the second start is still in front of the assembler would let the
-    /// first resume with its OWN leading stop as the last writer, and the row
-    /// would pass on a controller that never wrote `.restart` at all.
+    /// The `enterCount >= 2` wait is load-bearing, not decorative — though not
+    /// for the reason once written here. Releasing before the second start has
+    /// reached the assembler cannot make A's OWN leading stop the last writer:
+    /// A's ticket is taken AFTER A's own leading stop, so without a SECOND
+    /// leading stop the generation never moves at all, A's `checkTicket` never
+    /// throws `.superseded`, and the row would fail its `Issue.record` rather
+    /// than pass. What the wait actually guards against is releasing before B
+    /// has run ITS leading stop — the only other writer of `lastStopOrigin` —
+    /// which would leave the mismatch (and thus the throw) never happening.
     @Test func aNewerStartSupersedesAParkedStartWithTheRestartOrigin() async throws {
         let assembler = ParkedAssembler()
         let controller = NativeVoiceCaptureController(assembler: assembler)

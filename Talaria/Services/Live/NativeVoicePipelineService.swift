@@ -1485,9 +1485,21 @@ actor NativeVoiceCaptureController: NativeVoiceCapturing {
     ///    SILENT (#428 ruling 2) — correct: the session it would have repaired
     ///    is going away.
     ///  * `bareStop` after `teardown` ⇒ the start reads `.bareStop` and asks to
-    ///    repair, and the service refuses it on `!isEndingSession` /
-    ///    `connectionState == .connected` — a stale reading cannot paint a dead
-    ///    session.
+    ///    repair. **Not refused by `!isEndingSession` / `connectionState ==
+    ///    .connected`** — those are exactly the two belts a straggler reaching
+    ///    a FRESH session finds OPEN, because `startSession()` resets
+    ///    `isEndingSession` and paints `.connected` before the straggler
+    ///    resumes. The origin itself is a SNAPSHOT taken at throw time
+    ///    (`checkTicket` reads `lastStopOrigin` into the thrown error) while
+    ///    the guards that act on it run later, after the caller's
+    ///    `await assembly.releaseResources()` — a gap in which a fresh session
+    ///    can stand up behind the read. What actually refuses this ordering is
+    ///    `!Task.isCancelled`, in `restartCapture`'s gate (`:566`) and the
+    ///    re-arm's own paint guard (`:751`): `joinRestart` cancels the restart
+    ///    task before the teardown's generation bump, so a straggler on this
+    ///    path is always resuming inside an already-cancelled task. The
+    ///    re-arm's silent `.teardown` arm is the same belt one level down —
+    ///    it stays silent regardless of those two liveness reads.
     private var lastStopOrigin: CaptureStopOrigin = .bareStop
     /// #428 (428-B2): the adopted assembly's release hook — the ONE mechanism
     /// that gives back a prepared analyzer and its locale reservation. Replaces
