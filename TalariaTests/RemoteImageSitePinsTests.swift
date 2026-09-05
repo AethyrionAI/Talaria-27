@@ -128,6 +128,50 @@ struct RemoteImageSitePinsTests {
         #expect(source.contains("RemoteImagePolicy.placeholderAction"))
     }
 
+    /// **I-3 (final review, 2026-09-04) — the placeholder's tap grants
+    /// consent.**
+    ///
+    /// Every render test in this lane approves programmatically
+    /// (`consent.approve(url)` called directly, `RemoteImageRenderTests.swift`),
+    /// so no automated arm anywhere in the suite ever drives the placeholder
+    /// `Button`'s own action. A refactor that dropped `consent.approve(url)`
+    /// from that action — or wired it behind a `Mode`-conditional branch —
+    /// would leave all 23 of this lane's other tests green, and the app would
+    /// ship a placeholder that can never load an image. Fails closed, so it
+    /// is a feature-dead hole rather than a privacy hole, but it is a hole
+    /// with full green cover today.
+    ///
+    /// **Positional, not a whole-file `contains`.** `Button` occurs twice in
+    /// this file — the placeholder (owning `placeholderTitle`/
+    /// `placeholderAction`) and the loaded-image tap-to-open (`onOpen?()`).
+    /// A bare `source.contains("consent.approve(url)")` cannot tell which
+    /// `Button` it lives in, so this locates the nearest `Button` that
+    /// PRECEDES the placeholder's own labels and requires the call inside
+    /// that window — the span between the `Button`'s opening and its label
+    /// closure, which is exactly where the placeholder's action lives. Both
+    /// anchors are `try #require`d, so a rename of either symbol fails loud
+    /// rather than the pin silently matching nothing.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo — simulator only"))
+    func thePlaceholderButtonActionApprovesConsent() throws {
+        let source = try RepoSourceWitness.source(Self.remoteImageViewPath)
+
+        let labelAnchor = try #require(
+            source.range(of: "RemoteImagePolicy.placeholderTitle("),
+            "cannot find the placeholder's title label — this pin no longer matches the source"
+        )
+
+        let precedingSource = source[source.startIndex..<labelAnchor.lowerBound]
+        let buttonAnchor = try #require(
+            precedingSource.range(of: "Button", options: .backwards),
+            "cannot find a Button preceding the placeholder's labels — this pin no longer matches the source"
+        )
+
+        let window = source[buttonAnchor.lowerBound..<labelAnchor.lowerBound]
+        #expect(window.contains("consent.approve(url)"),
+                "the placeholder Button's action must call consent.approve(url) directly — window was: \(window)")
+    }
+
     /// **429-E-2 — no `Hermes` token in either new file.**
     ///
     /// Owen's standing naming ruling (#415): the app's outward identity is
