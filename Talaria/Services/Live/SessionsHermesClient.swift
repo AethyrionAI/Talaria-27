@@ -650,13 +650,28 @@ final class SessionsHermesClient: HermesClientProtocol {
         return convo
     }
 
-    /// GET + decode + map of one session's history — shared by `openSession`
-    /// (which adopts it) and `reconcileFromServer` (which must not).
-    // runs-path-visible (#283): the runs history pre-fetch reads server truth
-    // through this same GET (N4 — runs WRITE the transcript but never read it).
+    /// GET + decode of one session's history, with NO mapping of any kind —
+    /// the host's stored rows exactly as they came off the wire.
+    ///
+    /// #426: two callers want two different things from these rows, and one
+    /// function trying to serve both is what put the defect on the wire.
+    /// `fetchSessionConversation` maps them for DISPLAY (the transplant primer
+    /// becomes a one-line notice, its acknowledgment is collapsed);
+    /// `fetchRunsHistory` needs them VERBATIM, because the prehistory the
+    /// agent must be handed lives in exactly the row display exists to hide.
+    /// The split is here rather than at the mapper so both paths keep sharing
+    /// one request, one `ensureSuccess` and one decode.
     // #285: the runs pre-fetch passes the turn's frozen `endpoint`;
     // sessions-plane callers omit it and resolve live per request, as before.
-    func fetchSessionConversation(_ id: String, profileID: UUID?, endpoint: ResolvedEndpoint? = nil) async throws -> (sessionId: String, conversation: Conversation) {
+    func fetchStoredMessages(_ id: String, profileID: UUID?, endpoint: ResolvedEndpoint? = nil) async throws -> [SessionMessagesResponse.StoredMessage] {
+        try await fetchStoredMessagesResponse(id, profileID: profileID, endpoint: endpoint).data
+    }
+
+    /// The same read, one level lower: `fetchSessionConversation` also needs
+    /// the envelope's `session_id` (the host may answer with a different id
+    /// than the one asked for, and `openSession` adopts what it answers), and
+    /// `fetchStoredMessages`' row-array signature cannot carry it.
+    private func fetchStoredMessagesResponse(_ id: String, profileID: UUID?, endpoint: ResolvedEndpoint?) async throws -> SessionMessagesResponse {
         let path = "\(Self.sessionsPath)/\(id)/messages"
         let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json", profileID: profileID, endpoint: endpoint)
         let (data, httpResponse) = try await session.data(for: request)
@@ -670,6 +685,19 @@ final class SessionsHermesClient: HermesClientProtocol {
             throw error
         }
         Self.logger.verbose("openSession: decoded \(response.data.count) messages for '\(id)'")
+        return response
+    }
+
+    /// GET + decode + map of one session's history FOR DISPLAY — shared by
+    /// `openSession` (which adopts it) and `reconcileFromServer` (which must
+    /// not).
+    ///
+    /// #426: this is no longer the runs pre-fetch's path. The wire history is
+    /// built from the stored rows directly (`fetchRunsHistory` →
+    /// `runsHistory(fromStored:)`), because everything below this line is
+    /// addressed to the USER.
+    func fetchSessionConversation(_ id: String, profileID: UUID?, endpoint: ResolvedEndpoint? = nil) async throws -> (sessionId: String, conversation: Conversation) {
+        let response = try await fetchStoredMessagesResponse(id, profileID: profileID, endpoint: endpoint)
         let messages = Self.mappedTranscript(response.data, sessionId: id)
         // #330 SEAM 1 — where rows are REFUSED. `mapStoredMessage` returns nil
         // for every role but user/assistant, so the `.system` context-priming

@@ -437,7 +437,12 @@ extension SessionsHermesClient {
     /// - **No `.modelResolved`.** The runs `run.completed` carries no
     ///   `runtime` block; inventing one would be a fabricated attribution.
     /// - **History rides the body** (N4: runs WRITE the session transcript but
-    ///   never READ it).
+    ///   never READ it — SHARPENED 2026-09-05, #426: true for a NON-EMPTY body;
+    ///   a gateway ≥ 2026-09-03 backfills an EMPTY history from the session DB
+    ///   and a lease-waited turn reloads the stored transcript regardless — see
+    ///   the note at this function's `fetchRunsHistory` call below). Since #426
+    ///   that body is built from the host's STORED rows, so the transplant
+    ///   primer and its ack ride verbatim.
     ///
     /// Exactly-once discipline: `finishedYielded` guards a single terminal
     /// yield (`.finished` OR `.failed` OR `.interrupted`) per turn, and every
@@ -510,6 +515,15 @@ extension SessionsHermesClient {
             // the session row but never READS it, so the thread's context has
             // to ride the submit body. Server truth is current precisely
             // because of that write half.
+            //
+            // ⟵ SHARPENED 2026-09-05 (#426, Task 0(b)): true for every
+            // NON-EMPTY body. On gateways ≥ 2026-09-03 an EMPTY
+            // `conversation_history` is silently backfilled from the session
+            // DB (`api_server_runs.py:419-420`), and a turn that had to wait
+            // on the session's turn lease gets its supplied history discarded
+            // and reloaded from the stored transcript regardless
+            // (`turn_facade_lease.py:284-294`) — this pre-fetch is what keeps
+            // the body non-empty and current, so it stays mandatory either way.
             //
             // A failure here is NOT swallowed: a contextless turn does not
             // fail loudly, it answers plausibly from long-term memory — the
@@ -857,6 +871,10 @@ extension SessionsHermesClient {
         // the streamed path. Including on a session's first-ever turn: this
         // GET returns 200/[] on a never-used session, not 404 — see the note
         // at `streamTurnViaRuns`'s own `fetchRunsHistory` call above.
+        // ⟵ SHARPENED 2026-09-05 (#426): true for a non-empty body only — a
+        // gateway ≥ 2026-09-03 backfills an EMPTY history from the session DB,
+        // and a lease-waited turn gets the stored transcript regardless of
+        // what this pre-fetch supplied (see the sibling note above).
         let history = try await fetchRunsHistory(
             sessionId: hop.sessionId,
             endpoint: endpoint,
@@ -957,7 +975,8 @@ extension SessionsHermesClient {
 
     // MARK: - History pre-fetch (N4)
 
-    /// The conversation history a run must be handed, read from server truth.
+    /// The conversation history a run must be handed, read from server truth —
+    /// the host's STORED rows, not the display transcript (#426).
     ///
     /// `excludingTrailing` is the turn about to be sent: ChatStore's
     /// optimistic row is client-side only, so the server should not be
@@ -969,27 +988,47 @@ extension SessionsHermesClient {
         endpoint: ResolvedEndpoint,
         excludingTrailing outgoing: String = ""
     ) async throws -> [RunsTurnBody.HistoryEntry] {
-        let (_, conversation) = try await fetchSessionConversation(sessionId, profileID: nil, endpoint: endpoint)
-        return Self.runsHistory(from: conversation.messages, excludingTrailing: outgoing)
+        let rows = try await fetchStoredMessages(sessionId, profileID: nil, endpoint: endpoint)
+        return Self.runsHistory(fromStored: rows, excludingTrailing: outgoing)
     }
 
-    /// Pure mapping half of the pre-fetch. Prose strings only — the server
-    /// coerces history content with `str()` (`api_server.py:6360-6370` at the
-    /// pre-`3dcbe9001` read; #304 C1: re-resolve before quoting), so a
-    /// structured value would arrive as its Python repr.
+    /// Pure mapping half of the pre-fetch, over the host's stored rows.
+    ///
+    /// **It deliberately does NOT go through `mappedTranscript`, and that is
+    /// the whole of #426.** That map exists to make a reopened thread honest
+    /// to the USER: it re-writes the stored transplant primer into a one-line
+    /// `.system` notice and collapses the acknowledgment, because nobody
+    /// should be shown 1,500 tokens of the app's own bookkeeping under their
+    /// own name. Building the wire body out of its output deleted exactly the
+    /// rows the AGENT most needs — the transplanted prehistory and its ack —
+    /// from every run after the priming turn, because `runsHistory` then
+    /// dropped the `.system` notice the map had just minted. Display and wire
+    /// are two audiences with opposite needs from the same row, so they read
+    /// the same rows through two mappers.
+    ///
+    /// Roles come from the host's own `role` field, case-insensitively:
+    /// `user` and `assistant` ride, and every other value — `system`, `tool`,
+    /// anything unknown — is dropped, because those rows are the host's
+    /// bookkeeping and not the thread. Content rides VERBATIM; the only edit
+    /// is a whitespace trim.
+    ///
+    /// Prose strings only — the server coerces history content with `str()`
+    /// (`api_server.py:6360-6370` at the pre-`3dcbe9001` read; #304 C1:
+    /// re-resolve before quoting), so a structured value would arrive as its
+    /// Python repr.
     nonisolated static func runsHistory(
-        from messages: [Message],
+        fromStored rows: [SessionMessagesResponse.StoredMessage],
         excludingTrailing outgoing: String
     ) -> [RunsTurnBody.HistoryEntry] {
         var entries: [RunsTurnBody.HistoryEntry] = []
-        for message in messages {
+        for row in rows {
             let role: String
-            switch message.sender {
-            case .user: role = "user"
-            case .hermes: role = "assistant"
-            default: continue   // system notices are ours, not the thread's
+            switch (row.role ?? "").lowercased() {
+            case "user": role = "user"
+            case "assistant": role = "assistant"
+            default: continue   // host bookkeeping, not the thread
             }
-            let text = message.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            let text = (row.content ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else { continue }
             entries.append(RunsTurnBody.HistoryEntry(role: role, content: text))
         }
