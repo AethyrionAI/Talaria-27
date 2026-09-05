@@ -3873,6 +3873,10 @@ final class ChatStore {
         // read-aloud continuing over session B is the same cross-session
         // leak, audible instead of persisted — a switch is a commit, not a
         // browse.
+        // #427: this walk-away now also cancels the in-flight recovery pass
+        // and bumps `recoveryGeneration`, so a status read already parked
+        // for the departing thread cannot land once `hermesClient.openSession`
+        // below hands this function's conversation to the arriving one.
         abandonPendingRun(stopSpeech: true)
         do {
             let fetched = try await hermesClient.openSession(id)
