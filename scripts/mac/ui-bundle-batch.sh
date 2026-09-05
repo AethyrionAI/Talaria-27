@@ -25,6 +25,8 @@
 #
 # Usage:
 #   scripts/mac/ui-bundle-batch.sh <N>
+#   scripts/mac/ui-bundle-batch.sh --self-test   # classify two recorded
+#                                                 # fixtures; no build, no sim
 #
 # Env:
 #   TALARIA_SIM_NAME      simulator to run on (default "CC-lane-2")
@@ -64,6 +66,134 @@ fi
 # shellcheck source=./lane-gate-classify.sh
 . "$GATE_CLASSIFY_LIB"
 
+# ---------------------------------------------------------------------------
+# THE PASS/FAIL CRITERION for one trial. Factored into a function so the
+# self-test below can exercise it directly against a recorded fixture — no
+# xcodebuild, no simulator — instead of only ever running live inside the
+# trial loop where a wrong verdict would just look like a red run.
+#
+# Same three checks the trial loop has always applied: a zero exit, a
+# positive success marker with no failure marker present, and a complete
+# non-zero XCUITest ledger (a count is not "ran clean" until it is compared
+# against itself: started>0, failed==0, passed==started).
+#
+# 2026-09-05 (#219m): the marker check now accepts EITHER
+# `** TEST SUCCEEDED **` (what `xcodebuild test` prints) OR
+# `** TEST EXECUTE SUCCEEDED **` (what `test-without-building` prints — and
+# `test-without-building`, not `test`, is what the trial loop below actually
+# runs). Before this fix the regex matched only the former, so this script
+# labelled FAIL every single trial regardless of the underlying suite result
+# — 30/30 on 2026-09-04's DET-C/E pair, all green (18/18, exit 0) and all
+# marked FAIL. See OPEN_ITEMS #219.
+ui_batch_classify_result() {   # ui_batch_classify_result <logfile> <exit-status>
+    local log="$1" exit_status="$2" started passed failed
+    read -r started passed failed <<<"$(gate_xcuitest_ledger "$log")"
+    if (( exit_status == 0 )) \
+        && grep -qE '\*\* TEST (SUCCEEDED|EXECUTE SUCCEEDED) \*\*' "$log" \
+        && ! grep -qE '\*\* TEST FAILED \*\*|\*\* TEST BUILD FAILED \*\*' "$log" \
+        && (( started > 0 && failed == 0 && passed == started )); then
+        printf 'PASS'
+    else
+        printf 'FAIL'
+    fi
+}
+
+if [[ "${1:-}" == "--self-test" ]]; then
+    SELFTEST_DIR="$(mktemp -d -t talaria-uibatch-selftest)"
+    trap 'rm -rf "$SELFTEST_DIR"' EXIT
+    ST_PASS=0; ST_FAIL=0
+
+    st_check() {   # st_check <label> <expected> <actual>
+        if [[ "$2" == "$3" ]]; then
+            ST_PASS=$((ST_PASS+1)); printf '  PASS  %s\n' "$1"
+        else
+            ST_FAIL=$((ST_FAIL+1)); printf '  FAIL  %s — expected "%s", got "%s"\n' "$1" "$2" "$3"
+        fi
+    }
+
+    # Fixture: a recorded, byte-exact tail (lines 1657-1705) of a REAL
+    # test-without-building log — the DET-C run that motivated this fix,
+    # planning/reports/2026-09-04-219-det-ce/det-c/ledger.tsv's run-01, kept
+    # at /Users/owenjones/talaria-batches/det-ce-20260904/det-c/run-01.log on
+    # this Mac. Two XCUITest cases (started+passed, 0 failed), the suite
+    # summaries including `Executed 18 tests` and `Test Suite 'All tests'
+    # passed`, and the `** TEST EXECUTE SUCCEEDED **` marker. Checked for
+    # anything sensitive before recording here: none — a local DerivedData
+    # path and timestamps, no secrets, no tokens.
+    cat > "$SELFTEST_DIR/execute-succeeded.log" <<'FIXTURE_EOF'
+Test Suite 'TalariaUITestsLaunchTests' started at 2026-09-04 18:16:41.311.
+Test Case '-[TalariaUITests.TalariaUITestsLaunchTests testLaunch]' started.
+    t =     0.00s Setting appearance mode to Light
+    t =     0.04s     Wait for org.aethyrion.talaria27 to idle
+    t =     0.17s Start Test at 2026-09-04 18:16:41.484
+    t =     0.18s Set Up
+    t =     0.18s Open org.aethyrion.talaria27
+    t =     0.18s     Launch org.aethyrion.talaria27
+    t =     0.18s         Terminate org.aethyrion.talaria27:82783
+2026-09-04 18:16:42.542 xcodebuild[81763:16635469] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-09-04 18:16:42.542 xcodebuild[81763:16635469] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     1.44s         Setting up automation session
+    t =     3.87s         Wait for org.aethyrion.talaria27 to idle
+    t =     5.98s Find the Target Application 'org.aethyrion.talaria27'
+    t =     6.16s Added attachment named 'Launch Screen'
+    t =     6.16s Tear Down
+Test Case '-[TalariaUITests.TalariaUITestsLaunchTests testLaunch]' passed (6.375 seconds).
+Test Case '-[TalariaUITests.TalariaUITestsLaunchTests testLaunch]' started.
+    t =     0.00s Setting appearance mode to Dark
+    t =     0.06s     Wait for org.aethyrion.talaria27 to idle
+    t =     0.17s Start Test at 2026-09-04 18:16:47.854
+    t =     0.19s Set Up
+    t =     0.19s Open org.aethyrion.talaria27
+    t =     0.19s     Launch org.aethyrion.talaria27
+    t =     0.19s         Terminate org.aethyrion.talaria27:82799
+2026-09-04 18:16:48.914 xcodebuild[81763:16635469] [MT] IDELaunchParametersSnapshot: debugger version lookup failed for path '<nil>': noURL
+2026-09-04 18:16:48.914 xcodebuild[81763:16635469] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     1.43s         Setting up automation session
+    t =     3.90s         Wait for org.aethyrion.talaria27 to idle
+    t =     5.91s Find the Target Application 'org.aethyrion.talaria27'
+    t =     6.09s Added attachment named 'Launch Screen'
+    t =     6.09s Tear Down
+Test Case '-[TalariaUITests.TalariaUITestsLaunchTests testLaunch]' passed (6.331 seconds).
+Test Suite 'TalariaUITestsLaunchTests' passed at 2026-09-04 18:16:54.018.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 12.706 (12.707) seconds
+Test Suite 'TalariaUITests.xctest' passed at 2026-09-04 18:16:54.019.
+	 Executed 18 tests, with 0 failures (0 unexpected) in 342.222 (342.245) seconds
+Test Suite 'All tests' passed at 2026-09-04 18:16:54.019.
+	 Executed 18 tests, with 0 failures (0 unexpected) in 342.222 (342.247) seconds
+2026-09-04 18:16:54.397 xcodebuild[81763:16635469] [MT] IDETestOperationsObserverDebug: 356.420 elapsed -- Testing started completed.
+2026-09-04 18:16:54.397 xcodebuild[81763:16635469] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-09-04 18:16:54.397 xcodebuild[81763:16635469] [MT] IDETestOperationsObserverDebug: 356.420 sec, +356.420 sec -- end
+
+Test session results, code coverage, and logs:
+	/Users/owenjones/Library/Developer/Xcode/DerivedData/Talaria-gzpowyfsuofejnbsytskngrskzkm/Logs/Test/Test-Talaria-2026.09.04_18-10-57--0500.xcresult
+
+** TEST EXECUTE SUCCEEDED **
+
+Testing started
+FIXTURE_EOF
+
+    # Negative control: the identical fixture with the marker line removed.
+    # If the criterion cannot fail this, it cannot fail anything — a check
+    # that can only say yes is not a check.
+    grep -v '^\*\* TEST EXECUTE SUCCEEDED \*\*$' "$SELFTEST_DIR/execute-succeeded.log" \
+        > "$SELFTEST_DIR/no-marker.log"
+
+    st_check "test-without-building's own marker classifies PASS" \
+             "PASS" "$(ui_batch_classify_result "$SELFTEST_DIR/execute-succeeded.log" 0)"
+    st_check "the same log with the marker line removed classifies FAIL" \
+             "FAIL" "$(ui_batch_classify_result "$SELFTEST_DIR/no-marker.log" 0)"
+    st_check "a nonzero exit still FAILs even with the marker present" \
+             "FAIL" "$(ui_batch_classify_result "$SELFTEST_DIR/execute-succeeded.log" 1)"
+
+    echo
+    if (( ST_FAIL == 0 )); then
+        echo "UI-BUNDLE-BATCH SELF-TEST: PASS ($ST_PASS checks)"
+        exit 0
+    fi
+    echo "UI-BUNDLE-BATCH SELF-TEST: FAIL ($ST_FAIL of $((ST_PASS+ST_FAIL)) checks)"
+    exit 1
+fi
+
 DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta6.app/Contents/Developer}"
 export DEVELOPER_DIR
 SIM_NAME="${TALARIA_SIM_NAME:-CC-lane-2}"
@@ -72,6 +202,7 @@ TAP_STRATEGY="${UITEST_TAP_STRATEGY:-}"
 N="${1:-}"
 if ! [[ "$N" =~ ^[0-9]+$ ]] || (( N < 1 )); then
     echo "usage: $0 <N>   (N = number of trials, a positive integer)" >&2
+    echo "       $0 --self-test" >&2
     exit 2
 fi
 
@@ -369,15 +500,11 @@ for (( i = 1; i <= N; i++ )); do
 
     # PASS needs all three, the same way the gate does: the authoritative
     # marker, a zero exit, and a per-test count greater than zero. Zero is not
-    # a count, and absence of a failure marker is not success.
+    # a count, and absence of a failure marker is not success. The marker and
+    # ledger checks live in ui_batch_classify_result (defined above), not
+    # inline here, so the self-test can exercise the exact same logic.
     read -r RUN_STARTED RUN_PASSED RUN_FAILED <<<"$(gate_xcuitest_ledger "$RUN_LOG")"
-    RESULT="FAIL"
-    if (( RUN_STATUS == 0 )) \
-        && grep -qE '\*\* TEST SUCCEEDED \*\*' "$RUN_LOG" \
-        && ! grep -qE '\*\* TEST FAILED \*\*|\*\* TEST BUILD FAILED \*\*' "$RUN_LOG" \
-        && (( RUN_STARTED > 0 && RUN_FAILED == 0 && RUN_PASSED == RUN_STARTED )); then
-        RESULT="PASS"
-    fi
+    RESULT="$(ui_batch_classify_result "$RUN_LOG" "$RUN_STATUS")"
 
     FAILING="$(gate_failing_test_names "$RUN_LOG")"
     [[ -n "$FAILING" ]] || FAILING="-"
