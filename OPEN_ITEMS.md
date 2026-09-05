@@ -12733,6 +12733,8 @@ measured and a reader of the entry alone would otherwise not know:
 
 ### OPEN residual — the owner's decision, deliberately NOT built
 
+> **⟵ 2026-09-05 (#436, in flight — a CLOSE-OUT pointer written at the review, landing with the lane's merge):** the sentences below that read "the controller cannot tell the two apart today" and "What is NOT fixed: the state itself" describe the bytes at `5620eb0d`/`2641c315`; lane #436 carries an ORIGIN on the generation bump (`CaptureStopOrigin`: `.teardown` / `.restart` / `.bareStop` — a THREE-way split, superseding this section's two-way framing of bare-stop vs newer-start) and re-arms ONCE or ends honestly on a bare-stop supersession of a live session; teardown stays silent (ruling 2). The residual is #436's; this section stays as the record of why #428 stopped here.
+
 **The `.superseded` arm can still leave a LIVE session with no capture chain,
 and the fix wave instrumented that rather than repaired it.** Trace: the
 restart task cancels `captureTask` and calls `capture.stop()` (which finishes
