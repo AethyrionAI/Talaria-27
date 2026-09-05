@@ -617,7 +617,9 @@ struct VoiceInstrumentLogLineTests {
     /// cannot tell that session from one where no restart was ever attempted.
     @Test("the live-session supersession names the ordering, not a fault")
     func theLiveSessionSupersessionLineNamesTheOrdering() {
-        let line = NativeVoicePipelineService.restartSupersededOnLiveSessionLogDetail()
+        let line = NativeVoicePipelineService.restartSupersededOnLiveSessionLogDetail(
+            origin: .bareStop
+        )
         #expect(line.contains("LIVE session"))
         #expect(line.contains("#428"))
         // It is an ordering, not a device fault: no failure vocabulary, and no
@@ -626,7 +628,113 @@ struct VoiceInstrumentLogLineTests {
         #expect(!line.contains("could not resume"))
         #expect(
             line
-                == "capture restart superseded on a LIVE session — a stop ran during the restart's startup; no capture chain until the next route change (#428)"
+                == "capture restart superseded on a LIVE session — a stop ran during the restart's startup (origin=bare-stop); no capture chain — re-arming once (#428/#436)"
+        )
+    }
+
+    /// **#436: the line names its ORIGIN, and the three renderings say
+    /// different things about the world.** The pre-#436 sentence ended "no
+    /// capture chain until the next route change" for every supersession — true
+    /// only of a bare stop. On a `.restart` supersession a newer start is
+    /// installing its own chain; on `.teardown` there is no session left to
+    /// have one. A single line asserting the worst of the three would send
+    /// every archive reader hunting a chain loss that never happened, which is
+    /// #419's under-specified-discriminator defect in a new place.
+    @Test("each supersession origin renders its own consequence")
+    func theLiveSessionSupersessionLineDiscriminatesByOrigin() {
+        let bare = NativeVoicePipelineService.restartSupersededOnLiveSessionLogDetail(origin: .bareStop)
+        let restart = NativeVoicePipelineService.restartSupersededOnLiveSessionLogDetail(origin: .restart)
+        let teardown = NativeVoicePipelineService.restartSupersededOnLiveSessionLogDetail(origin: .teardown)
+
+        #expect(Set([bare, restart, teardown]).count == 3,
+                "two origins render identically — the origin is not actually in the line")
+        #expect(bare.contains("origin=bare-stop"))
+        #expect(restart.contains("origin=restart"))
+        #expect(teardown.contains("origin=teardown"))
+
+        // Only the bare-stop arm claims a lost chain, and only it announces a
+        // re-arm — the other two have somebody else owning the pipeline.
+        #expect(bare.contains("no capture chain"))
+        #expect(!restart.contains("no capture chain"))
+        #expect(!teardown.contains("no capture chain"))
+        #expect(bare.contains("re-arming once"))
+        #expect(restart.contains("nothing to repair"))
+        #expect(teardown.contains("nothing to repair"))
+
+        // The grep the device runbook's 428-D1 card uses must survive on all
+        // three, or the card's "the HUD must never read LISTENING while the
+        // log shows `superseded on a LIVE session`" stops matching.
+        for line in [bare, restart, teardown] {
+            #expect(line.hasPrefix("capture restart superseded on a LIVE session — "))
+            #expect(line.contains("#436"))
+        }
+    }
+
+    /// **#436: the re-arm's OUTCOME, which the supersession line cannot carry.**
+    /// That line is emitted BEFORE the attempt, so it states an intent. Without
+    /// this pair an archive would read "re-arming once" and never learn whether
+    /// a chain came back — the same absence #428's positive controls exist to
+    /// close, one step later in the story.
+    @Test("the re-arm reports whether the chain came back")
+    func theReArmLineReportsItsOutcome() {
+        let won = NativeVoicePipelineService.restartRearmLogDetail(succeeded: true)
+        let lost = NativeVoicePipelineService.restartRearmLogDetail(succeeded: false)
+
+        #expect(won != lost, "the outcome is not in the line")
+        #expect(
+            won
+                == "capture chain re-armed after a live-session supersession — the session keeps listening (#436)"
+        )
+        #expect(
+            lost
+                == "capture chain not re-armed after a live-session supersession — ending the session honestly (#436)"
+        )
+        // The failure line must not read as a device fault the user caused —
+        // it is the honest end of a race, and the banner it accompanies
+        // ("Audio capture could not resume.") is the user-facing half.
+        #expect(!won.contains("not re-armed"))
+        #expect(lost.contains("honestly"))
+    }
+
+    /// The wiring pin for the repair itself. `Logger.notice` swallows its
+    /// argument and the origin gate is a `guard`, so nothing behavioural in
+    /// THIS suite can see either — the behavioural rows are
+    /// `NativeVoiceRestartTeardownTests`. This pins that the repair is reached
+    /// from the `.superseded` arm and that it is gated on the origin, so a
+    /// future edit cannot quietly restore #428's unconditional silence.
+    @Test("the repair is wired to the .superseded arm and gated on the origin")
+    func theRepairIsWiredAndGatedOnTheOrigin() throws {
+        let source = try Self.pipelineServiceSource()
+        let supersededArm = try #require(
+            source.range(of: "} catch NativeVoiceCaptureController.CaptureError.superseded(_, let origin) {"),
+            "the typed `.superseded` arm no longer destructures the origin — the repair cannot discriminate (#436)"
+        )
+        let cancellationArm = try #require(
+            source.range(of: "} catch is CancellationError {"),
+            "the `catch is CancellationError` arm is gone — this pin can no longer bound the `.superseded` arm"
+        )
+        let gate = try #require(
+            source.range(of: "guard origin == .bareStop,"),
+            "the origin gate is gone — every supersession would take the same arm again (#436)"
+        )
+        let call = try #require(
+            source.range(of: "await self.rearmAfterLiveSupersession()"),
+            "the repair is no longer called — a live session can be left listening with no chain (#436)"
+        )
+        #expect(
+            gate.lowerBound > supersededArm.upperBound && call.upperBound < cancellationArm.lowerBound,
+            "the gate and the repair must live INSIDE the `.superseded` arm, or they act on the wrong event"
+        )
+        #expect(
+            gate.upperBound < call.lowerBound,
+            "the repair must sit BEHIND the origin gate, or a teardown-caused supersession re-arms (#428 ruling 2)"
+        )
+        // The bound is structural — one call, no loop and no counter. A second
+        // call site would be the loop Owen's ruling forbids.
+        let callSites = source.components(separatedBy: "await self.rearmAfterLiveSupersession()").count - 1
+        #expect(
+            callSites == 1,
+            "the re-arm is called from \(callSites) places — the ONCE bound is structural and a second call site breaks it (#436)"
         )
     }
 
@@ -638,7 +746,7 @@ struct VoiceInstrumentLogLineTests {
     func theLiveSessionLineIsEmittedFromTheSupersededArm() throws {
         let source = try Self.pipelineServiceSource()
         let supersededArm = try #require(
-            source.range(of: "} catch NativeVoiceCaptureController.CaptureError.superseded {"),
+            source.range(of: "} catch NativeVoiceCaptureController.CaptureError.superseded(_, let origin) {"),
             "the typed `.superseded` arm is gone — this pin can no longer prove where the line is emitted"
         )
         let cancellationArm = try #require(
@@ -646,7 +754,7 @@ struct VoiceInstrumentLogLineTests {
             "the `catch is CancellationError` arm is gone — this pin can no longer bound the `.superseded` arm"
         )
         let call = try #require(
-            source.range(of: "Self.restartSupersededOnLiveSessionLogDetail()"),
+            source.range(of: "Self.restartSupersededOnLiveSessionLogDetail(origin: origin)"),
             "the live-session supersession is silent again — a session left with no capture chain emits nothing (#428 Important 3)"
         )
         #expect(

@@ -364,7 +364,9 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             // throw lands in this method's own `catch` below, which gives the
             // configuration gate back too (this attempt armed it).
             guard !isEndingSession else {
-                await capture.stop()
+                // #436: `.teardown` — the session is ending, and a start this
+                // stop supersedes must stay silent (#428 ruling 2).
+                await capture.stop(origin: .teardown)
                 throw CancellationError()
             }
             captureTask = Task { @MainActor [weak self] in
@@ -416,7 +418,14 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             Self.logger.error("capture restart storm (\(self.recentCaptureRestarts.count, privacy: .public) in 30s) — #82 wedge shape; blocking instead of looping")
             captureTask?.cancel()
             captureTask = nil
-            await capture.stop()
+            // #436: `.bareStop` — the breaker is not a teardown and it is not
+            // a rebuild; it gives up on the chain and paints `.blocked`. It
+            // cannot supersede anything in practice (the `restartTask`
+            // coalesce above returns before this line while a restart is in
+            // flight), and if it ever did, the repair's own
+            // `connectionState == .connected` belt refuses a `.blocked`
+            // session.
+            await capture.stop(origin: .bareStop)
             blockedReason = TalkMicPreflight.noMicInputMessage
             canStartSession = false
             connectionState = .blocked
@@ -433,7 +442,9 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             guard let self else { return }
             self.captureTask?.cancel()
             self.captureTask = nil
-            await self.capture.stop()
+            // #436: `.restart` — this stop clears the way for the rebuild two
+            // lines below, so a start it supersedes must not re-arm behind it.
+            await self.capture.stop(origin: .restart)
             // #428 (428-A): a teardown arrived while we were inside
             // `capture.stop()`. It owns the pipeline now — rebuild nothing.
             guard !self.isEndingSession, !Task.isCancelled else {
@@ -454,24 +465,32 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 // finished shutdown. Its `.notice` is what would witness it.
                 if self.isEndingSession {
                     Self.logger.notice("capture restart rebuilt into an ending session — handing the capture stack back (#428)")
-                    await self.capture.stop()
+                    // #436: `.teardown` — this hand-back belongs to a shutdown.
+                    await self.capture.stop(origin: .teardown)
                     return
                 }
                 if self.voiceState == .interrupted {
                     self.voiceState = .listening
                     self.statusMessage = "Listening"
                 }
-            } catch NativeVoiceCaptureController.CaptureError.superseded {
+            } catch NativeVoiceCaptureController.CaptureError.superseded(_, let origin) {
                 // #428 (428-C): a newer teardown — or a newer start — owns the
                 // pipeline now. This restart installed nothing and must claim
                 // nothing: no `.failed`, no "Audio capture could not resume.",
                 // no state write at all, and NOT a re-arm.
                 //
-                // The no-re-arm half is the ruling from Task 2's review: when
-                // the supersession came from the old analyzer's own failure
-                // path calling `stop()`, that path's `.failed` event is what
-                // paints the state, and a retry here would clobber it and
-                // start the #82 thrash the breaker above exists to stop.
+                // ⟵ **#436 SPLITS THAT RULE BY ORIGIN, and the half it keeps is
+                // the half Owen ruled.** Silence is right when a TEARDOWN moved
+                // the generation (#428 ruling 2) and when a newer START or
+                // restart moved it (re-arming behind a rebuild is the #82
+                // thrash the breaker below exists to stop). It was WRONG for
+                // the third case, and #428's own note above said so in the
+                // wrong tense: "that path's `.failed` event is what paints the
+                // state" describes a mechanism that does not exist — the event
+                // is yielded into a continuation the same `stop()` has already
+                // finished and nil'd, so it is DROPPED and nothing paints.
+                // That case now repairs (see below): one re-arm, or an honest
+                // ended state. It never leaves `.listening` with no chain.
                 //
                 // Silent means silent about STATE — the controller already
                 // logged the abandonment at `.notice` where it happened, so a
@@ -517,15 +536,37 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 // route restart) but silent, so it gets a positive control:
                 // one `.notice` naming the ordering, at #302-A's level, so an
                 // archive can distinguish "no capture chain" from "no restart
-                // was attempted". Repairing the state is NOT done here — the
+                // was attempted". ~~Repairing the state is NOT done here — the
                 // controller cannot yet tell a supersession by a bare `stop()`
-                // from one by a newer `start()`, and re-arming on the latter
-                // is the #82 thrash. That fuller fix is filed OPEN.
+                // from one by a newer `start()`.~~ **#436: it can now** — the
+                // generation carries its origin — so the line names the origin
+                // and the repair follows it. The line's GATE is unchanged
+                // (`!isEndingSession`, #428 decision 2): an ordinary shutdown
+                // still emits nothing.
                 if !self.isEndingSession {
                     Self.logger.notice(
-                        "\(Self.restartSupersededOnLiveSessionLogDetail(), privacy: .public)"
+                        "\(Self.restartSupersededOnLiveSessionLogDetail(origin: origin), privacy: .public)"
                     )
                 }
+                // #436: the repair, and every clause of this guard is load-
+                // bearing in a different direction.
+                //
+                //  * `origin == .bareStop` — the discriminator. `.teardown`
+                //    buys silence (#428 ruling 2); `.restart` means a rebuild
+                //    is already under way and re-arming behind it is the #82
+                //    thrash.
+                //  * `!isEndingSession` / `!Task.isCancelled` — belts, not the
+                //    discriminator. A teardown can arrive between the throw and
+                //    this line, and it must win.
+                //  * `connectionState == .connected` — there is only something
+                //    to repair while the session is LIVE. A `.blocked` or
+                //    `.failed` session already reads honestly.
+                guard origin == .bareStop,
+                      !self.isEndingSession,
+                      !Task.isCancelled,
+                      self.connectionState == .connected
+                else { return }
+                await self.rearmAfterLiveSupersession()
                 return
             } catch is CancellationError {
                 // #428 (428-A): **this is the fix's own success path, so it
@@ -595,12 +636,102 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     ///
     /// Names the ORDERING rather than a fault, because that is what happened:
     /// a `stop()` ran while this restart was still in its startup stretch, so
-    /// the restart installed nothing and the session it left behind has no
-    /// capture chain until something triggers the next one. It is a positive
-    /// control for an absence — without it, an archive cannot tell a session
-    /// that lost its capture chain this way from one that never restarted.
-    nonisolated static func restartSupersededOnLiveSessionLogDetail() -> String {
-        "capture restart superseded on a LIVE session — a stop ran during the restart's startup; no capture chain until the next route change (#428)"
+    /// the restart installed nothing. It is a positive control for an absence —
+    /// without it, an archive cannot tell a session that lost its capture chain
+    /// this way from one that never restarted.
+    ///
+    /// **#436 makes it name the ORIGIN, and that is not decoration.** The old
+    /// single sentence ended "no capture chain until the next route change",
+    /// which is true only of the `.bareStop` arm: on a `.restart` supersession
+    /// a newer start is installing its own chain right now, and on `.teardown`
+    /// there is no session left to have a chain. One line that asserted the
+    /// worst of the three over all three would have sent every reader of a
+    /// device archive hunting a chain loss that had not happened.
+    nonisolated static func restartSupersededOnLiveSessionLogDetail(
+        origin: CaptureStopOrigin
+    ) -> String {
+        let cause: String
+        let consequence: String
+        switch origin {
+        case .bareStop:
+            cause = "a stop ran during the restart's startup"
+            consequence = "no capture chain — re-arming once (#428/#436)"
+        case .restart:
+            cause = "a newer start owns the pipeline"
+            consequence = "it installs its own chain; nothing to repair (#428/#436)"
+        case .teardown:
+            cause = "a teardown ran during the restart's startup"
+            consequence = "the teardown owns the pipeline; nothing to repair (#428/#436)"
+        }
+        return
+            "capture restart superseded on a LIVE session — \(cause) (origin=\(origin.logLabel)); \(consequence)"
+    }
+
+    /// The re-arm's OUTCOME line (#436), as a pure function for the same
+    /// reason its sibling is one.
+    ///
+    /// It exists because the supersession line above is a statement of INTENT —
+    /// it is emitted before the re-arm is attempted. Without an outcome line an
+    /// archive could see "re-arming once" and never learn whether the chain
+    /// came back, which is the same absence #428's positive controls exist to
+    /// close.
+    nonisolated static func restartRearmLogDetail(succeeded: Bool) -> String {
+        succeeded
+            ? "capture chain re-armed after a live-session supersession — the session keeps listening (#436)"
+            : "capture chain not re-armed after a live-session supersession — ending the session honestly (#436)"
+    }
+
+    /// #436: ONE re-arm of the capture chain after a `stop()` won the race
+    /// against this restart on a session that is still LIVE.
+    ///
+    /// **Bounded to one attempt STRUCTURALLY, not by a counter.** This method
+    /// calls `beginCapture()` once and never calls itself; a second
+    /// supersession lands in its own catch and settles there. That is the shape
+    /// Owen's ruling asks for — "re-run the restart ONCE, never a loop" — and a
+    /// counter would have been a loop with a bound rather than no loop at all.
+    ///
+    /// **Why it does not widen `joinRestart`'s bound.** This runs inside the
+    /// restart task's body, so `restartInFlight` is still true and the join
+    /// still covers it — bounded at 3 s as before. Past that bound teardown
+    /// proceeds and the capture generation covers the straggler exactly as
+    /// #428 documented; nothing here changes what the user waits for.
+    private func rearmAfterLiveSupersession() async {
+        do {
+            try await beginCapture()
+            // The same belt `restartCapture` carries after its own
+            // `beginCapture()`: a teardown that arrived while this was parked
+            // owns the pipeline, and a live tap behind a finished shutdown is
+            // the #428 defect.
+            if isEndingSession {
+                Self.logger.notice("capture re-arm rebuilt into an ending session — handing the capture stack back (#436)")
+                await capture.stop(origin: .teardown)
+                return
+            }
+            if voiceState == .interrupted {
+                voiceState = .listening
+                statusMessage = "Listening"
+            }
+            Self.logger.notice("\(Self.restartRearmLogDetail(succeeded: true), privacy: .public)")
+        } catch NativeVoiceCaptureController.CaptureError.superseded(_, .restart) {
+            // A newer start owns the pipeline and installs its own chain.
+            // Silent, and NOT a second attempt — the bound is the point.
+            return
+        } catch is CancellationError {
+            // `beginCapture()`'s teardown belt. #428 ruling 2 applies here for
+            // the same reason it applies one level up: nothing installed,
+            // nothing to paint.
+            return
+        } catch {
+            // The honest end. Everything else — a second bare-stop
+            // supersession, a device failure, a degenerate format — leaves a
+            // live session with no chain and no prospect of one, so it says so
+            // rather than reading `.listening` at the user.
+            guard !isEndingSession, connectionState == .connected else { return }
+            connectionState = .failed
+            voiceState = .disconnected
+            statusMessage = "Audio capture could not resume."
+            Self.logger.notice("\(Self.restartRearmLogDetail(succeeded: false), privacy: .public)")
+        }
     }
 
     /// #428 (428-A): cancel the in-flight capture restart and WAIT for it to
@@ -687,7 +818,11 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         captureTask?.cancel()
         captureTask = nil
         speechOutput.stop()
-        await capture.stop()
+        // #436: `.teardown` — the origin that buys silence. A straggler past
+        // the join bound resumes, finds its ticket stale, and returns without
+        // a word (#428 ruling 2), instead of re-arming a chain for a session
+        // that has just gone away.
+        await capture.stop(origin: .teardown)
         resetUtteranceState()
         try? await AudioSessionOffMain.setActive(
             false,
@@ -1298,6 +1433,22 @@ actor NativeVoiceCaptureController: NativeVoiceCapturing {
     /// the engine if it has moved by the time the start resumes. Same shape as
     /// `TalkStore.sessionGeneration` — no new mechanism.
     private var captureGeneration = 0
+    /// #436: the origin of the stop that moved the generation LAST.
+    ///
+    /// Read only on a generation MISMATCH — i.e. only when at least one
+    /// `stop(origin:)` has run since the parked start took its ticket — so the
+    /// initial value is never observed. It is `.bareStop` anyway because that
+    /// is the fail-safe side: `.bareStop` makes a superseded start repair the
+    /// session, and the defect this lane closes is a session left silently
+    /// unrepaired.
+    ///
+    /// Last writer wins, and that is the right rule rather than merely the
+    /// simple one: if a teardown's stop is the most recent, the teardown owns
+    /// the pipeline now whatever ran before it; if a bare stop is the most
+    /// recent, nobody is rebuilding and the chain is genuinely gone. The
+    /// service adds its own liveness belts on top (`isEndingSession`,
+    /// `connectionState`), so a stale reading cannot paint a dead session.
+    private var lastStopOrigin: CaptureStopOrigin = .bareStop
     /// #428 (428-B2): the adopted assembly's release hook — the ONE mechanism
     /// that gives back a prepared analyzer and its locale reservation. Replaces
     /// the separate `analyzer` / `reservedLocale` stored properties, whose only
@@ -1319,7 +1470,11 @@ actor NativeVoiceCaptureController: NativeVoiceCapturing {
         /// anything touched the engine. `point` names the suspension point it
         /// resumed from. This is a control signal, not a device fault — the
         /// restart path swallows it rather than surfacing it (Task 3).
-        case superseded(point: String)
+        ///
+        /// #436: `origin` names WHO moved it. Without it the restart path can
+        /// only be silent (correct for a teardown, and the bug for a stop that
+        /// raced a restart on a still-live session).
+        case superseded(point: String, origin: CaptureStopOrigin)
 
         var errorDescription: String? {
             switch self {
@@ -1365,7 +1520,10 @@ actor NativeVoiceCaptureController: NativeVoiceCapturing {
     }
 
     func start(muted: Bool) async throws -> AsyncStream<NativeVoiceCaptureEvent> {
-        stop()
+        // #436: `.restart` — this stop exists to make room for the chain this
+        // very call is about to install, so a start it supersedes must NOT
+        // re-arm behind it. That is the #82 thrash the breaker exists to stop.
+        stop(origin: .restart)
         // #428 (428-B): the ticket. Taken AFTER this start's own leading
         // `stop()` (which bumped the generation) and before the one suspension
         // point below — so it equals the generation for exactly as long as no
@@ -1453,8 +1611,14 @@ actor NativeVoiceCaptureController: NativeVoiceCapturing {
         // Verbose Logging. This line is the positive control for an ABSENCE —
         // without it an archive cannot tell "the ticket caught a superseded
         // start" from "no restart was ever attempted".
+        //
+        // #436 deliberately leaves this line's TEXT alone. The origin decides
+        // what the SERVICE does with the abandonment, and the service's own
+        // live-session line names it there; changing these bytes would move
+        // the device runbook's `capture start ABANDONED` grep for no
+        // diagnostic gain.
         Self.logger.notice("\(Self.abandonedStartLogDetail(point: point), privacy: .public)")
-        throw CaptureError.superseded(point: point)
+        throw CaptureError.superseded(point: point, origin: lastStopOrigin)
     }
 
     /// The abandoned-start line, as a pure function so its text is pinned by a
@@ -1463,13 +1627,19 @@ actor NativeVoiceCaptureController: NativeVoiceCapturing {
         "capture start ABANDONED — capture generation moved during startup at \(point); nothing installed (#428)"
     }
 
-    func stop() {
+    func stop(origin: CaptureStopOrigin) {
         // #428 (428-B): the generation moves FIRST, before a single resource is
         // torn down. A start parked in `assemble` compares its ticket against
         // this counter when it resumes — so a bump that happened at the END of
         // the teardown would leave a window in which a start resumes mid-
         // teardown and still matches.
+        //
+        // #436: the origin moves WITH it, in the same synchronous statement
+        // pair. A counter that said the generation had moved without saying
+        // who moved it is exactly why #428 could instrument this state but not
+        // repair it.
         captureGeneration &+= 1
+        lastStopOrigin = origin
         // #302-A: read the engine's own state BEFORE tearing it down, so the
         // COLD line can say whether this stop ended a hot chain (was=true)
         // or was a defensive no-op (was=false — negative evidence that the
@@ -1600,7 +1770,15 @@ actor NativeVoiceCaptureController: NativeVoiceCapturing {
             } catch {
                 Self.logger.error("speech analyzer failed: \(error.localizedDescription, privacy: .public)")
                 await self?.emit(.failed("Speech analysis failed."))
-                await self?.stop()
+                // #436: `.bareStop` — and this is THE call site the lane
+                // exists for. Nobody is tearing down and nobody is rebuilding;
+                // the analyzer died and took the chain with it. When this
+                // lands while a route restart is parked in `assemble`, the
+                // `.failed` above is yielded into a continuation this very
+                // `stop()` is about to finish and nil, so it is DROPPED — the
+                // origin is then the only thing left that can tell the restart
+                // path a live session just lost its capture chain.
+                await self?.stop(origin: .bareStop)
             }
         }
         // #428: the results loop used to arrive as a closure built at the

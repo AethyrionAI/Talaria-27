@@ -35,11 +35,58 @@ enum NativeVoiceCaptureEvent: Sendable {
 /// stop, and the requirements below are therefore isolated to it — which is
 /// what lets `setMuted` and `stop` stay synchronous at the definition while
 /// every caller still crosses the actor with `await`.
+/// #436: WHO moved the capture generation.
+///
+/// #428's ticket records THAT a `stop()` interleaved with a parked start, and
+/// that was enough to stop the start installing a tap behind a finished
+/// shutdown. It is NOT enough to decide what the session owes the user
+/// afterwards, because the two ends of that decision are opposites: a
+/// supersession caused by a TEARDOWN must stay silent (#428 ruling 2 — the
+/// session is going away and any paint would be a repaint of a dead session),
+/// while one caused by a stop on a session that is still LIVE leaves
+/// `.connected` / `.listening` with no capture chain behind it and owes either
+/// a re-armed chain or an honest ended state.
+///
+/// Three cases, and the middle one is why an origin is needed rather than a
+/// bool: a newer `start()` also bumps the generation, and re-arming behind a
+/// newer start is the #82 thrash the restart breaker exists to stop.
+enum CaptureStopOrigin: Sendable, Equatable {
+    /// A session teardown owns the pipeline. Silence, byte-for-byte (#428
+    /// ruling 2).
+    case teardown
+    /// A restart's own leading stop, or a newer `start(muted:)`'s. Somebody is
+    /// rebuilding the chain and will install their own — re-arming here is the
+    /// #82 thrash.
+    case restart
+    /// A stop on a session nobody is tearing down and nobody is rebuilding
+    /// for: the analyzer's own failure path (`emit(.failed)` → `stop()`, the
+    /// #436 trace), or a bare `stop()` from a caller that will not put a chain
+    /// back. **This is the only origin that owes a repair**, and it is the
+    /// fail-safe default for the same reason — silence is the defect, so an
+    /// unclassified stop must read as the arm that acts, never as the arm that
+    /// stays quiet.
+    case bareStop
+
+    /// The archive rendering. Lowercase and hyphenated so a grep over a device
+    /// log reads `origin=bare-stop` without shell quoting.
+    var logLabel: String {
+        switch self {
+        case .teardown: "teardown"
+        case .restart: "restart"
+        case .bareStop: "bare-stop"
+        }
+    }
+}
+
 protocol NativeVoiceCapturing: Actor {
     func isTranscriptionSupported() async -> Bool
     func setMuted(_ muted: Bool)
     func start(muted: Bool) async throws -> AsyncStream<NativeVoiceCaptureEvent>
-    func stop()
+    /// #436: every stop names its origin. There is deliberately NO defaulted
+    /// `stop()` overload — a default would let a new call site inherit an
+    /// origin it never thought about, and the origin is what decides whether a
+    /// superseded start repairs the session or stays silent.
+    func stop(origin: CaptureStopOrigin)
 }
 
 /// Which transcriber flavor the assembly settled on. The two consume loops are
