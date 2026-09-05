@@ -541,6 +541,84 @@ struct RunsPlaneTransportTests {
         #expect(messagesIndex < submitIndex)
     }
 
+    // MARK: - 426-B: a transplanted hop's prehistory rides the NEXT run
+
+    /// **426-B — the lane's primary mechanism bar, read off the BYTES the app
+    /// sent.**
+    ///
+    /// A transplanted hop's stored transcript opens with the priming pair:
+    /// the `ContextTransplanter` primer (everything the previous hop knew,
+    /// under the user's role, marker and all) and the agent's one-line
+    /// acknowledgment. Every run after the priming turn has to carry them, or
+    /// the agent is answering a continued conversation it has never been told
+    /// about — which is exactly what it did from #330 until this lane: the
+    /// wire body was built out of the DISPLAY transcript, whose map had
+    /// already re-written the primer into a `.system` notice the wire builder
+    /// then dropped.
+    ///
+    /// This is the integration form of 426-A: same claim, but asserted on the
+    /// recorded `POST /v1/runs` body rather than on a mapper's return value,
+    /// so nothing between the stored row and the wire can quietly re-open the
+    /// hole. It also carries 3A-G's ordering half — the pre-fetch must land
+    /// before the submit — because a body that carried the primer LATE would
+    /// be no better than one that dropped it.
+    ///
+    /// Measured RED on the pre-#426 mapping (Task 0(b), and again under this
+    /// task's isolating mutation): `count == 2` — `ping`/`pong` only.
+    @Test @MainActor
+    func aTransplantedHopShipsItsPrehistoryOnTheNextRun() async throws {   // 426-B
+        RunsStubURLProtocol.reset()
+        let primer = ContextTransplanter.primingText(
+            body: "The user's dentist is Dr Patel on Lamar. PREHISTORY-KUMQUAT"
+        )
+        // The primer is multi-line and quote-bearing, so the fixture is built
+        // through `JSONSerialization` rather than string interpolation — the
+        // escaping has to be the real thing or the stub serves a body the
+        // decoder rejects and the test measures its own fixture.
+        let messagesData = try JSONSerialization.data(withJSONObject: [
+            "session_id": "sess-r",
+            "data": [
+                ["id": 1, "role": "user", "content": primer, "timestamp": 1.0],
+                ["id": 2, "role": "assistant", "content": "Acknowledged.", "timestamp": 1.1],
+                ["id": 3, "role": "user", "content": "ping", "timestamp": 1.2],
+                ["id": 4, "role": "assistant", "content": "pong", "timestamp": 1.3],
+            ],
+        ])
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([
+                #"{"event":"run.completed","run_id":"run-r1","timestamp":1.5,"output":"Dr Patel","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}"#,
+            ]),
+            messagesBody: String(decoding: messagesData, as: UTF8.self)
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "prehistory")
+        // Sends "hi" per the fixture — the outgoing text is deliberately NOT
+        // one of the stored rows, so the trailing-duplicate rule cannot fire
+        // and every one of the four rows is accounted for.
+        _ = await collect(from: client)
+
+        let submit = try #require(RunsStubURLProtocol.request("POST", "/v1/runs"))
+        let body = try #require(
+            JSONSerialization.jsonObject(with: Data(submit.body.utf8)) as? [String: Any]
+        )
+        let history = try #require(body["conversation_history"] as? [[String: Any]])
+        #expect(history.count == 4, "the priming pair must ride every run — before #426 it rode none after the first")
+        // Bound through `first`/`dropFirst()` rather than subscripts: an
+        // empty result must FAIL this test, not trap the whole test process
+        // (Task 1's review minor, applied here as well as in 426-A).
+        let firstContent = try #require(history.first?["content"] as? String,
+                                        "the wire body carried no history at all")
+        #expect(firstContent.hasPrefix(ContextTransplanter.transplantMarker))
+        #expect(firstContent.contains("PREHISTORY-KUMQUAT"))
+        #expect(history.dropFirst().first?["content"] as? String == "Acknowledged.")
+
+        // 3A-G's ordering half, restated on the transplant fixture.
+        let messagesIndex = try #require(RunsStubURLProtocol.index("GET", "/api/sessions/sess-r/messages"))
+        let submitIndex = try #require(RunsStubURLProtocol.index("POST", "/v1/runs"))
+        #expect(messagesIndex < submitIndex)
+    }
+
     // MARK: - #426 Task 0(b): TEMPORARY wire-body PROBE (Task 3 deletes this)
 
     /// #426-T0b — **a measurement, not a bar.** Serves a FOUR-row stored
@@ -2193,7 +2271,13 @@ struct RunsHistoryMappingTests {
     private func row(_ role: String, _ content: String) -> SessionsHermesClient.SessionMessagesResponse.StoredMessage {
         let escaped = String(data: try! JSONEncoder().encode(content), encoding: .utf8)!
         let json = #"{"role":"\#(role)","content":\#(escaped)}"#
-        return try! JSONDecoder().decode(
+        return rawRow(json)
+    }
+
+    /// A stored row from arbitrary JSON — the only way to build one that OMITS
+    /// a key, which `row(_:_:)` cannot express.
+    private func rawRow(_ json: String) -> SessionsHermesClient.SessionMessagesResponse.StoredMessage {
+        try! JSONDecoder().decode(
             SessionsHermesClient.SessionMessagesResponse.StoredMessage.self,
             from: Data(json.utf8)
         )
@@ -2211,7 +2295,7 @@ struct RunsHistoryMappingTests {
     /// all. What survives unchanged is the other half of the old rule: a row
     /// the HOST stored under a `system` / `tool` / unknown role is still
     /// dropped, because those are the host's bookkeeping, not the thread.
-    @Test func aStoredTransplantPrimerRidesTheWireVerbatimAndHostRolesStillDrop() {
+    @Test func aStoredTransplantPrimerRidesTheWireVerbatimAndHostRolesStillDrop() throws {
         let primer = ContextTransplanter.primingText(
             body: "The user's dentist is Dr Patel on Lamar. PREHISTORY-KUMQUAT"
         )
@@ -2227,9 +2311,35 @@ struct RunsHistoryMappingTests {
             excludingTrailing: ""
         )
         #expect(history.map(\.role) == ["user", "assistant", "user"])
+        // The count is `#require`d before anything is indexed: a fixture that
+        // ever produced fewer rows would TRAP the whole test process on the
+        // subscripts below rather than fail this one test (Task 1's review
+        // minor — an instrument that can crash the run is worse than one that
+        // reports a red).
+        try #require(history.count == 3)
         #expect(history[0].content.hasPrefix(ContextTransplanter.transplantMarker))
         #expect(history[0].content.contains("PREHISTORY-KUMQUAT"))
         #expect(history[1].content == "Acknowledged.")
+    }
+
+    /// The two nil-shaped rows the `role`/`content` optionals exist for.
+    ///
+    /// `row(_:_:)` always emits BOTH keys, so `row.role ?? ""` and
+    /// `row.content ?? ""` were unexercised — the guards were there on the
+    /// author's word rather than on a measurement. A host row can omit either
+    /// (`StoredMessage` decodes both as `String?`), and both must DROP:
+    /// a roleless row cannot be placed in the thread, and a contentless one
+    /// carries nothing. Neither may trap.
+    @Test func dropsRowsMissingRoleOrContentEntirely() {
+        let history = SessionsHermesClient.runsHistory(
+            fromStored: [
+                rawRow(#"{"role":"user","content":"real"}"#),
+                rawRow(#"{"role":"assistant"}"#),   // no content at all
+                rawRow(#"{"content":"orphaned text"}"#),   // no role at all
+            ],
+            excludingTrailing: ""
+        )
+        #expect(history.map(\.content) == ["real"])
     }
 
     @Test func dropsEmptyAndWhitespaceOnlyRows() {
@@ -2284,5 +2394,86 @@ struct RunsHistoryMappingTests {
             excludingTrailing: "   "
         )
         #expect(blankOutgoing.count == 1)
+    }
+}
+
+// MARK: - 426-D: the wire builder is structurally pinned to the stored rows
+
+/// **426-D — a SOURCE witness. It pins the thing no runtime test can see: that
+/// the wire history builder can never again be fed the DISPLAY shape.**
+///
+/// 426-A and 426-B both assert on outputs, and both would go green again the
+/// day someone re-pointed `fetchRunsHistory` at the display transcript *and*
+/// updated the fixtures to match — which is precisely how #330's remap became
+/// #426's regression: the display map was correct, the wire followed it, and
+/// every test in sight was rewritten to agree. So this suite reads the repo's
+/// own bytes and pins the SOURCE of the wire history:
+///
+///  1. `fetchRunsHistory`'s body reads the host's stored rows
+///     (`fetchStoredMessages(`) and mentions neither the display fetch nor the
+///     display map;
+///  2. the `[Message]`-shaped overload the display path used to feed is gone
+///     from the whole tree — not deprecated, not unused-but-present. One wire
+///     history builder, and it takes stored rows.
+///
+/// Simulator-only by construction: the read reaches the Mac's filesystem, so
+/// off-simulator it would measure the sandbox rather than the code
+/// (`RepoSourceWitness`' own note).
+struct RunsWireHistoryWitnessTests {
+
+    private static let transportPath =
+        "Talaria/Services/Live/SessionsHermesClient+RunsTransport.swift"
+
+    /// The window boundary is the NEXT member's doc comment — a `///` at the
+    /// four-space member indent, which `fetchRunsHistory`'s own body (all of
+    /// it at eight spaces or deeper) cannot contain. Bounding at the next
+    /// `nonisolated static func` instead would swallow that doc comment, and
+    /// that comment's whole job is to talk ABOUT the display map — so a prose
+    /// edit there would red this pin for a reason unrelated to its claim.
+    /// If the neighbour ever loses its doc comment the window over-extends,
+    /// which fails LOUD (the negatives start matching) rather than quiet.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo's own sources — simulator only"))
+    func theWireHistoryPreFetchReadsStoredRowsAndNotTheDisplayMap() throws {
+        let body = try RepoSourceWitness.functionBody(
+            from: "func fetchRunsHistory",
+            in: Self.transportPath,
+            boundary: "\n    ///"
+        )
+        #expect(body.contains("fetchStoredMessages("),
+                "the runs history pre-fetch no longer reads the host's stored rows: \(body)")
+        #expect(!body.contains("fetchSessionConversation("),
+                "the runs history pre-fetch is reading the DISPLAY fetch again — that is #426: \(body)")
+        #expect(!body.contains("mappedTranscript("),
+                "the runs history pre-fetch is reading the DISPLAY map again — that is #426: \(body)")
+    }
+
+    /// The `[Message]`-shaped overload is addressed by its argument label,
+    /// assembled from two pieces so that THIS file — which the walk below
+    /// reads — is not its own match. A pin that matched itself would be green
+    /// forever and would never have been able to say no.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo's own sources — simulator only"))
+    func theDisplayShapedWireBuilderIsGoneFromTheWholeTree() throws {
+        let needle = "runsHistory(" + "from:"
+        var offenders: [String] = []
+        var scanned = 0
+        for directory in ["Talaria", "TalariaTests"] {
+            let root = RepoSourceWitness.repoRoot.appendingPathComponent(directory)
+            let walker = try #require(
+                FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil),
+                "cannot enumerate \(directory)/ — this check did not run"
+            )
+            for case let url as URL in walker where url.pathExtension == "swift" {
+                guard let text = try? String(contentsOf: url, encoding: .utf8) else { continue }
+                scanned += 1
+                if text.contains(needle) { offenders.append(url.lastPathComponent) }
+            }
+        }
+        // "Absence of a failure marker is not success": a walk that read
+        // nothing would report zero offenders and prove nothing.
+        #expect(scanned > 100, "only \(scanned) Swift sources were read — this check did not run")
+        #expect(offenders.isEmpty,
+                "the display-shaped wire history builder is back in: \(offenders.sorted())")
     }
 }
