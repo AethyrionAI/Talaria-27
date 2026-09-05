@@ -12369,9 +12369,11 @@ routes through it), #180 (asserting what cannot be measured).
 
 > **⟵ 🔴 426-E RE-PINNED 2026-09-05 01:5x — a Task 0(b) FALSIFICATION of the bar's written RED, filed BEFORE any code (the plan's own stop rule: "if it reads `history=2`, STOP: the premise is wrong on this build and the lane's first job is to find out why").** Task 0(b) measured, read-only on the Mac gateway (`~/.hermes/hermes-agent` @ `71f8c60f6a`): the host's `history=N` IS the body's `conversation_history` — EXCEPT two overrides that substitute the host's own stored transcript: **(a) a NEW empty-body backfill from the session DB** (`gateway/platforms/api_server_runs.py:419-420`, landed between 2026-09-02 and 09-04 — on this gateway an EMPTY `conversation_history` is filled from the stored transcript), and **(b) the turn-lease reload** (`turn_facade_lease.py:284-294`; `run_agent.py:8827-8846` on the 08-31 code). **The 08-31 `history=2` anomaly is (b):** the app shipped `[]` (one stored row — the primer — remapped to `.system` and dropped), the run waited **35.7 s** for the priming run's session lease, then reloaded a transcript that by then held primer + ack. **Consequence:** on today's gateway the first turn after a transplant reads `history=2` under BOTH the bug and the fix (the backfill fills the bug's empty body) — the written RED (`history=0` on turn 1) is UNOBSERVABLE and the bar as pinned cannot discriminate. **Re-pin (before Task 1, not after a run): 426-E (i)/(ii) are measured on the SECOND and THIRD real turns after the priming run has COMPLETED: RED (current build) `history=2` then `4`; GREEN (fix build) `history=4` then `6`.** The mechanism bar 426-B (the POST body inspected in the integration fixture) is unaffected and was measured RED deterministically the same session: `conversation_history.count=2` — `[0] user ping`, `[1] assistant pong` — primer and ack absent (commit `4abfe060`, the TEMPORARY probe Task 3 deletes). **Two more findings:** (1) **no credential-free route exists to point a SIMULATOR at the Mac gateway** — the UI-test hook (`UITEST_GATEWAY_URL`/`UITEST_API_KEY`, `/tmp/talariamobile-uitest-config.json`) is credential-bearing and its `127.0.0.1` default is not ATS-exempt; the QR path carries the key and is camera-only; no `talaria://` pairing route — so decision 2's "sim → Mac gateway" arm needs Owen's hand for the key or moves to the phone card (Owen's call; the lane does not block on it). (2) **CLOSE-OUT DEBT for the lane's merge:** CLAUDE.md's "runs WRITE the session transcript but never READ it" is FALSE on ≥ 09-03 gateways for an EMPTY body — the (a) backfill reads it; the principle survives for any non-empty body, which is every turn the app sends after the first.
 
-## 427. 🔴 A LATE RUN-RECOVERY RESPONSE WRITES INTO WHICHEVER CONVERSATION IS CURRENT — `adoptRecoveredRun` appends into the live `conversation` with no ownership check between the await and the mutation, and the in-flight pass survives walk-away — **FILED 2026-09-04 (audit A2, P1; VERIFIED IN CODE). ~~Plan owed~~ → PLAN WRITTEN 2026-09-04 (pointer block below); bars pre-register when the lane opens.**
+## 427. 🔴 A LATE RUN-RECOVERY RESPONSE WRITES INTO WHICHEVER CONVERSATION IS CURRENT — `adoptRecoveredRun` appends into the live `conversation` with no ownership check between the await and the mutation, and the in-flight pass survives walk-away — **FILED 2026-09-04 (audit A2, P1; VERIFIED IN CODE). ~~Plan owed~~ → PLAN WRITTEN 2026-09-04; ~~bars pre-register when the lane opens~~ → ✅ FIXED 2026-09-05: PR #431 → `42feed5d` — bars 427-A…W + GATE MET (RESULT block below).**
 
 > **Source:** audit A2. **Verified:** `ChatStore.swift:4207-4215` — `guard let resolution = await hermesClient.resolveDroppedRun(...)` is immediately followed by `adoptRecoveredRun(pending, …)` with no conversation-id, pending-run-identity, generation or `Task.isCancelled` check; `:4252-4254` — `guard var conv = conversation` reads the store's LIVE current conversation (a property, not a captured value) while `pending` carries only the departed run's ids; `reconcileInFlight` (`:4082-4092`) is assigned and cleared and **cancelled nowhere in the tree**, so cancellation is structurally unobservable; `openSession` (`:3806`) → `abandonPendingRun` (`:1965-1971`) cancels `reconcileTask` and nils `pendingRun` but never touches `reconcileInFlight`. **Blast radius after adoption:** `settlePendingRun` (`:4288-4315`) persists B via `saveConversationCache`, journals it as this hop's last exchange, fires `onRunResolved?(pending.sessionId)` for A, and runs `resolveHeldTurn(.reconciled)` against B; the legacy leg `attemptSessionReconcile` (`:4363`) merges whole-conversation metadata into whatever is current. **The tracker knows the CLASS, not this instance:** `openSession`'s comment (`:3799-3802`) is #184's smear reasoning and its remedy is the `pendingRun` clear, which an already-awaiting pass bypasses; `reconcileInFlight` appears only as #226's single-flight. **Tests:** 23 call sites of `reconcilePendingRuns()` across `AppStoresTests`/`RunStatusRecoveryTests`/`MessageQueueTerminalsTests`, none opens or switches a session mid-reconcile; `adoptRecoveredRun` is never named by a test. **Fix shape:** capture an ownership token (conversation id + run id + a generation) before the await and validate it before every mutation; invalidate both recovery paths on walk-away (cancel `reconcileInFlight`, and check the token — a cancellation request alone is insufficient); the unit bar suspends a mock status response, switches conversations, releases it, and asserts nothing landed in B (including the case where B has started its own run). Severity: P1 — a persisted, journaled, user-visible cross-thread write reachable with a slow `GET /v1/runs/{id}` plus a thread switch; survives relaunch through the conversation cache.
+
+> **⟵ CORRECTED 2026-09-05 (PR #431 → `42feed5d`):** the FILED paragraph above says `reconcileInFlight` is "cancelled nowhere in the tree" — TRUE when filed, FALSE from this merge: it is cancelled (and `recoveryGeneration` bumped) in `abandonPendingRun` and in `abandonReconcileWindowOnStop`. The filed bytes stay as the record of the defect; the RESULT block below is the record of the fix.**
 
 > **⟵ PLAN WRITTEN 2026-09-04 (night, the audit-planning session): `planning/superpowers/plans/2026-09-04-427-recovery-ownership-token.md` — bars 427-A…W + GATE drafted there. Shape: `RecoveryOwnership` (conversation id + session + run id + `recoveryGeneration`) captured BEFORE the status read and checked before EVERY write; a stale token returns a new `ReconcilePassOutcome.superseded` (nothing adopted, settled, journaled or fired); `abandonPendingRun` and `abandonReconcileWindowOnStop` cancel `reconcileInFlight` and bump the generation; the legacy leg carries the same token; a source witness enumerates the guarded writes. Task 0 is fixture feasibility — including the founding hazard that `HermesClientProtocol.openSession` DEFAULTS to `loadConversation()` (returns A again), which would make a "switch to B" test vacuous unless the mock implements it. Four decisions in the ballot (drop-not-redirect; cancel the in-flight pass; Stop protected too; `Conversation.id` as the thread identity). "Plan owed" is discharged; "bars pre-register when the lane opens" stands; the ballot is Owen's morning; the lane is Saturday's, in harm order #428 → #427 → #426 → #429. Index: `planning/2026-09-04-audit-p1-plans.md`.**
 
@@ -12387,6 +12389,163 @@ routes through it), #180 (asserting what cannot be measured).
 - **427-F — Stop's window stays closed (unit, decision 3).** A parked pass; `store.cancelStreaming(hardStopHost: false)` runs `abandonReconcileWindowOnStop`; release → nothing adopted into the (same) conversation, the user row stays `.delivered` as #321 ruled. Mutation: drop the generation bump from `abandonReconcileWindowOnStop` → the late answer lands after Stop → RED.
 - **427-W — the writes are enumerated (source witness).** `RepoSourceWitness.functionBody(from: "private func attemptRunStatusReconcile", in: "Talaria/Stores/ChatStore.swift")` contains `recoveryStillOwned(` at least once; the bodies of `adoptRecoveredRun`, `appendRunFailureNotice`, `settlePendingRun`, `attemptSessionReconcile` each contain it. A new write path added without the guard reds this pin.
 - **427-GATE** — positive `GATE: PASS`, count moved by exactly the tests this lane adds.
+
+
+### ✅ RESULT 2026-09-05 — RecoveryOwnership: a late run-recovery response now lands only in the thread that owns it
+
+| bar | verdict | evidence |
+|---|---|---|
+| 427-A | MET | RED (`666a2eb4`, unmodified tree): `aLateAnswerForTheThreadYouLeftNeverLandsInTheThreadYouOpened()` — 4 issues, incl. `store.conversation?.messages.map(\.content) == ["B's own history"]` failing (A's late answer landed) and `!cached.messages.contains { $0.content == "A's late answer" }` failing (the global on-disk conversation cache carried it too). GREEN once `RecoveryOwnership` guards `attemptRunStatusReconcile`/`adoptRecoveredRun`. Isolating mutation **M2** (`34d6ab38`, `mut-M2.log`): the post-await `recoveryStillOwned` guard *and* `adoptRecoveredRun`'s own re-check removed together — the plan's single-line mutation (guard alone) was measured **inert** (GREEN) because `adoptRecoveredRun`'s belt catches it one frame later; M2 reds exactly the two transcript assertions. |
+| 427-B | MET | RED (`666a2eb4`): `aVerdictForTheDepartedThreadNeverSettlesTheArrivedThreadsOwnRun()` — 5 issues, incl. `store.pendingRunSessionId == "B-session"` and `store.pendingRunRunId == "run-B"` failing (A's verdict clobbered B's own pending run). GREEN. Isolating mutation **M3** (`34d6ab38`, `mut-M3.log`) = M2 + `settlePendingRun`'s own re-check removed — reproduces the original RED exactly (9 issues total across both tests), isolating precisely the `settlePendingRun` side effects (`onRunResolved`, the cache save) that M2 alone does not touch. |
+| 427-C | MET (control) | `withNoWalkAwayTheAnswerStillLandsInItsOwnThread()` — green in the very first RED run and green under **every** mutation in both Task 1 and Task 2 (M1/M2/M3/MLOOP/MGONE/MTHREAD/MD/MDa/MDb/ME/MF) — the control never reds, confirming none of the isolating mutations are false positives. |
+| 427-D | MET | RED (`d842ceca`, unmodified tree): `aSecondReconcileAfterTheWalkAwayNeverParksOnTheDepartedThreadsRead()` — the bound, `latch.isSet` failing after **1.223 s** (parked on run-A's still-open gate; the walk-away's in-flight pass survived and blocked the second call). GREEN at **0.028–0.062 s** once the walk-away cancels `reconcileInFlight`. Isolating mutation **MD** (`d842ceca`, `mut-MD.log`), named as a **pair** — `reconcileInFlight?.cancel()` and `reconcileInFlight = nil` removed together — reds `latch.isSet` alone; each half measured GREEN in isolation (**MDa** cancel-only, **MDb** nil-only), the same nested-guard shape as 427-A/B. |
+| 427-E | MET | RED (`d842ceca`, unmodified tree): `aLateSessionReReadForTheThreadYouLeftNeverLandsInTheThreadYouOpened()` — 4 issues on the **legacy** (`attemptSessionReconcile`) leg: B's transcript overwritten with A's server rows, a second `onRunResolved` fired, A's answer persisted into the cache under B's identity. GREEN once the same `RecoveryOwnership` token guards `attemptSessionReconcile`. Isolating mutation **ME** (`d842ceca`, `mut-ME.log`) — the guard alone removed (unlike 427-A/B, the single-line mutation IS isolating here, since nothing else in the tree refuses this write) — reds 427-E and 427-W together, by design. |
+| 427-F | MET | RED-as-witnessed already GREEN on the unmodified tree: the token's own `.pendingRunCleared` clause (Stop clears `pendingRun`) refuses the write regardless of the new doors, so this bar's fix is defence in depth. Isolating mutation **MF** (`d842ceca`, `mut-MF.log`) — all three `abandonReconcileWindowOnStop` lines (`reconcileInFlight?.cancel()`, `= nil`, `recoveryGeneration &+= 1`) **and** the `.pendingRunCleared` arm removed together — reds `aStopInsideTheReconcileWindowInvalidatesTheReadItLeftInFlight()` alone (3 issues), proving the Stop-path protection is real as a **set**. **⟵ SHARPENED by the final fix wave (2026-09-05): the isolating control the Task 2 review sketched was RUN, and it isolates the bump. `MFa` (cancel/nil pair removed **and** the `.pendingRunCleared` arm removed, the bump KEPT) = **GREEN**, 0 issues; `MFb` (MFa plus the bump removed) = **RED**, 3 issues. So the generation bump is load-bearing on the Stop leg in its own right, not only as a member of the set.** |
+| 427-W | MET | RED (`d842ceca`, unmodified tree): `everyWriteBehindTheRecoveryReadIsGuardedByTheOwnershipToken()` failing on `attemptSessionReconcile` (no guard present). GREEN after Task 2's guard. A **per-function needle** (not a union grep) with an anti-vacuity fingerprint per slice, verified so no slice spills into a neighbour's body. Mutation **ME** reds this witness too, by design (same missing guard as 427-E). |
+| GATE | MET | `GATE: PASS on 24A5423a` — first on `1497cf01`, then RE-RUN on the FINAL bytes `7fc30bc2` after the final-review fix wave (same counts, no re-roll; logs `/tmp/427-gate-final.log`). Squash-merged as `42feed5d` (PR #431). Debug suite: Swift Testing **3218** tests, XCUITest **18** tests, `TEST SUCCEEDED`, 2 known-permanent skips (`CondenserFidelityTests`). Release build succeeded, no Swift compile errors, no `project.pbxproj` drift. First run, **no re-roll** (no `suite-reroll.log` in the gate's log directory). Count moved by exactly **+11** vs. main's last recorded baseline (3207 at the 425 lane's `GATE: PASS`, `OPEN_ITEMS.md:12342`; `git diff 5485ec8e..1be94d36 -- Talaria/ TalariaTests/` empty, so that baseline held to this branch's fork point) — exactly `RecoveryOwnershipTests`'s 11 tests. |
+
+**Task 0.** Fixture feasibility (read-only, no commits): `RunRecoveryClient`
+(`RunStatusRecoveryTests.swift`) is the correct fixture to extend — the other
+two candidate mocks (`AppStoresTests.LateInterruptClient`,
+`MessageQueueTerminalsTests.ManualStreamClient`) resolve their
+`resolveDroppedRun` synchronously off a flipped `Bool`/read var and cannot
+hold a pass open. **The founding hazard**, found by reading the protocol
+rather than assuming it: `HermesClientProtocol.openSession` is a real
+protocol *requirement* with an extension *default* that calls
+`loadConversation()`, which returns `currentConversation` — the last thread
+set. `RunRecoveryClient` did not implement `openSession` at all, so "open
+thread B" against it silently re-served thread A; any fixture built on it
+**must** override `openSession` explicitly or every 427 assertion comparing
+`store.conversation?.id == bID` would pass vacuously. Step 3 confirmed 427-E
+is reachable **behaviourally**, not just via a source witness: `runId:
+String?` flows unmodified from `.interrupted(sessionId:, runId: nil)` through
+`armPendingRunRecovery` into `PendingRun`, and five existing tests in
+`AppStoresTests.swift` already exercise exactly this shape, routing to the
+legacy `attemptSessionReconcile` leg. Step 3 also flagged for Task 2 that
+`attemptSessionReconcile` bypasses `settlePendingRun` entirely and has its own
+inline write (`ChatStore.swift:4360`, pre-lane numbering) and inline
+teardown — a guard added only to the shared `settlePendingRun`/
+`adoptRecoveredRun` path would **not** cover it, which is exactly why Task 2
+added an independent guard there. Step 4 confirmed the parked read and the
+`openSession` switch are two unrelated awaits on the same `@MainActor` store
+with no lock between them — architecturally guaranteed to interleave, not
+"surprisingly" free to.
+
+**Reviews.** Task 1's round-1 review (opus) raised three Important findings,
+all closed in fix round 1 (`34d6ab38`): **(1)** `.superseded` shared
+`.unrecoverable`'s loop exit and could reach the budget-expired tail when a
+second dropped run replaced `pendingRun` on the same thread while the first
+read was parked — fixed so the poll loop treats `.superseded` as "re-read
+`pendingRun` and continue," reaching the tail only via deadline or
+cancellation, pinned by
+`aReplacementRunOnTheSameThreadKeepsTheWatcherItInherited` (mutation MLOOP
+isolates). **(2)** `resolvedRunIDs.insert(runID)` fired on the superseded arm
+*before* the verdict was known, so a `.gone` verdict was recorded as resolved
+(falsifying the #237/#2475 comment that the insert records adoptions only) —
+fixed to insert only on a TERMINAL verdict (`.answered`/`.failed`/
+`.endedWithoutAnswer`), never `.gone`; the `:2475` comment amended in the same
+commit; pinned by `aSupersededGoneVerdictRecordsNothing` (mutation MGONE
+isolates). **(3)** the committed test file documented two mutations as
+"witnessed red" when, run as literally named, both came back green (nested
+guards), the superseded arm itself was pinned by no assertion, and the
+`conversationID` clause was unpinned (removable with no red) — fixed by
+correcting the mutation annotations to the measured M2/M3 forms and adding
+two new bars: `aSupersededTerminalVerdictStillDisarmsALateDuplicateInterrupt`
+(pins the post-await guard alone, isolated by mutation M1) and
+`aVerdictForARunWhoseThreadIsNoLongerShowingWritesNothingHere` (pins the
+`conversationID` clause, isolated by mutation MTHREAD). Task 1's fix-round
+re-review and Task 2's review both came back **Approved, 0 Important**.
+
+Deferred minors (verbatim from the ledger, `progress.md`): Task 1 round-1
+review — *"Conversation.id stability across same-thread refreshes unpinned
+(safe today: polling loadConversation is id-stable)"*. Task 1 re-review — *"a
+persistent .threadChanged miss with the SAME pending run still armed polls
+out the 600 s budget instead of ending the watch (reachable only via the
+legacy poll loop's mergeConversationMetadata id change at ~:4027 — the enum
+already makes 'continue only on .pendingRunReplaced' expressible);
+replacement runs inherit the incumbent loop's deadline (predates the fix;
+documented trade-off)"*. Task 2 review — *"(1) 427-F's mutation proves the SET
+not the bump — the isolating control (drop cancel/nil + the
+.pendingRunCleared arm, KEEP the bump → green; add the bump's removal → red)
+was stageable, contrary to the test's doc comment; (2) 427-D's 'gate still
+closed' assertion proves the test never released, not that the read was
+suspended (the cancelled park unwinds immediately) — doc overstates; (3)
+427-W boundary '\n    ///' ends at the NEXT doc comment, not the closing
+brace — a widened slice could pass on a neighbour's guard; harden by
+asserting no second 'func ' per slice; (4) 427-D is the suite's only
+wall-clock bar (1 s pump vs 4 s park; raise the pump limit, not the fixture,
+if it ever flakes); (5) a nil server response short-circuits the verdict to
+.keepPolling on both legs (pre-existing shape, benign — both doors nil
+pendingRun); (6) +94/−13 lines, ~11 executable"*.
+
+**Deviations from the plan.** (1) `ownership(for:)` uses **`pending.conversationID`**
+rather than the plan's sketch `conversation?.id` — provably equal at every
+arming site today, but it makes the token mean "the thread this run belongs
+to" rather than "whichever thread happened to be current when the pass
+started" (the actual destination question the defect is about), and it makes
+`PendingRun.conversationID` load-bearing rather than a dead field. (2) 427-F
+calls **`store.cancelStreaming()`**, not the brief's
+`cancelStreaming(hardStopHost: false)` — the brief's form is gated out before
+it can reach `abandonReconcileWindowOnStop` at all
+(`abandonsTheReconcileWindow = hardStopHost && streamingMessageID == nil &&
+pendingRun != nil`; only an explicit Stop, `hardStopHost: true`, abandons the
+window); Task 2's review confirmed the implementer's correction, not the
+brief, was right. (3) The `.notice` text deviates from the brief's single
+verbatim string — `recoveryStillOwned` became `recoveryOwnershipMiss(_:)`
+returning a `RecoveryOwnershipMiss` enum whose cases interpolate which clause
+actually refused ("the pass was cancelled" / "the recovery generation moved
+on" / "the thread changed" / "the pending run was cleared" / "the pending run
+was replaced"), because the brief's fixed phrase "arrived after the thread
+changed" is simply false on the same-thread-replacement arm 427-A's fix round
+introduced. (4) MD (427-D's mutation) is named as a **two-line pair**, not
+the brief's single named line — the single-line form was measured green in
+each direction (MDa, MDb) before the pair was adopted as the isolating unit,
+the same nested-guard lesson as 427-A/B's M2/M3. (5) `DroppedRunResolution.failed`
+takes an unlabelled `String`, not `.failed(text:)` as the plan and Task 0's
+own report wrote it — immaterial (no test in this lane constructs one), noted
+so nobody copies the wrong signature later. **(6) 427-D's bound is a
+DISCLOSED RELAXATION of a pre-registered figure** — added by the final fix
+wave (2026-09-05), which is when it was first written down rather than when it
+was first true. The bar was pre-registered as *"bounded: < 100 ms"*; the bar as
+run is **≤ 1 s** (`waitUntil(limit: 100)` = 100 pumps × 10 ms). The
+relaxation is defensible — 1 s against the fixture's 4 s park is still a 4×
+discriminator, and the measured GREEN returns in 0.028–0.062 s, an order of
+magnitude inside even the original figure — but a missed bar is a
+falsification, never a redefinition, so it is recorded as a deviation rather
+than reported as met. The bound was deliberately NOT tightened back: 100 ms
+would be the tightest wall-clock assertion in the suite on a Mac that
+routinely runs three lanes' simulators at once, and a bar that fails on host
+load teaches people to re-roll. The disclosure also lives in the test's own
+doc comment.
+
+**What this lane does NOT claim.** No device reproduction — every RED/GREEN
+pair above is a deterministic unit fixture (`GatedRecoveryClient`'s bounded
+park), which Task 0 argued is *stronger* evidence for an ordering defect than
+a timing-dependent device reproduction would be; the external audit's
+"timing reproduction needed" note is not discharged by a device run in this
+lane. `RecoveryOwnershipMiss.generationBumped` and 427-D/F's cancellation
+arms are **defence in depth pinned by argument, not by any bar** — both
+generation-bump sites (`abandonPendingRun`, `abandonReconcileWindowOnStop`)
+also cancel the in-flight task, and `recoveryOwnershipMiss` checks
+`Task.isCancelled` first, so `.passCancelled` wins on every path a fixture
+can currently drive; no test exercises the generation clause standing alone.
+`performReconcilePendingRuns`'s `.superseded` arm is likewise unreachable
+today (`armPendingRunRecovery` always starts a loop, so a replacement is
+never armed with no loop running) and is pinned by argument for a future
+caller shape, not by a bar. ~~427-F's mutation proves the Stop-path protection
+load-bearing **as a set** (three lines plus the token's own
+`.pendingRunCleared` clause) — it does not isolate the generation bump alone
+on that leg, which Task 2's review flagged and this lane did not attempt to
+close (the isolating control the reviewer sketched was judged stageable but
+was not built, per the deferred-minors list above).~~ **⟵ CORRECTED
+2026-09-05 (final fix wave): the control WAS built and run. `MFa` → GREEN,
+`MFb` → RED, so the generation bump IS isolated on the Stop leg. What is still
+pinned by argument alone is the narrower ordering the bump was written for — a
+token captured before Stop's `pendingRun` clear, on an unmutated tree — and
+`RecoveryOwnershipMiss.generationBumped` on the WALK-AWAY leg, where
+`Task.isCancelled` still wins first on every path a fixture can drive.
+
+---
 
 ## 428. 🔴 THE NATIVE VOICE RESTART CAN OUTLIVE SESSION SHUTDOWN — `restartTask` is never cancelled or joined, and the capture actor's start has no generation check after its awaits and before `installTap`/`engine.start` — a microphone that can go HOT after the UI says the session ended — **FILED 2026-09-04 (audit A3, P1; VERIFIED IN CODE; the #415 park path inherits it). ~~Plan owed~~ → PLAN WRITTEN 2026-09-04 (pointer block below); bars pre-register when the lane opens.**
 

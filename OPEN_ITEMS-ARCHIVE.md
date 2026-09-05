@@ -10725,6 +10725,8 @@ not, there is a fourth source.
 > silent, and leg (b) collapses the duplicates. If it is still >1, the ×N decomposition
 > (above) says where the extra came from.
 
+> **⟵ 📌 POINTER 2026-09-05 (#427, PR #431 → `42feed5d`; append-only):** "the reconcile-leg single-flight … stays" — it stays, and it is now also CANCELLED on walk-away and on Stop, with `recoveryGeneration` bumped beside it. The single-flight was correct as a coalescer and wrong as an owner: a pass coalesced onto it survived the thread switch and wrote into whichever conversation was current (audit A2). Tracker #427.**
+
 ## 216A. ✅ re-read #200F and #214's grab results in light of the substitution finding — RESOLVED 2026-08-02: #214 CONFIRMED a true zero; #200F evicted, permanently unresolved
 
 **FILED 2026-08-01** from the audit's unfiled-lanes list. **Analysis, not a device
@@ -19433,6 +19435,8 @@ it). NOT device-verified — sim suite only.
 > switch-chats and new-chat (2026-08-15), clear-conversation (2026-08-16).
 > Nothing remains open on this item.
 
+> **⟵ 📌 POINTER 2026-09-05 (#427, PR #431 → `42feed5d`; append-only, the bytes above are untouched):** the three teardowns this item reconciled cleared three different subsets — and a FOURTH thing none of them cleared was the run-recovery SINGLE-FLIGHT pass (`reconcileInFlight`, #226's coalescer). `openSession` → `abandonPendingRun` cancelled the polling LOOP (`reconcileTask`) but never the pass already awaiting `GET /v1/runs/{id}`, so a late answer for the departed thread landed in the arriving one (audit A2). From #427 both walk-away doors (`abandonPendingRun`, `abandonReconcileWindowOnStop`) also cancel `reconcileInFlight` and bump `recoveryGeneration`, and every write after the await checks a `RecoveryOwnership` token. Tracker #427.**
+
 ## 185. 🐛 `mergeAttachments` points every duplicate-filename attachment at the first local match — **✅ CLOSED 2026-08-16: the §F1 device row MET via iPhone Mirroring — two same-named PDFs, one turn, both contents distinct in pick order. Residue lives at #293(d). SWEPT TO ARCHIVE 2026-08-16.**
 
 > **✅ THE FIX IS ON MAIN — verified by code read 2026-08-10 (same check as
@@ -23520,6 +23524,7 @@ discovered later. Anchors resolved at `506a319`: `cancelStreaming`
 > board audit (ballot: `planning/2026-08-18-close-ballot.md`). Bars 321-A..F met (RED witnessed at `5c8fed7`), merged `024926f`, 321-B device-confirmed 08-11; the re-put obligation on ruling (a) lives in #328 bar 328-C, which now rides #368. Note: this lane's 2026-08-11 device-sitting block was misfiled under #326's entry — left in place verbatim, pointed at from both closes.
 > Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
 
+> **⟵ 📌 POINTER 2026-09-05 (#427, PR #431 → `42feed5d`; append-only):** the window Stop abandons now stays closed against a status read that was ALREADY IN FLIGHT when Stop landed — `abandonReconcileWindowOnStop` cancels `reconcileInFlight` and bumps `recoveryGeneration`, so the read's verdict is superseded and adopts nothing. One refinement to this item's "#237 records ADOPTIONS only" clause: a read in flight at Stop that comes back TERMINAL (answered/failed/ended-without-answer) records the run in `resolvedRunIDs` so a late duplicate interrupt is noise; a `.gone` verdict records nothing; Stop itself still writes no entry. The comment at the Stop site was amended in the same PR. Tracker #427.**
 
 ## 326. 🎲 `ThrowawayLiveActivityHarnessTests` is ~~SIMULATOR-DEPENDENT~~ **CONTENTION-DEPENDENT** — the same commit passes 5/5 on one sim and fails 2/5 on another, and it held a publish — **FILED 2026-08-11 from the wave-2 close-out gate. MEASURED with a discriminator, not inferred. → ✅ WORKED + CLOSED SAME DAY: **326-A/B/C/D/E ALL MET, `GATE: PASS — 2116 tests / 161 suites` (count deliberately unmoved; no tests added), no production code touched.** CORRECTED BY ITS OWN LANE: the two sims are indistinguishable on this axis (identical readings, both formerly-failing tests pass on both), and the measured mechanism is a five-slot ActivityKit budget shared PER APP across every suite in one parallel test host — a per-RUN condition, not a per-SIM one. `Activity.request` is the side that diverges; `areActivitiesEnabled` reads `true` everywhere measured. Full readings + the discarded inherited design in the WORKED block below.**
 
