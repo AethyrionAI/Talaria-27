@@ -164,6 +164,20 @@ final class ChatBackendRouter: HermesClientProtocol {
     /// place the user learns which one they are in.
     static let hostUnreachableReason = "Host unreachable — reconnect to open"
 
+    /// 425-D: the reason a dimmed remote-stub row carries during the WINDOW
+    /// between the interim paint and the host's answer.
+    ///
+    /// Deliberately NOT `hostUnreachableReason`, even though 425-D's brief
+    /// described the interim as "the failure-path shape". At interim time the
+    /// host has not failed — it has not been ASKED yet — and on a reachable
+    /// host it will answer in a few hundred milliseconds. Reusing the
+    /// unreachable wording would put a false alarm on screen for exactly as
+    /// long as a healthy host takes to reply, which is the "never flash a
+    /// WRONG state" constraint being broken by the fix that constraint was
+    /// written for. A row that says it is being checked, and then either
+    /// un-dims or names the timeout, is true at every instant.
+    static let hostPendingReason = "Contacting host…"
+
     init(
         hermes: any HermesClientProtocol,
         local: any HermesClientProtocol,
@@ -643,6 +657,12 @@ final class ChatBackendRouter: HermesClientProtocol {
     }
 
     func listSessions() async throws -> [HermesSessionInfo] {
+        try await listSessions(interim: nil)
+    }
+
+    func listSessions(
+        interim: (@MainActor ([HermesSessionInfo]) -> Void)?
+    ) async throws -> [HermesSessionInfo] {
         // #190: ONE unified list, sorted globally by recency — never two
         // lanes. The local store's sessions always participate; the Hermes
         // side contributes its live list while configured, and its last
@@ -667,6 +687,26 @@ final class ChatBackendRouter: HermesClientProtocol {
                 $0.asUnresumable(reason: Self.unresumableReason)
             }
             return Self.sortedByRecency(localSessions + stubs)
+        }
+        // 425-D: the half already on the phone goes out NOW, before the host
+        // is awaited. #425 stopped the local rows being thrown away by a host
+        // failure; this stops them being held hostage by its LATENCY — Owen's
+        // device pass (build 3257, 2026-09-04) watched a correct degraded
+        // shelf arrive ~20 s after an empty one, the local rows in hand the
+        // whole time. The stubs ride along dimmed with `hostPendingReason`
+        // rather than `hostUnreachableReason`: the host has not failed here,
+        // it has not been ASKED yet, and on a reachable host it answers in a
+        // few hundred milliseconds.
+        //
+        // At most ONE call, and never the answer: the returned list below is
+        // always the caller's last word, on every path out of this function
+        // (merged, degraded, or a rethrown cancellation whose caller keeps
+        // its last good list).
+        if let interim {
+            let pending = (remoteSessionStubs?() ?? []).map {
+                $0.asUnresumable(reason: Self.hostPendingReason)
+            }
+            interim(Self.sortedByRecency(localSessions + pending))
         }
         let hermesSessions: [HermesSessionInfo]
         do {

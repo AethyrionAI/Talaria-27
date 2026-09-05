@@ -383,6 +383,13 @@ struct LocalSessionHistoryTests {
         var listError: Error?
         var openError: Error?
         private(set) var openedIDs: [String] = []
+        /// 425-D: when set, `listSessions()` parks here — the window in which
+        /// an interim publication either happened or did not. Nil for every
+        /// pre-existing test, which therefore behaves exactly as before.
+        var listGate: ListGate?
+        /// Non-vacuity witness: an assertion made about the parked window is
+        /// only meaningful once the call has actually arrived.
+        private(set) var listCallCount = 0
 
         func connect() async {}
         func disconnect() async {}
@@ -403,6 +410,8 @@ struct LocalSessionHistoryTests {
         func clearConversation() async throws -> Conversation { Conversation(title: "Hermes") }
 
         func listSessions() async throws -> [HermesSessionInfo] {
+            listCallCount += 1
+            if let listGate { await listGate.park() }
             if let listError { throw listError }
             return sessions
         }
@@ -742,6 +751,318 @@ struct LocalSessionHistoryTests {
         """
         #expect(source.contains(expected),
                 "the not-configured branch of listSessions() changed; #425 was scoped to the host-FAILURE path only")
+    }
+
+    // MARK: - Router: the shelf paints the local half FIRST (425-D)
+    //
+    // 425 stopped the local rows being THROWN AWAY when the host list threw.
+    // Owen's device pass (build 3257, 2026-09-04 ~18:55) then showed the
+    // other half of the same defect: the correct degraded shelf arrived
+    // ~20 s late — "the shelf was EMPTY … and then, about the time it took
+    // to type the report, the rows appeared" — because `refreshSessions`
+    // awaits `loadSessions` awaits the router's MERGED list awaits the host's
+    // request timeout. The local rows are in hand from the first
+    // millisecond.
+
+    /// 425-D: a one-shot gate a `@MainActor` fixture parks on.
+    ///
+    /// `entered` is what makes an assertion about the parked window
+    /// non-vacuous: a test that asserted before the host call had even
+    /// started would be asserting about nothing. Bounded at 4 s on the same
+    /// rule `RecoveryOwnershipTests.park` follows — a gate a test forgets to
+    /// release must fail an explicit assertion, never hang the suite.
+    @MainActor
+    private final class ListGate {
+        private(set) var entered = false
+        private var released = false
+
+        func park() async {
+            entered = true
+            var pumps = 0
+            while !released, pumps < 400 {
+                try? await Task.sleep(for: .milliseconds(10))
+                pumps += 1
+            }
+        }
+
+        func release() { released = true }
+    }
+
+    /// Every interim list the client published, in order.
+    ///
+    /// A class rather than a captured local `var`, and the reason is NOT the
+    /// interim closure — that one is not `@Sendable` at all (the protocol is
+    /// `@MainActor`, so it never crosses isolation). It is that two of the
+    /// rows below build the closure INSIDE a `Task { }`, whose own closure IS
+    /// `@Sendable` and therefore cannot capture a mutable local. The `Latch`
+    /// shape `RecoveryOwnershipTests` uses, for the same reason.
+    @MainActor
+    private final class InterimLog {
+        var publications: [[HermesSessionInfo]] = []
+    }
+
+    /// Bounded pump. A condition that never becomes true must fail an
+    /// explicit assertion at the call site, never spin out the suite.
+    @MainActor
+    private func waitUntil(limit: Int = 400, _ condition: @MainActor () -> Bool) async {
+        var pumps = 0
+        while !condition(), pumps < limit {
+            try? await Task.sleep(for: .milliseconds(10))
+            pumps += 1
+        }
+    }
+
+    /// **425-D1, router half.** With the host's list still in flight, the
+    /// router has already published every local row plus the last host
+    /// snapshot, dimmed — and the merged list still replaces it when the host
+    /// answers.
+    ///
+    /// The gate is what makes this a bar rather than a coincidence: the
+    /// interim is asserted while the host call is PARKED, so no ordering can
+    /// be read into a lucky scheduling.
+    ///
+    /// Isolating mutation M-D1: delete the interim publication from
+    /// `ChatBackendRouter.listSessions(interim:)` → this row and
+    /// `chatStoreHandsTheInterimPublicationToItsCaller` red.
+    @Test @MainActor
+    func routerPublishesTheLocalHalfBeforeTheHostListResolves() async throws {
+        let hermes = ScriptedClient()
+        let local = ScriptedClient()
+        let gate = ListGate()
+        hermes.listGate = gate
+        hermes.sessions = [remoteInfo(id: "h-live", lastActive: Date(timeIntervalSince1970: 6_000))]
+        let localID = UUID().uuidString
+        local.sessions = [
+            HermesSessionInfo(
+                id: localID, title: "Local", preview: nil, model: "on-device",
+                source: "local", messageCount: 2,
+                lastActive: Date(timeIntervalSince1970: 4_000), isActive: false
+            ),
+        ]
+        let router = makeRouter(hermes: hermes, local: local, configured: true)
+        router.remoteSessionStubs = { [self.remoteInfo(id: "h-stub", lastActive: Date(timeIntervalSince1970: 5_000))] }
+
+        let observed = InterimLog()
+        let round = Task { @MainActor in
+            try await router.listSessions(interim: { observed.publications.append($0) })
+        }
+        await waitUntil { hermes.listCallCount == 1 && gate.entered }
+
+        #expect(hermes.listCallCount == 1,
+                "the host list never started — every assertion in this parked window would be vacuous")
+        #expect(gate.entered, "the host call is not parked; this test is not measuring the window it claims")
+        #expect(observed.publications.count == 1,
+                "the shelf must not wait on the host for rows the phone already has (Owen's 20 s empty shelf)")
+        let interim = try #require(observed.publications.first)
+        #expect(interim.map(\.id) == ["h-stub", localID],
+                "the interim is the local half, recency-sorted like any other list")
+        #expect(interim.first(where: { $0.id == localID })?.isResumable == true,
+                "a local row opens on the local backend — waiting on the host cannot make it unopenable")
+        let stub = try #require(interim.first)
+        #expect(stub.isResumable == false, "a host row is not openable until the host has answered")
+        #expect(stub.unresumableReason == ChatBackendRouter.hostPendingReason,
+                "the host has not failed yet — it has not been ASKED yet; the unreachable wording here would be a false alarm on every healthy launch")
+
+        gate.release()
+        let merged = try await round.value
+
+        #expect(merged.map(\.id) == ["h-live", localID],
+                "the merged list replaces the interim — the live host row, never the stub")
+        #expect(merged.allSatisfy { $0.isResumable }, "the interim's dimming does not survive a host that answered")
+        #expect(observed.publications.count == 1, "at most ONE interim per round")
+    }
+
+    /// **425-D1, composed half.** The seam the device actually rides:
+    /// `ChatStore.loadSessions` hands its caller's interim closure to the
+    /// router and hands back the merged list. A store that swallowed the
+    /// closure would leave every router-level row green and the shelf blank
+    /// for the host's timeout — the composed-path blind spot this project has
+    /// been bitten by four times.
+    ///
+    /// Isolating mutation M-D1: delete the interim publication → this row
+    /// reds (the store's own forwarding is what mutation M-D1b covers).
+    @Test @MainActor
+    func chatStoreHandsTheInterimPublicationToItsCaller() async throws {
+        let hermes = ScriptedClient()
+        let local = ScriptedClient()
+        let gate = ListGate()
+        hermes.listGate = gate
+        hermes.listError = StubError()          // the unreachable host of #425
+        let localID = UUID().uuidString
+        local.sessions = [
+            HermesSessionInfo(
+                id: localID, title: "Local", preview: nil, model: "on-device",
+                source: "local", messageCount: 2,
+                lastActive: Date(timeIntervalSince1970: 4_000), isActive: false
+            ),
+        ]
+        let router = makeRouter(hermes: hermes, local: local, configured: true)
+        router.remoteSessionStubs = { [self.remoteInfo(id: "h-stub", lastActive: Date(timeIntervalSince1970: 5_000))] }
+        let chatStore = ChatStore(hermesClient: router, persistence: makePersistence())
+
+        let observed = InterimLog()
+        let round = Task { @MainActor in
+            await chatStore.loadSessions(force: true, interim: { observed.publications.append($0) })
+        }
+        await waitUntil { hermes.listCallCount == 1 && gate.entered }
+
+        #expect(gate.entered, "the host call is not parked; this test is not measuring the window it claims")
+        #expect(observed.publications.map { $0.map(\.id) } == [["h-stub", localID]],
+                "the store must pass the interim through — swallowing it restores the 20 s blank shelf with every router test still green")
+
+        gate.release()
+        let final = await round.value
+
+        #expect(final.map(\.id) == ["h-stub", localID],
+                "an unreachable host still degrades to the #425 shape — the interim is a preview of it, not a replacement for it")
+        #expect(final.first?.unresumableReason == ChatBackendRouter.hostUnreachableReason,
+                "once the host has actually failed, the row names the timeout rather than the wait")
+        #expect(chatStore.lastLoadedSessions.map(\.id) == ["h-stub", localID],
+                "the FINAL list is the search corpus; an interim must never be cached as one")
+    }
+
+    /// **425-D3 (fix round 1).** A COLD load that is CANCELLED after the
+    /// interim was painted must not blank the shelf it just filled.
+    ///
+    /// The sequence the review found: blank → local rows appear (the interim)
+    /// → **blank again, "NO SESSIONS YET"**. `ChatStore.loadSessions`' catch
+    /// serves `lastLoadedSessions`, which on a launch that has not yet
+    /// completed one successful host list is `[]`, and `refreshSessions`
+    /// assigns the return unconditionally. The router degrades every host
+    /// failure EXCEPT a cancellation, so this is reachable exactly where a
+    /// `URLError(.cancelled)` comes back out of the single-profile path with
+    /// nobody having walked away.
+    ///
+    /// The rule is "the better of the two, never the emptier": a NON-EMPTY
+    /// `lastLoadedSessions` still wins — that is
+    /// `failedSessionsRefreshServesLastRealList`, unchanged — and only an
+    /// EMPTY one yields to an interim that was actually published.
+    ///
+    /// Isolating mutation: restore the bare `return lastLoadedSessions` →
+    /// this row reds and nothing else does.
+    @Test @MainActor
+    func aCancelledColdLoadServesTheInterimItAlreadyPainted() async throws {
+        let hermes = ScriptedClient()
+        let local = ScriptedClient()
+        hermes.listError = URLError(.cancelled)
+        let localID = UUID().uuidString
+        local.sessions = [
+            HermesSessionInfo(
+                id: localID, title: "Local", preview: nil, model: "on-device",
+                source: "local", messageCount: 2,
+                lastActive: Date(timeIntervalSince1970: 4_000), isActive: false
+            ),
+        ]
+        let router = makeRouter(hermes: hermes, local: local, configured: true)
+        router.remoteSessionStubs = { [self.remoteInfo(id: "h-stub", lastActive: Date(timeIntervalSince1970: 5_000))] }
+        let chatStore = ChatStore(hermesClient: router, persistence: makePersistence())
+        #expect(chatStore.lastLoadedSessions.isEmpty,
+                "the premise: a cold launch that has never completed a host list — without it this row measures nothing")
+
+        let observed = InterimLog()
+        let final = await chatStore.loadSessions(force: true, interim: { observed.publications.append($0) })
+
+        #expect(observed.publications.map { $0.map(\.id) } == [["h-stub", localID]],
+                "the interim was painted BEFORE the cancellation — that is what makes this the shelf-blanking case rather than an ordinary empty load")
+        #expect(final.map(\.id) == ["h-stub", localID],
+                "the shelf must keep the rows it just painted: returning [] here is blank → local rows → blank again, which is the defect wearing the fix's clothes")
+        #expect(final.first(where: { $0.id == localID })?.isResumable == true,
+                "and the local row it serves is the real one — a cancelled host cannot make an on-device thread unopenable")
+        #expect(chatStore.lastLoadedSessions.isEmpty,
+                "serving the interim is still not CACHING it: the search corpus stays a list a host actually answered")
+
+        // The other half of "not cached": a served interim must not stamp
+        // `lastSessionsLoadAt` either, or the next unforced load would answer
+        // from a 15 s snapshot no host ever produced. `lastSessionsLoadAt` is
+        // private, so this reads it the only honest way — by whether the next
+        // load reaches the client at all.
+        _ = await chatStore.loadSessions()
+        #expect(hermes.listCallCount == 2,
+                "the next unforced load must RETRY the host — an interim served on the throw path is not a snapshot")
+    }
+
+    /// **425-D1, source witness.** The drawer is the site that matters: a
+    /// store that publishes an interim nobody assigns fixes nothing. No
+    /// runtime test can reach `ChatScreen.refreshSessions` (a private method
+    /// on a SwiftUI `View`), so this reads the repo's own bytes — the
+    /// `RepoSourceWitness` idiom, failing loudly rather than vacuously.
+    ///
+    /// Isolating mutation M-D1b: drop the `interim:` argument from
+    /// `refreshSessions` → this row reds and nothing else does.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo's own sources — simulator only"))
+    func chatScreenRefreshSessionsConsumesTheInterimPublication() throws {
+        let path = "Talaria/Features/Chat/ChatScreen.swift"
+        let anchor = "private func refreshSessions(force: Bool = false) async {"
+        let whole = try RepoSourceWitness.source(path)
+        #expect(whole.components(separatedBy: anchor).count == 2,
+                "\(anchor) is not unique in \(path) — this pin cannot say which one it read")
+        let body = try RepoSourceWitness.functionBody(from: anchor, in: path, boundary: "\n    /// ")
+        #expect(!body.contains("func "),
+                "the slice swallowed a neighbour: the boundary stops at the next DOC COMMENT, so an undocumented neighbour could satisfy this pin instead")
+        #expect(body.contains("chatStore.loadSessions(force: force, interim:"),
+                "the drawer no longer consumes the interim publication — the local rows are held hostage by the host's timeout again (425-D)")
+        #expect(body.contains("sessionsModel.sessions.isEmpty"),
+                "the interim must be suppressed while the shelf already has rows; replacing a good list with a dimmed preview is the flicker 425-D forbids")
+        // Fix round 1: the two checks above pass a closure that PAINTS
+        // NOTHING. Deleting the assignment inside it — keeping the guard and
+        // the `interim:` argument — leaves the shelf blank for the host's
+        // full timeout with this pin still green, which is the defect itself.
+        // So pin the assignment: twice in the body (interim, then final), and
+        // the FIRST of them before the await, i.e. inside the closure.
+        let assignment = "sessionsModel.sessions = infos.map"
+        #expect(body.components(separatedBy: assignment).count - 1 == 2,
+                "refreshSessions must assign the shelf TWICE — once from the interim, once from the return; one assignment means the closure it passes paints nothing")
+        let firstAssignment = try #require(body.range(of: assignment)?.lowerBound,
+                                           "no shelf assignment at all in refreshSessions")
+        let hostAwait = try #require(body.range(of: "await chatStore.loadSessions(force: force, interim:")?.lowerBound,
+                                     "no awaited load in refreshSessions")
+        #expect(firstAssignment < hostAwait,
+                "the interim's assignment must sit INSIDE the closure, BEFORE the host is awaited — an assignment that runs only after the await is the 20 s blank shelf again")
+    }
+
+    /// **425-D2.** A REACHABLE host's FINAL list is what it was before this
+    /// lane: the same ids in the same order with the same resumable flags,
+    /// and the same single snapshot write. The interim is visibly NOT that
+    /// list, which is what makes the mutation isolate.
+    ///
+    /// Isolating mutation M-D2: return the interim list as the answer (skip
+    /// the merge) → this row reds.
+    @Test @MainActor
+    func reachableHostFinalListIsUnchangedByTheInterimPublication() async throws {
+        let hermes = ScriptedClient()
+        let local = ScriptedClient()
+        hermes.sessions = [
+            remoteInfo(id: "h-a", lastActive: Date(timeIntervalSince1970: 6_000)),
+            remoteInfo(id: "h-b", lastActive: Date(timeIntervalSince1970: 1_500)),
+        ]
+        let localID = UUID().uuidString
+        local.sessions = [
+            HermesSessionInfo(
+                id: localID, title: "Local", preview: nil, model: "on-device",
+                source: "local", messageCount: 1,
+                lastActive: Date(timeIntervalSince1970: 3_000), isActive: false
+            ),
+        ]
+        let router = makeRouter(hermes: hermes, local: local, configured: true)
+        var recordedCalls: [[HermesSessionInfo]] = []
+        router.recordRemoteSessions = { recordedCalls.append($0) }
+        router.remoteSessionStubs = { [self.remoteInfo(id: "h-stale", lastActive: Date(timeIntervalSince1970: 9_000))] }
+
+        let observed = InterimLog()
+        let merged = try await router.listSessions(interim: { observed.publications.append($0) })
+
+        #expect(merged.map(\.id) == ["h-a", localID, "h-b"],
+                "a reachable host keeps the #190 merge exactly as it was — the interim is a paint, not an answer")
+        #expect(merged.map(\.isResumable) == [true, true, true], "nothing dims once the host has answered")
+        #expect(merged.map(\.unresumableReason) == [nil, nil, nil], "and no row carries a reason it no longer has")
+        #expect(recordedCalls.count == 1, "one live list, one snapshot write — the interim is not a snapshot")
+        #expect(recordedCalls.first?.map(\.id) == ["h-a", "h-b"])
+
+        let interim = try #require(observed.publications.first, "the interim still fires on the reachable path — it cannot know yet")
+        #expect(interim.map(\.id) == ["h-stale", localID],
+                "the interim is the stale snapshot plus the local rows, which is exactly why it must not be the answer")
+        #expect(interim.map(\.isResumable) == [false, true])
     }
 
     @Test @MainActor

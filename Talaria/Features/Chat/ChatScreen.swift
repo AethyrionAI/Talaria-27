@@ -555,8 +555,29 @@ struct ChatScreen: View {
     /// independent views mount around launch and each used to fetch — while
     /// anything that opened, cleared or created a session fetches for real.
     private func refreshSessions(force: Bool = false) async {
-        let infos = await chatStore.loadSessions(force: force)
         let activeProfileID = container.profilesStore?.activeProfileID
+        // 425-D: while the shelf is BLANK, paint the half already on the
+        // phone the moment the router has it. `loadSessions` cannot answer
+        // until the HOST has, and an unreachable host answers with a request
+        // timeout — the 2026-09-04 device pass watched a correct shelf appear
+        // twenty seconds after an empty one, with every local row in hand the
+        // whole time. The interim is a PREVIEW: the assignment below always
+        // supersedes it.
+        //
+        // Suppressed once the shelf HAS rows, and the check lives INSIDE the
+        // closure rather than around it because a concurrent load can fill
+        // the shelf in between. The interim is strictly worse than a list
+        // already on screen (host rows dimmed to "Contacting host…"), so
+        // publishing it over one would be a dim-then-un-dim flicker on every
+        // forced refresh against a healthy host — the wrong state this fix is
+        // forbidden to flash.
+        let interim: @MainActor ([HermesSessionInfo]) -> Void = { [sessionsModel] infos in
+            guard sessionsModel.sessions.isEmpty else { return }
+            sessionsModel.sessions = infos.map {
+                Self.sessionSummary(from: $0, activeProfileID: activeProfileID)
+            }
+        }
+        let infos = await chatStore.loadSessions(force: force, interim: interim)
         sessionsModel.sessions = infos.map {
             Self.sessionSummary(from: $0, activeProfileID: activeProfileID)
         }

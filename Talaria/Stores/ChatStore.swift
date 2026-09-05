@@ -699,10 +699,21 @@ final class ChatStore {
     /// (`abandonPendingRun`) therefore clears it too, which deliberately
     /// preserves today's walk-away behavior — this lane changes COLD LAUNCH
     /// classification only.
+    /// #427 follow-up (2026-09-05): the thread id comes from the TOKEN, not
+    /// from whichever conversation happens to be live when the record is
+    /// written. They are equal at every arming site today — two set
+    /// `conversationID: conversation?.id`, the cold-load restore sets
+    /// `record.conversationID` behind a guard that has just proven the
+    /// equality — so this is a single-sourcing, not a bug fix. It matters
+    /// because this id is exactly what `restorePendingRunFromRecordIfPossible`
+    /// CHECKS on the next cold launch: a record that learned its thread from
+    /// anywhere but the run's own token is #427's ownership guard pointed at
+    /// itself. Pinned by
+    /// `RecoveryOwnershipTests.theDurableRunRecordTakesItsThreadIDFromThe…`.
     private var pendingRun: PendingRun? {
         didSet {
             if let pending = pendingRun, let runId = pending.runId,
-               let conversationID = conversation?.id {
+               let conversationID = pending.conversationID {
                 persistence.savePendingRunRecord(PendingRunRecord(
                     sessionId: pending.sessionId,
                     runId: runId,
@@ -3817,15 +3828,49 @@ final class ChatStore {
     /// `sessionsSnapshotTTL` (#175). Pass `force: true` after anything that
     /// changed the list server-side — a stale count there would be a lie, not
     /// a saved request.
-    func loadSessions(force: Bool = false) async -> [HermesSessionInfo] {
+    ///
+    /// 425-D: `interim` is a conduit, nothing more. The client publishes the
+    /// half already on the phone through it before awaiting the host, and
+    /// this store deliberately does NOTHING else with that list — it is not
+    /// written to `lastLoadedSessions` (the search corpus stays a list a host
+    /// actually answered, or the honest degraded one the router returns),
+    /// does not stamp `lastSessionsLoadAt` (an interim must never satisfy the
+    /// #175 TTL), and does not fire `onSessionsLoaded` (Spotlight is donated
+    /// once, from the final list). The snapshot path below returns without
+    /// calling it at all: an answer already in hand needs no preview of
+    /// itself.
+    ///
+    /// One thing it does remember, and only for the duration of THIS call:
+    /// the interim it forwarded, so that a throw on a launch which has no
+    /// real list yet returns those rows instead of `[]` (fix round 1 — the
+    /// reasoning is at the catch below).
+    func loadSessions(
+        force: Bool = false,
+        interim: (@MainActor ([HermesSessionInfo]) -> Void)? = nil
+    ) async -> [HermesSessionInfo] {
         if !force,
            let loadedAt = lastSessionsLoadAt,
            Date.now.timeIntervalSince(loadedAt) < Self.sessionsSnapshotTTL {
             chatLog.verbose("loadSessions: served \(lastLoadedSessions.count) from snapshot (#175)")
             return lastLoadedSessions
         }
+        // 425-D (fix round 1): a LOCAL, never a stored property. A store that
+        // kept an interim between rounds would be exactly the cache this
+        // method is careful not to become; this one dies with the call, and
+        // its only reader is the catch below, which needs to tell "rows were
+        // already painted" from "nothing was".
+        var painted: [HermesSessionInfo]?
+        let forwarded: (@MainActor ([HermesSessionInfo]) -> Void)?
+        if let interim {
+            forwarded = { infos in
+                painted = infos
+                interim(infos)
+            }
+        } else {
+            forwarded = nil
+        }
         do {
-            let sessions = try await hermesClient.listSessions()
+            let sessions = try await hermesClient.listSessions(interim: forwarded)
             chatLog.verbose("loadSessions: got \(sessions.count) sessions")
             lastLoadedSessions = sessions
             lastSessionsLoadAt = .now
@@ -3857,6 +3902,28 @@ final class ChatStore {
             // specifically so a dismissed sheet cannot overwrite a good list
             // with a dimmed one — plus any local-side or programming failure.
             // For those the snapshot-preserving behaviour below is unchanged.
+            //
+            // 425-D: an interim may ALREADY have been published on this path
+            // — the router publishes before it awaits the host, so before it
+            // can know the round will be cancelled — and the caller assigns
+            // whatever this returns, unconditionally. So the rule here is the
+            // BETTER of the two, never the emptier.
+            //
+            // A non-empty `lastLoadedSessions` still wins, exactly as before:
+            // it is a list a host actually answered, and stale-but-real beats
+            // a preview (#190B). But on a COLD launch it is `[]`, and
+            // returning that over rows the caller has just painted reads on
+            // screen as blank → local rows → blank again, "NO SESSIONS YET" —
+            // this fix re-creating the defect it was written for, in the one
+            // window the router still rethrows through (a cancellation, or a
+            // local-side failure). Neither branch caches anything:
+            // `lastLoadedSessions` and `lastSessionsLoadAt` stay untouched, so
+            // the next unforced load still retries the host rather than
+            // serving a snapshot no host produced.
+            if lastLoadedSessions.isEmpty, let painted {
+                chatLog.error("loadSessions: FAILED — \(error.localizedDescription, privacy: .public); no real list yet — keeping the \(painted.count) interim row(s) already painted")
+                return painted
+            }
             chatLog.error("loadSessions: FAILED — \(error.localizedDescription, privacy: .public); serving \(self.lastLoadedSessions.count) from the last real list")
             return lastLoadedSessions
         }
