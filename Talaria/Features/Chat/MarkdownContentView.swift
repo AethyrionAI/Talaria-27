@@ -2,9 +2,14 @@ import Photos
 import SwiftUI
 
 /// Renders message content with inline markdown formatting, fenced code blocks,
-/// inline images, headings, block quotes, lists, and pipe tables. Images from
-/// markdown (`![alt](url)`) are rendered as tappable async-loaded previews that
-/// open in a fullscreen viewer.
+/// inline images, headings, block quotes, lists, and pipe tables.
+///
+/// Images from markdown (`![alt](url)`) render through `RemoteImageView`, which
+/// fetches NOTHING until the reader taps the placeholder naming the host
+/// (#429). Once approved and loaded, the image is tappable and opens in a
+/// fullscreen viewer. Both sites — the inline preview and `ImageViewerScreen`
+/// — go through that one view; there is no `AsyncImage` in this app, because
+/// it fetches at render and cannot be gated.
 struct MarkdownContentView: View {
     let content: String
     let isStreaming: Bool
@@ -157,46 +162,13 @@ struct MarkdownContentView: View {
 
     // MARK: - Inline Image
 
+    /// The tap that opens the fullscreen viewer is `onOpen`, and it is
+    /// reachable only once the image has been approved and loaded — the
+    /// placeholder's own tap grants consent instead (#429). That is why there
+    /// is no `Button` here any more: one wrapping the placeholder would make
+    /// the first tap open a viewer for bytes nobody has agreed to fetch.
     private func inlineImageView(url: URL, altText: String, segment: MarkdownSegment) -> some View {
-        Button {
-            fullscreenSegment = segment
-        } label: {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxWidth: 260, maxHeight: 200)
-                        .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.md))
-
-                case .failure:
-                    HStack(spacing: Design.Spacing.xxs) {
-                        Image(systemName: "photo.badge.exclamationmark")
-                            .font(.caption)
-                        Text(altText.isEmpty ? "Image failed to load" : altText)
-                            .font(Design.Typography.caption)
-                    }
-                    .foregroundStyle(Design.Colors.secondaryForeground)
-                    .padding(Design.Spacing.sm)
-                    .background(Design.Colors.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: Design.CornerRadius.md))
-
-                case .empty:
-                    RoundedRectangle(cornerRadius: Design.CornerRadius.md)
-                        .fill(Design.Colors.surface)
-                        .frame(width: 200, height: 140)
-                        .overlay {
-                            ProgressView()
-                                .tint(Design.Colors.secondaryForeground)
-                        }
-
-                @unknown default:
-                    EmptyView()
-                }
-            }
-        }
-        .buttonStyle(.plain)
+        RemoteImageView(url: url, altText: altText, mode: .inline, onOpen: { fullscreenSegment = segment })
     }
 }
 
@@ -319,32 +291,7 @@ struct ImageViewerScreen: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .ignoresSafeArea()
-
-                case .failure:
-                    VStack(spacing: Design.Spacing.md) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.largeTitle)
-                            .foregroundStyle(.secondary)
-                        Text("Failed to load image")
-                            .foregroundStyle(.secondary)
-                    }
-
-                case .empty:
-                    ProgressView()
-                        .tint(.white)
-                        .scaleEffect(1.5)
-
-                @unknown default:
-                    EmptyView()
-                }
-            }
+            RemoteImageView(url: url, altText: altText, mode: .fullscreen)
         }
         .overlay(alignment: .topTrailing) {
             Button { dismiss() } label: {

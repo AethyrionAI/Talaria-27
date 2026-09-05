@@ -130,8 +130,10 @@ private func splitProseAndImages(_ text: String) -> [MarkdownSegment] {
         }
 
         // If it's in image syntax (![alt](url) or <img src="url">), treat it
-        // as an image unconditionally. AsyncImage handles the load; if the URL
-        // isn't actually an image, the failure state shows alt text gracefully.
+        // as an image unconditionally. It renders as a placeholder naming the
+        // host, fetched only when the reader taps it (RemoteImageView, #429);
+        // if the URL isn't actually an image, the failure state shows alt
+        // text gracefully.
         if let url = URL(string: img.url), url.scheme == "http" || url.scheme == "https" {
             segments.append(.image(url: url, altText: img.alt))
         } else {
