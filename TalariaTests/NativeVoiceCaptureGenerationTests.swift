@@ -47,12 +47,19 @@ struct NativeVoiceCaptureGenerationTests {
     final class ParkedAssembler: SpeechAnalysisAssembling, @unchecked Sendable {
         private let lock = NSLock()
         private var entered = false
+        private var entryCount = 0
         private var released = false
         private var resourcesReleased = false
 
         /// True from the moment `assemble` is entered until `release()`.
         var isParked: Bool { lock.withLock { entered && !released } }
         var didEnter: Bool { lock.withLock { entered } }
+        /// How many starts have reached the suspension point. `isParked` cannot
+        /// answer "did a SECOND start get here too" — it is one boolean for the
+        /// whole fixture — and the newer-start row below needs exactly that
+        /// fact before it releases, or it releases the first start while the
+        /// second has not yet run its leading `stop()`.
+        var enterCount: Int { lock.withLock { entryCount } }
         /// Flipped by the assembly's OWN release hook — the single mechanism
         /// the actor uses both for a superseded start (which never adopts the
         /// assembly) and for `stop()` (which releases the one it adopted).
@@ -61,7 +68,10 @@ struct NativeVoiceCaptureGenerationTests {
         func release() { lock.withLock { released = true } }
 
         func assemble(inputFormat: AVAudioFormat) async throws -> SpeechAnalysisAssembly {
-            lock.withLock { entered = true }
+            lock.withLock {
+                entered = true
+                entryCount += 1
+            }
             // Bounded: 400 × 10 ms ≈ 4 s, then it gives up and returns rather
             // than parking forever.
             for _ in 0..<400 where !(lock.withLock { released }) {
@@ -114,13 +124,13 @@ struct NativeVoiceCaptureGenerationTests {
         let start = await parkedStart(controller, assembler)
         #expect(assembler.isParked, "fixture never reached the suspension point — the assertions below would be vacuous")
 
-        await controller.stop()                       // the interleaved teardown
+        await controller.stop(origin: .teardown)      // the interleaved teardown
         assembler.release()
 
         do {
             _ = try await start.value
             Issue.record("a start whose generation moved must not return a stream")
-        } catch NativeVoiceCaptureController.CaptureError.superseded(let point) {
+        } catch NativeVoiceCaptureController.CaptureError.superseded(let point, _) {
             #expect(point == "assembled")
         } catch NativeVoiceCaptureController.CaptureError.noAudioInput {
             Issue.record("the start ran on into the install stretch — the capture generation did not supersede it")
@@ -158,7 +168,7 @@ struct NativeVoiceCaptureGenerationTests {
             Issue.record("the sim cannot start the engine; a stream here means the format gate moved")
         } catch NativeVoiceCaptureController.CaptureError.noAudioInput {
             // Expected on CC-lane-*: inputNode reports 0 Hz (#428 Task 0(b) probe 2).
-        } catch NativeVoiceCaptureController.CaptureError.superseded(let point) {
+        } catch NativeVoiceCaptureController.CaptureError.superseded(let point, _) {
             Issue.record("nothing stopped this start, yet it was superseded at \(point)")
         } catch {
             Issue.record("expected .noAudioInput, got \(error)")
@@ -174,7 +184,7 @@ struct NativeVoiceCaptureGenerationTests {
         )
 
         // …and it IS the same hook: one release mechanism, not two copies.
-        await controller.stop()
+        await controller.stop(origin: .teardown)
         for _ in 0..<200 where !assembler.didReleaseResources {
             try? await Task.sleep(for: .milliseconds(10))
         }
@@ -184,7 +194,170 @@ struct NativeVoiceCaptureGenerationTests {
         )
     }
 
+    // MARK: - 436-A (the controller half): the supersession carries its ORIGIN
+
+    /// **436-A, part 1 of 2.** #428's ticket said THAT the generation moved;
+    /// #436 needs it to say WHO moved it, because the two ends of that fact are
+    /// opposite instructions — a teardown buys silence (#428 ruling 2) and a
+    /// bare stop on a live session owes a repair.
+    ///
+    /// This is the provenance half, measured on the REAL
+    /// `NativeVoiceCaptureController` through the same parking-assembler seam
+    /// as the bar above. The SERVICE half (does a live session actually get
+    /// repaired?) is `NativeVoiceRestartTeardownTests`, and it cannot be run
+    /// against this controller: on `CC-lane-*` the input node reports 0 Hz, so
+    /// a start that is NOT superseded dies with `.noAudioInput` and the
+    /// pipeline can never reach `.connected` behind a real controller (#428
+    /// Task 0(b) probe 2). Two halves, two fixtures, and this one is what makes
+    /// the other's fake faithful rather than convenient.
+    ///
+    /// The isolating mutation for both halves is the same: make `checkTicket`
+    /// throw a constant `.teardown` (drop the origin) and this row reds here,
+    /// where the fake cannot flatter it.
+    @Test func aBareStopSupersedesTheStartWithTheBareStopOrigin() async throws {
+        let assembler = ParkedAssembler()
+        let controller = NativeVoiceCaptureController(assembler: assembler)
+        let start = await parkedStart(controller, assembler)
+        #expect(assembler.isParked, "fixture never reached the suspension point — the assertions below would be vacuous")
+
+        // The #436 trace's own stop: the analyzer's failure path calls
+        // `stop(origin: .bareStop)` on a session nobody is tearing down.
+        await controller.stop(origin: .bareStop)
+        assembler.release()
+
+        do {
+            _ = try await start.value
+            Issue.record("a start whose generation moved must not return a stream")
+        } catch NativeVoiceCaptureController.CaptureError.superseded(let point, let origin) {
+            #expect(point == "assembled")
+            #expect(
+                origin == .bareStop,
+                "the supersession must carry the origin of the stop that caused it, or the restart path cannot tell a live-session stop from a teardown (#436)"
+            )
+        } catch {
+            Issue.record("expected .superseded(point: \"assembled\", origin: .bareStop), got \(error)")
+        }
+    }
+
+    /// The discriminating twin. Same fixture, same park, a TEARDOWN-origin stop
+    /// — and the origin that comes back must differ. Without this arm the row
+    /// above would pass on a controller that hardcoded `.bareStop`, which is
+    /// the mirror image of the mutation it is defended against.
+    @Test func aTeardownStopSupersedesTheStartWithTheTeardownOrigin() async throws {
+        let assembler = ParkedAssembler()
+        let controller = NativeVoiceCaptureController(assembler: assembler)
+        let start = await parkedStart(controller, assembler)
+        #expect(assembler.isParked, "fixture never reached the suspension point — the assertions below would be vacuous")
+
+        await controller.stop(origin: .teardown)
+        assembler.release()
+
+        do {
+            _ = try await start.value
+            Issue.record("a start whose generation moved must not return a stream")
+        } catch NativeVoiceCaptureController.CaptureError.superseded(_, let origin) {
+            #expect(
+                origin == .teardown,
+                "a teardown-caused supersession must say so — silence is only correct because of this (#428 ruling 2, #436)"
+            )
+        } catch {
+            Issue.record("expected .superseded(origin: .teardown), got \(error)")
+        }
+    }
+
+    /// **Last writer wins, and it is the rule the service's belts are built
+    /// on.** Two stops interleave with one parked start; the origin the start
+    /// resumes with is the LATER one. A teardown that lands after a bare stop
+    /// owns the pipeline whatever ran before it — which is exactly the case
+    /// where a repair would repaint a session that is going away.
+    @Test func theOriginIsTheLastStopsNotTheFirsts() async throws {
+        let assembler = ParkedAssembler()
+        let controller = NativeVoiceCaptureController(assembler: assembler)
+        let start = await parkedStart(controller, assembler)
+        #expect(assembler.isParked, "fixture never reached the suspension point — the assertions below would be vacuous")
+
+        await controller.stop(origin: .bareStop)
+        await controller.stop(origin: .teardown)
+        assembler.release()
+
+        do {
+            _ = try await start.value
+            Issue.record("a start whose generation moved must not return a stream")
+        } catch NativeVoiceCaptureController.CaptureError.superseded(_, let origin) {
+            #expect(
+                origin == .teardown,
+                "the LAST stop owns the pipeline; reporting the first would repair a session that is being torn down (#436)"
+            )
+        } catch {
+            Issue.record("expected .superseded(origin: .teardown), got \(error)")
+        }
+    }
+
+    /// **The `.restart` origin's own provenance row** (fix round 1, Important
+    /// 2). The three rows above all stage their origin with an explicit
+    /// `controller.stop(origin:)`, so none of them can see the OTHER writer of
+    /// `lastStopOrigin`: `start(muted:)`'s own leading `stop(origin: .restart)`.
+    /// That one line is the whole discriminator that keeps the #82 thrash
+    /// guard shut — re-arming behind a start that is installing its own chain
+    /// is the thrash — and mutating it to `.bareStop` passed every row in the
+    /// project, because the service-level rows stage an explicit stop AFTER
+    /// their park (overwriting the slot) and the service-level fake never had a
+    /// leading stop at all.
+    ///
+    /// So this row stages the origin with NO stop of its own. The only thing
+    /// that moves the generation is the second start's leading stop, which is
+    /// synchronous — it runs before `start(muted:)`'s single suspension point,
+    /// which is why a second start can supersede a parked first one at all.
+    ///
+    /// The `enterCount >= 2` wait is load-bearing, not decorative — though not
+    /// for the reason once written here. Releasing before the second start has
+    /// reached the assembler cannot make A's OWN leading stop the last writer:
+    /// A's ticket is taken AFTER A's own leading stop, so without a SECOND
+    /// leading stop the generation never moves at all, A's `checkTicket` never
+    /// throws `.superseded`, and the row would fail its `Issue.record` rather
+    /// than pass. What the wait actually guards against is releasing before B
+    /// has run ITS leading stop — the only other writer of `lastStopOrigin` —
+    /// which would leave the mismatch (and thus the throw) never happening.
+    @Test func aNewerStartSupersedesAParkedStartWithTheRestartOrigin() async throws {
+        let assembler = ParkedAssembler()
+        let controller = NativeVoiceCaptureController(assembler: assembler)
+        let first = await parkedStart(controller, assembler)
+        #expect(assembler.isParked, "fixture never reached the suspension point — the assertions below would be vacuous")
+
+        let second = Task { _ = try? await controller.start(muted: false) }
+        var secondArrived = false
+        for _ in 0..<300 where !secondArrived {
+            secondArrived = assembler.enterCount >= 2
+            if !secondArrived { try? await Task.sleep(for: .milliseconds(10)) }
+        }
+        #expect(
+            secondArrived,
+            "the second start never reached the assembler, so its leading stop cannot be what this row measures"
+        )
+
+        assembler.release()
+
+        do {
+            _ = try await first.value
+            Issue.record("a start whose generation moved must not return a stream")
+        } catch NativeVoiceCaptureController.CaptureError.superseded(_, let origin) {
+            #expect(
+                origin == .restart,
+                "a start superseded by a NEWER START must carry .restart — a rebuild is already under way, and re-arming behind it is the #82 thrash (#436)"
+            )
+        } catch {
+            Issue.record("expected .superseded(origin: .restart), got \(error)")
+        }
+
+        // The second start runs on into the install stretch and dies on this
+        // host's 0 Hz input node; drain it so no work outlives the test.
+        await second.value
+        await controller.stop(origin: .teardown)
+    }
+
     // The abandoned-start line's own text is pinned in
     // `VoiceInstrumentLogLineTests` (#428), where every voice log-line
-    // formatter pin lives — one home, not two.
+    // formatter pin lives — one home, not two. #436 deliberately does NOT
+    // change that line: the origin decides what the SERVICE does, and the
+    // service's own live-session line is where it is named.
 }
