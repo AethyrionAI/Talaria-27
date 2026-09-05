@@ -95,6 +95,12 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     private var captureTask: Task<Void, Never>?
     /// Serializes route/interruption capture restarts (see restartCapture).
     private var restartTask: Task<Void, Never>?
+    /// #428 (428-A): true for exactly as long as the restart task's BODY is
+    /// running. `restartTask != nil` is not the same fact — the handle is set
+    /// before the body starts and cleared only when `restartCapture` resumes —
+    /// and the join needs the body's own liveness. Set where the task is
+    /// created; cleared by the body's `defer`, so no early return can leak it.
+    private var restartInFlight = false
     /// Sliding window of restart timestamps feeding the thrash breaker.
     private var recentCaptureRestarts: [Date] = []
     private var endpointTask: Task<Void, Never>?
@@ -321,6 +327,15 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         isConfiguringAudioSession = true
         do {
             let stream = try await capture.start(muted: isMuted)
+            // #428 (428-A): the session ended while `start` was awaiting. Do
+            // not adopt the stream — hand the capture stack straight back
+            // rather than leave a live tap behind a finished shutdown. The
+            // throw lands in this method's own `catch` below, which gives the
+            // configuration gate back too (this attempt armed it).
+            guard !isEndingSession else {
+                await capture.stop()
+                throw CancellationError()
+            }
             captureTask = Task { @MainActor [weak self] in
                 for await event in stream {
                     guard let self, !self.isEndingSession else { return }
@@ -378,19 +393,72 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             statusMessage = blockedReason
             return
         }
+        restartInFlight = true
         let task = Task { @MainActor [weak self] in
+            // #428 (428-A): cleared on EVERY exit — the guards below are early
+            // returns, and a join that polls a flag no early return clears
+            // would wait out its whole bound every time.
+            defer { self?.restartInFlight = false }
             guard let self else { return }
             self.captureTask?.cancel()
             self.captureTask = nil
             await self.capture.stop()
+            // #428 (428-A): a teardown arrived while we were inside
+            // `capture.stop()`. It owns the pipeline now — rebuild nothing.
+            guard !self.isEndingSession, !Task.isCancelled else {
+                Self.logger.notice("capture restart abandoned before rebuild — the session is ending (#428)")
+                return
+            }
             do {
                 try await self.beginCapture()
+                // Belt behind the guard inside `beginCapture()`. **Today it
+                // cannot fire, and that is a fact about the code rather than a
+                // claim about the world:** nothing suspends between that guard
+                // and this line (the two `Task { }` creations there are
+                // synchronous), so on the MainActor no teardown can interleave
+                // between them. It is here because it becomes live the moment
+                // anyone adds an `await` to that stretch — the cheap half of
+                // "STOP FIRST" — and because the cost of being wrong about
+                // which of the two notices first is a live tap behind a
+                // finished shutdown. Its `.notice` is what would witness it.
+                if self.isEndingSession {
+                    Self.logger.notice("capture restart rebuilt into an ending session — handing the capture stack back (#428)")
+                    await self.capture.stop()
+                    return
+                }
                 if self.voiceState == .interrupted {
                     self.voiceState = .listening
                     self.statusMessage = "Listening"
                 }
+            } catch NativeVoiceCaptureController.CaptureError.superseded {
+                // #428 (428-C): a newer teardown — or a newer start — owns the
+                // pipeline now. This restart installed nothing and must claim
+                // nothing: no `.failed`, no "Audio capture could not resume.",
+                // no state write at all, and NOT a re-arm.
+                //
+                // The no-re-arm half is the ruling from Task 2's review: when
+                // the supersession came from the old analyzer's own failure
+                // path calling `stop()`, that path's `.failed` event is what
+                // paints the state, and a retry here would clobber it and
+                // start the #82 thrash the breaker above exists to stop.
+                //
+                // Silent means silent about STATE — the controller already
+                // logged the abandonment at `.notice` where it happened, so a
+                // second line here would only duplicate it.
+                //
+                // Nothing touches `isConfiguringAudioSession` on this path: the
+                // start that superseded us may already have armed the gate, and
+                // clearing it from here would open a window the 750 ms cooldown
+                // is holding shut.
+                return
             } catch {
                 Self.logger.warning("capture restart failed: \(error.localizedDescription, privacy: .public)")
+                // #428 (428-C): a restart that fails on the far side of a
+                // teardown must not repaint a session that is already gone.
+                // Reachable when the join's 3 s bound elapses and the straggler
+                // lands afterwards — teardown has finished, so this paint would
+                // be the last writer.
+                guard !self.isEndingSession else { return }
                 self.connectionState = .failed
                 self.voiceState = .disconnected
                 self.statusMessage = "Audio capture could not resume."
@@ -401,7 +469,36 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         restartTask = nil
     }
 
+    /// #428 (428-A): cancel the in-flight capture restart and WAIT for it to
+    /// leave — bounded, because a shutdown the user is waiting on must not be
+    /// hostage to a capture stack that has stopped answering.
+    ///
+    /// Polling, not `await restartTask?.value`: a non-throwing `Task.value`
+    /// cannot be timeout-raced (a `TaskGroup` around it hangs on the stranded
+    /// waiter), which is the house rule this method exists to respect.
+    ///
+    /// Past the bound we proceed rather than block. That is safe, not merely
+    /// pragmatic: teardown's own `await capture.stop()` runs immediately after
+    /// and bumps the capture generation, so a straggler either finds its ticket
+    /// stale and installs nothing (Task 2's 428-B) or has already installed a
+    /// tap that the same `stop()` then tears down.
+    private func joinRestart(within bound: Duration) async {
+        restartTask?.cancel()
+        let deadline = ContinuousClock.now + bound
+        while restartInFlight, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(25))
+        }
+        if restartInFlight {
+            Self.logger.notice("restart still in flight after \(bound.description, privacy: .public) — proceeding; the capture generation covers the straggler (#428)")
+        }
+    }
+
     private func teardownSessionResources() async {
+        // #428 (428-A): STOP FIRST, and stopping means the restart too. A
+        // route-change restart rebuilds the very capture stack the lines below
+        // tear down; cancelling it without joining leaves it to finish building
+        // on the far side of a completed shutdown.
+        await joinRestart(within: .seconds(3))
         stopTimer()
         disarmFlatlineTripwire()
         audioRouteSummary = nil
@@ -948,6 +1045,38 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     /// rather than a hand-set flag.
     func probeBeginCapture() async throws {
         try await beginCapture()
+    }
+
+    // MARK: - #428 harness door (PERMANENT — Task 4 keeps this one)
+    //
+    // harness-visible (#428). A CONNECTED capture session with NO preflight.
+    // `startSession()` cannot be used by a service-level test on a simulator:
+    // #428 Task 0(b) probe 1 measured it PARKING indefinitely inside
+    // `SFSpeechRecognizer.requestAuthorization` in 4 of 5 runs (there is no
+    // `simctl privacy` service for speech recognition, and `grant all` does not
+    // stand in for one), and in the one run that returned it still landed on
+    // `.failed` rather than `.connected`. So the restart-vs-teardown bars
+    // (428-A / 428-C) reach `.connected` through this door instead, with an
+    // injected `NativeVoiceCapturing` (Task 1's seam) standing in for the mic.
+    //
+    // It is `#if DEBUG` and no production file references it — the Release
+    // build is the pin (#218's rule).
+
+    /// Brings the pipeline to `.connected` / `.listening` through the REAL
+    /// `beginCapture()`, skipping the mic / speech / backend preflight.
+    ///
+    /// Deliberately does NOT start the session timer, the endpoint watchdog or
+    /// the flatline tripwire: the bars this serves are about the capture
+    /// stack's lifecycle, and the fewer live tasks a fixture starts, the fewer
+    /// ways it can be wrong about what it measured.
+    func beginConnectedCaptureForHarness() async throws {
+        isEndingSession = false
+        try await beginCapture()
+        localSessionID = UUID()
+        connectionState = .connected
+        voiceState = .listening
+        blockedReason = nil
+        statusMessage = "Listening"
     }
 #endif
 }
