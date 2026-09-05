@@ -285,6 +285,10 @@ struct ImageViewerScreen: View {
     let altText: String
 
     @Environment(\.dismiss) private var dismiss
+    /// Saving reuses the bytes the reader already consented to fetch, so this
+    /// screen needs the same two seams `RemoteImageView` uses (#437-D).
+    @Environment(\.remoteImageConsent) private var consent
+    @Environment(\.remoteImageLoader) private var loader
     @State private var savedToPhotos = false
 
     var body: some View {
@@ -340,6 +344,15 @@ struct ImageViewerScreen: View {
 
     @State private var saveError: String?
 
+    /// Saves the image the reader is looking at — the bytes already on the
+    /// device, never a second fetch (#437-D).
+    ///
+    /// This used to re-download the URL. The reader had consented to ONE
+    /// fetch of that host; the save quietly made a second request, telling
+    /// the host they were still looking, from a button that says "Save".
+    /// `loadedImage(for:using:)` hands back the decoded image the consent
+    /// store is already holding, and only goes to the network if a memory
+    /// warning purged it — through the same approval gate as any other load.
     private func downloadToPhotos() {
         Task {
             do {
@@ -350,9 +363,8 @@ struct ImageViewerScreen: View {
                     return
                 }
 
-                let (data, _) = try await URLSession.shared.data(from: url)
-                guard let uiImage = UIImage(data: data) else {
-                    withAnimation { saveError = "Invalid image data" }
+                guard let uiImage = await consent.loadedImage(for: url, using: loader) else {
+                    withAnimation { saveError = "Image not loaded" }
                     return
                 }
 

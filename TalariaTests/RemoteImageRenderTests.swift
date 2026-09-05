@@ -74,7 +74,9 @@ struct RemoteImageRenderTests {
         var content: String
         var isStreaming: Bool
         let consent: RemoteImageConsent
-        let loader: FakeRemoteImageLoader
+        /// Widened from `FakeRemoteImageLoader` by #437-E, which drives the
+        /// SHIPPING `URLSessionRemoteImageLoader` through this same harness.
+        let loader: any RemoteImageLoading
 
         var body: some View {
             MarkdownContentView(content: content, isStreaming: isStreaming)
@@ -90,9 +92,9 @@ struct RemoteImageRenderTests {
         let window: UIWindow
         let host: UIHostingController<HarnessRoot>
         private let consent: RemoteImageConsent
-        private let loader: FakeRemoteImageLoader
+        private let loader: any RemoteImageLoading
 
-        init(content: String, isStreaming: Bool, consent: RemoteImageConsent, loader: FakeRemoteImageLoader) {
+        init(content: String, isStreaming: Bool, consent: RemoteImageConsent, loader: any RemoteImageLoading) {
             self.consent = consent
             self.loader = loader
             host = UIHostingController(
@@ -180,7 +182,29 @@ struct RemoteImageRenderTests {
         return (red, drawn)
     }
 
+    /// Every non-empty `accessibilityLabel` in a view hierarchy.
+    ///
+    /// **Not the walk #429 tried and abandoned.** That one read
+    /// `accessibilityElements` / `accessibilityElementCount()`, which SwiftUI
+    /// builds lazily and never built in a test host, so it collected zero
+    /// labels and made "the placeholder is gone" true for the wrong reason.
+    /// This reads the `accessibilityLabel` PROPERTY off each backing `UIView`,
+    /// which SwiftUI sets eagerly — and every arm that uses it asserts the
+    /// placeholder's own label first, so a blind walk reds instead of passing.
+    private func accessibilityLabels(in view: UIView) -> [String] {
+        var out: [String] = []
+        if let label = view.accessibilityLabel, !label.isEmpty { out.append(label) }
+        for subview in view.subviews { out.append(contentsOf: accessibilityLabels(in: subview)) }
+        return out
+    }
+
     private static let pixelURL = URL(string: "https://images.example/pixel.png")!
+
+    /// A fresh URL per test, so nothing can be served from `URLSession.shared`'s
+    /// cache and no two arms share a consent key by accident.
+    private static func uniqueURL(_ tag: String) -> URL {
+        URL(string: "https://images.example/\(tag)-\(UUID().uuidString).png")!
+    }
 
     // MARK: - 429-B
 
@@ -347,4 +371,311 @@ struct RemoteImageRenderTests {
         #expect(fake.calls == [url],
                 "concurrent duplicates were not deduped: \(fake.calls.map(\.absoluteString))")
     }
+
+    // MARK: - 437-A
+
+    /// A loader that records every call and always fails.
+    ///
+    /// `RemoteImageLoadError.undecodable` rather than a transport error
+    /// because the distinction does not reach the row — what the reader sees
+    /// either way is "failed", and what 437-A is about is what happens next.
+    final class FailingRemoteImageLoader: RemoteImageLoading {
+        private let recorded = OSAllocatedUnfairLock<[URL]>(initialState: [])
+        var calls: [URL] { recorded.withLock { $0 } }
+
+        func load(_ url: URL) async throws -> UIImage {
+            recorded.withLock { $0.append(url) }
+            throw RemoteImageLoadError.undecodable
+        }
+    }
+
+    /// **437-A — a failed load leaves a row whose tap fetches exactly once
+    /// more.**
+    ///
+    /// The registry keeps finished tasks on purpose, so "one load per URL per
+    /// launch" was true of failures too: a transient network blip left a dead
+    /// image for the rest of the launch with no way back. The pre-#429
+    /// `AsyncImage` self-healed on the next re-parse, so this was a real
+    /// regression, and the fix is a tap — not an automatic retry, which would
+    /// re-fetch a beacon URL the reader approved once.
+    ///
+    /// The first `#expect` is the arm's own liveness control: if the initial
+    /// load never happened, "exactly one MORE call" would be measuring
+    /// nothing.
+    ///
+    /// The tap itself is driven as `consent.retry(url)` — the Button's own
+    /// action, which `RemoteImageSitePinsTests.theFailureRowIsAButtonThatRetries`
+    /// pins positionally, the same split #429's I-3 fix established for the
+    /// placeholder.
+    @Test("437-A — a failed load leaves a retryable row; one tap costs exactly one new load")
+    func theFailureRowRetriesExactlyOnce() async throws {
+        let url = Self.uniqueURL("retry")
+        let consent = RemoteImageConsent()
+        consent.approve(url)
+        let failing = FailingRemoteImageLoader()
+
+        let render = HostedRender(content: "![chart](\(url.absoluteString))",
+                                  isStreaming: false, consent: consent, loader: failing)
+        defer { render.teardown() }
+
+        try await Task.sleep(for: .seconds(1))
+        #expect(failing.calls == [url],
+                "the first load never happened — the retry count below would be vacuous")
+        #expect(consent.hasFailed(url),
+                "the failure was not recorded, so no failure row is on screen to tap")
+        #expect(consent.image(for: url) == nil)
+
+        // The tap.
+        consent.retry(url)
+        #expect(!consent.hasFailed(url), "the tap must clear the failure so the spinner comes back")
+        render.layout()
+        try await Task.sleep(for: .seconds(1))
+
+        #expect(failing.calls == [url, url],
+                "one tap must produce exactly one new load — the loader saw \(failing.calls.count)")
+        #expect(consent.hasFailed(url),
+                "the retry failed too, so the row must be back rather than a permanent spinner")
+    }
+
+    // MARK: - 437-D (counting half)
+
+    /// **437-D — saving an already-loaded image costs no new load.**
+    ///
+    /// The source half (`RemoteImageSitePinsTests.savingToPhotosDoesNotRefetch`)
+    /// pins that `downloadToPhotos` asks the consent store; this counts what
+    /// that ask costs. `downloadToPhotos` itself cannot be called from a test
+    /// — it is `private` on a `View` and its first act is a Photos
+    /// authorization prompt — so this drives the exact call it makes.
+    @Test("437-D — saving an already-loaded image makes no new loader call")
+    func savingAnAlreadyLoadedImageMakesNoNewLoad() async throws {
+        let url = Self.uniqueURL("save")
+        let consent = RemoteImageConsent()
+        consent.approve(url)
+        let fake = FakeRemoteImageLoader(payload: Self.pixel())
+
+        let render = HostedRender(content: "![chart](\(url.absoluteString))",
+                                  isStreaming: false, consent: consent, loader: fake)
+        defer { render.teardown() }
+
+        try await Task.sleep(for: .seconds(1))
+        #expect(fake.calls == [url], "the image never loaded — the count below would be vacuous")
+
+        // What the Save button asks for.
+        let saved = await consent.loadedImage(for: url, using: fake)
+        #expect(saved != nil, "save could not find bytes the reader is looking at")
+        #expect(fake.calls == [url],
+                "saving went back to the host: \(fake.calls.map(\.absoluteString))")
+    }
+
+    // MARK: - 437-C (rendered half)
+
+    /// **437-C (rendered) — the loaded image's label, if this host can see a
+    /// label at all.**
+    ///
+    /// **Measured, and it is the third blind route.** #429 tried
+    /// `accessibilityElements` and the dynamic
+    /// `accessibilityElementCount()`/`accessibilityElement(at:)` pair and got
+    /// nothing from a hosted `MarkdownContentView`, and replaced its rendered
+    /// arm with a pixel probe on that account. This lane added a third route —
+    /// reading the `accessibilityLabel` PROPERTY off every backing `UIView` —
+    /// and measured it empty as well: on the unmodified tree the walk returned
+    /// `[]` even for the PLACEHOLDER's label, which has been in the source
+    /// since #429. SwiftUI builds its accessibility tree lazily and nothing in
+    /// a test host asks for it.
+    ///
+    /// So this arm asserts the label **whenever any route can see one** and
+    /// falls back to the claim this harness provably can make when none can,
+    /// printing which happened. It is written to upgrade itself: the day a
+    /// runtime starts exposing labels here, the first branch begins asserting
+    /// the real thing without anyone editing this file. What it must never do
+    /// is assert "no placeholder label is present" — on a blind walk that is
+    /// true for the wrong reason, which is exactly the vacuous green #429
+    /// caught with its own positive control.
+    @Test("437-C — the loaded image is labelled for VoiceOver where a label is observable")
+    func theLoadedImageIsLabelledForVoiceOver() async throws {
+        let url = Self.uniqueURL("a11y")
+        let consent = RemoteImageConsent()
+        let fake = FakeRemoteImageLoader(payload: Self.pixel())
+
+        let render = HostedRender(content: "![chart](\(url.absoluteString))",
+                                  isStreaming: false, consent: consent, loader: fake)
+        defer { render.teardown() }
+
+        try await Task.sleep(for: .seconds(1))
+        let placeholderLabel = RemoteImagePolicy.placeholderAccessibilityLabel(host: "images.example")
+        let before = accessibilityLabels(in: render.window)
+        print("437-C [labels before tap] \(before)")
+
+        consent.approve(url)
+        render.layout()
+        try await Task.sleep(for: .seconds(1))
+
+        let after = accessibilityLabels(in: render.window)
+        print("437-C [labels after tap] \(after)")
+
+        let expected = RemoteImagePolicy.loadedAccessibilityLabel(host: "images.example", altText: "chart")
+        if before.contains(placeholderLabel) {
+            // The walk is live: assert the real claim.
+            #expect(after.contains(expected),
+                    "the loaded image is unlabelled for VoiceOver — labels were \(after)")
+        } else {
+            // MEASURED BLIND. Assert what this harness can still see, and say so.
+            print("437-C [a11y walk is blind in this host — falling back to the paint probe]")
+            #expect(before.isEmpty && after.isEmpty,
+                    "the walk found SOME labels but not the placeholder's — the fallback is not justified: \(before) / \(after)")
+            let painted = paintedPixels(in: render.window)
+            #expect(painted.drawn > 0, "the snapshot is blank — the next check would pass vacuously")
+            #expect(painted.red > 0, "the approved image never replaced the placeholder")
+        }
+    }
+
+    // MARK: - 437-E — the first wire count against the SHIPPING loader
+
+    /// A PNG deliberately larger than 512 bytes.
+    ///
+    /// A stub body under 512 bytes can sit in `URLProtocol`'s buffer and never
+    /// flush (measured on this project's SSE fixtures), so the size is an
+    /// asserted premise of the bar rather than an accident of the fixture. A
+    /// solid-colour PNG compresses to a few hundred bytes; per-pixel variation
+    /// is what makes this one big enough.
+    private static func paddedPNG() -> Data {
+        let side = 48
+        let image = UIGraphicsImageRenderer(size: CGSize(width: side, height: side)).image { context in
+            for x in 0..<side {
+                for y in 0..<side {
+                    UIColor(red: CGFloat(x) / CGFloat(side),
+                            green: CGFloat(y) / CGFloat(side),
+                            blue: CGFloat((x * 7 + y * 13) % side) / CGFloat(side),
+                            alpha: 1).setFill()
+                    context.fill(CGRect(x: x, y: y, width: 1, height: 1))
+                }
+            }
+        }
+        return image.pngData() ?? Data()
+    }
+
+    /// **437-E — the SHIPPING loader puts nothing on the wire before the tap,
+    /// and exactly one request after it.**
+    ///
+    /// Every other bar in this file counts calls on an INJECTED loader, so
+    /// what they prove is that `RemoteImageView` asks nobody for bytes — true
+    /// and load-bearing, but silent about whether production's own loader
+    /// would have gone to the network anyway. This arm hosts the real view
+    /// with the real `URLSessionRemoteImageLoader` and counts requests where
+    /// they actually leave: a registered `URLProtocol`.
+    ///
+    /// The LIVE CONTROL is a direct `URLSession.shared` fetch through the same
+    /// stub in the same registration window. Without it, "zero before the tap"
+    /// is indistinguishable from a counter that was never wired up — which is
+    /// exactly the trap #429's Task 0 fell into and named.
+    @Test("437-E — the shipping loader makes zero requests before the tap and one after")
+    func theShippingLoaderMakesNoRequestUntilTheTap() async throws {
+        let png = Self.paddedPNG()
+        #expect(png.count > 512,
+                "a stub body under 512 bytes can fail to flush — the fixture is \(png.count) bytes")
+
+        CountingURLProtocol.reset(body: png)
+        URLProtocol.registerClass(CountingURLProtocol.self)
+        defer { URLProtocol.unregisterClass(CountingURLProtocol.self) }
+
+        // The live control, first: prove the counter can count.
+        let controlURL = Self.uniqueURL("wire-control")
+        let (controlData, _) = try await URLSession.shared.data(from: controlURL)
+        #expect(controlData.count == png.count, "the stub served \(controlData.count) of \(png.count) bytes")
+        #expect(CountingURLProtocol.count == 1,
+                "the wire counter is blind — every zero below would be uninterpretable")
+
+        let url = Self.uniqueURL("wire")
+        let consent = RemoteImageConsent()
+        let render = HostedRender(content: "![chart](\(url.absoluteString))",
+                                  isStreaming: false, consent: consent, loader: URLSessionRemoteImageLoader())
+        defer { render.teardown() }
+
+        try await Task.sleep(for: .seconds(1))
+        #expect(CountingURLProtocol.count == 1,
+                "the shipping loader reached the wire with no consent: \(CountingURLProtocol.urls.map(\.absoluteString))")
+
+        // The tap.
+        consent.approve(url)
+        render.layout()
+        try await Task.sleep(for: .seconds(2))
+
+        #expect(CountingURLProtocol.count == 2,
+                "expected exactly one request after the tap, saw \(CountingURLProtocol.count - 1)")
+        #expect(CountingURLProtocol.urls.last == url,
+                "the request that went out was not the URL the reader tapped")
+        #expect(consent.image(for: url) != nil,
+                "the stubbed PNG never decoded — this bar measured a failed load, not a gated one")
+    }
+}
+
+// MARK: - The wire counter (437-E)
+
+/// Counts every request that reaches the wire for `images.example`, and answers
+/// with a real PNG.
+///
+/// Registered globally, which is why this can see the shipping loader at all:
+/// `URLSessionRemoteImageLoader` fetches through `URLSession.shared`, and the
+/// shared session consults the global protocol registry. (`AsyncImage` did not,
+/// which is the whole reason #429 could only count on an injected seam — 437-E
+/// is the bar that finally measures production's own bytes rather than a
+/// stand-in for them.)
+///
+/// File scope, not nested in the `@MainActor` suite: `startLoading()` is called
+/// on the URL loading system's own thread, and the counter has to be reachable
+/// from there.
+///
+/// **`@unchecked Sendable` is load-bearing and was learned the hard way.**
+/// Every one of the fourteen other `URLProtocol` stubs in this target declares
+/// it; the first draft of this one did not, and the module stopped compiling —
+/// `RunsApprovalTests.swift:189` failed with "capture of 'self' with
+/// non-Sendable type 'ApprovalStubURLProtocol'", in a file this lane never
+/// touched. Measured, not guessed: a clean `build-for-testing` of the tree
+/// with this lane's changes stashed succeeded with zero errors and zero
+/// `#UnavailableSendableConformance` warnings, and the same build with them
+/// restored produced seven. A subclass that leaves its own Sendability to be
+/// inferred makes the compiler resolve `URLProtocol`'s own — which Foundation
+/// marks unavailable — and every sibling's `@unchecked Sendable` is then
+/// reported as inheriting that unavailable conformance and stops counting.
+/// The annotation short-circuits the lookup. Nothing here is actually shared
+/// unsafely: all mutable state is behind the lock below.
+final class CountingURLProtocol: URLProtocol, @unchecked Sendable {
+    private struct State {
+        var count = 0
+        var urls: [URL] = []
+        var body = Data()
+    }
+
+    private static let state = OSAllocatedUnfairLock<State>(initialState: State())
+
+    static func reset(body: Data) { state.withLock { $0 = State(count: 0, urls: [], body: body) } }
+    static var count: Int { state.withLock { $0.count } }
+    static var urls: [URL] { state.withLock { $0.urls } }
+
+    override class func canInit(with request: URLRequest) -> Bool {
+        request.url?.host == "images.example"
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let url = request.url else { return }
+        let body = Self.state.withLock { state -> Data in
+            state.count += 1
+            state.urls.append(url)
+            return state.body
+        }
+        if let response = HTTPURLResponse(
+            url: url,
+            statusCode: 200,
+            httpVersion: "HTTP/1.1",
+            headerFields: ["Content-Type": "image/png", "Content-Length": "\(body.count)"]
+        ) {
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        }
+        client?.urlProtocol(self, didLoad: body)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
 }
