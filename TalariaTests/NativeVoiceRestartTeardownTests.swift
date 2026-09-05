@@ -98,23 +98,36 @@ struct NativeVoiceRestartTeardownTests {
         /// thrown rather than one the test chose. `NativeVoiceCaptureGeneration
         /// Tests` is what proves that mirror is faithful.
         private(set) var lastStopOrigin: CaptureStopOrigin = .bareStop
+        /// #436 (fix round 1, Important 2): how many times a `start` ran the
+        /// leading stop the REAL controller opens with. Deliberately NOT in
+        /// `calls` and NOT in `stopOrigins` — every #428 ledger assertion is
+        /// byte-pinned to those arrays, and every #436 row reads
+        /// `stopOrigins.last`, so mirroring the leading stop into either would
+        /// have made a fidelity fix read as a regression in nine rows.
+        private(set) var leadingStops = 0
 
         private let parkOnStart: Int
         private let parkedOutcome: ParkedOutcome
         /// #436: the Nth start fails outright (no park). Drives the repair's
         /// honest-end arm — the re-arm attempt that cannot get a chain back.
         private let failOnStart: Int?
+        /// #436 (fix round 1, Critical 1): a SECOND park, so a fixture can hold
+        /// the re-arm's own `beginCapture()` start still and stage a stop
+        /// against it. One park could only ever reach the restart's start.
+        private let parkAgainOnStart: Int?
         private var released = false
         private var startCount = 0
 
         init(
             parkOnStart: Int,
             parkedOutcome: ParkedOutcome = .returnsStream,
-            failOnStart: Int? = nil
+            failOnStart: Int? = nil,
+            parkAgainOnStart: Int? = nil
         ) {
             self.parkOnStart = parkOnStart
             self.parkedOutcome = parkedOutcome
             self.failOnStart = failOnStart
+            self.parkAgainOnStart = parkAgainOnStart
         }
 
         func release() { released = true }
@@ -127,17 +140,29 @@ struct NativeVoiceRestartTeardownTests {
 
         func start(muted: Bool) async throws -> AsyncStream<NativeVoiceCaptureEvent> {
             calls.append("start")
+            // #436 (fix round 1, Important 2): the REAL `start(muted:)` opens
+            // with `stop(origin: .restart)` — synchronously, before its one
+            // suspension point — and that stop is a WRITER of the origin slot.
+            // The fake had no leading stop at all, which is why mutating the
+            // production line to `.bareStop` passed every row in the project.
+            // Only the ORIGIN effect is mirrored here (see `leadingStops`).
+            leadingStops += 1
+            lastStopOrigin = .restart
             startCount += 1
             if startCount == failOnStart {
                 calls.append("start-threw")
                 throw GenericCaptureFailure()
             }
-            if startCount == parkOnStart {
+            if startCount == parkOnStart || startCount == parkAgainOnStart {
                 isParked = true
                 // Bounded: 400 × 10 ms ≈ 4 s, then it gives up rather than
                 // parking forever.
                 for _ in 0..<400 where !released { await Self.cancellationImmuneTick() }
                 isParked = false
+                // Each park consumes its own release, so a two-park fixture
+                // cannot have its second park skipped by the first one's
+                // `release()`.
+                released = false
                 switch parkedOutcome {
                 case .returnsStream:
                     break
@@ -623,6 +648,101 @@ struct NativeVoiceRestartTeardownTests {
                 "a superseded restart must not take a live session down")
         #expect(service.voiceState == .listening)
         #expect(service.statusMessage != "Audio capture could not resume.")
+
+        await service.endSession()
+    }
+
+    // MARK: - Fix round 1, Critical 1: the RE-ARM's own teardown arm
+
+    /// **A `.teardown`-origin supersession of the RE-ARM must paint nothing.**
+    ///
+    /// The re-arm's typed arms used to cover `.restart` and `CancellationError`
+    /// only; `.teardown` fell through to the generic catch, whose whole job is
+    /// the honest end — `.failed` / `.disconnected` / "Audio capture could not
+    /// resume." That is #428 ruling 2 breached one level down from where the
+    /// lane fixed it: **a teardown-caused supersession is SILENT, full stop.**
+    ///
+    /// **Why the guard below it is not enough, and why that is the point.** The
+    /// generic catch is fenced by `!isEndingSession` and
+    /// `connectionState == .connected` — and `isEndingSession` is set back to
+    /// `false` by `startSession()` and by the harness doors, so a straggler
+    /// that resumes past `joinRestart`'s 3 s bound can find both fences open on
+    /// a session that is not the one it was serving. The belts are belts; the
+    /// ARM is the discriminator.
+    ///
+    /// **How this row stages it, and what it deliberately does not claim.** The
+    /// teardown-origin stop is staged directly against the fake while the
+    /// re-arm's own `beginCapture()` start is parked — the same shape
+    /// `aRestartCausedSupersessionOnALiveSessionDoesNotReArm` uses, and for the
+    /// same reason: it is the only staging in which the ORIGIN is the only
+    /// thing standing between this session and a false banner. Driving the full
+    /// production straggler (end the session, wait out the bound, start a fresh
+    /// one, then release) cannot measure this arm at all — the fresh session's
+    /// own leading `stop(origin: .restart)` is the last writer of the origin
+    /// slot by the time the straggler resumes, so it arrives as `.restart` and
+    /// takes the silent arm for a different reason entirely.
+    ///
+    /// The end state asserted is an ABSENCE OF PAINT, not a promise about
+    /// `.connected` / `.listening`: this fixture leaves a live-looking session
+    /// with no chain because it staged a teardown that never tore anything
+    /// down. Production's teardown paints `.idle` a moment later. What must
+    /// never happen either way is a device-failure banner.
+    @Test func aTeardownCausedSupersessionOfTheReArmPaintsNothing() async throws {
+        let capture = FakeCapture(
+            parkOnStart: 2,
+            parkedOutcome: .throwsSuperseded,
+            parkAgainOnStart: 3
+        )
+        let service = try await connectedService(capture)
+        #expect(service.connectionState == .connected, "the harness door must reach .connected")
+
+        let parked = await driveToParkedRestart(capture)
+        #expect(parked, "the restart never reached the parked start — nothing below is evidence")
+
+        // The bare-stop race, exactly as 436-A stages it — this is what gets a
+        // re-arm in flight at all.
+        await capture.stop(origin: .bareStop)
+        await capture.release()
+
+        // …and the re-arm's own start parks in its turn.
+        let reArmParked = await waitUntil(3.0) {
+            let calls = await capture.calls
+            let parked = await capture.isParked
+            return calls.filter { $0 == "start" }.count >= 3 && parked
+        }
+        let afterReArmStarted = await capture.calls
+        #expect(reArmParked, "the re-arm never parked — nothing below is evidence: \(afterReArmStarted)")
+
+        // The teardown lands on the re-arm's parked start.
+        await capture.stop(origin: .teardown)
+        await capture.release()
+
+        let threwTwice = await waitUntil(3.0) {
+            let calls = await capture.calls
+            return calls.filter { $0 == "start-threw" }.count >= 2
+        }
+        let afterSecondThrow = await capture.calls
+        #expect(threwTwice, "the re-arm's start never threw — nothing below is evidence: \(afterSecondThrow)")
+        // Give the catch every chance to paint before believing it did not.
+        try? await Task.sleep(for: .milliseconds(400))
+
+        let calls = await capture.calls
+        let origins = await capture.stopOrigins
+        #expect(origins.last == .teardown,
+                "the fixture did not actually stage a teardown-origin supersession of the re-arm: \(origins)")
+        #expect(
+            calls == ["start", "start-returned", "stop", "start", "stop", "start-threw", "start", "stop", "start-threw"],
+            "the re-arm is bounded to ONE attempt and a teardown must not buy a second: \(calls)"
+        )
+
+        // The bar: no paint. Not a failed state, not a disconnected voice, not
+        // the device-failure banner, not a blocked reason.
+        #expect(service.connectionState != .failed,
+                "a teardown-caused supersession must not paint a failure (#428 ruling 2, #436)")
+        #expect(service.voiceState != .disconnected)
+        #expect(service.statusMessage != "Audio capture could not resume.",
+                "a teardown-caused supersession raised a device-failure banner: \(String(describing: service.statusMessage))")
+        #expect(service.blockedReason == nil)
 
         await service.endSession()
     }

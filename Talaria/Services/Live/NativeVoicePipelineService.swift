@@ -712,9 +712,25 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 statusMessage = "Listening"
             }
             Self.logger.notice("\(Self.restartRearmLogDetail(succeeded: true), privacy: .public)")
-        } catch NativeVoiceCaptureController.CaptureError.superseded(_, .restart) {
-            // A newer start owns the pipeline and installs its own chain.
-            // Silent, and NOT a second attempt — the bound is the point.
+        } catch NativeVoiceCaptureController.CaptureError.superseded(_, .restart),
+                NativeVoiceCaptureController.CaptureError.superseded(_, .teardown) {
+            // **Both non-bare origins are silent, and the SAME two reasons hold
+            // one level down as hold in `restartCapture`'s own arm** (fix round
+            // 1, Critical 1 — `.teardown` used to fall through to the generic
+            // catch below).
+            //
+            //  * `.restart` — a newer start owns the pipeline and installs its
+            //    own chain. Silent, and NOT a second attempt: the bound is the
+            //    point.
+            //  * `.teardown` — #428 ruling 2, full stop. A teardown-caused
+            //    supersession is silent WHEREVER it lands, and the arm is what
+            //    says so; the liveness belts below are belts, not the
+            //    discriminator. This matters because `isEndingSession` is reset
+            //    to `false` by `startSession()` (`:197`) and by the harness
+            //    doors, so a straggler that resumes past `joinRestart`'s bound
+            //    can find both belts open on a session that is not the one it
+            //    was serving — and paint "Audio capture could not resume." on a
+            //    healthy one.
             return
         } catch is CancellationError {
             // `beginCapture()`'s teardown belt. #428 ruling 2 applies here for
@@ -726,7 +742,13 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             // supersession, a device failure, a degenerate format — leaves a
             // live session with no chain and no prospect of one, so it says so
             // rather than reading `.listening` at the user.
-            guard !isEndingSession, connectionState == .connected else { return }
+            //
+            // `!Task.isCancelled` is the same belt the entry gate carries
+            // (`:565`) and it is here for symmetry rather than as the
+            // discriminator: a straggler resuming inside the restart task
+            // `joinRestart` already cancelled is reporting on a session nobody
+            // is watching any more.
+            guard !isEndingSession, !Task.isCancelled, connectionState == .connected else { return }
             connectionState = .failed
             voiceState = .disconnected
             statusMessage = "Audio capture could not resume."
@@ -1442,12 +1464,30 @@ actor NativeVoiceCaptureController: NativeVoiceCapturing {
     /// session, and the defect this lane closes is a session left silently
     /// unrepaired.
     ///
+    /// **ONE slot, holding the LAST stop's origin — by design, not by
+    /// accident of implementation** (stated in these terms at fix round 1,
+    /// minor 3: a reader who took the single slot for an incidental
+    /// simplification would "fix" it into a per-start origin and lose the rule
+    /// below). A parked start does not remember which stop it started before;
+    /// it asks who owns the pipeline NOW, and one slot is the honest shape of
+    /// that question.
+    ///
     /// Last writer wins, and that is the right rule rather than merely the
     /// simple one: if a teardown's stop is the most recent, the teardown owns
     /// the pipeline now whatever ran before it; if a bare stop is the most
-    /// recent, nobody is rebuilding and the chain is genuinely gone. The
-    /// service adds its own liveness belts on top (`isEndingSession`,
-    /// `connectionState`), so a stale reading cannot paint a dead session.
+    /// recent, nobody is rebuilding and the chain is genuinely gone.
+    ///
+    /// **Both orderings of the interesting pair are safe, and that is what
+    /// makes one slot sufficient rather than merely cheap** — the safety rests
+    /// on the SERVICE's belts, so neither reading can act alone:
+    ///
+    ///  * `teardown` after `bareStop` ⇒ the start reads `.teardown` and is
+    ///    SILENT (#428 ruling 2) — correct: the session it would have repaired
+    ///    is going away.
+    ///  * `bareStop` after `teardown` ⇒ the start reads `.bareStop` and asks to
+    ///    repair, and the service refuses it on `!isEndingSession` /
+    ///    `connectionState == .connected` — a stale reading cannot paint a dead
+    ///    session.
     private var lastStopOrigin: CaptureStopOrigin = .bareStop
     /// #428 (428-B2): the adopted assembly's release hook — the ONE mechanism
     /// that gives back a prepared analyzer and its locale reservation. Replaces
@@ -1482,8 +1522,30 @@ actor NativeVoiceCaptureController: NativeVoiceCapturing {
                 "On-device speech transcription isn't available on this device."
             case .noAudioInput:
                 TalkMicPreflight.noMicInputMessage
-            case .superseded:
+            case .superseded(_, let origin):
+                Self.supersededDescription(origin: origin)
+            }
+        }
+
+        /// #436 (fix round 1, Important 2/3): the description follows the
+        /// ORIGIN, because this string is not private to the log.
+        /// `connectSession()`'s catch writes `error.localizedDescription` into
+        /// `blockedReason` and into "Local voice couldn't start: …" behind a
+        /// `!isEndingSession` guard alone — and that guard is open on exactly
+        /// the two origins the old single sentence lied about. A `.bareStop` or
+        /// `.restart` supersession of the INITIAL connect would have told the
+        /// user its session was torn down when nothing tore it down.
+        ///
+        /// Three sentences, none claiming a cause it cannot know: the origin is
+        /// the only thing this error knows about who moved the generation.
+        static func supersededDescription(origin: CaptureStopOrigin) -> String {
+            switch origin {
+            case .teardown:
                 "Voice capture start was superseded by a session teardown."
+            case .restart:
+                "Voice capture start was superseded by a newer capture start."
+            case .bareStop:
+                "Voice capture start was superseded by a stop that ran during startup."
             }
         }
     }

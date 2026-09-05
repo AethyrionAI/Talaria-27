@@ -664,9 +664,59 @@ struct VoiceInstrumentLogLineTests {
         // The grep the device runbook's 428-D1 card uses must survive on all
         // three, or the card's "the HUD must never read LISTENING while the
         // log shows `superseded on a LIVE session`" stops matching.
+        //
+        // …and NONE of the three is a device fault (fix round 1, minor 2: this
+        // check used to run on the bare-stop rendering only, which is the one
+        // origin that at least loses a chain — the two that lose nothing were
+        // the likelier place for failure vocabulary to creep in unnoticed).
         for line in [bare, restart, teardown] {
             #expect(line.hasPrefix("capture restart superseded on a LIVE session — "))
             #expect(line.contains("#436"))
+            #expect(!line.lowercased().contains("failed"), "failure vocabulary in an ordering line: \(line)")
+            #expect(!line.lowercased().contains("error"), "failure vocabulary in an ordering line: \(line)")
+            #expect(!line.contains("could not resume"), "a user-facing banner leaked into an ordering line: \(line)")
+        }
+    }
+
+    /// **#436 (fix round 1, Important 3): `CaptureError.superseded`'s
+    /// description follows its ORIGIN.** This string is not private to the log
+    /// — `connectSession()`'s catch writes `error.localizedDescription` into
+    /// `blockedReason` and into "Local voice couldn't start: …", behind a
+    /// `!isEndingSession` guard alone. That guard is OPEN on exactly the two
+    /// origins the one-sentence version lied about: a `.bareStop` or
+    /// `.restart` supersession of the INITIAL connect told the user their
+    /// session had been torn down when nothing tore it down.
+    ///
+    /// Pinned beside the notice renderings because it is the same failure
+    /// shape one surface over — a single line asserting the worst (or simply
+    /// the wrong) one of three.
+    @Test("the superseded description names its own origin")
+    func theSupersededDescriptionDiscriminatesByOrigin() throws {
+        func description(_ origin: CaptureStopOrigin) throws -> String {
+            try #require(
+                NativeVoiceCaptureController.CaptureError
+                    .superseded(point: "assembled", origin: origin).errorDescription,
+                "`.superseded` lost its description entirely — the catch would surface a raw enum"
+            )
+        }
+        let bare = try description(.bareStop)
+        let restart = try description(.restart)
+        let teardown = try description(.teardown)
+
+        #expect(Set([bare, restart, teardown]).count == 3,
+                "two origins describe identically — the description does not actually follow the origin (#436)")
+
+        // Only the teardown arm may claim a teardown; the other two must claim
+        // no cause they cannot know.
+        #expect(teardown == "Voice capture start was superseded by a session teardown.")
+        #expect(restart == "Voice capture start was superseded by a newer capture start.")
+        #expect(bare == "Voice capture start was superseded by a stop that ran during startup.")
+        #expect(!bare.contains("teardown"),
+                "a bare-stop supersession blamed a teardown that never happened: \(bare)")
+        #expect(!restart.contains("teardown"),
+                "a newer start's supersession blamed a teardown that never happened: \(restart)")
+        for line in [bare, restart, teardown] {
+            #expect(line.hasPrefix("Voice capture start was superseded by "))
         }
     }
 
@@ -731,7 +781,21 @@ struct VoiceInstrumentLogLineTests {
         )
         // The bound is structural — one call, no loop and no counter. A second
         // call site would be the loop Owen's ruling forbids.
-        let callSites = source.components(separatedBy: "await self.rearmAfterLiveSupersession()").count - 1
+        //
+        // Counted on the BARE NAME minus its declaration (fix round 1, minor
+        // 1). The previous count keyed on the literal
+        // `await self.rearmAfterLiveSupersession()`, which a second call
+        // written without the explicit `self.` — legal everywhere in this file
+        // that is not an escaping closure — would have slipped straight past.
+        // The declaration is subtracted rather than excluded by hand so that
+        // renaming the method cannot leave the pin counting nothing.
+        let mentions = source.components(separatedBy: "rearmAfterLiveSupersession()").count - 1
+        let declarations = source.components(separatedBy: "func rearmAfterLiveSupersession()").count - 1
+        #expect(
+            declarations == 1,
+            "expected exactly one declaration of the re-arm, found \(declarations) — this count cannot be trusted"
+        )
+        let callSites = mentions - declarations
         #expect(
             callSites == 1,
             "the re-arm is called from \(callSites) places — the ONCE bound is structural and a second call site breaks it (#436)"
