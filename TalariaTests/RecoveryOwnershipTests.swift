@@ -735,6 +735,48 @@ struct RecoveryOwnershipTests {
         }
     }
 
+    /// **#427 follow-up (post-merge review, 2026-09-05).** The durable run
+    /// record takes its thread id from the RUN'S OWN TOKEN, not from
+    /// whichever conversation happens to be live at the moment the record is
+    /// written.
+    ///
+    /// `pendingRun`'s `didSet` is #329's single choke point for that record,
+    /// and it read `conversation?.id` — a second definition of the one fact
+    /// the record exists to state. The two are equal at every arming site
+    /// today (two set `conversationID: conversation?.id`; the cold-load
+    /// restore sets `record.conversationID` behind a guard that has just
+    /// proven the equality), so this is a single-sourcing, not a live bug.
+    /// It matters because the id is what #427's restore path CHECKS: a
+    /// record that learned its thread from somewhere other than the run's
+    /// token is the ownership guard pointed at itself.
+    ///
+    /// A SOURCE pin because no runtime test can discriminate the two
+    /// readings: `pendingRun` is `private`, every arming site makes them
+    /// equal by construction, and the `didSet` fires at assignment — there is
+    /// no seam that can produce a token whose thread differs from the live
+    /// one. That absence is exactly why the next site that CAN differ must
+    /// not have to rediscover this.
+    ///
+    /// Isolating mutation: restore `let conversationID = conversation?.id`
+    /// → this row reds and nothing else does.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo's own sources — simulator only"))
+    func theDurableRunRecordTakesItsThreadIDFromTheTokenNotTheLiveConversation() throws {
+        let store = "Talaria/Stores/ChatStore.swift"
+        let body = try RepoSourceWitness.functionBody(
+            from: "private var pendingRun: PendingRun? {",
+            in: store,
+            boundary: "\n    private var reconcileTask")
+        #expect(body.contains("persistence.savePendingRunRecord("),
+                "the pin is reading the wrong slice — this body no longer writes the durable record")
+        #expect(!body.contains("func "),
+                "the slice swallowed a neighbour: it is bounded by the NEXT stored property, so a reordering could let another body satisfy this pin")
+        #expect(body.contains("let conversationID = pending.conversationID"),
+                "the durable record must carry the TOKEN's thread id — reading the live conversation is a second definition of the fact the record exists to state (#427 follow-up)")
+        #expect(!body.contains("conversation?.id"),
+                "the live conversation is not a source of truth for a record about one specific run")
+    }
+
     // MARK: - Helpers
 
     /// Bounded pump. Every wait in this file has a ceiling: a condition that

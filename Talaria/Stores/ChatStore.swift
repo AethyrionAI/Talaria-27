@@ -699,10 +699,21 @@ final class ChatStore {
     /// (`abandonPendingRun`) therefore clears it too, which deliberately
     /// preserves today's walk-away behavior — this lane changes COLD LAUNCH
     /// classification only.
+    /// #427 follow-up (2026-09-05): the thread id comes from the TOKEN, not
+    /// from whichever conversation happens to be live when the record is
+    /// written. They are equal at every arming site today — two set
+    /// `conversationID: conversation?.id`, the cold-load restore sets
+    /// `record.conversationID` behind a guard that has just proven the
+    /// equality — so this is a single-sourcing, not a bug fix. It matters
+    /// because this id is exactly what `restorePendingRunFromRecordIfPossible`
+    /// CHECKS on the next cold launch: a record that learned its thread from
+    /// anywhere but the run's own token is #427's ownership guard pointed at
+    /// itself. Pinned by
+    /// `RecoveryOwnershipTests.theDurableRunRecordTakesItsThreadIDFromThe…`.
     private var pendingRun: PendingRun? {
         didSet {
             if let pending = pendingRun, let runId = pending.runId,
-               let conversationID = conversation?.id {
+               let conversationID = pending.conversationID {
                 persistence.savePendingRunRecord(PendingRunRecord(
                     sessionId: pending.sessionId,
                     runId: runId,
