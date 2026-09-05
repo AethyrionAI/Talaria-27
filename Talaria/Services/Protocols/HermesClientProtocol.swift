@@ -183,6 +183,26 @@ protocol HermesClientProtocol {
     /// Lists recent sessions from the host's Sessions API.
     func listSessions() async throws -> [HermesSessionInfo]
 
+    /// 425-D: the same list, plus an INTERIM publication of the half that is
+    /// already on the phone.
+    ///
+    /// `listSessions()` cannot answer until the HOST has answered, and an
+    /// unreachable host answers with a request timeout (~20 s, measured on
+    /// device 2026-09-04). #425 stopped the local rows being THROWN AWAY by
+    /// that failure; this stops them being HELD HOSTAGE by its latency —
+    /// Owen's device pass watched a correct, degraded shelf arrive twenty
+    /// seconds after an empty one.
+    ///
+    /// The contract is deliberately narrow. A client that composes two halves
+    /// calls `interim` AT MOST ONCE, with the half it already holds, BEFORE
+    /// awaiting the other; a client with a single source never calls it at
+    /// all, because its one list is already the final one. So `interim` is
+    /// never the answer — the returned value always is, and a caller that
+    /// paints the interim must repaint with the return.
+    func listSessions(
+        interim: (@MainActor @Sendable ([HermesSessionInfo]) -> Void)?
+    ) async throws -> [HermesSessionInfo]
+
     /// Opens an existing session: adopts its id and returns its message history
     /// as a Conversation. New messages continue that thread.
     func openSession(_ id: String) async throws -> Conversation
@@ -361,6 +381,16 @@ extension HermesClientProtocol {
     func availableModels() async throws -> [String] { [] }
     func switchModel(_ identifier: String) async throws -> String? { nil }
     func listSessions() async throws -> [HermesSessionInfo] { [] }
+    // 425-D: a single-source client has no early half to publish — its one
+    // list IS the final one, so the honest default is to ignore `interim`
+    // rather than to call it with the answer a beat before returning it.
+    // Only `ChatBackendRouter` (two halves) and `ResilientHermesClient`
+    // (which forwards to it) override this.
+    func listSessions(
+        interim: (@MainActor @Sendable ([HermesSessionInfo]) -> Void)?
+    ) async throws -> [HermesSessionInfo] {
+        try await listSessions()
+    }
     func openSession(_ id: String) async throws -> Conversation { await loadConversation() }
     func reconcileFromServer() async -> Conversation? { nil }
     // #295: `false` — see the requirement's doc above. A client with a real

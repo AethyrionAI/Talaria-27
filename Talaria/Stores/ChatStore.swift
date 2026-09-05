@@ -3817,7 +3817,21 @@ final class ChatStore {
     /// `sessionsSnapshotTTL` (#175). Pass `force: true` after anything that
     /// changed the list server-side — a stale count there would be a lie, not
     /// a saved request.
-    func loadSessions(force: Bool = false) async -> [HermesSessionInfo] {
+    ///
+    /// 425-D: `interim` is a conduit, nothing more. The client publishes the
+    /// half already on the phone through it before awaiting the host, and
+    /// this store deliberately does NOTHING else with that list — it is not
+    /// written to `lastLoadedSessions` (the search corpus stays a list a host
+    /// actually answered, or the honest degraded one the router returns),
+    /// does not stamp `lastSessionsLoadAt` (an interim must never satisfy the
+    /// #175 TTL), and does not fire `onSessionsLoaded` (Spotlight is donated
+    /// once, from the final list). The snapshot path below returns without
+    /// calling it at all: an answer already in hand needs no preview of
+    /// itself.
+    func loadSessions(
+        force: Bool = false,
+        interim: (@MainActor @Sendable ([HermesSessionInfo]) -> Void)? = nil
+    ) async -> [HermesSessionInfo] {
         if !force,
            let loadedAt = lastSessionsLoadAt,
            Date.now.timeIntervalSince(loadedAt) < Self.sessionsSnapshotTTL {
@@ -3825,7 +3839,7 @@ final class ChatStore {
             return lastLoadedSessions
         }
         do {
-            let sessions = try await hermesClient.listSessions()
+            let sessions = try await hermesClient.listSessions(interim: interim)
             chatLog.verbose("loadSessions: got \(sessions.count) sessions")
             lastLoadedSessions = sessions
             lastSessionsLoadAt = .now
@@ -3857,6 +3871,13 @@ final class ChatStore {
             // specifically so a dismissed sheet cannot overwrite a good list
             // with a dimmed one — plus any local-side or programming failure.
             // For those the snapshot-preserving behaviour below is unchanged.
+            //
+            // 425-D: an interim may ALREADY have been published on this path
+            // (the router publishes before it awaits the host, so before it
+            // can know the round will be cancelled). That is why the return
+            // below is the caller's last word and the interim never is: a
+            // caller that painted the interim repaints with this stale-but-
+            // real list, which is strictly the better of the two.
             chatLog.error("loadSessions: FAILED — \(error.localizedDescription, privacy: .public); serving \(self.lastLoadedSessions.count) from the last real list")
             return lastLoadedSessions
         }

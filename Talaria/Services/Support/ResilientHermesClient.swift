@@ -127,6 +127,24 @@ final class ResilientHermesClient: HermesClientProtocol {
         try await primary.listSessions()
     }
 
+    /// 425-D: forwarded, not defaulted — and NOT load-bearing today, which
+    /// is said out loud rather than implied. `AppContainer` wires this
+    /// client as the router's HOST half, and the router asks that half for
+    /// `listSessions()` (no interim: the host IS the slow half, so it has no
+    /// early publication to make). `ChatStore` holds the router directly, so
+    /// nothing in production reaches this override.
+    ///
+    /// It exists on the same terms as `currentRunIsServerRecoverable` below:
+    /// correct if this client is ever wired in FRONT of a two-half client,
+    /// where the protocol's interim-dropping default would silently restore
+    /// the whole defect — a shelf that waits on the host's timeout — with
+    /// every router-level test still green.
+    func listSessions(
+        interim: (@MainActor @Sendable ([HermesSessionInfo]) -> Void)?
+    ) async throws -> [HermesSessionInfo] {
+        try await primary.listSessions(interim: interim)
+    }
+
     func openSession(_ id: String) async throws -> Conversation {
         try await primary.openSession(id)
     }
