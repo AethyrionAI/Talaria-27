@@ -3362,6 +3362,8 @@ Logged 2026-07-17.
 
 ---
 
+> **⟵ 📌 POINTER 2026-09-05 (#428, PR #432 → `2641c315`; append-only, the bytes above are untouched):** the defence table above has four rows, all of them restart-vs-RESTART or restart-vs-START. A fifth door existed and none of the four reached it: **restart vs SHUTDOWN.** `restartTask` was created, awaited and nilled but never cancelled or joined by `teardownSessionResources`, and the capture actor's `start` had no check after its four framework awaits before it installed the tap and started the engine — so an End (or #415's cover park, which ends through the same teardown) landing mid-restart could leave a startup that reinstalled the tap on a session the UI called over. #428 closes it in two layers: a `captureGeneration` the actor bumps on `stop()` and re-checks between the assembly and the now-NON-ASYNC install stretch (the compiler enforces "no await between the ticket and the install"); and a teardown that cancels AND joins the restart within a 3 s bound. The loose end this block recorded — "`startSession() → beginCapture()` is not guarded by the coalescer" — is now moot on the shutdown axis: any start that resumes after a stop is refused as `.superseded`. Tracker #428.**
+
 ## 131. ✅ Composer mic (dictation) inert — NOT REPRODUCIBLE 2026-07-20: dictation works on device; instrumented catch retained. (Suspect correction stands: LiveSpeechService was untouched by Lane V)
 
 **Device pass 2026-07-20 (Session V launch sweep): dictation functional.** Composer mic toggles

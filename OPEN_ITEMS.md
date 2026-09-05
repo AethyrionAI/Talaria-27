@@ -5584,6 +5584,8 @@ Control Center → "Talk to Hermes" on a locked app, cancel Face ID, and read
 the same corpus for `capture chain HOT` inside the locked interval. **#124's
 seven App-Lock device checks fold into this pass** (Saturday's list, item 6).
 
+> **⟵ 📌 POINTER 2026-09-05 (#428, PR #432 → `2641c315`):** the #302-A capture instrument (`capture chain HOT`/`COLD`) gained a third line, `capture start ABANDONED — capture generation moved during startup at <point>; nothing installed (#428)`, and a fourth, `capture restart abandoned by teardown (#428)` at `.notice` — emitted when a startup that a stop interleaved with is refused rather than installed. #302's contract (defer-until-unlock; never a hot mic behind the cover) is now enforced one layer DOWN as well, inside the capture actor, so an ordering #302's TalkStore-level bars cannot see (a route-change restart racing End) is closed structurally. Tracker #428.**
+
 ## 308. 📝 PUBLISH the talaria plugin repo — the unblock for #269-B, and the update path it needs — **NAMED 2026-08-09 by Owen ("The plugin could eventually be made public, especially if we tie some sort of git pull for the plugin or something"). Filed the day it was named per #268. NO DESIGN, NO LANE — Owen routes.** **⟵ HEADER CORRECTED 2026-08-23: partly RULED already. Owen ruled 2026-08-18 (under #363, pointed here per the close-out rule) — **no deploy token**, and the repo goes public **AT the #269-B publication moment**. So the routing is decided; what is still owed is the **pre-publish scrub** (secrets / host paths / tailnet IPs / #255 naming / attribution) and the **compatibility-signal** question. The scrub is desk work available now; PUBLISHING is outward-facing and needs Owen's explicit per-submission go.**
 
 **What it unblocks, precisely.** #269-B (the conversational installer's install
@@ -11075,6 +11077,8 @@ process is the degenerate control that made run 3 look clean).
    appear at the arming instant. `parked voice session resuming after
    unlock (#415)` marks step 2.
 
+> **⟵ 📌 POINTER 2026-09-05 (#428, PR #432 → `2641c315`):** the clause in this entry's fix block — the park path ends via `discardAbandonedStart()` → `voiceService.endSession()`, "the same teardown that ignores `restartTask`" — is now FALSE in the good direction: that teardown cancels and joins the restart (3 s bound) and the capture actor refuses any start a stop interleaved with (`.superseded`). 415-D's card is unchanged and still Owen's; #428's device card re-runs it on the fix build, and the plan's 428-D adds route-churn-then-End and interruption-resume-then-End beside it. Tracker #428.**
+
 ## 419. 🐛 THE ASSISTANT-PLAYBACK ELAPSED COUNTER READS 0 EVERY TIME — and a real barge-in would send `conversation.item.truncate` with `audio_end_ms: 0`, deleting the ENTIRE heard portion from server-side history — **FILED 2026-08-30 from the #413 archive read. Every recorded reading of this instrument is 0 ms; the zeroing mechanism is deliberately NOT asserted (no log line can currently see it).** **⟵ HEADER CORRECTED 2026-09-01 (hygiene sweep): 419-A1/A2 (the naming instrument) SHIPPED, MERGED 2026-08-31 as `97e52d41` (PR #396) — every assistant `conversation.item.created`/`.added` arrival now logs the event/item relation and, if playback is live, the elapsed ms about to be destroyed. The zeroing MECHANISM is still not asserted; only the instrument that will name it is built.** **⟵ 2026-09-01: MECHANISM NAMED AND FIXED (419-B, PR #410, squash `02cad7bf`) — `finalizeAssistantText` on transcript-done, which runs ahead of playout; 419-A1's item path was never the cause (it cannot set `.listening`, and the fork archive had no arrival in the window). Awaiting only the next voice session's `audio.stopped after Nms` reading ≠ 0 as the device confirmation (rides #138's card V1).**
 
 **The measurement:** `#138 audio.stopped after Nms` printed **0** on all three
@@ -12664,7 +12668,7 @@ token captured before Stop's `pendingRun` clear, on an unmutated tree — and
 
 ---
 
-## 428. 🔴 THE NATIVE VOICE RESTART CAN OUTLIVE SESSION SHUTDOWN — `restartTask` is never cancelled or joined, and the capture actor's start has no generation check after its awaits and before `installTap`/`engine.start` — a microphone that can go HOT after the UI says the session ended — **FILED 2026-09-04 (audit A3, P1; VERIFIED IN CODE; the #415 park path inherits it). ~~Plan owed~~ → PLAN WRITTEN 2026-09-04 (pointer block below); bars pre-register when the lane opens.**
+## 428. 🔴 THE NATIVE VOICE RESTART CAN OUTLIVE SESSION SHUTDOWN — `restartTask` is never cancelled or joined, and the capture actor's start has no generation check after its awaits and before `installTap`/`engine.start` — a microphone that can go HOT after the UI says the session ended — **FILED 2026-09-04 (audit A3, P1; VERIFIED IN CODE; the #415 park path inherits it). ~~Plan owed~~ → PLAN WRITTEN 2026-09-04; ~~bars pre-register when the lane opens~~ → ✅ FIXED 2026-09-05: PR #432 → `2641c315` — bars 428-A/B/B2/C + GATE MET; 428-D (device) OWED to Owen's evening (RESULT block below).**
 
 > **Source:** audit A3. **Verified:** `NativeVoicePipelineService.swift:365-383` — `restartTask` is created, stored, awaited, nilled; `grep restartTask` → `:94 :342 :381 :383` only — **never cancelled**; `teardownSessionResources` (`:386-401`) cancels `endpointTask`, `turnTask`, `captureTask` and awaits `capture.stop()` — `restartTask` is absent; `endSession()` (`:251-256`) sets `isEndingSession` then calls it; the only `isEndingSession` re-check on the restart chain is in the EVENT loop (`:308`), which drops transcripts while the engine keeps running. The capture actor's `start(muted:)` (`:985-1030`) suspends at `SpeechTranscriber.supportedLocale`, `reserveLocaleIfPossible`, `bestAvailableAudioFormat`, `prepareToAnalyze`; `stop()` (`:1032`) is actor-isolated and synchronous, so a teardown interleaves cleanly into any of those windows; then `:1163-1176` installs the tap and starts the engine with NO generation/ending check (the adjacent #128 comment states the premise: "actor serialization does not survive awaits"), and `start()` re-runs `session.setActive(true)` (`:993`), undoing teardown's deactivation. **Tracker:** #128's archive block (`OPEN_ITEMS-ARCHIVE.md:3308-3318`) lists four restart-vs-start defences and records the caution that "a guard naming the right failure is not proof the failure is covered"; #302/#415 sit one level up in `TalkStore` (`sessionGeneration` + `beginCoverWatch`, `TalkStore.swift:234-266`) — and **#415's park path ends via `discardAbandonedStart()` → `voiceService.endSession()` (`TalkStore.swift:359-361`), the same teardown that ignores `restartTask`.** **Tests:** `NativeVoiceCaptureController` is a `private actor` inside the service file (`:916`), unreachable from the test target; `NativeVoicePipelineTests` covers the endpointer, duplicate-final rules and engine routing only. **Fix shape:** invalidate startup at shutdown (a session generation the capture controller checks after every suspension point and immediately before install/start), cancel AND join `restartTask` in teardown, and make the controller testable (a seam for a controllably suspended startup); the device bar is Bluetooth/CarPlay route churn and an interruption-resume landing on Stop, scored with the existing HOT/COLD capture instrumentation (§04's markers). Severity: P1 and the worst class — reachable from ordinary route churn, and it re-opens #302/#415's exact failure through a path their guards do not reach.
 
@@ -12679,6 +12683,374 @@ token captured before Stop's `pendingRun` clear, on an unmutated tree — and
 - **428-C — an ended session is never repainted by a superseded restart (service, unit).** After 428-A's sequence: `blockedReason == nil`, `statusMessage != "Audio capture could not resume."`, `connectionState == .idle` — the `.failed` paint in `restartCapture`'s catch did not fire on a session that was ending. Mutation: remove the `guard !self.isEndingSession` in the catch → RED.
 - **428-D — device (Owen's hands, Debug build, same-day collect), three cards.** D1 route churn: native engine, connect AirPods (or CarPlay) mid-session, then End within ~1 s, ×5. D2 interruption-resume: native engine, trigger a system interruption (a timer alarm or a phone call), decline/resume, End within ~1 s of the resumption line, ×3. D3: the 415-D card exactly as written (`OPEN_ITEMS.md:10849`) on the fix build. **Scoring, per session, from the archive:** after the session's `AudioSessionOffMain: setActive(false) off-main (#198B) reason=native-pipeline-stop` line, NO `capture chain HOT` line for the rest of the archive; every `capture chain HOT` has a matching `capture chain COLD` within the session; a `capture start ABANDONED` line, when present, sits between the End and the next session's start. **Prediction written first:** on the FIX build, 0 HOT-after-stop in 8/8; ABANDONED appears in ≥ 1 of the D1 trials IF Task 0 (a) reproduced the ordering, else D1/D2 are no-regression rows and say so. Each row carries build · `osVersion` · thermal.
 - **428-GATE** — `TALARIA_SIM_NAME=CC-lane-N scripts/mac/lane-gate.sh`, positive `GATE: PASS`, Swift Testing count moved by exactly the tests this lane adds.
+
+### ✅ RESULT 2026-09-05 — 428-A, 428-B, 428-B2 and 428-C MET, each isolated by mutation; 428-D OWED to the device; GATE: PASS on the final bytes (3226 Swift Testing / 18 XCUITest / Release green on `5620e0bd`, second run — the first was the runner-hang flake) — GitHub PR #432 (`428-voice-restart`, head `5620e0bd`) squash-merged → `2641c315`. Final whole-branch review (opus): 2 Critical + 1 Important + minors, all fixed in ONE wave (`5620e0bd`) and re-reviewed ADDRESSED; one residual left OPEN for Owen's decision (below).
+
+| bar | verdict | evidence |
+|---|---|---|
+| **428-A** — teardown cancels AND joins the restart | ✅ MET | RED (Task 3, `red-retry.log`, base `0af4aa80`): `✘ endSessionJoinsAParkedRestartAndTheLastWordIsStop() … Expectation failed: endedAt > releasedAt` / `↳ teardown must JOIN the in-flight restart — endSession returned while the start was still parked` / ledger `→ ["start", "start-returned", "stop", "start", "stop", "start-returned"]` (stop ran *before* the abandoned start returned) — `✘ Test run with 5 tests in 1 suite failed after 10.356 seconds with 13 issues.` GREEN (`green-final-alone2.log`, commit `8861e50d`): `✔ Test endSessionJoinsAParkedRestartAndTheLastWordIsStop() passed after 1.264 seconds.` … `[NativeVoicePipeline] restart still in flight after 3.0 seconds — proceeding; the capture generation covers the straggler (#428)` … `✔ Test run with 5 tests in 1 suite passed after 10.443 seconds. ** TEST EXECUTE SUCCEEDED **`. Isolating mutation (`mutation-A-retry.log`): removing `await joinRestart(within: .seconds(3))` from `teardownSessionResources()` reds exactly `endSessionJoinsAParkedRestart…` (three assertions) and `aStragglerPastTheJoinBound…`'s bound assertion, and nothing else. |
+| **428-B** — a start abandoned by an intervening stop never installs | ✅ MET | RED (Task 2, `red.log`, base `deb71be5`): `NativeVoiceCaptureGenerationTests.swift:76:35: error: extra argument 'releaseResources' in call` / `:123:59:` and `:161:59: error: type 'NativeVoiceCaptureController.CaptureError' has no member 'superseded'` — `** TEST BUILD FAILED **`. GREEN (`green-final.log`, commit `0af4aa80`): `✔ Suite "428-B capture generation" passed after 0.390 seconds.` … `✔ Test run with 83 tests in 5 suites passed after 7.516 seconds. ** TEST SUCCEEDED **`. Isolating mutation (`mutation1-retry.log`, deleting `try checkTicket(ticket, at: "assembled")`): `✘ Test aStopDuringAssemblySupersedesTheStartAndInstallsNothing() … the start ran on into the install stretch — the capture generation did not supersede it`; the control arm (`aStartWithNoInterleavedStopIsNotSuperseded`) stayed green. |
+| **428-B2** — the abandoned assembly is released, not leaked (carried into Task 2 as a **required** bar from Task 1's review, 2026-09-04 23:03: *"the locale reservation is adopted into actor state only in `startEngine`, so a `stop()` racing the assembly window releases nothing"*) | ✅ MET | Same RED as 428-B (the release-hook symbols didn't exist yet). GREEN: same `green-final.log`, 83/5. Isolating mutation (`mutation2.log`, deleting `await assembly.releaseResources()` on the superseded path only): `✘ Test aStopDuringAssemblySupersedesTheStartAndInstallsNothing() recorded an issue at :137:9: Expectation failed: assembler.didReleaseResources` — **exactly one issue**, and the `.superseded(point: "assembled")` catch itself still passed, pinning the assertion to the release call and nothing else. |
+| **428-C** — an ended session is never repainted by a superseded restart | ✅ MET | RED (Task 3, `red-retry.log`): `✘ aSupersededRestartNeverRepaintsAnEndedSession() … service.statusMessage → "Audio capture could not resume."` / `service.connectionState → .failed` / `service.voiceState → .disconnected`. GREEN (commit `8861e50d`, then corrected by fix round 1 `3aa4424a`): `✔ Test aSupersededRestartNeverRepaintsAnEndedSession() passed after 1.382 seconds.` / `✔ Test aSupersededRestartIsSilentWhenNoSessionIsEnding() passed after 1.066 seconds.` / `✔ Test aStragglerPastTheJoinBoundNeverRepaintsAnEndedSession() passed after 5.790 seconds.` Two isolating mutations, because the brief's single named mutation was **inert** (three defences in depth on that one test): mutation B (`mutation-B.log`, deleting `guard !self.isEndingSession else { return }` before the `.failed` paint) reds only `aStragglerPastTheJoinBoundNeverRepaintsAnEndedSession` (`connectionState == .idle → RED`, `voiceState == .idle → RED`, `statusMessage == nil → RED`); mutation C (`mutation-C.log`, deleting the whole `catch NativeVoiceCaptureController.CaptureError.superseded` arm) reds only `aSupersededRestartIsSilentWhenNoSessionIsEnding` (`connectionState == .connected → RED`, `voiceState == .listening → RED`). Fix round 1 (`3aa4424a`) additionally closed a mislabeled-severity defect (a correctly-abandoned restart logged `capture restart failed: … CancellationError …` at warning) with a `catch is CancellationError` arm; its own structural mutation (`mutation-instrument.log`) reds exactly one of 29 `VoiceInstrumentLogLineTests`: `✘ Test "the typed cancellation arm is wired…" … Expectation failed: source.range(of: "} catch is CancellationError {") … source.range(...) → nil`. |
+| **428-D** — device (Owen's hands): D1 route churn ×5, D2 interruption-resume ×3, D3 the 415-D card on the fix build | 🔴 **OWED** | Not run in this lane. Task 0(a) — the same-shape hardware pre-measurement ("does the ordering reproduce on the current build?") — was also never run; it belongs to the owner per the ballot's decision 3. Three runbook cards are queued for the Device Runbook §04, scored by the grep recipe in the plan: `capture chain HOT` / `capture chain COLD` / `capture start ABANDONED` / `reason=native-pipeline-stop` / **`capture restart abandoned by teardown`** (the FOURTH scoring grep, added by fix round 1's typed `CancellationError` arm — it is the positive control that separates "the teardown caught a parked restart" from "no restart was ever attempted", and without it a D1 archive cannot tell those apart). |
+| **GATE** | ✅ PASS | **On the FINAL bytes `5620e0bd`:** `GATE: PASS on 24A5423a` — Swift Testing **3226**, XCUITest **18**, Release build succeeded, no re-roll (logs `…/talaria-gate.TTytSfPCtW/`). — expected Swift Testing **3226** (the 763e55ce gate's 3220 + the fix wave's 6: teardown 5→7, instrument 29→33), predicted before the number was read. **Run 1 on the same bytes was `GATE: FAIL (4 checks)`** — the unit test host never connected (`Talaria 27 (23026) encountered an error (The test runner hung before establishing connection.)`, zero Swift Testing tests ran, no count line) while XCUITest 18/18 and Release passed in that same run; that is the documented runner-hang flake, re-run ONCE over identical bytes per protocol, both logs kept (`…/talaria-gate.Cs1RSU2DZy/` for run 1). A second red would have been a real red; it was green. The earlier gate on `763e55ce` (before the final review's fix wave) read `GATE: PASS on 24A5423a` — 3220 (main's baseline 3207 + this lane's 13 permanent tests: 3 in `NativeVoiceCaptureGenerationTests` + 5 in `NativeVoiceRestartTeardownTests` + 5 pins in `VoiceInstrumentLogLineTests`; the deleted Task 0 probe suite's 3 excluded), XCUITest 18, Release clean, no re-roll (logs `…/talaria-gate.KJob4qhmC5/`). |
+
+---
+
+### Two bar deviations that belong in the ENTRY, not only in this report
+
+The final review asked for both of these to be stated in entry 428's RESULT
+block itself, because each changes what a pre-registered bar actually
+measured and a reader of the entry alone would otherwise not know:
+
+1. **428-A's ledger assertion deviates from the pre-registered
+   `suffix(2) == ["start-returned", "stop"]`, and the pre-registered form was
+   arithmetically impossible.** The plan's own two belts —
+   `beginCapture()`'s post-`start` guard and the post-`beginCapture()` belt —
+   BOTH call `capture.stop()`, so on the 428-A path exactly one extra `stop`
+   necessarily lands before teardown's own: the true suffix is
+   `["stop", "stop"]`. A bar can be missed but it cannot be redefined, so the
+   deviation is recorded rather than the bar reworded: the test pins the
+   **full 7-entry ledger**
+   (`["start", "start-returned", "stop", "start", "start-returned", "stop", "stop"]`)
+   plus `calls.last == "stop"`, which asserts the bar's stated INTENT ("a stop
+   after the abandoned start returned") directly and more strictly than the
+   two-element suffix would have.
+2. **428-C's single named mutation (removing the `isEndingSession` guard in
+   the generic catch) is INERT against its own named test.** Three
+   independent mechanisms — the join settling the restart before
+   `endSession()`'s tail, the typed `.superseded` catch, and the guard itself
+   — each separately suffice on `aSupersededRestartNeverRepaintsAnEndedSession`,
+   so no single-line mutation reds it. **Two isolating tests replaced it**
+   (`aSupersededRestartIsSilentWhenNoSessionIsEnding` isolates the typed
+   catch; `aStragglerPastTheJoinBoundNeverRepaintsAnEndedSession` isolates the
+   guard), per the task's own "if a mutation is inert, add the isolating test"
+   instruction. A defence in depth that no mutation can red is not a verified
+   defence — it is three unverified ones.
+
+### OPEN residual — the owner's decision, deliberately NOT built
+
+**The `.superseded` arm can still leave a LIVE session with no capture chain,
+and the fix wave instrumented that rather than repaired it.** Trace: the
+restart task cancels `captureTask` and calls `capture.stop()` (which finishes
+and nils `outputContinuation`), then `beginCapture` parks in `assemble`; the
+OLD `analyzerTask`'s catch runs `emit(.failed(…))` → a `yield` on a NIL
+continuation → **dropped** → `await self?.stop()` → the generation bumps → the
+parked start is superseded → the typed arm returns silently. Net:
+`connectionState == .connected`, `voiceState == .listening`, no capture chain.
+
+As of `5620e0bd` that state emits a `.notice`
+(`capture restart superseded on a LIVE session — …`), so an archive can now
+see it. **What is NOT fixed: the state itself.** Repairing it requires
+distinguishing a supersession caused by a bare `stop()` (where a re-arm is
+correct) from one caused by a newer `start()` (where a re-arm is the #82
+thrash the breaker exists to stop) — and the controller **cannot tell the two
+apart today**; the generation ticket records only that it moved, not who moved
+it. Building that discrimination is a design change, not a fix wave item, and
+the final review scoped it out explicitly ("Do NOT attempt the repair in this
+wave"). **It is the owner's decision** whether to carry it as a follow-up
+tracker item; the reachability is narrow (a genuine analyzer failure
+interleaved with a route restart) and the instrument will now say if it ever
+happens in the field.
+
+Note also that the controller's earlier ruling on this arm — "the `.failed`
+EVENT paints state, so the silent return is covered" — **rests on a mechanism
+that does not exist**: the event is dropped before it can paint anything. That
+ruling should not be re-cited.
+
+### Task 0(b) — the simulator facts
+
+Three premise probes (`b0e864f1`, `NativeVoiceCaptureProbeTests.swift`, since
+deleted by this task) answered questions the whole plan rested on, each
+changing something downstream:
+
+- **P1 — `startSession()` does not clear its preflight on the sim; in 4 of 5
+  runs it never returns at all**, parking indefinitely inside
+  `SFSpeechRecognizer.requestAuthorization` (there is no `simctl privacy`
+  service for speech recognition, and `grant all` does not stand in for one).
+  In the one run that did return, it still landed on `.failed`, never
+  `.connected`. **⇒ forced the `#if DEBUG` harness door
+  (`beginConnectedCaptureForHarness()`)** — every 428-A/428-C test reaches
+  `.connected` through it instead of the real `startSession()`, and it is the
+  one production touch this lane keeps as permanent scaffolding.
+- **P2 — the real controller passes `setCategory`/`setActive(true)` and dies
+  at the degenerate-format gate with `CaptureError.noAudioInput`** (not
+  `transcriptionUnavailable`, which the brief had predicted) — this
+  simulator's `AVAudioEngine.inputNode` reports 0 Hz before AND after voice
+  processing, so `audioEngine.start()` is unreachable on the sim. **⇒ set
+  428-B's control-arm assertion to "a capture error, never engine running"**,
+  and surfaced the one real ordering decision in the plan: the #82
+  degenerate-format guard had to move to sit adjacent to the tap install (not
+  before `assemble`), or the `ParkedAssembler` fixture could never park —
+  resolved as defence in depth (Task 1: one check as the first statement of
+  `assemble`, a second immediately before the install).
+- **P3 — the route-change fixture works** (post →
+  `handleRouteChange` → `restartCapture` → `capture.start()` in ~10 ms) **and
+  the `isConfiguringAudioSession` gate discriminates in both directions**, but
+  the 750 ms configuration cooldown is *never armed on the sim with the real
+  capture* (because `beginCapture()`'s throw path clears the flag) — **it
+  WILL arm once a fake capture can succeed. ⇒ Task 3's 800 ms wait before
+  `postRouteChange()` is required, not decorative**, and
+  `NativeVoiceRestartTeardownTests` is `@Suite(.serialized)` because
+  `registerAudioSessionObservers()`'s observers are never removed from
+  `NotificationCenter.default`.
+
+### Task 0(a) — OWED to the owner
+
+The hardware half of Task 0 — five AirPods/CarPlay-connect-then-End trials on
+the current build, with the existing HOT/COLD capture instrumentation, asking
+whether the restart-outlives-shutdown ordering reproduces on real hardware —
+was never run. It is filed as the **428-T0a** runbook card and does not block
+this lane's code (ballot decision 3: "Task 0 runs on hardware first," but the
+lane proceeded on the sim half alone per the same ballot's sequencing, with
+Owen's hardware pass still pending). Until it runs, this lane's fix is
+verified against the *mechanism* described in the filing (a parked restart
+racing a real teardown) but not against a *measured* hardware reproduction of
+the original defect.
+
+### Reviews
+
+Three implementer→reviewer cycles, each Important finding addressed in-lane
+before the task closed (all quotes verbatim from `progress.md`):
+
+- **Task 1 review (2026-09-04 23:03), one Important:** *"the locale
+  reservation is adopted into actor state only in `startEngine` (`:1149-1151`),
+  so a `stop()` racing the assembly window releases nothing and the resumed
+  start adopts a reservation teardown already finished with."* Controller
+  ruling: bind the fix into Task 2 as a required bar (428-B2) rather than
+  patch Task 1 blind, since detecting an interleaved stop needs Task 2's
+  generation ticket. **Closed** by 428-B2 above.
+- **Task 2 review (2026-09-05 00:04):** spec ✅ on every clause, **0
+  Important**, approved outright.
+- **Task 3 review (2026-09-05 01:25), two Important (honesty defects, not
+  mechanism defects):** (1) *"the `.superseded` catch's comment claims nothing
+  touches `isConfiguringAudioSession` on that path, but `beginCapture`'s catch
+  (`:346`) already clears it on every throw — a false mechanism in prose."*
+  (2) *"the fix's own success path … logs 'capture restart failed: …
+  Swift.CancellationError …' at warning … every time the fix works — a
+  misattributing marker in a log-forensic project."* **Both closed** in fix
+  round 1 (`3aa4424a`, re-reviewed 2026-09-05 01:54, both ADDRESSED): the
+  comment now names the upstream clear and why leaving it is acceptable
+  (only the success path schedules the disarming cooldown); a
+  `catch is CancellationError` arm ahead of the generic catch logs `.notice`
+  via `restartAbandonedLogDetail(sessionEnding:)`, pinned by three new
+  `VoiceInstrumentLogLineTests` (26 → 29) including a structural
+  wired-and-ordered pin.
+
+**Deferred minors, verbatim from the ledger, none blocking:**
+
+- Task 1: (2) a false "TEMPORARY" comment on the actor's visibility widening
+  and on `isEngineRunning` — **fixed inline in Task 2** (both are permanent);
+  (3) `probeStartCount` shipping in Release — **fixed inline in Task 2**
+  (`#if DEBUG`-gated), then deleted outright by this task; (4) check 2 throws
+  after the continuations are assigned (bounded; plan-mandated placement) —
+  stands, filed; (5) a two-fault host now throws `noAudioInput` not
+  `transcriptionUnavailable` (arguably better) — noted, not a defect; (6)
+  `setVoiceProcessingEnabled` now runs on more throw paths — noted; (7) a
+  vacuous `#expect(controller != nil)` — **rewritten in Task 2**.
+- Task 2: (1) the formatter pin's RED was structural, not empirically
+  witnessed (module compile aborted on the other file first) — filed as an
+  honest gap; (2) `SpeechAnalysisAssembly.reservedLocale` is now read by
+  nobody downstream, kept as commentary — **Task 4 cleanup candidate, not
+  taken in this task** (out of Task 4's scope as briefed); (3) `#if DEBUG`
+  gating asymmetry between `probeStartCount` and `isEngineRunning` —
+  moot, `probeStartCount` is deleted; (4) sequential resource release
+  lengthens a rapid stop→start's reservation window — noted, bounded; (5) a
+  double-negative in `checkTicket`'s guard — style, not fixed; (6) the control
+  arm hard-fails rather than skips on a host with a working input node —
+  plan-mandated discriminator, stands; (7) the hand-off shape that became
+  428-C's silent-supersession ruling; (8) suite-level `.serialized` does not
+  serialize *across* suites (a latent gate-flake vector between the
+  generation and probe suites, both driving the process-wide
+  `AVAudioSession`) — **now moot for the probe suite specifically**, since
+  this task deleted it; the generation/teardown suite pair still shares the
+  hazard in principle and it is not fixed.
+- Task 3 (both rounds): (3) `joinRestart`'s `try? await Task.sleep(25 ms)`
+  degrades to a MainActor busy-wait for the full 3 s bound if its caller is
+  cancelled — reachability was checked, not assumed (every lifecycle entry
+  point into `endSession()` traced to an unstructured `Task { }`, confirmed
+  unreachable), **except one untraced chain**,
+  `AppContainer.swift:2297` `handleHostDisconnected()` →
+  `disconnectConnectedHost`, whose callers were not exhausted. **Flagged
+  explicitly for the final review** (progress.md, 2026-09-05 01:54: "FINAL
+  REVIEW TRIAGE OWED"). (4) `CancellationError`'s raw description can still
+  reach `startSession()`'s failure copy on an End mid-initial-connect —
+  rescued at runtime by `TalkStore.discardAbandonedStart()`; declined as a
+  one-line fix with no test that could see it, given `startSession()` cannot
+  be driven in this test host (Task 0(b) probe 1). (5) the bound-witnessing
+  test has ~1.5 s margin — safe direction, not tightened. (6) comment-to-code
+  ratio — style. New minors from the round-1 re-review: the `.superseded`
+  comment frames the newer-start supersession as "residual" while the test
+  suite treats it as the more important production case (a prose-emphasis
+  mismatch, not fixed); the `sessionEnding: false` branch of
+  `restartAbandonedLogDetail` is currently unreachable (see "What this lane
+  does NOT claim" below).
+
+### Deviations from the plan
+
+- **The #82 degenerate-format guard sits adjacent to the tap install, not
+  before `assemble`, as a second check in defence-in-depth with the
+  assembler's own first check** — Task 0(b) probe 2 found the sim's engine
+  is degenerate, so a single guard placed before `assemble` would have made
+  the `ParkedAssembler` fixture unreachable (it would throw before ever
+  parking), killing 428-B's whole bar. Both checks call the same
+  `TalkMicPreflight.isViableCaptureFormat` predicate; nothing is duplicated.
+- **`startAnalyzer` was renamed `startEngine` and made non-`async`.** The
+  brief named the seam members but not the post-assembly remainder's name;
+  making it synchronous is load-bearing, not cosmetic — it is what lets the
+  compiler (not a convention) guarantee zero `await`s between the capture
+  generation's ticket check and the tap install/`engine.start()` stretch that
+  428-B's whole bar depends on.
+- **The brief's fake would have released itself.** Its park was
+  `for _ in 0..<400 where !released { try? await Task.sleep(...) }`, and
+  `joinRestart` cancels the task the park runs inside, so a cancelled
+  `Task.sleep` throws immediately, `try?` swallows it, and the loop would
+  spin to completion on its own — **the fixture would have measured
+  nothing** for 428-A. The park now ticks on a detached child
+  (`await Task.detached { try? await Task.sleep(for: .milliseconds(10)) }.value`
+  — a non-throwing `Task.value` is not cancellable), still bounded at
+  400 × 10 ms so nothing can strand.
+- **The 428-A ledger's suffix is the whole ledger with `calls.last == "stop"`,
+  not the brief's literal `suffix(2) == ["start-returned", "stop"]`.** The
+  brief's own two prescribed belts (`beginCapture`'s post-start guard and the
+  post-`beginCapture()` belt) both call `capture.stop()`, so exactly one
+  extra `stop` necessarily lands before teardown's own — the suffix is
+  arithmetically `["stop", "stop"]`, not `["start-returned", "stop"]`. The
+  bar's stated intent ("a stop after the abandoned start returned") is kept
+  and asserted directly against the whole ledger instead.
+- **The brief's single named 428-C mutation (removing the `isEndingSession`
+  guard in the generic catch) is INERT against its own named test**
+  (`aSupersededRestartNeverRepaintsAnEndedSession`) — three independent
+  mechanisms (the join settling the restart before `endSession`'s tail, the
+  typed `.superseded` catch, and the guard itself) each separately suffice on
+  that one test, so no single-line mutation reds it. **Replaced** with two
+  additional tests (`aSupersededRestartIsSilentWhenNoSessionIsEnding`,
+  `aStragglerPastTheJoinBoundNeverRepaintsAnEndedSession`) that each isolate
+  one mechanism, per the task's own "if a mutation is inert, add the
+  isolating test" instruction.
+- **One release mechanism replaces the actor's two stored properties.**
+  Rather than the actor separately holding `analyzer`/`reservedLocale` and
+  `stop()` hand-releasing each, `SpeechAnalysisAssembly` now carries
+  `releaseResources: @Sendable () async -> Void`, built once by whichever
+  assembler produced the assembly; `startEngine` adopts the hook (before
+  anything can throw), `stop()` calls it and nils it, and the superseded path
+  calls the never-adopted hook directly. This closed 428-B2 (Task 1's
+  carried-forward Important) with one mechanism instead of two duplicated
+  release paths, at the cost of making `stop()`'s two releases sequential
+  rather than concurrent (recorded, not hidden: Task 2 report §2).
+
+### What this lane does NOT claim
+
+- **No hardware reproduction of the original ordering.** Both Task 0(a) and
+  428-D are owed to the device; every RED/GREEN/mutation above is a sim/host
+  unit or fixture result. The mechanism is verified; the field defect is not
+  yet measured as fixed on real hardware.
+- **The post-`beginCapture()` belt (the second guard in `restartCapture`'s
+  task body, right after `try await self.beginCapture()` returns) cannot fire
+  today at all**, and this is stated in the production comment rather than
+  left implied: nothing suspends between `beginCapture()`'s own
+  `isEndingSession` guard and its return (both `Task { }` creations inside it
+  are synchronous), so on the MainActor no teardown can interleave between
+  them. It is kept because it becomes live the moment anyone adds an `await`
+  to that stretch, and a mutation against it comes back green today — which
+  is why it is recorded as dormant rather than presented as tested.
+- **`restartAbandonedLogDetail`'s `sessionEnding: false` branch is currently
+  unreachable** — the only `throw CancellationError()` site feeding that
+  formatter is gated by `isEndingSession`, so no test drives the `false`
+  path; it is pinned as text (a whole-string equality assertion) but has no
+  behavioural witness, and the round-1 re-review flagged this as a latent
+  behaviour change if it ever becomes reachable.
+- **The post-`capture.stop()` guard (immediately after teardown's
+  `await self.capture.stop()`) is reachable but unwitnessed** — a real fake
+  whose `stop()` itself suspends would be needed to test it, and `stop()` is
+  a synchronous actor requirement in the current protocol, so no fixture
+  drives that specific interleaving.
+- **No `.threadChanged`-style residual-state hazard applies here.** This
+  lane's supersession/abandonment paths are keyed on a monotonic generation
+  ticket and a typed error, not on any thread/session-identity comparison, so
+  the class of bug where a stale identity silently matches a new one does not
+  arise in this mechanism.
+
+### Close-out corrections owed with the merge
+
+Per the standing close-out rule (2026-08-06, ratified #317), every entry,
+doc, or CLAUDE.md line this result falsifies gets a dated pointer at the
+stale claim's own home, in the same close-out:
+
+- **Entry 428's own "Source" paragraph** (filed 2026-09-04, live at
+  `OPEN_ITEMS.md:12391` as of this writing) contains the clause **"…and
+  `#415`'s park path ends via `discardAbandonedStart()` →
+  `voiceService.endSession()` (`TalkStore.swift:359-361`), the same teardown
+  that ignores `restartTask`."** This is now FALSIFIED: as of `8861e50d`
+  (bar 428-A), that same `teardownSessionResources()` cancels AND joins
+  `restartTask` via `joinRestart(within: .seconds(3))`, so it no longer
+  ignores it. Needs a dated pointer at that clause (not an edit — the entry
+  is live, but the convention is a dated supersession note, not silent
+  rewriting) saying the ignoring is fixed by this RESULT.
+- **Entry 415's own filing** (`OPEN_ITEMS.md:9920`, "COLLECT HAPPENED AND THE
+  MECHANISM IS NAMED") states *"#302 carries a dated supersession"* for the
+  App-Lock-mid-flight mechanism; entry 302's own embedded 415-A…D fix bars
+  record *"415-A green … ⇒ … #302's supersession is answered."* **#428 is a
+  separate mechanism through the same symptom-class** (a mic that can stay
+  live after the UI says the session ended) — a route-change-triggered
+  restart racing `endSession()`, not App Lock arming mid-flight — and #428's
+  own filing already says so ("it re-opens #302/#415's exact failure through
+  a path their guards do not reach"). Now that #428's fix ships, #302's
+  entry (where the #415 forensics and fix-bar apparatus live, "filed here, in
+  its own home") should get a **second** dated pointer: the App-Lock path and
+  the voice-restart path are now BOTH closed, through two different guards,
+  and #428's RESULT is the second one's home.
+- **The `#128` archive block's defence table**
+  (`OPEN_ITEMS-ARCHIVE.md:3308-3318`) lists four layers (`restartTask`
+  coalesce + breaker · `isConfiguringAudioSession` · #128's remove-adjacent-
+  to-install · #198's `AudioNodeTap.install` throw). Per #317(a), the archive
+  bytes are never edited — this needs an **append-only dated pointer block**
+  beneath the table, not a fifth row inserted into it, describing a fifth
+  row in spirit:
+
+  | date | commit | guard | what it stops |
+  |---|---|---|---|
+  | 2026-09-05 | `b0e864f1`…`763e55ce` (GitHub PR #432) | capture generation ticket + bounded join (3 s) + silent supersession/abandonment (#428) | restart vs **SHUTDOWN** — a parked restart's tap-install/`engine.start()` outliving `endSession()`'s teardown |
+
+  None of the existing four layers covered this axis: layer 1 covers
+  restart-vs-restart, layer 2 covers self-inflicted category churn, layer 3
+  (#128 itself) covers install-adjacency ordering, layer 4 covers a
+  double-install throwing instead of crashing — none of them checks whether
+  the *session itself* ended while a restart was mid-flight. #428 is that
+  fifth axis, in the same "guard naming the right failure is not proof the
+  failure is covered" spirit the block's own caution states.
+- **CLAUDE.md** — grepped for `restartTask` in this worktree's copy: **zero
+  matches.** There is no stale CLAUDE.md line about `restartTask`,
+  `NativeVoicePipelineService`'s restart mechanism, or this lane's fix to
+  correct or supersede. Nothing owed here.
+
+**Final whole-branch review (opus) and the fix wave.** The review found the mechanism sound and
+compiler-enforced, every surviving bar isolated by mutation — and three things the task reviews
+could not see because each lived in a seam between tasks: **Critical 1** — `joinRestart(within:)`
+polled on the main actor and a CANCELLED caller (reachable: `TalkStore.coverWatchTask`'s
+cancellation runs the same teardown) would busy-wait for the full 3 s bound; **Critical 2** — the
+INITIAL connect path was not silenced, so a start that a teardown superseded painted *"Local voice
+couldn't start: Voice capture start was superseded by a session teardown."* on an ended session;
+**Important 3** — a `.superseded` arm can leave a LIVE session with no capture chain (the OPEN
+residual above). One fix commit (`5620e0bd`) answered all three plus minors 8 and 12: the poll loop
+breaks on `Task.isCancelled` (mutation: delete the break → the join spun 2.79 s on the MainActor);
+`startSession()`'s connect half moved into `connectSession()` (pure motion — the comment-stripped
+diff is exactly the one added guard line) with the guard swallowing ONLY `.superseded` (mutation:
+5 issues, the user-visible sentence reproduced); the live-session supersession emits a `.notice`
+(mutation: 1 issue). The wave's first structural pin for Critical 1 was VACUOUS — a whole-file
+`contains` for `if Task.isCancelled { break }` matched a pre-existing line at `:804` — caught by
+the wave's own mutation harness and rewritten positionally; the scoped re-review verified the
+rewritten pin reds. Re-review: every finding ADDRESSED; the refactor pure; the harness door
+`#if DEBUG`-only; the earlier controller ruling that "the `.failed` EVENT paints state" is
+**falsified** (the event is yielded into a continuation `stop()` has already nilled — dropped) and
+is retracted here. Three new minors, all ship + follow-up: **N3** minor 8's disclosed trade — a
+wedged straggler outliving the 3 s bound, a NEW session, and a route change together let the
+straggler's `defer` clear `restartInFlight` under a live restart, so a later End joins nothing
+and logs nothing (the hot mic itself stays covered by the capture generation; a per-task ticket
+is the follow-up); **N4** Critical 2's silent return emits no instrument, unlike Important 3's;
+**N5** the guard's safety comment omits `TalkStore.runStart`'s generation re-check. One brief
+error, not a regression: the fix-wave brief's expected `RunsApprovalTests` count of 27 measures 8
+under the `-only-testing:` filter, matching Tasks 3 and 4's own baselines.
 
 ## 429. 🔴 MODEL-AUTHORED MARKDOWN IMAGES FETCH ARBITRARY HTTPS URLS AT RENDER TIME — `AsyncImage(url:)` inside the bubble's button; the only gate is the scheme; ATS permits any HTTPS; the HTML sandbox's egress block does not cover this plane — **FILED 2026-09-04 (audit A4, P1; VERIFIED IN CODE; unfiled before). Owen's default 09-04: TAP TO LOAD. ~~Plan owed~~ → PLAN WRITTEN 2026-09-04 (pointer block below); bars pre-register when the lane opens.**
 
