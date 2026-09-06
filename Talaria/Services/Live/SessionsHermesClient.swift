@@ -564,6 +564,135 @@ final class SessionsHermesClient: HermesClientProtocol {
         return merged
     }
 
+    // MARK: - Decode-failure diagnostics (#432)
+
+    /// #432: the seam the canary suite reads. Production never sets it; the
+    /// suite sets it so the "no body bytes" bar is measured on the EXACT
+    /// string the logger is handed rather than on a reconstruction of it.
+    /// // harness-visible
+    static var decodeFailureLogObserver: ((String) -> Void)?
+
+    /// Path components rendered before the key path is cut short, and the cap
+    /// on any one component's length. Defence in depth: every `CodingKey`
+    /// these two routes can produce today is one of OUR model key names or an
+    /// array index, but a future `[String: T]` field would put a
+    /// SERVER-CHOSEN key in the path, and this is the line that must stay
+    /// boring to read.
+    nonisolated private static let decodeFailurePathLimit = 8
+    nonisolated private static let decodeFailureKeyLimit = 32
+    /// The `Content-Type` is a server-chosen string too. Bounded, and stripped
+    /// of whitespace so one header cannot forge extra `key=value` fields in a
+    /// space-separated line.
+    nonisolated private static let decodeFailureContentTypeLimit = 64
+
+    /// The one emit point for "the response did not decode". Both decode
+    /// sites route through it, so there is a single shape to audit — and it
+    /// hands the formatter `data.count`, never `data`.
+    private func logDecodeFailure(route: String, response: URLResponse, data: Data, error: Error) {
+        let http = response as? HTTPURLResponse
+        let line = Self.decodeFailureLogDetail(
+            route: route,
+            status: http?.statusCode,
+            contentType: http?.value(forHTTPHeaderField: "Content-Type"),
+            byteCount: data.count,
+            error: error
+        )
+        Self.logger.error("\(line, privacy: .public)")
+        Self.decodeFailureLogObserver?(line)
+    }
+
+    /// The decode-failure log line — **structural metadata only**.
+    ///
+    /// #432: both sites used to log `String(data: data.prefix(500), …)` at
+    /// `.error` / `privacy: .public`, un-gated. `.error` is the level
+    /// `log collect` and sysdiagnose persist, a device archive is collected
+    /// wholesale and shared, and the two bodies in question are the session
+    /// LIST (titles + previews) and one session's STORED MESSAGES (transcript
+    /// text) — on a branch that fires precisely on version skew or a proxy
+    /// error page, i.e. when a real transcript is sitting in the buffer.
+    ///
+    /// This function is handed a byte COUNT, not the bytes, and that is the
+    /// invariant rather than a convention: a formatter that never receives the
+    /// body cannot leak it under any later edit.
+    ///
+    /// **Nothing derived from the error's own text is rendered either.**
+    /// Measured 2026-09-06: Cocoa's `dataCorrupted` for malformed JSON carries
+    /// an underlying error reading *"Unexpected character 'o' in expected null
+    /// value around line 1, column 2."* — a character quoted straight out of
+    /// the body. So the case, the coding path and (where it exists) the
+    /// expected TYPE are rendered, and `localizedDescription` is not.
+    ///
+    /// What a reader debugging version skew actually needs survives: which
+    /// route answered, with what status and content type (a proxy error page
+    /// is identified by `status=502 contentType=text/html`, never by its
+    /// bytes), how large the body was, and exactly which key tripped it.
+    nonisolated static func decodeFailureLogDetail(
+        route: String,
+        status: Int?,
+        contentType: String?,
+        byteCount: Int,
+        error: Error
+    ) -> String {
+        var fields = [
+            "route=\(route)",
+            "status=\(status.map(String.init) ?? "none")",
+            "contentType=\(contentType.map { boundedContentType($0) } ?? "none")",
+            "bytes=\(byteCount)",
+        ]
+        if let decoding = error as? DecodingError {
+            switch decoding {
+            case .keyNotFound(let key, let context):
+                fields.append("case=keyNotFound")
+                fields.append("key=\(codingPathDescription(context.codingPath + [key]))")
+            case .typeMismatch(let type, let context):
+                fields.append("case=typeMismatch")
+                fields.append("key=\(codingPathDescription(context.codingPath))")
+                fields.append("expected=\(type)")
+            case .valueNotFound(let type, let context):
+                fields.append("case=valueNotFound")
+                fields.append("key=\(codingPathDescription(context.codingPath))")
+                fields.append("expected=\(type)")
+            case .dataCorrupted(let context):
+                fields.append("case=dataCorrupted")
+                fields.append("key=\(codingPathDescription(context.codingPath))")
+            @unknown default:
+                fields.append("case=unknownDecodingError")
+            }
+        } else {
+            fields.append("case=other")
+            fields.append("errorType=\(type(of: error))")
+        }
+        return "#432 decode FAILED " + fields.joined(separator: " ")
+    }
+
+    /// `data[0].role` — array positions as indices, everything else dotted.
+    /// An empty path is `(root)` rather than blank: blank would read as a
+    /// missing field instead of a top-level failure.
+    nonisolated private static func codingPathDescription(_ path: [any CodingKey]) -> String {
+        guard !path.isEmpty else { return "(root)" }
+        var rendered = ""
+        for key in path.prefix(decodeFailurePathLimit) {
+            if let index = key.intValue {
+                rendered += "[\(index)]"
+            } else {
+                let name = boundedKeyName(key.stringValue)
+                rendered += rendered.isEmpty ? name : "." + name
+            }
+        }
+        return path.count > decodeFailurePathLimit ? rendered + ".…" : rendered
+    }
+
+    nonisolated private static func boundedKeyName(_ name: String) -> String {
+        name.count <= decodeFailureKeyLimit ? name : String(name.prefix(decodeFailureKeyLimit)) + "…"
+    }
+
+    nonisolated private static func boundedContentType(_ value: String) -> String {
+        let compact = value.filter { !$0.isWhitespace }
+        return compact.count <= decodeFailureContentTypeLimit
+            ? compact
+            : String(compact.prefix(decodeFailureContentTypeLimit))
+    }
+
     /// One host's session list, tagged with its profile (M-5).
     private func fetchSessionList(profileID: UUID?, tagAs profile: BackendProfile?) async throws -> [HermesSessionInfo] {
         let path = "\(Self.sessionsPath)?limit=50&order=recent&min_messages=1"
@@ -574,8 +703,7 @@ final class SessionsHermesClient: HermesClientProtocol {
         do {
             response = try decoder.decode(SessionsListResponse.self, from: data)
         } catch {
-            let snippet = String(data: data.prefix(500), encoding: .utf8) ?? "(binary)"
-            Self.logger.error("listSessions: decode FAILED — \(error.localizedDescription, privacy: .public). Raw: \(snippet, privacy: .public)")
+            logDecodeFailure(route: Self.sessionsPath, response: httpResponse, data: data, error: error)
             throw error
         }
         Self.logger.verbose("listSessions: decoded \(response.data.count) rows for '\(profile?.name ?? "active")'")
@@ -680,8 +808,16 @@ final class SessionsHermesClient: HermesClientProtocol {
         do {
             response = try decoder.decode(SessionMessagesResponse.self, from: data)
         } catch {
-            let snippet = String(data: data.prefix(500), encoding: .utf8) ?? "(binary)"
-            Self.logger.error("openSession: decode FAILED for '\(id, privacy: .public)' — \(error.localizedDescription, privacy: .public). Raw: \(snippet, privacy: .public)")
+            // The route is TEMPLATED: the old line named the session id
+            // `.public` alongside the body, and the id is not what a reader
+            // debugging version skew needs. The verbose-gated line below still
+            // carries it for anyone who turned verbose on.
+            logDecodeFailure(
+                route: "\(Self.sessionsPath)/{id}/messages",
+                response: httpResponse,
+                data: data,
+                error: error
+            )
             throw error
         }
         Self.logger.verbose("openSession: decoded \(response.data.count) messages for '\(id)'")
