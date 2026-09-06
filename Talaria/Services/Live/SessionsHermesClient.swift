@@ -569,7 +569,7 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// #432: the seam the canary suite reads. Production never sets it; the
     /// suite sets it so the "no body bytes" bar is measured on the EXACT
     /// string the logger is handed rather than on a reconstruction of it.
-    /// // harness-visible
+    // harness-visible
     static var decodeFailureLogObserver: ((String) -> Void)?
 
     /// Path components rendered before the key path is cut short, and the cap
@@ -693,6 +693,48 @@ final class SessionsHermesClient: HermesClientProtocol {
             : String(compact.prefix(decodeFailureContentTypeLimit))
     }
 
+    /// **The non-2xx failure message — structural metadata only, and this one
+    /// is a LOG LINE even though nothing here calls `Logger`.**
+    ///
+    /// #432 fix round (2026-09-06). `ensureSuccess` used to append
+    /// `String(data: data, encoding: .utf8)?.prefix(200)` — up to 200 bytes of
+    /// the response body — to `SessionsClientError.requestFailed`'s message.
+    /// `SessionsClientError` is a `LocalizedError` returning that message
+    /// verbatim as `errorDescription`, and **six live sites interpolate a
+    /// thrown error's `localizedDescription` at `privacy: .public` on paths
+    /// that reach it**: this file's per-profile `listSessions` breadcrumb and
+    /// its `#241` host-catalog line (both `.notice`, which `log collect` and
+    /// sysdiagnose persist exactly as `.error` does), `ChatStore.loadSessions`'
+    /// two failure lines, `ChatBackendRouter`'s no-host-answered line, and the
+    /// runs transport's turn-failure line (`postJSON` submits through the same
+    /// `ensureSuccess`). #432's first round called those sites safe because no
+    /// `Logger` call sees the body; the bytes travelled by throw instead.
+    ///
+    /// **Closing it here rather than at the six sites is the point.** A message
+    /// that never receives the body cannot leak it, so every present and future
+    /// caller that logs this error is safe by construction — where six edited
+    /// log lines would only be safe until the seventh is written. It is the
+    /// same choice `decodeFailureLogDetail` makes one screen up, for the same
+    /// reason, and it is why neither function is handed `Data`.
+    ///
+    /// What a reader loses is the host's error prose. What they keep is the
+    /// discriminator that prose was read for: a proxy error page is
+    /// `status=502 contentType=text/html`, never its bytes — the same reading
+    /// `PrivateRelayIndicator` already makes from status alone.
+    ///
+    /// `lead` lets each service keep its own voice (`CronJobService` says "The
+    /// Hermes host") while sharing one bounded, body-free tail and one
+    /// `boundedContentType`.
+    nonisolated static func hostStatusFailureDetail(
+        lead: String,
+        status: Int,
+        contentType: String?,
+        byteCount: Int
+    ) -> String {
+        let type = contentType.map { boundedContentType($0) } ?? "none"
+        return "\(lead) returned status \(status) — contentType=\(type), bytes=\(byteCount)."
+    }
+
     /// One host's session list, tagged with its profile (M-5).
     private func fetchSessionList(profileID: UUID?, tagAs profile: BackendProfile?) async throws -> [HermesSessionInfo] {
         let path = "\(Self.sessionsPath)?limit=50&order=recent&min_messages=1"
@@ -810,14 +852,22 @@ final class SessionsHermesClient: HermesClientProtocol {
         } catch {
             // The route is TEMPLATED: the old line named the session id
             // `.public` alongside the body, and the id is not what a reader
-            // debugging version skew needs. The verbose-gated line below still
-            // carries it for anyone who turned verbose on.
+            // debugging version skew needs.
             logDecodeFailure(
                 route: "\(Self.sessionsPath)/{id}/messages",
                 response: httpResponse,
                 data: data,
                 error: error
             )
+            // The id keeps a home for anyone correlating this failure with a
+            // conversation — gated, and HERE. #432's first round said it
+            // "survives on the verbose-gated line two lines below"; that was
+            // FALSE, because the line below is on the SUCCESS path and this
+            // branch throws before ever reaching it (found by the fix round's
+            // review). `Logger.verbose` emits at `.debug` behind the Developer
+            // screen's toggle, and `.debug` is a level `log collect` does not
+            // persist — so this is not the `.public` `.error` the old line was.
+            Self.logger.verbose("openSession: decode FAILED for '\(id)'")
             throw error
         }
         Self.logger.verbose("openSession: decoded \(response.data.count) messages for '\(id)'")
@@ -1648,9 +1698,16 @@ final class SessionsHermesClient: HermesClientProtocol {
             throw SessionsClientError.sessionNotFound
         }
         guard (200 ..< 300).contains(httpResponse.statusCode) else {
-            let bodySnippet = String(data: data, encoding: .utf8)?.prefix(200) ?? ""
+            // #432 fix round: status, content type and byte count — never body
+            // bytes. See `hostStatusFailureDetail` for why a thrown message is
+            // a log line here.
             throw SessionsClientError.requestFailed(
-                "Hermes API returned status \(httpResponse.statusCode). \(bodySnippet)"
+                Self.hostStatusFailureDetail(
+                    lead: "Hermes API",
+                    status: httpResponse.statusCode,
+                    contentType: httpResponse.value(forHTTPHeaderField: "Content-Type"),
+                    byteCount: data.count
+                )
             )
         }
     }

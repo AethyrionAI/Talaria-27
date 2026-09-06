@@ -21,11 +21,28 @@ import Testing
 ///   2. a canary driven through BOTH real call sites over the URLProtocol
 ///      stub, asserting the emitted line carries no character of a sentinel
 ///      planted in the malformed body,
-///   3. a tree-wide source witness: no `String(data:` under
-///      `Talaria/Services/` may reach a `privacy: .public` log interpolation.
+///   3. a tree-wide source witness: no body-bytes binding under
+///      `Talaria/Services/` may reach a `privacy: .public` log interpolation
+///      *in the same file*.
 ///
-/// Layer 3 is the one that stops the defect from regrowing somewhere this
-/// suite has never heard of.
+/// Layer 3 is what stops the DECODE defect from regrowing somewhere this suite
+/// has never heard of. It is not, and cannot be, a proof that no response body
+/// reaches os_log — which the fix round below learned the expensive way.
+///
+/// **⟵ FIX ROUND 1 (2026-09-06) — the decode branch was never the only door.**
+/// `SessionsHermesClient.ensureSuccess` folded 200 bytes of any non-2xx body
+/// into `SessionsClientError.requestFailed`'s message, and six live log lines
+/// interpolate a thrown error's `localizedDescription` at `privacy: .public`;
+/// `CronJobService` carried the identical shape into a seventh. Bytes reached
+/// the same device archive by THROW rather than by `Logger` — the one route a
+/// line-based source witness structurally cannot follow, and which the first
+/// round's report and tracker text both recorded as impossible. Both are now
+/// closed at the source of the message (a formatter that never receives the
+/// body), and layer 4 measures it:
+///
+///   4. two behavioural canaries over the SAME stub asserting that the THROWN
+///      error's `localizedDescription` — the exact string those log lines
+///      carry — holds no character of the sentinel.
 @Suite("Decode-failure log lines (#432)", .serialized)
 struct DecodeFailureLogLineTests {
 
@@ -35,19 +52,43 @@ struct DecodeFailureLogLineTests {
     /// against a planted string as well as the tree — a witness with no
     /// positive control is a check that passes on an empty enumeration.
     ///
-    /// It flags the ONE shape that turns response bytes into log text:
-    /// `String(data:` reaching a `privacy: .public` interpolation, either
-    /// directly on the logging line or by way of a local bound earlier in the
-    /// same file. `.prefix(` alone is deliberately NOT the trigger — the
-    /// router's `String(describing: error).prefix(80)` lines are bounded error
-    /// descriptions, not bodies, and a witness that reddened on those would be
-    /// turned off within a week.
+    /// It flags ONE shape: response bytes becoming a String
+    /// (`String(data:…)` or `String(decoding:…as:)` — the only two
+    /// initialisers that do it) and reaching a `privacy: .public`
+    /// interpolation, either directly on the logging line or by way of a local
+    /// bound earlier in the same file. `.prefix(` alone is deliberately NOT the
+    /// trigger — the router's `String(describing: error).prefix(80)` lines are
+    /// bounded error descriptions, not bodies, and a witness that reddened on
+    /// those would be turned off within a week.
+    ///
+    /// **What it CANNOT see — stated because a witness read as wider than it is
+    /// becomes a false assurance, which is exactly what happened (the fix
+    /// round's finding, 2026-09-06):**
+    ///
+    ///   1. **Bytes that travel by THROW.** A local bound from bytes, folded
+    ///      into an error's message, caught in another function and logged as
+    ///      `error.localizedDescription` reaches os_log without ever touching
+    ///      this pattern. `SessionsHermesClient.ensureSuccess` did exactly
+    ///      that, and one of the six public log lines it fed sits a thousand
+    ///      lines EARLIER in the same file — the lookback only runs backwards
+    ///      from a log line, and for `ChatStore` / `ChatBackendRouter` the
+    ///      chain crosses files entirely. That path is closed structurally
+    ///      instead (the message never receives the body) and measured by
+    ///      `aNonSuccessBodyNeverReachesTheThrownErrorMessage`, not here.
+    ///   2. **Anything the line-based match misses.** A binding or an
+    ///      interpolation split across lines, a binding that appears after its
+    ///      use, a name that travels through a second local, or bytes reaching
+    ///      a log line through a function call.
+    ///   3. **Nothing about SCOPE.** A binding anywhere in a file and a public
+    ///      interpolation of that name anywhere later in it count as a hit even
+    ///      in unrelated functions. Deliberate: the privacy stakes favour a
+    ///      false positive, and the failure message says how to satisfy it.
     static func bodyBytesInPublicLogHits(in source: String, fileName: String) -> [String] {
         let lines = source.components(separatedBy: "\n")
         // Locals bound from raw bytes: `let x = String(data: …` /
-        // `var x = …String(data:…` / `guard let x = String(data: …`.
+        // `var x = …String(decoding:…` / `guard let x = String(data: …`.
         var byteBoundNames: [(name: String, line: Int)] = []
-        for (index, line) in lines.enumerated() where line.contains("String(data:") {
+        for (index, line) in lines.enumerated() where namesRawBytes(line) {
             guard let binding = line.range(of: #"(?:let|var)\s+([A-Za-z_][A-Za-z0-9_]*)\s*="#,
                                            options: .regularExpression) else { continue }
             let declaration = String(line[binding])
@@ -61,18 +102,26 @@ struct DecodeFailureLogLineTests {
 
         var hits: [String] = []
         for (index, line) in lines.enumerated() where line.contains("privacy: .public") {
-            if line.contains("String(data:") {
-                hits.append("\(fileName):\(index + 1) — String(data:) interpolated at privacy: .public")
+            if namesRawBytes(line) {
+                hits.append("\(fileName):\(index + 1) — response bytes (String(data:)/String(decoding:)) interpolated at privacy: .public")
                 continue
             }
             // One hit per offending LINE: the same local name can be bound
             // from bytes more than once in a file, and reporting the line
             // three times reads as three defects.
             if let bound = byteBoundNames.last(where: { $0.line < index && interpolates($0.name, in: line) }) {
-                hits.append("\(fileName):\(index + 1) — '\(bound.name)' (bound from String(data:) at line \(bound.line + 1)) interpolated at privacy: .public")
+                hits.append("\(fileName):\(index + 1) — '\(bound.name)' (bound from response bytes at line \(bound.line + 1)) interpolated at privacy: .public")
             }
         }
         return hits
+    }
+
+    /// The two initialisers that turn raw response bytes into a String.
+    /// `String(decoding:as:)` was absent from this detector until 2026-09-06;
+    /// seven live sites use it and none is public today, which is the state the
+    /// witness exists to keep.
+    private static func namesRawBytes(_ line: String) -> Bool {
+        line.contains("String(data:") || line.contains("String(decoding:")
     }
 
     /// `\(name` with the name ending at a non-identifier character, so `\(id,`
@@ -135,12 +184,49 @@ struct DecodeFailureLogLineTests {
         #expect(Self.bodyBytesInPublicLogHits(in: planted, fileName: "Planted.swift").isEmpty)
     }
 
-    /// A local bound from bytes and folded into a THROWN error (the
-    /// `ensureSuccess` / `SkillsService` / `CronJobService` shape) is out of
-    /// this lane's bound — it never reaches os_log. The witness must not
-    /// claim it does.
-    @Test("bytes folded into a thrown error are not a hit")
-    func bytesFoldedIntoAThrownErrorAreNotAHit() {
+    /// **Minor from the fix round's review.** `String(decoding: data, as:
+    /// UTF8.self)` is the OTHER way response bytes become a String, and the
+    /// detector did not know the shape at all. Seven live sites use it (the
+    /// runs transport's `classifySteerSubmit` / `classifyApprovalAnswer` /
+    /// usage decode, `LiveVoiceSessionService`, `AttachmentInlining`,
+    /// `LocalChatBackend`) and not one is public today — but "none today" is
+    /// the thing this witness exists to keep true.
+    @Test("the witness flags a String(decoding:) binding at privacy: .public")
+    func theWitnessFlagsTheDecodingInitialiser() {
+        let bound = #"""
+        let bodyText = String(decoding: body, as: UTF8.self)
+        Self.logger.error("runs: rejected — \(bodyText, privacy: .public)")
+        """#
+        let boundHits = Self.bodyBytesInPublicLogHits(in: bound, fileName: "Planted.swift")
+        #expect(boundHits.count == 1, "the witness cannot see a String(decoding:) binding: \(boundHits)")
+        #expect(boundHits.first?.contains("bodyText") == true)
+
+        let inline = #"""
+        logger.error("boom: \(String(decoding: data, as: UTF8.self), privacy: .public)")
+        """#
+        #expect(Self.bodyBytesInPublicLogHits(in: inline, fileName: "Planted.swift").count == 1)
+    }
+
+    /// A local bound from bytes and folded into a THROWN error is **outside
+    /// the detector's reach — which is not the same as outside the app's.**
+    ///
+    /// This row's docstring used to say the shape "never reaches os_log", and
+    /// that was FALSE: `SessionsHermesClient.ensureSuccess`'s message is
+    /// interpolated at `privacy: .public` by six live log lines, and
+    /// `CronJobService`'s by `deliverPlatforms()`. Both are closed
+    /// structurally now, and the bars that measure it are
+    /// `aNonSuccessBodyNeverReachesTheThrownErrorMessage` and its cron twin.
+    ///
+    /// The row stays, because pinning the BOUNDARY honestly is worth a test: a
+    /// line-based scanner cannot follow bytes through a throw, a catch and
+    /// another function, so this family can only ever be closed at the source
+    /// of the message. `SkillsService` and `InsightsService` still build such
+    /// a message; measured 2026-09-06, their errors reach `SkillsStore` /
+    /// `InsightsStore` / `HostFailurePresentation` and no `privacy: .public`
+    /// log line — that is why they are left, and it is a fact with a date on
+    /// it rather than a property of the shape.
+    @Test("bytes folded into a thrown error are outside the detector's reach")
+    func bytesFoldedIntoAThrownErrorAreOutsideTheDetectorsReach() {
         let planted = #"""
         let bodySnippet = String(data: data, encoding: .utf8)?.prefix(200) ?? ""
         throw SessionsClientError.requestFailed("Hermes API returned status \(httpResponse.statusCode). \(bodySnippet)")
@@ -148,10 +234,23 @@ struct DecodeFailureLogLineTests {
         #expect(Self.bodyBytesInPublicLogHits(in: planted, fileName: "Planted.swift").isEmpty)
     }
 
-    /// **The tree-wide bar.** Fails loudly if the enumeration comes back empty
-    /// — a check that could not run must say so rather than pass.
-    @Test("no response body reaches a public log line under Talaria/Services/")
-    func noResponseBodyReachesAPublicLogLine() throws {
+    /// **The tree-wide bar — and its name is now literal on purpose.**
+    ///
+    /// It measures ONE shape: a body-bytes binding (or an inline decode)
+    /// reaching a `privacy: .public` interpolation *later in the same file*.
+    /// It was called `noResponseBodyReachesAPublicLogLine` until 2026-09-06,
+    /// and that name asserted something it cannot check — a response body DID
+    /// reach a public log line the whole time it said otherwise, through
+    /// `ensureSuccess`'s thrown message. A test's name is read far more often
+    /// than its detector, so the name is the claim. See
+    /// `bodyBytesInPublicLogHits`' docstring for the three shapes it cannot
+    /// see, and the two `…NeverReachesTheThrownErrorMessage` rows for the one
+    /// that mattered.
+    ///
+    /// Fails loudly if the enumeration comes back empty — a check that could
+    /// not run must say so rather than pass.
+    @Test("no body-bytes binding reaches a public log line in the same file (Talaria/Services/)")
+    func noBodyBytesBindingReachesAPublicLogLineInTheSameFile() throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()   // TalariaTests/
             .deletingLastPathComponent()   // repo root
@@ -362,6 +461,62 @@ struct DecodeFailureLogLineTests {
         #expect(nested.contains("…"))
     }
 
+    // MARK: - The non-2xx message formatter (fix round 1)
+
+    /// The whole shape, pinned by equality for the same reason the decode line
+    /// is: a reader greps it, and the six public log lines that carry it print
+    /// it verbatim.
+    @Test("the non-2xx message renders lead, status, content type and byte count")
+    func hostStatusFailureDetailRendersTheWholeLine() {
+        #expect(
+            SessionsHermesClient.hostStatusFailureDetail(
+                lead: "Hermes API", status: 502,
+                contentType: "text/html; charset=utf-8", byteCount: 1234
+            ) == "Hermes API returned status 502 — contentType=text/html;charset=utf-8, bytes=1234."
+        )
+        // Each service keeps its own voice over one shared, body-free tail.
+        #expect(
+            SessionsHermesClient.hostStatusFailureDetail(
+                lead: "The Hermes host", status: 500,
+                contentType: "application/json", byteCount: 0
+            ) == "The Hermes host returned status 500 — contentType=application/json, bytes=0."
+        )
+    }
+
+    /// `none` and blank are opposite readings here too — the same pairing the
+    /// decode line makes, and it must not drift between the two formatters.
+    @Test("an absent content type reads none in the non-2xx message")
+    func hostStatusFailureDetailReadsNoneNotBlank() {
+        let line = SessionsHermesClient.hostStatusFailureDetail(
+            lead: "Hermes API", status: 418, contentType: nil, byteCount: 7
+        )
+        #expect(line.contains("contentType=none"))
+        #expect(!line.contains("contentType=,"))
+    }
+
+    /// The `Content-Type` is server-chosen on this path too, so it rides the
+    /// SAME `boundedContentType` the decode line uses — one helper, one bound,
+    /// no second thing to keep in step.
+    @Test("the non-2xx message bounds a hostile content type identically")
+    func hostStatusFailureDetailBoundsAHostileContentType() {
+        let hostile = "text/html; charset=utf-8 bytes=0 status=200 " + String(repeating: "x", count: 300)
+        let line = SessionsHermesClient.hostStatusFailureDetail(
+            lead: "Hermes API", status: 502, contentType: hostile, byteCount: 41
+        )
+        let fields = line.components(separatedBy: " ")
+        let value = (fields.first { $0.hasPrefix("contentType=") } ?? "")
+            .replacingOccurrences(of: "contentType=", with: "")
+            .replacingOccurrences(of: ",", with: "")
+        #expect(value.count <= 64)
+        #expect(!value.isEmpty)
+        // The forged fields did not survive AS fields: the header collapsed to
+        // one whitespace-free token, so the line still carries exactly one
+        // `bytes=` and one `status=` of its own.
+        #expect(fields.filter { $0.hasPrefix("bytes=") }.count == 1)
+        #expect(fields.filter { $0.hasPrefix("status") }.count == 1)
+        #expect(line.hasSuffix("bytes=41."))
+    }
+
     // MARK: - The canary through both real sites (432-B)
 
     /// #138-M's shape, moved onto the chat plane. The sentinel's CJK half is
@@ -499,5 +654,114 @@ struct DecodeFailureLogLineTests {
         #expect(line.contains("bytes=\(bytes.count)"))
         #expect(line.contains("case=typeMismatch"))
         #expect(line.contains("key=data[0].role"))
+    }
+
+    // MARK: - The root of the family (fix round 1)
+
+    /// **The decode branch was never the only way response bytes reached
+    /// os_log from this client, and the first round's report said it was.**
+    ///
+    /// `ensureSuccess` folded `String(data: data, encoding: .utf8)?.prefix(200)`
+    /// into `SessionsClientError.requestFailed`'s message on every non-2xx.
+    /// `SessionsClientError` is a `LocalizedError` that returns that message
+    /// verbatim as `errorDescription`, and four live call sites interpolate a
+    /// thrown error's `localizedDescription` at `privacy: .public`:
+    /// `SessionsHermesClient.swift`'s own per-profile `listSessions` breadcrumb
+    /// (`.notice` — which `log collect` and sysdiagnose persist exactly as
+    /// `.error` does), `ChatStore.loadSessions`' two failure lines, and
+    /// `ChatBackendRouter`'s no-host-answered line. The runs transport's
+    /// turn-failure line makes a fifth. So the bytes arrived at the same place
+    /// #432 was written to close, one function further along.
+    ///
+    /// The source witness below **cannot** see this and no line-based witness
+    /// could: the binding is in `ensureSuccess`, the throw is there, the catch
+    /// is in a different function, and the log line is over a thousand lines
+    /// EARLIER in the file — the detector only looks backwards from a log
+    /// line, and for `ChatStore`/`ChatBackendRouter` the chain crosses files.
+    /// That is why the fix is structural (the message is built from status,
+    /// content type and byte count and never receives the body) and why this
+    /// bar is measured on BEHAVIOUR — the thrown error's own user-facing text,
+    /// which is the exact string those five log lines carry.
+    @Test("a non-2xx body never reaches the thrown error's message")
+    @MainActor
+    func aNonSuccessBodyNeverReachesTheThrownErrorMessage() async throws {
+        let client = makeClient("status")
+        // The sentinel sits in the first 200 bytes on purpose: `prefix(200)` is
+        // what the pre-fix code took, so a sentinel past that offset would make
+        // this assertion unfireable — the same defect the padding placement
+        // above was written to fix.
+        let body = Self.padded("upstream error: \(Self.sentinel) __PAD__")
+        let bytes = Data(body.utf8)
+        CanaryStubURLProtocol.requestHandler = { request in
+            (HTTPURLResponse(url: request.url!, statusCode: 502, httpVersion: "HTTP/1.1",
+                             headerFields: ["Content-Type": "text/html; charset=utf-8"])!, bytes)
+        }
+        defer { CanaryStubURLProtocol.requestHandler = nil }
+
+        var thrown: Error?
+        do {
+            _ = try await client.listSessions()
+        } catch {
+            thrown = error
+        }
+        let error = try #require(thrown, "the 502 did not throw — the canary measured nothing")
+        // `localizedDescription`, not the case payload: that is what every one
+        // of the five public log lines interpolates.
+        let message = error.localizedDescription
+        assertNoLeak(message)
+        #expect(message.contains("502"))
+        #expect(message.contains("bytes=\(bytes.count)"))
+        #expect(message.contains("contentType=text/html;charset=utf-8"))
+    }
+
+    /// **The sibling the first round listed as safe, MEASURED 2026-09-06 and
+    /// it is not.** `CronJobService.ensureSuccess` builds the same snippet
+    /// (`CronJobService.swift`, the `default:` arm) into
+    /// `CronJobServiceError.serverRejected`, and `deliverPlatforms()` catches
+    /// that error and logs `error.localizedDescription` at `privacy: .public`
+    /// on `.notice`. So a non-2xx from `GET /health/detailed` puts up to 200
+    /// bytes of that response into a device archive — the same defect, one
+    /// file over, on a path nothing had traced.
+    ///
+    /// `listJobs()` is the throwing entry point through the identical
+    /// `ensureSuccess`, so the bar is measured on the error's own text — which
+    /// is precisely the string `deliverPlatforms`' log line interpolates.
+    ///
+    /// **Deliberately NOT changed by this row:** the arm above it, which
+    /// surfaces a decoded `error` FIELD untranslated. That is a structured
+    /// server message and a product decision (the cron validation and
+    /// schedule-parse messages users need); only the raw-bytes fallback is
+    /// this defect.
+    @Test("a non-2xx body never reaches the cron service's thrown message")
+    @MainActor
+    func aCronNonSuccessBodyNeverReachesTheThrownErrorMessage() async throws {
+        let body = Self.padded("upstream error: \(Self.sentinel) __PAD__")
+        let bytes = Data(body.utf8)
+        CanaryStubURLProtocol.requestHandler = { request in
+            (HTTPURLResponse(url: request.url!, statusCode: 502, httpVersion: "HTTP/1.1",
+                             headerFields: ["Content-Type": "text/html; charset=utf-8"])!, bytes)
+        }
+        defer { CanaryStubURLProtocol.requestHandler = nil }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [CanaryStubURLProtocol.self]
+        let service = CronJobService(
+            baseURLProvider: { "http://ojamd:8642" },
+            apiKeyProvider: { "key-test" },
+            session: URLSession(configuration: configuration)
+        )
+
+        var thrown: Error?
+        do {
+            _ = try await service.listJobs()
+        } catch {
+            thrown = error
+        }
+        let error = try #require(thrown, "the 502 did not throw — the canary measured nothing")
+        let message = error.localizedDescription
+        assertNoLeak(message)
+        #expect(message.contains("502"))
+        #expect(message.contains("bytes=\(bytes.count)"))
+        #expect(message.contains("contentType=text/html;charset=utf-8"))
     }
 }
