@@ -42,9 +42,18 @@ struct ChatStoreMergeCompletenessTests {
     /// a claim — "a refresh legitimately re-supplies this" — and it should be
     /// made deliberately, in a review, rather than by a loop that quietly
     /// forgot a field.
+    ///
+    /// **`brain` left this list on 2026-09-06 (#435 fix round 2), and it was
+    /// measured out of it.** Calling it server-owned reads as true — no host
+    /// transcript has ever carried a brain — but the refresh source a LOCAL
+    /// turn merges against is the local backend's own copy of the reply, which
+    /// carries no brain either because only the router's copy is stamped. The
+    /// field was therefore not re-supplied by anyone: it was dropped on the
+    /// settle itself, taking #27's transcript tag and #435's Apple Weather
+    /// attribution with it. It is carried now.
     private static let serverOwned: Set<String> = [
         "id", "clientMessageID", "sender", "content", "timestamp", "jobID",
-        "status", "hostReportedFailure", "brain", "isContextPriming",
+        "status", "hostReportedFailure", "isContextPriming",
         "voiceSessionDuration",
     ]
 
@@ -55,6 +64,10 @@ struct ChatStoreMergeCompletenessTests {
         "toolActivities", "reasoning", "reasoningSummary",
         "usage", "turnDuration", "servingModel", "attachments",
         "memoryProvenance",
+        // #435 fix round 2 — see the note on `serverOwned` above. Carried into
+        // a hole only, exactly like `usage`/`servingModel`: a refresh source
+        // that names a brain still wins.
+        "brain",
     ]
 
     /// Client-only fields the merge carries that are **not `CodingKeys` at

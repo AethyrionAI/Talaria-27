@@ -1279,6 +1279,31 @@ final class ChatStore {
         }
 
         let stream = hermesClient.sendStreaming(message: trimmedContent, attachments: attachments, clientMessageID: clientMessageID)
+        // #435 (fix round 2): stamp the run's ORIGIN onto the placeholder now,
+        // at stream start — not at `.finished`.
+        //
+        // Routing is decided inside `sendStreaming`'s own body and the routing
+        // lock is held by the time it returns, so `currentRunBrain` is already
+        // this turn's answer on the statement after the call. That timing is
+        // the whole point: `.finished` is not the only way this placeholder
+        // settles. `cancelStreaming` settles it in place on a Stop and on a
+        // revoked background budget, stamping nothing — so a stopped turn used
+        // to keep `brain == nil` forever, and #435's Apple Weather attribution
+        // (which must know whose weather service served the data) went silent
+        // over a reply whose data is still on screen. #27's transcript tag
+        // reads the same field.
+        //
+        // A `.finished` turn re-stamps the SAME value from the same run's
+        // resolution (`ChatBackendRouter.swift`, the pump's `.finished` arm),
+        // so this is an earlier write of one fact, never a second fact. A
+        // client with no brain concept answers nil and nothing is written —
+        // unknown origin stays unknown rather than becoming a guess.
+        if let runBrain = hermesClient.currentRunBrain,
+           var conv = conversation,
+           let idx = conv.messages.firstIndex(where: { $0.id == placeholderID }) {
+            conv.messages[idx].brain = runBrain
+            conversation = conv
+        }
         var acceptedJobID: UUID?
         var needsPollingFallback = false
         // P1 (#90): whether the settled exchange rode the active Hermes hop —
@@ -5035,6 +5060,28 @@ final class ChatStore {
             }
             if refreshedConversation.messages[index].servingModel == nil, let model = local.servingModel {
                 refreshedConversation.messages[index].servingModel = model
+            }
+
+            // #435 (fix round 2) — and this one was MEASURED, not assumed.
+            //
+            // `brain` was classified server-owned, which is true of a HOST
+            // transcript (it carries no brain and never did) but false of the
+            // refresh source a LOCAL turn actually merges against: the local
+            // backend keeps its own copy of the reply
+            // (`LocalChatBackend.appendAssistantMessage` stores the very
+            // message it yields at `.finished`), only the ROUTER's copy is
+            // stamped, and this merge runs on the statement after the settle.
+            // So every on-device / PCC reply lost its brain immediately —
+            // #27's transcript tag and #435's attribution both read this
+            // field, and both were reading nil on the phone's own turns.
+            // Pinned by `WeatherAttributionTests.aFinishedLocalTurnKeepsTheBrainItRanOn`,
+            // which was RED on exactly this before the carry existed.
+            //
+            // Carried only into a HOLE, like every field above it: a refresh
+            // source that does name a brain still wins, so this can never
+            // overwrite a host's own answer with a stale local one.
+            if refreshedConversation.messages[index].brain == nil, let brain = local.brain {
+                refreshedConversation.messages[index].brain = brain
             }
 
             // #422 ruling 2 — memory provenance is client-only in the same way,

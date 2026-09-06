@@ -114,18 +114,27 @@ enum WeatherAttribution {
     /// **and** the reply must have come from a brain this app's own WeatherKit
     /// belt serves.
     ///
-    /// **The nil-brain carve-out, and why it is exactly this narrow.**
-    /// `ChatStore` mints the streaming placeholder with no brain at all, and
-    /// `ChatBackendRouter` stamps one only at `.finished`. A strict check would
-    /// therefore withhold the attribution for the ENTIRE length of a live local
-    /// weather reply — the exact window this row was deliberately placed
-    /// outside `!isStreaming` to cover, because the moment the lookup returns,
-    /// Apple's data is on screen. So an unrecorded brain counts only while the
-    /// turn is STILL STREAMING; once a reply has settled, an unknown brain is
-    /// treated as hosted, which is what a rebuilt host transcript row actually
-    /// is. The residual is a row that appears and then vanishes if a host tool
-    /// is ever named `currentWeather` — visibly self-correcting, where the
-    /// alternative was an unattributed live reply.
+    /// **⟵ FIX ROUND 2: the streaming carve-out is GONE, and the reason is
+    /// worth keeping.** The rule used to read
+    /// `isLocalBrain(brain) || (brain == nil && isStreaming)`, because
+    /// `ChatStore` minted the placeholder with no brain and only `.finished`
+    /// ever stamped one — so a strict check would have withheld the
+    /// attribution for the whole length of a live local weather reply, the
+    /// exact window this row is placed outside `!isStreaming` to cover.
+    ///
+    /// The carve-out bought that window by trusting `isStreaming` as a proxy
+    /// for origin, and the bill came due on the paths that end a turn without
+    /// `.finished`: `ChatStore.cancelStreaming` settles the placeholder in
+    /// place (`isStreaming = false`, `.delivered`) and stamps no brain, so a
+    /// STOPPED local weather turn read `brain == nil, isStreaming == false`
+    /// and lost the attribution permanently — over data still on screen.
+    ///
+    /// The window is covered at its source instead: the placeholder is
+    /// stamped with the run's brain the instant `sendStreaming` returns
+    /// (`HermesClientProtocol.currentRunBrain`), so every path that settles it
+    /// — `.finished`, a Stop, a system-revoked turn — leaves a row that knows
+    /// its origin, and an unknown brain can go back to meaning exactly one
+    /// thing in both states: not this app's belt.
     ///
     /// **The HOSTED path is not covered, and that is measured rather than
     /// assumed.** The default Hermes brain does serve real WeatherKit data
@@ -140,9 +149,7 @@ enum WeatherAttribution {
     /// name alone would repeat the very defect the brain check above closes, so
     /// the app renders nothing there and the gap is filed as a follow-up.
     static func required(for message: Message) -> Bool {
-        let originIsOurBelt = isLocalBrain(message.brain)
-            || (message.brain == nil && message.isStreaming)
-        return originIsOurBelt && required(for: message.toolActivities)
+        isLocalBrain(message.brain) && required(for: message.toolActivities)
     }
 
     /// The rule itself: **a weather call that COMPLETED.**

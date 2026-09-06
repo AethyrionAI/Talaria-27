@@ -248,22 +248,39 @@ struct WeatherAttributionTests {
         #expect(!WeatherAttribution.required(for: Self.reply([Self.weatherActivity()], brain: nil)))
     }
 
-    /// **Important 3, and the one carve-out — pinned so it cannot widen.**
-    /// `ChatStore.swift:1207-1214` mints the streaming placeholder with no
-    /// brain at all; `ChatBackendRouter.swift:477-478` stamps it only at
-    /// `.finished`. A brain check with no carve-out would therefore withhold
-    /// the attribution for the WHOLE length of a local weather reply — the
-    /// exact window 435-A placed the row outside `!isStreaming` to cover.
+    /// **Fix round 2 — the streaming carve-out is RETIRED, and this row is
+    /// what replaced it.**
     ///
-    /// So an unknown brain counts only **while the turn is still streaming**,
-    /// and never once it has settled (the row above). The residual is a row
-    /// that shows and then vanishes if a HOST tool is ever named
-    /// `currentWeather`; the alternative was an unattributed live reply, which
-    /// is the compliance failure rather than a cosmetic one.
-    @Test("435-A · a still-streaming reply with no recorded brain yet still requires it")
-    func aStreamingReplyWithNoBrainYetStillRequiresIt() {
+    /// The fix round shipped `isLocalBrain(brain) || (brain == nil &&
+    /// isStreaming)`: the placeholder was minted with no brain and only
+    /// `.finished` ever stamped one, so a strict check would have withheld
+    /// the attribution for the whole length of a live local weather reply.
+    /// The carve-out bought that window at the price of trusting
+    /// `isStreaming` as a proxy for origin — and the re-review found the bill:
+    /// `ChatStore.cancelStreaming` settles the placeholder in place
+    /// (`isStreaming = false`, `.delivered`) and stamps NO brain, so a
+    /// stopped local weather turn kept Apple's data on screen, unattributed,
+    /// forever.
+    ///
+    /// The window is now covered at its source instead — the placeholder
+    /// carries its run's brain from the moment `sendStreaming` returns
+    /// (`aLiveLocalWeatherReplyIsAttributedWhileItStreams`) — so `isStreaming`
+    /// buys the rule nothing and an unknown origin is an unknown origin in
+    /// both states.
+    @Test("435-B · a streaming reply with no recorded brain gets no row either")
+    func aStreamingReplyWithNoRecordedBrainGetsNoRowEither() {
+        #expect(!WeatherAttribution.required(
+            for: Self.reply([Self.weatherActivity()], brain: nil, isStreaming: true)),
+                "an unknown origin is unknown whether or not the turn has settled")
+    }
+
+    /// **Fix round 2, the other direction.** A live reply that HAS its brain
+    /// is attributed while it streams — the compliance window the retired
+    /// carve-out existed to cover, now answered by the origin itself.
+    @Test("435-A · a still-streaming reply that knows its brain requires it")
+    func aStreamingReplyThatKnowsItsBrainRequiresIt() {
         #expect(WeatherAttribution.required(
-            for: Self.reply([Self.weatherActivity()], brain: nil, isStreaming: true)))
+            for: Self.reply([Self.weatherActivity()], brain: .onDevice, isStreaming: true)))
     }
 
     // MARK: - 435-F (final review, Important 1) — the HOST path, MEASURED
@@ -298,13 +315,24 @@ struct WeatherAttributionTests {
     /// that are not weather — the same false-attribution defect Important 3
     /// closed, in the other direction. **Not guessed; filed.** This row pins
     /// the measured behaviour: a hosted phone-query activity gets no row.
+    ///
+    /// **It fails for the reason the docstring gives (fix round 2, review
+    /// note).** This row used to assert one thing — a hosted activity on a
+    /// `.hermes` message — which the ORIGIN check answers before the tool
+    /// name is ever read, so the mechanism it claims to measure was never
+    /// exercised. The first expectation below reaches the array-level
+    /// predicate directly, with no origin in the way: the hosted name simply
+    /// is not the belt's name, and that stays true whatever brain is
+    /// stamped. The `.onDevice` arm makes that hypothetical explicit and the
+    /// `.hermes` arm keeps the production shape.
     @Test("435-F · MEASURED: a hosted phone-query activity cannot be identified as weather")
     func aHostedPhoneQueryActivityGetsNoRow() {
-        let message = Self.reply(
-            [ToolActivity(label: "talaria_phone_query", isActive: false, detail: nil)],
-            brain: .hermes)
-        #expect(!WeatherAttribution.required(for: message),
+        let hosted = [ToolActivity(label: "talaria_phone_query", isActive: false, detail: nil)]
+        #expect(!WeatherAttribution.required(for: hosted),
                 "the hosted tool name is shared by all seven phone-query kinds — see this test's docstring")
+        #expect(!WeatherAttribution.required(for: Self.reply(hosted, brain: .onDevice)),
+                "even stamped as local, a hosted phone-query activity says nothing about weather")
+        #expect(!WeatherAttribution.required(for: Self.reply(hosted, brain: .hermes)))
     }
 
     // MARK: - 435-C — the words and the link, pinned
@@ -490,5 +518,248 @@ struct WeatherAttributionTests {
             #expect(row.toolActivities.isEmpty,
                     "a voice transcript row carries no tool activities — 435-E's measured gap")
         }
+    }
+
+    // MARK: - Fix round 2 — the placeholder learns its brain at stream START
+
+    /// A hand-driven client in the shape of the production pair `ChatStore`
+    /// actually holds: `ChatBackendRouter` in front of `LocalChatBackend`.
+    /// Two properties of that pair are load-bearing here, and both are
+    /// modelled deliberately rather than assumed:
+    ///
+    ///  1. **The brain is resolved before `sendStreaming` RETURNS.**
+    ///     `ChatBackendRouter.sendStreaming` picks the brain, takes the
+    ///     routing lock and sets `runningBrain` in its own first statements —
+    ///     all synchronous, ahead of the `AsyncStream` it hands back. So
+    ///     `currentRunBrain` answers from the instant the call comes back,
+    ///     which is the whole reason the placeholder can be stamped there.
+    ///  2. **The local backend keeps its own transcript copy, with no brain
+    ///     on it.** `LocalChatBackend.appendAssistantMessage` stores the very
+    ///     `Message` it then yields in `.finished`, and only the ROUTER's
+    ///     copy is stamped (`ChatBackendRouter.swift:478`). `ChatStore` merges
+    ///     that stored transcript over its own the statement after the settle
+    ///     (`ChatStore.swift:1651`) — which is what
+    ///     `aFinishedLocalTurnKeepsTheBrainItRanOn` measures.
+    @MainActor
+    private final class LocalBeltClient: HermesClientProtocol {
+        var connectionStatus: ConnectionStatus = .connected
+        var currentConversation: Conversation?
+        /// The on-device/PCC brain is not server-recoverable, so a Stop takes
+        /// `cancelStreaming`'s settle-in-place branch — the one this round is
+        /// about. (`ChatBackendRouter.currentRunIsServerRecoverable` is
+        /// `runningBrain == .hermes`.)
+        var currentRunIsServerRecoverable = false
+        /// What the router answers while the routing lock is held. Nil until
+        /// the first send, exactly like `runningBrain`.
+        var currentRunBrain: String?
+        private let brainForRun: String?
+        private(set) var continuations: [AsyncStream<StreamingUpdate>.Continuation] = []
+
+        init(brain: ChatBackendRouter.Brain) { self.brainForRun = brain.rawValue }
+
+        @discardableResult
+        func hardStopActiveRun() -> Bool { false }
+
+        func connect() async {}
+        func disconnect() async {}
+
+        func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
+            Message(sender: .hermes, content: "unused", status: .delivered)
+        }
+
+        func sendStreaming(
+            message: String,
+            attachments: [PendingAttachment],
+            clientMessageID: UUID
+        ) -> AsyncStream<StreamingUpdate> {
+            // Point 1 above: routing is resolved HERE, before the stream is
+            // returned — not when the first frame arrives.
+            currentRunBrain = brainForRun
+            return AsyncStream { continuation in
+                continuation.yield(.messageSent(jobID: UUID()))
+                self.continuations.append(continuation)
+            }
+        }
+
+        func loadConversation() async -> Conversation {
+            currentConversation ?? Conversation(title: Conversation.defaultTitle)
+        }
+
+        func clearConversation() async throws -> Conversation {
+            Conversation(title: Conversation.defaultTitle)
+        }
+
+        func reconcileFromServer() async -> Conversation? { nil }
+    }
+
+    @MainActor private static func makePersistence() -> UserDefaultsAppPersistenceStore {
+        let suiteName = "weather-attribution-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return UserDefaultsAppPersistenceStore(defaults: defaults)
+    }
+
+    @MainActor
+    private func pollUntil(
+        timeout: Duration = .seconds(5),
+        _ condition: @MainActor () -> Bool
+    ) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now + timeout
+        while clock.now < deadline {
+            if condition() { return true }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        return condition()
+    }
+
+    @MainActor private static func streamingReply(in store: ChatStore) -> Message? {
+        store.conversation?.messages.last { $0.sender == .hermes && $0.isStreaming }
+    }
+
+    @MainActor private static func settledReply(in store: ChatStore) -> Message? {
+        store.conversation?.messages.last { $0.sender == .hermes }
+    }
+
+    /// Drives a real turn to the state this round is about: a live stream
+    /// whose transcript already records a COMPLETED `currentWeather` call —
+    /// i.e. Apple's data is on screen and the turn has not settled yet.
+    ///
+    /// The frames are the ones `LocalChatBackend` emits for a belt call
+    /// (`.toolActivity(.started)` → prose → `.toolActivity(.completed)`,
+    /// `LocalChatBackend.swift:1292-1296`), applied by
+    /// `ChatStore.swift:1332-1380`.
+    @MainActor
+    private func startWeatherTurn(
+        store: ChatStore, client: LocalBeltClient
+    ) async throws -> (send: Task<Bool, Never>, stream: AsyncStream<StreamingUpdate>.Continuation) {
+        let sendTask = Task { @MainActor in await store.sendMessage("what's the weather in Gulfport") }
+        let live = await pollUntil { store.isStreaming && !client.continuations.isEmpty }
+        #expect(live, "the turn must be streaming before the test proceeds")
+        let stream = try #require(client.continuations.last)
+        stream.yield(.toolActivity(ToolCallEvent(
+            name: WeatherAttribution.toolName, phase: .started, detail: "Gulfport")))
+        stream.yield(.textDelta("It's 68 and clear in Gulfport."))
+        stream.yield(.toolActivity(ToolCallEvent(
+            name: WeatherAttribution.toolName, phase: .completed)))
+        let applied = await pollUntil {
+            Self.streamingReply(in: store)?.toolActivities.contains {
+                $0.label == WeatherAttribution.toolName && !$0.isActive && $0.failure == nil
+            } ?? false
+        }
+        #expect(applied, "the completed weather call must be on the placeholder before the test proceeds")
+        return (sendTask, stream)
+    }
+
+    /// **Fix round 2.** The live window, through the real store: the moment
+    /// the lookup comes back, Apple's data is on screen and the row must be
+    /// there — and it is there because the placeholder KNOWS its origin, not
+    /// because `isStreaming` excused it from knowing.
+    @Test("435-A · a live local weather reply is attributed while it streams")
+    @MainActor
+    func aLiveLocalWeatherReplyIsAttributedWhileItStreams() async throws {
+        let client = LocalBeltClient(brain: .onDevice)
+        let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+        let turn = try await startWeatherTurn(store: store, client: client)
+
+        let live = try #require(Self.streamingReply(in: store))
+        #expect(live.brain == ChatBackendRouter.Brain.onDevice.rawValue,
+                "the placeholder must carry the brain its run was routed to, from stream start")
+        #expect(WeatherAttribution.required(for: live),
+                "Apple's data is on screen the moment the lookup returns — the row belongs there")
+
+        turn.stream.finish()
+        turn.send.cancel()
+    }
+
+    /// **Fix round 2 — THE regression this round exists to close.**
+    ///
+    /// `ChatStore.cancelStreaming` settles the placeholder in place
+    /// (`isStreaming = false`, `.delivered`) and marks only the activities
+    /// that were STILL ACTIVE; a weather call that already completed keeps
+    /// `failure == nil`. Nothing on that path ever stamped a brain — the only
+    /// two `.brain =` writes in the app are on `.finished`
+    /// (`ChatBackendRouter.swift:447, 478`) — so under the fix round's
+    /// origin check the settled row read `brain == nil, isStreaming == false`
+    /// and the attribution vanished the instant the user tapped Stop, over
+    /// data that stays on screen. Permanently: the row persists that way.
+    @Test("435-B · a stopped local turn keeps the attribution its transcript earned")
+    @MainActor
+    func aStoppedLocalTurnKeepsTheAttribution() async throws {
+        let client = LocalBeltClient(brain: .onDevice)
+        let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+        let turn = try await startWeatherTurn(store: store, client: client)
+
+        store.cancelStreaming(hardStopHost: true)
+
+        let settled = try #require(Self.settledReply(in: store))
+        #expect(settled.isStreaming == false, "Stop settles the placeholder in place")
+        #expect(settled.status == .delivered)
+        #expect(settled.brain == ChatBackendRouter.Brain.onDevice.rawValue,
+                "the settled row must still know which brain served it")
+        #expect(WeatherAttribution.required(for: settled),
+                "the weather Apple served is still on screen after a Stop — so is the attribution it owes")
+
+        turn.stream.finish()
+        turn.send.cancel()
+    }
+
+    /// **Fix round 2, the guard on the other side.** The stamp must record
+    /// the run's REAL brain, not assert a local one. A stopped HOST turn whose
+    /// transcript happens to carry a completed `currentWeather` activity still
+    /// gets nothing — Important 3's rule, now proven through the settle path
+    /// rather than only against a hand-built message.
+    @Test("435-B · a stopped HOST turn is attributed to nobody")
+    @MainActor
+    func aStoppedHostTurnGetsNoRow() async throws {
+        let client = LocalBeltClient(brain: .hermes)
+        client.currentRunIsServerRecoverable = false   // an explicit Stop settles in place either way
+        let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+        let turn = try await startWeatherTurn(store: store, client: client)
+
+        store.cancelStreaming(hardStopHost: true)
+
+        let settled = try #require(Self.settledReply(in: store))
+        #expect(settled.brain == ChatBackendRouter.Brain.hermes.rawValue)
+        #expect(!WeatherAttribution.required(for: settled),
+                "a host tool named currentWeather is not this app's WeatherKit belt")
+
+        turn.stream.finish()
+        turn.send.cancel()
+    }
+
+    /// **Fix round 2 — the normal path, measured end to end rather than
+    /// assumed.** A `.finished` local turn is stamped by the router, and then
+    /// `ChatStore` merges the backend's OWN transcript over its own the very
+    /// next statement (`ChatStore.swift:1651`). The backend's copy of the
+    /// reply carries no brain, so this asserts what survives that merge — the
+    /// composed-path question a unit test of either half cannot answer.
+    @Test("435-A · a finished local turn keeps the brain it ran on, through the merge")
+    @MainActor
+    func aFinishedLocalTurnKeepsTheBrainItRanOn() async throws {
+        let client = LocalBeltClient(brain: .onDevice)
+        let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+        let turn = try await startWeatherTurn(store: store, client: client)
+
+        // `LocalChatBackend.appendAssistantMessage(reply)` — the same value it
+        // yields at `.finished`, stored WITHOUT a brain (only the router's
+        // copy is stamped).
+        let reply = Message(sender: .hermes,
+                            content: "It's 68 and clear in Gulfport.",
+                            status: .delivered)
+        client.currentConversation = Conversation(
+            title: Conversation.defaultTitle, messages: [reply])
+        var stamped = reply
+        stamped.brain = ChatBackendRouter.Brain.onDevice.rawValue
+        turn.stream.yield(.finished(stamped, nil, nil))
+        turn.stream.finish()
+        _ = await turn.send.value
+
+        let settled = try #require(Self.settledReply(in: store))
+        #expect(settled.toolActivities.contains { $0.label == WeatherAttribution.toolName },
+                "the merge carries tool activities — without them this row measures nothing")
+        #expect(settled.brain == ChatBackendRouter.Brain.onDevice.rawValue,
+                "the settled reply lost the brain its run resolved — #27's tag and #435's row both read this field")
+        #expect(WeatherAttribution.required(for: settled))
     }
 }

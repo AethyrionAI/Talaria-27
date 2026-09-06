@@ -169,4 +169,14 @@ final class ResilientHermesClient: HermesClientProtocol {
     var currentRunIsServerRecoverable: Bool {
         primary.currentRunIsServerRecoverable
     }
+
+    /// #435: forwarded on exactly the terms above — `sendStreaming` only ever
+    /// rides `primary`, so the run's brain is only ever `primary`'s to name.
+    /// Not load-bearing through `ChatBackendRouter` today (its own override
+    /// answers from `runningBrain`), but correct if this client is ever wired
+    /// directly, where the protocol's `nil` default would silently report
+    /// "unknown origin" for every turn.
+    var currentRunBrain: String? {
+        primary.currentRunBrain
+    }
 }
