@@ -280,6 +280,157 @@ struct ReminderDueFallbackTests {
         #expect(off.candidates == 0, "the switch is off; nothing was counted")
     }
 
+    // MARK: - Bar 340-F2: candidates are CONSUMED, one per create, per turn
+
+    /// The two-date sentence every 340-F2 row runs on, built from `now` so it
+    /// cannot expire. Candidates, earliest first: tomorrow 16:00, then the day
+    /// after tomorrow at 09:00.
+    private func twoDateSentence(now: Date) -> String {
+        "Remind me tomorrow at 4pm and again on "
+            + monthDay(day(2, from: now, at: 9, 0)) + " at 9am"
+    }
+
+    /// **Owen's decision 2, second create.** Two empty-`due` creates in ONE
+    /// turn on a sentence carrying two future dates take the FIRST candidate
+    /// and then the SECOND — never the same date twice.
+    ///
+    /// Before this bar both calls resolved through `candidates.first` and the
+    /// user got two reminders at the same instant, having named two.
+    @Test func aSecondCreateInTheSameTurnTakesTheSecondCandidate() async {
+        let now = todayAt(9, 15)
+        let relay = ToolEventRelay()
+        relay.beginTurn(userText: twoDateSentence(now: now))
+
+        let first = await StagedReminderProbe.staged(
+            rawDue: "", userText: twoDateSentence(now: now), now: now, relay: relay)
+        let second = await StagedReminderProbe.staged(
+            rawDue: "", userText: twoDateSentence(now: now), now: now, relay: relay)
+
+        #expect(first.due == DeviceActionParsing.displayDate(day(1, from: now, at: 16, 0)),
+                "the first create takes the earliest future candidate, got \(first.due ?? "nil")")
+        #expect(second.due == DeviceActionParsing.displayDate(day(2, from: now, at: 9, 0)),
+                "the second create must take the NEXT candidate, got \(second.due ?? "nil")")
+        #expect(first.due != second.due, "two creates in one turn must not stage the same instant")
+    }
+
+    /// **Exhaustion is a dateless card, never a repeat and never an
+    /// invention.** A third create on a two-date sentence has no candidate
+    /// left, so it stages nothing — decision 3's answer, reached through
+    /// decision 2's cursor.
+    @Test func aThirdCreateWithTheCandidatesExhaustedStagesNoDate() async {
+        let now = todayAt(9, 15)
+        let relay = ToolEventRelay()
+        relay.beginTurn(userText: twoDateSentence(now: now))
+
+        for _ in 0..<2 {
+            _ = await StagedReminderProbe.staged(
+                rawDue: "", userText: twoDateSentence(now: now), now: now, relay: relay)
+        }
+        let third = await StagedReminderProbe.staged(
+            rawDue: "", userText: twoDateSentence(now: now), now: now, relay: relay)
+
+        #expect(third.due?.isEmpty == true,
+                "the candidates are exhausted — the card must be dateless, got \(third.due ?? "nil")")
+    }
+
+    /// **The cursor is TURN-scoped, and structurally so** — #343's whole
+    /// lesson. A new turn re-opens the sentence's first candidate; without the
+    /// reset a long conversation would exhaust the list and stop resolving
+    /// dates entirely, silently.
+    @Test func theCandidateCursorResetsWithBeginTurn() async {
+        let now = todayAt(9, 15)
+        let relay = ToolEventRelay()
+        relay.beginTurn(userText: twoDateSentence(now: now))
+        _ = await StagedReminderProbe.staged(
+            rawDue: "", userText: twoDateSentence(now: now), now: now, relay: relay)
+
+        relay.beginTurn(userText: twoDateSentence(now: now))
+        let afterReset = await StagedReminderProbe.staged(
+            rawDue: "", userText: twoDateSentence(now: now), now: now, relay: relay)
+
+        #expect(afterReset.due == DeviceActionParsing.displayDate(day(1, from: now, at: 16, 0)),
+                "a new turn must start at the FIRST candidate again, got \(afterReset.due ?? "nil")")
+    }
+
+    /// **The cursor is the resolver's parameter, not its own reading of the
+    /// world** — pinned pure so the three positions are readable without a
+    /// tool drive, and so the exhausted position's `source`/`candidates` pair
+    /// is on the record: `source=none candidates=2` is what exhaustion looks
+    /// like in a device log, and it is NOT the same line as a sentence that
+    /// named nothing (`source=none candidates=0`).
+    @Test func theCursorSelectsTheNthCandidateAndThenRunsOut() {
+        let now = todayAt(9, 15)
+        let text = twoDateSentence(now: now)
+
+        let first = ReminderCreateTool.resolvedDue(rawDue: "", userText: text, now: now,
+                                                   candidateCursor: 0)
+        #expect(first.date == day(1, from: now, at: 16, 0))
+        #expect(first.source == "userText")
+
+        let second = ReminderCreateTool.resolvedDue(rawDue: "", userText: text, now: now,
+                                                    candidateCursor: 1)
+        #expect(second.date == day(2, from: now, at: 9, 0))
+        #expect(second.source == "userText")
+
+        let exhausted = ReminderCreateTool.resolvedDue(rawDue: "", userText: text, now: now,
+                                                       candidateCursor: 2)
+        #expect(exhausted.date == nil)
+        #expect(exhausted.source == "none")
+        #expect(exhausted.candidates == 2,
+                "`candidates=` reports the SENTENCE's total, not what is left")
+    }
+
+    /// **`candidates=` keeps reporting the sentence's TOTAL at every cursor
+    /// position.** It is decision 2's watch — how often a turn carries two
+    /// dates at all — and a field that counted the REMAINDER would answer a
+    /// different question while looking like the same one.
+    @Test func theCandidateCountIsTheTotalAtEveryCursorPosition() {
+        let now = todayAt(9, 15)
+        let text = twoDateSentence(now: now)
+        for cursor in 0...3 {
+            let resolution = ReminderCreateTool.resolvedDue(
+                rawDue: "", userText: text, now: now, candidateCursor: cursor)
+            #expect(resolution.candidates == 2,
+                    "cursor \(cursor) reported \(resolution.candidates) candidates, expected the total 2")
+        }
+    }
+
+    /// **Document order is irrelevant — the cursor walks the CHRONOLOGICAL
+    /// list.** The same two dates written the other way round yield the same
+    /// two answers in the same order, because `detectDueCandidates` sorts.
+    @Test func theCursorWalksChronologicallyNotInDocumentOrder() {
+        let now = todayAt(9, 15)
+        let reversed = "Remind me on " + monthDay(day(2, from: now, at: 9, 0))
+            + " at 9am and again tomorrow at 4pm"
+
+        let first = ReminderCreateTool.resolvedDue(rawDue: "", userText: reversed, now: now,
+                                                   candidateCursor: 0)
+        let second = ReminderCreateTool.resolvedDue(rawDue: "", userText: reversed, now: now,
+                                                    candidateCursor: 1)
+
+        #expect(first.date == day(1, from: now, at: 16, 0))
+        #expect(second.date == day(2, from: now, at: 9, 0))
+    }
+
+    /// **A create the MODEL dated consumes nothing.** The cursor tracks what
+    /// the fallback took out of the user's sentence; a populated argument never
+    /// reaches the detector, so a mixed turn (model date, then an empty one)
+    /// must still hand the empty create the FIRST candidate.
+    @Test func aModelDatedCreateDoesNotConsumeACandidate() async {
+        let now = todayAt(9, 15)
+        let relay = ToolEventRelay()
+        relay.beginTurn(userText: twoDateSentence(now: now))
+
+        let modelDated = await StagedReminderProbe.staged(
+            rawDue: "16:30", userText: twoDateSentence(now: now), now: now, relay: relay)
+        let fallback = await StagedReminderProbe.staged(
+            rawDue: "", userText: twoDateSentence(now: now), now: now, relay: relay)
+
+        #expect(modelDated.due == DeviceActionParsing.displayDate(day(0, from: now, at: 16, 30)))
+        #expect(fallback.due == DeviceActionParsing.displayDate(day(1, from: now, at: 16, 0)),
+                "the model's own date must not have moved the fallback's cursor, got \(fallback.due ?? "nil")")
+    }
+
     /// A date phrase built from `now` — see the row above.
     private func monthDay(_ date: Date) -> String {
         let f = DateFormatter()

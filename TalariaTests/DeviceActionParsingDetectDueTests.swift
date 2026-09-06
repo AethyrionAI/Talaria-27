@@ -304,11 +304,18 @@ struct DeviceActionParsingDetectDueTests {
     /// hour** — all twelve were probed and all twelve returned no match. The
     /// second pass is therefore load-bearing rather than belt-and-braces.
     ///
-    /// The reading is `parseBareClock`'s existing one and is deliberately not
-    /// redesigned here: no marker means a **24-hour clock**, so "4" is 04:00,
-    /// then `resolveBareClock` takes the next occurrence. At 09:15 that is
-    /// today for 10/11/12 and tomorrow for 1–9 (09:00 is already behind the
-    /// five-minute grace).
+    /// **⟵ THE READING CHANGED 2026-09-06 (bar 340-F1, Owen's ruling of
+    /// 2026-09-04).** This row used to pin `parseBareClock`'s 24-hour reading
+    /// here too — "4" is 04:00, then the next occurrence — and that produced a
+    /// reminder ten hours away from what a person saying *"remind me at 4"* at
+    /// breakfast means. **In the SECOND PASS a meridiem-less 1–12 is now read
+    /// on a 12-HOUR clock: the next occurrence of EITHER hand.** At 09:15 that
+    /// is today's afternoon hand for 1–9 (13:00…21:00), and today's morning
+    /// hand for 10, 11 and 12, which are still ahead.
+    ///
+    /// The MODEL-ARGUMENT path keeps the 24-hour rule untouched — see
+    /// `theModelArgumentPathKeepsItsTwentyFourHourReading` below, which is what
+    /// stops this change leaking into `parseBareClock`.
     @Test(arguments: 1...12)
     func aBareHourAfterAtResolvesThroughTheSecondPass(hour: Int) throws {
         let now = todayAt(9, 15)
@@ -316,9 +323,123 @@ struct DeviceActionParsingDetectDueTests {
             DeviceActionParsing.detectDue(in: "Remind me at \(hour)", now: now),
             "bare hour \(hour) produced no due date"
         )
-        #expect(hourMinute(due) == (hour, 0))
-        #expect(dayOffset(from: now, to: due) == (hour >= 10 ? 0 : 1))
+        // 1–9 are behind 09:15 on the morning hand, so the afternoon hand of
+        // the SAME day is the next occurrence; 10, 11 and 12 are still ahead.
+        let expectedHour = hour <= 9 ? hour + 12 : hour
+        #expect(hourMinute(due) == (expectedHour, 0),
+                "bare hour \(hour) at 09:15 must read as \(expectedHour):00")
+        #expect(dayOffset(from: now, to: due) == 0)
         #expect(due > now)
+    }
+
+    // MARK: - Bar 340-F1: the 12-hour reading, in the second pass only
+
+    /// **The ruling's own example.** *"at 8"* said at 10:00 means 20:00 TODAY —
+    /// the next time either hand of a 12-hour clock reaches 8.
+    @Test func aBareEveningHourTakesTodaysAfternoonHand() throws {
+        let now = todayAt(10, 0)
+        let due = try #require(DeviceActionParsing.detectDue(in: "Remind me at 8", now: now))
+        #expect(hourMinute(due) == (20, 0))
+        #expect(dayOffset(from: now, to: due) == 0)
+        #expect(due > now)
+    }
+
+    /// **The other half of the same rule, and the one a 24-hour reading gets
+    /// right by accident.** *"at 8"* said at 21:00 has both of today's hands
+    /// behind it, so the answer is 08:00 TOMORROW.
+    @Test func aBareHourWithBothHandsPastRollsToTomorrowsMorning() throws {
+        let now = todayAt(21, 0)
+        let due = try #require(DeviceActionParsing.detectDue(in: "Remind me at 8", now: now))
+        #expect(hourMinute(due) == (8, 0))
+        #expect(dayOffset(from: now, to: due) == 1)
+        #expect(due > now)
+    }
+
+    /// **12 is the case the modular arithmetic exists for.** Its two hands are
+    /// noon and midnight, not 12:00 and 24:00 — so before noon it is today's
+    /// noon, and after noon it is tomorrow's midnight (00:00), which is the
+    /// next midnight.
+    @Test func aBareTwelveTakesTheNextNoonOrMidnight() throws {
+        let beforeNoon = todayAt(10, 0)
+        let noon = try #require(DeviceActionParsing.detectDue(in: "Remind me at 12", now: beforeNoon))
+        #expect(hourMinute(noon) == (12, 0))
+        #expect(dayOffset(from: beforeNoon, to: noon) == 0)
+
+        let afterNoon = todayAt(13, 0)
+        let midnight = try #require(DeviceActionParsing.detectDue(in: "Remind me at 12", now: afterNoon))
+        #expect(hourMinute(midnight) == (0, 0))
+        #expect(dayOffset(from: afterNoon, to: midnight) == 1)
+    }
+
+    /// **A bare 13–23 stays 24-hour**, because it is unambiguous already: there
+    /// is no 12-hour hand that reads 16. The rule above must not reach it.
+    @Test func aBareTwentyFourHourValueIsUnchanged() throws {
+        // (spoken hour, now, expected hour, expected day offset)
+        let rows = [(13, todayAt(10, 0), 13, 0),
+                    (16, todayAt(10, 0), 16, 0),
+                    (14, todayAt(21, 0), 14, 1)]
+        for (spoken, now, expectedHour, expectedOffset) in rows {
+            let due = try #require(
+                DeviceActionParsing.detectDue(in: "Remind me at \(spoken)", now: now),
+                "bare \(spoken) produced no due date")
+            #expect(hourMinute(due) == (expectedHour, 0), "bare \(spoken) read as \(hourMinute(due).hour)")
+            #expect(dayOffset(from: now, to: due) == expectedOffset)
+            #expect(due > now)
+        }
+    }
+
+    /// **A meridiem the user wrote is never re-read.** `at 8am` at 10:00 is
+    /// tomorrow morning, not tonight — the 12-hour rule applies only where the
+    /// user left the hand ambiguous.
+    @Test func anExplicitMeridiemIsNotPutThroughTheTwelveHourRule() throws {
+        let now = todayAt(10, 0)
+        let morning = try #require(DeviceActionParsing.detectDue(in: "Remind me at 8am", now: now))
+        #expect(hourMinute(morning) == (8, 0))
+        #expect(dayOffset(from: now, to: morning) == 1)
+
+        let evening = try #require(DeviceActionParsing.detectDue(in: "Remind me at 8 pm", now: now))
+        #expect(hourMinute(evening) == (20, 0))
+        #expect(dayOffset(from: now, to: evening) == 0)
+    }
+
+    /// **A clock WITH minutes never reaches the second pass, and this row is
+    /// where that was measured rather than assumed.** The first cut of 340-F1
+    /// pinned *"at 8:30"* at 10:00 as 20:30 today and it failed: `NSDataDetector`
+    /// matches a bare `8:30` (the row near the top of this file says so from the
+    /// other side), so `detectorMatchedSomething` is true and the `at <clock>`
+    /// frame is never consulted. **The 12-hour rule is therefore HOUR-ONLY in
+    /// practice** — `nextTwelveHourOccurrence` carries minutes correctly and
+    /// no production text can reach it with any.
+    ///
+    /// So the row pins the INVARIANTS the first pass owes and nothing more. It
+    /// deliberately does not assert the hand or the day: the detector resolves
+    /// against the **process's real clock**, not the constructed `now`, so
+    /// whether 08:30 comes back as today's (still ahead of the real clock) or
+    /// is rolled forward against `now` depends on the wall clock the suite runs
+    /// at — the exact rot this file's header rules out.
+    @Test func aClockWithMinutesIsResolvedByTheDetectorNotTheTwelveHourRule() throws {
+        let now = todayAt(10, 0)
+        let due = try #require(
+            DeviceActionParsing.detectDue(in: "Remind me at 8:30 to call mom", now: now))
+        #expect(hourMinute(due).minute == 30, "the minutes must survive whichever pass resolved it")
+        #expect(hourMinute(due).hour % 12 == 8, "and the hand must still read 8")
+        #expect(due > now)
+    }
+
+    /// **THE FENCE — the model-argument path is byte-untouched.** 340-F1
+    /// changes the reading of the USER's words only; `parseBareClock` and
+    /// `resolveBareClock` are what `resolvedDue` runs over the model's own
+    /// `due` argument, and their ruled 24-hour rule stays exactly as it was
+    /// (`"8"` is 08:00, next occurrence). Without this row the two paths could
+    /// silently converge and nothing would notice.
+    @Test func theModelArgumentPathKeepsItsTwentyFourHourReading() throws {
+        let now = todayAt(10, 0)
+        let clock = try #require(DeviceActionParsing.parseBareClock("8"))
+        #expect(clock.hour == 8, "the model path reads a bare 8 as 08:00")
+        let resolved = try #require(DeviceActionParsing.resolveBareClock(clock, now: now))
+        #expect(hourMinute(resolved) == (8, 0))
+        #expect(dayOffset(from: now, to: resolved) == 1,
+                "08:00 is behind 10:00, so the model path takes TOMORROW — never tonight")
     }
 
     /// **A numeral behind a NON-temporal `at` is not a clock.** *"look at 5
@@ -342,18 +463,19 @@ struct DeviceActionParsingDetectDueTests {
     /// the reason it is not folded into the row above: a rule that says "no"
     /// to everything satisfies that row perfectly.
     ///
-    /// Both texts take `parseBareClock`'s existing reading of a marker-less
-    /// numeral — a **24-hour clock**, so `5` is 05:00, not 17:00 — and
-    /// `resolveBareClock` then takes the next occurrence, which at 09:15 is
-    /// tomorrow. That reading is not this task's to change; the row pins it so
-    /// the assertion is the invariant rather than a guess.
+    /// **⟵ THE EXPECTED VALUE CHANGED 2026-09-06 (bar 340-F1).** Both texts
+    /// used to take `parseBareClock`'s marker-less 24-hour reading here — `5`
+    /// as 05:00, next occurrence tomorrow. In the second pass a bare 1–12 is
+    /// now the next occurrence on a **12-hour** clock, so at 09:15 the answer
+    /// is 17:00 TODAY. What the row is actually for is unchanged: the
+    /// allowlist must not say "no" to a real clock.
     @Test(arguments: ["Remind me at 5 to call mom", "Remind me at 5"])
     func aBareHourFollowedByAContinuationOrNothingStillResolves(text: String) throws {
         let now = todayAt(9, 15)
         let due = try #require(DeviceActionParsing.detectDue(in: text, now: now),
                                "\(text) produced no due date")
-        #expect(hourMinute(due) == (5, 0))
-        #expect(dayOffset(from: now, to: due) == 1)
+        #expect(hourMinute(due) == (17, 0))
+        #expect(dayOffset(from: now, to: due) == 0)
         #expect(due > now)
     }
 

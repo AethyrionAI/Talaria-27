@@ -220,6 +220,17 @@ final class ToolEventRelay {
     /// sites pass `message`, pinned by source witness in
     /// `ToolTurnUserTextTests`.
     ///
+    /// **⟵ NARROWED 2026-09-06 (bar 340-F3), because on ONE path `message` is
+    /// not one person's sentence.** `ChatStore.appendVoiceTranscript` POSTs a
+    /// whole voice session — `User:` and `Talaria:` lines together — through
+    /// the same `send(message:)` every typed turn uses, so the ASSISTANT's own
+    /// words could set the due date of a reminder the user asked for with no
+    /// time at all. `beginToolTurn` now fills this field through
+    /// `LocalChatBackend.beltUserText(from:)`, which keeps only the `User:`
+    /// lines of a synthesized transcript and passes every other message
+    /// through byte-for-byte. The two call sites are unchanged, and so is the
+    /// witness that pins them.
+    ///
     /// **Turn-scoped, and structurally so.** It is set by the ONE call that
     /// already opens every turn, and the parameter's `nil` default means a
     /// caller that passes nothing CLEARS it rather than inheriting the last
@@ -228,6 +239,37 @@ final class ToolEventRelay {
     /// reset somewhere other than the turn boundary, and the DEBUG instruments
     /// call the bare `beginTurn()` dozens of times in a row.
     private(set) var currentTurnUserText: String?
+
+    /// #340 bar 340-F2 — **how many of this turn's date candidates the
+    /// fallback has already spent.**
+    ///
+    /// **The defect this closes.** `resolvedDue` took `candidates.first` every
+    /// time, so a turn in which the model made TWO empty-`due`
+    /// `createReminder` calls over a sentence naming TWO dates produced two
+    /// reminders at the SAME instant — the user named two times and got one,
+    /// twice. Owen's decision 2 (2026-09-04) rules that the second call takes
+    /// the next unused candidate.
+    ///
+    /// **A count, not the dates.** The candidate LIST is re-derived from the
+    /// same `userText` on every call inside a turn, so it is stable and does
+    /// not need storing; what the relay has to carry is the cursor into it.
+    /// That also keeps the relay free of any date logic — `resolvedDue` stays
+    /// pure and takes the cursor as a parameter.
+    ///
+    /// **Turn-scoped, reset in `beginTurn` beside the text it indexes into.**
+    /// A cursor that outlived its sentence would exhaust against a list it no
+    /// longer describes and silently stop resolving dates — #343's leak shape
+    /// exactly, and the reason both fields reset at the one boundary.
+    private(set) var dueCandidatesConsumedThisTurn = 0
+
+    /// Records that the user-words fallback took one candidate this turn.
+    ///
+    /// Called only when the fallback actually PRODUCED the date — a create the
+    /// model dated never reaches the detector, so it must not move the cursor
+    /// (`aModelDatedCreateDoesNotConsumeACandidate`).
+    func consumeDueCandidate() {
+        dueCandidatesConsumedThisTurn += 1
+    }
 
     #if DEBUG
     /// #340 bar 340-U-D — the `armed-nofallback` arm's ONLY delta from
@@ -294,6 +336,10 @@ final class ToolEventRelay {
         executedCallsThisTurn = 0
         refusalsThisTurn = 0
         currentTurnUserText = userText
+        // #340 bar 340-F2: the cursor indexes into the candidates of the text
+        // set on the line above, so it resets with it or it indexes into a
+        // sentence that is gone.
+        dueCandidatesConsumedThisTurn = 0
         #if DEBUG
         // #340 bar 340-U-D: the measurement switch is per-turn state like the
         // field above it, so it clears at the same boundary. The battery's
