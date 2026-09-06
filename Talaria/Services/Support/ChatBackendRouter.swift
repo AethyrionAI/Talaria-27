@@ -547,6 +547,22 @@ final class ChatBackendRouter: HermesClientProtocol {
         runningBrain == .hermes
     }
 
+    /// #435 (fix round 2): the routing lock's brain, in the shape
+    /// `Message.brain` stores. Set synchronously inside `send` /
+    /// `sendStreaming` before either returns (`runningBrain = brain`, above),
+    /// and released by `finishRun` / `abandonActiveRun` when the run ends —
+    /// the same lifetime as the routing lock itself.
+    ///
+    /// `ChatStore` reads it the instant `sendStreaming` hands back its stream
+    /// and stamps the streaming placeholder with it, so a turn that never
+    /// reaches `.finished` (a Stop, a revoked background budget) still leaves
+    /// a settled row that knows which brain served it. Same read-before-clear
+    /// discipline as `currentRunIsServerRecoverable`: after
+    /// `abandonActiveRun()` this is nil again.
+    var currentRunBrain: String? {
+        runningBrain?.rawValue
+    }
+
     /// #283 Task 7 (S23), review ruling: the explicit Stop tap's real
     /// server-side interrupt — `ChatStore.cancelStreaming()`'s ONE call site
     /// for this method. Forwards to the brain that IS running (currently

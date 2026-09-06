@@ -162,6 +162,28 @@ protocol HermesClientProtocol {
     /// construction) so a raw client wired directly — bypassing the router,
     /// as some tests do — still reads correctly.
     var currentRunIsServerRecoverable: Bool { get }
+
+    /// #435 (fix round 2): the brain the CURRENTLY ACTIVE run was routed to,
+    /// in the shape `Message.brain` stores (`ChatBackendRouter.Brain.rawValue`).
+    ///
+    /// **Why it must be readable the moment `sendStreaming` returns.**
+    /// `.finished` is not the only way a streaming placeholder settles.
+    /// `ChatStore.cancelStreaming` settles it in place on an explicit Stop and
+    /// on a revoked background budget, and nothing on either path stamps a
+    /// brain — the app's only two `brain` writes are on the router's
+    /// `.finished` payload. A placeholder that learns its origin at the end of
+    /// the turn therefore never learns it at all on the paths that end the
+    /// turn early, and anything keyed on origin (#435's Apple Weather
+    /// attribution, #27's transcript tag) silently reads "unknown" over a
+    /// reply that is still on screen. The router resolves routing in
+    /// `sendStreaming`'s own body, before the stream is handed back, so
+    /// `ChatStore` can stamp the row it just minted.
+    ///
+    /// The default is `nil`, and `nil` means UNKNOWN ORIGIN — never "local".
+    /// A client with no concept of "brain" (mock, relay, a raw backend wired
+    /// without the router) has no honest answer, and every reader treats the
+    /// absence as not-this-app's-belt.
+    var currentRunBrain: String? { get }
     func connect() async
     func disconnect() async
     func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message
@@ -416,6 +438,10 @@ extension HermesClientProtocol {
     // server-recoverable plane (`ChatBackendRouter`, `SessionsHermesClient`)
     // overrides this explicitly rather than relying on the default.
     var currentRunIsServerRecoverable: Bool { false }
+    // #435: `nil` — see the requirement's doc above. Unknown origin, which is
+    // never read as "this app's own belt". Only `ChatBackendRouter` (and
+    // `ResilientHermesClient`, forwarding) answers with a value.
+    var currentRunBrain: String? { nil }
     func abandonActiveRun() {}
     // #328 route 2: `false` — this default IS the swallowed Stop. A client
     // with nothing to interrupt server-side (mock / relay / the on-device
