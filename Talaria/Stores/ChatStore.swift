@@ -41,7 +41,33 @@ final class ChatStore {
     /// slot from the #48 ask-seed — see `ShareComposerSeed`.
     private(set) var pendingShareSeed: ShareComposerSeed?
 
-    func seedComposerFromShare(text: String, attachments: [PendingAttachment]) {
+    /// #431-C: share items the drain could not stage, surfaced as state the UI
+    /// renders — the same shape as `SessionOpenFailure` (#190B) and for the
+    /// same reason. The drain used to log `skipped unconvertible item` and
+    /// remove the envelope, so a file the share sheet had accepted vanished
+    /// with nothing to see. Cleared by an explicit dismiss, or by the next
+    /// share that carries none.
+    private(set) var shareStagingFailures: [ShareItemFailure] = []
+
+    func dismissShareStagingFailures() {
+        shareStagingFailures = []
+    }
+
+    /// One line per failed item, each already naming its own file.
+    var shareStagingFailureMessage: String? {
+        guard !shareStagingFailures.isEmpty else { return nil }
+        return shareStagingFailures.map(\.message).joined(separator: "\n")
+    }
+
+    func seedComposerFromShare(
+        text: String,
+        attachments: [PendingAttachment],
+        failures: [ShareItemFailure] = []
+    ) {
+        // #431-C: assigned BEFORE the seed guard, on purpose — a share whose
+        // every item failed carries no text and no attachments, and that is
+        // precisely the case that must still say so.
+        shareStagingFailures = failures
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty || !attachments.isEmpty else { return }
         if var existing = pendingShareSeed {

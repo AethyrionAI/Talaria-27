@@ -264,30 +264,46 @@ struct ChatScreen: View {
                 // #31: the standalone brain can't run (Apple Intelligence off /
                 // unsupported / downloading) and no Hermes is carrying chat —
                 // show the honest explanation state, never a dead screen.
+                // #431-C (fix round 1): which of these three the header shows
+                // is decided by `BannerStack.resolve`, a pure function, and
+                // NOT by an `if / else if` ladder — the share-staging failure
+                // used to be the ladder's third arm, so the hostless state it
+                // exists to serve suppressed it outright. It STACKS now.
+                ForEach(headerBanners) { banner in
+                    switch banner {
+                    case .standaloneUnavailable(let explanation):
+                        standaloneUnavailableBanner(explanation)
+                    case .sessionOpenFailure(let failure):
+                        sessionOpenFailureBanner(failure)
+                    case .shareStagingFailure(let notice):
+                        shareStagingFailureBanner(notice)
+                    }
+                }
+
                 // #30: a PCC pin that degraded to on-device gets its one-line
                 // notice; a conversation outgrowing the on-device window gets
-                // the escalation offer (user decides, never silent).
-                if let explanation = standaloneUnavailableExplanation {
-                    standaloneUnavailableBanner(explanation)
-                } else if let failure = chatStore.sessionOpenFailure {
-                    sessionOpenFailureBanner(failure)
-                } else if let notice = container.profileSwitchNotice {
-                    // #247 B2: the switch verdict — a dead host is NAMED, and
-                    // when every host is dead the banner says to check this
-                    // phone's own network instead of letting the user debug
-                    // by elimination.
-                    routingNoticeBanner(notice, icon: "arrow.left.arrow.right")
-                } else if let notice = container.chatBackendRouter?.privateCloudFallbackNotice {
-                    routingNoticeBanner(notice, icon: "cloud")
-                } else if let notice = container.chatBackendRouter?.automaticFallbackNotice {
-                    // #192: automatic routing fell back to on-device (Hermes
-                    // unreachable, no explicit pick) — announced, never a
-                    // silently moved pill.
-                    routingNoticeBanner(notice, icon: "antenna.radiowaves.left.and.right.slash")
-                } else if showsPrivateCloudEscalationOffer {
-                    privateCloudEscalationBanner
-                } else if showsConnectionBanner {
-                    connectionBanner
+                // the escalation offer (user decides, never silent). These
+                // explain a TRANSIENT, so a persistent state banner above
+                // still outranks them — unchanged by the stack.
+                if !headerBanners.contains(where: \.isPersistentState) {
+                    if let notice = container.profileSwitchNotice {
+                        // #247 B2: the switch verdict — a dead host is NAMED,
+                        // and when every host is dead the banner says to check
+                        // this phone's own network instead of letting the user
+                        // debug by elimination.
+                        routingNoticeBanner(notice, icon: "arrow.left.arrow.right")
+                    } else if let notice = container.chatBackendRouter?.privateCloudFallbackNotice {
+                        routingNoticeBanner(notice, icon: "cloud")
+                    } else if let notice = container.chatBackendRouter?.automaticFallbackNotice {
+                        // #192: automatic routing fell back to on-device (Hermes
+                        // unreachable, no explicit pick) — announced, never a
+                        // silently moved pill.
+                        routingNoticeBanner(notice, icon: "antenna.radiowaves.left.and.right.slash")
+                    } else if showsPrivateCloudEscalationOffer {
+                        privateCloudEscalationBanner
+                    } else if showsConnectionBanner {
+                        connectionBanner
+                    }
                 }
                 messageList
                 // #203 (1A): the visible half. The Stop lives in the input
@@ -1350,6 +1366,15 @@ struct ChatScreen: View {
         return container.localChatBackend?.availabilityExplanation
     }
 
+    /// #431-C (fix round 1) — the header's banner decision, taken by the pure
+    /// `BannerStack.resolve` so it can be asserted without rendering a View.
+    private var headerBanners: [HeaderBanner] {
+        BannerStack.resolve(
+            standalone: standaloneUnavailableExplanation,
+            sessionOpenFailure: chatStore.sessionOpenFailure,
+            shareFailure: chatStore.shareStagingFailureMessage)
+    }
+
     private func standaloneUnavailableBanner(_ explanation: String) -> some View {
         HStack(alignment: .center, spacing: Design.Spacing.sm) {
             Image(systemName: "brain.head.profile")
@@ -1387,24 +1412,57 @@ struct ChatScreen: View {
     /// open never adopted anything), so the banner rides above it until the
     /// user dismisses it, opens a session successfully, or starts a new chat.
     private func sessionOpenFailureBanner(_ failure: ChatStore.SessionOpenFailure) -> some View {
+        dismissibleFailureBanner(
+            title: "COULDN'T OPEN CONVERSATION",
+            message: failure.message,
+            iconTint: Design.Colors.dangerText,
+            borderTint: Design.Colors.danger,
+            onDismiss: { chatStore.dismissSessionOpenFailure() })
+    }
+
+    /// #431-C: shared files the drain could not stage — the banner form of
+    /// what used to be `skipped unconvertible item` in the log and nothing on
+    /// screen. Each line already names its file and its reason.
+    private func shareStagingFailureBanner(_ message: String) -> some View {
+        dismissibleFailureBanner(
+            title: "COULDN'T ADD SHARED FILE",
+            message: message,
+            iconTint: Design.Brand.forge,
+            borderTint: Design.Brand.forge,
+            onDismiss: { chatStore.dismissShareStagingFailures() })
+    }
+
+    /// The one body behind both dismissible failure banners (#190B's failed
+    /// session open and #431-C's share-staging failures). They were
+    /// near-verbatim copies of each other, and the copy had drifted in the way
+    /// copies do: the share banner carried an
+    /// `.accessibilityElement(children: .combine)` the other did not, which
+    /// folds the Dismiss button into the announced element and leaves
+    /// VoiceOver no way to press it. One body, no drift, and the button stays
+    /// its own element.
+    private func dismissibleFailureBanner(
+        title: String,
+        message: String,
+        iconTint: Color,
+        borderTint: Color,
+        onDismiss: @escaping () -> Void
+    ) -> some View {
         HStack(alignment: .center, spacing: Design.Spacing.sm) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: Design.Size.iconSmall))
-                .foregroundStyle(Design.Colors.dangerText)
+                .foregroundStyle(iconTint)
 
             VStack(alignment: .leading, spacing: Design.Spacing.xxxs) {
-                MonoLabel("COULDN'T OPEN CONVERSATION", size: 11, weight: .medium,
+                MonoLabel(title, size: 11, weight: .medium,
                           tracking: Design.Tracking.mono, color: Design.Colors.foregroundBright)
-                Text(failure.message)
+                Text(message)
                     .font(Design.Typography.caption)
                     .foregroundStyle(Design.Colors.secondaryForeground)
             }
 
             Spacer()
 
-            Button {
-                chatStore.dismissSessionOpenFailure()
-            } label: {
+            Button(action: onDismiss) {
                 Image(systemName: "xmark")
                     .font(.system(size: Design.Size.iconSmall, weight: .medium))
                     .foregroundStyle(Design.Colors.mutedForeground)
@@ -1414,7 +1472,7 @@ struct ChatScreen: View {
         }
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)
-        .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Colors.danger.opacity(0.35))
+        .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: borderTint.opacity(0.35))
         .padding(.horizontal, Design.Spacing.md)
         .padding(.top, Design.Spacing.md)
         .frame(maxWidth: Design.Layout.chatMeasureMaxWidth)
@@ -2034,6 +2092,73 @@ struct ChatScreen: View {
         transaction.disablesAnimations = true
         withTransaction(transaction) {
             scrollProxy?.scrollTo(id, anchor: .top)
+        }
+    }
+}
+
+// MARK: - Which banners the chat header shows (#431-C)
+
+extension ChatScreen {
+    /// One banner the header can carry, as DATA rather than as a branch of a
+    /// view builder — so the decision that used to live in an `if / else if`
+    /// ladder can be asserted without rendering anything.
+    enum HeaderBanner: Identifiable, Equatable {
+        case standaloneUnavailable(String)
+        case sessionOpenFailure(ChatStore.SessionOpenFailure)
+        case shareStagingFailure(String)
+
+        var id: String {
+            switch self {
+            case .standaloneUnavailable: "standaloneUnavailable"
+            case .sessionOpenFailure: "sessionOpenFailure"
+            case .shareStagingFailure: "shareStagingFailure"
+            }
+        }
+
+        /// The two banners that describe a PERSISTENT app state: while either
+        /// is up, the routing/connection notices below it stay suppressed
+        /// (they explain a transient, and the state banner outranks it). The
+        /// share-staging failure is not one of these — it reports an event
+        /// that already happened.
+        var isPersistentState: Bool {
+            switch self {
+            case .standaloneUnavailable, .sessionOpenFailure: true
+            case .shareStagingFailure: false
+            }
+        }
+    }
+
+    /// #431-C, fix round 1 — the share-staging failure USED TO BE the third
+    /// arm of the header's one `if / else if` ladder, behind the standalone
+    /// explanation and the failed session open.
+    ///
+    /// That placement lost the banner in exactly the configuration it exists
+    /// for. `drainShareInbox` runs ahead of the pairing-gated work *because*
+    /// the share sheet is a free-tier surface, and the hostless / brain
+    /// unavailable state is what makes `standaloneUnavailableExplanation`
+    /// non-nil — so a user with no host, who is the user most likely to be
+    /// sharing files into a local composer, got no notice at all, and the
+    /// next clean share then cleared the failures they never saw.
+    ///
+    /// The two PERSISTENT state banners stay mutually exclusive (only one app
+    /// state is true at a time). The share failure STACKS with whichever of
+    /// them is showing.
+    enum BannerStack {
+        static func resolve(
+            standalone: String?,
+            sessionOpenFailure: ChatStore.SessionOpenFailure?,
+            shareFailure: String?
+        ) -> [HeaderBanner] {
+            var banners: [HeaderBanner] = []
+            if let standalone {
+                banners.append(.standaloneUnavailable(standalone))
+            } else if let sessionOpenFailure {
+                banners.append(.sessionOpenFailure(sessionOpenFailure))
+            }
+            if let shareFailure {
+                banners.append(.shareStagingFailure(shareFailure))
+            }
+            return banners
         }
     }
 }

@@ -33,13 +33,19 @@ struct PendingAttachment: Identifiable, Sendable {
     /// which ships its bytes verbatim. The Hermes API server accepts a 1 MB
     /// request body for the whole message payload, so a stack of attachments
     /// is still bounded separately by `AttachmentInlining`.
-    static let maxFileSize = 350 * 1024
+    ///
+    /// #431-A: the NUMBER now lives in `StageableTypeCatalog` (ShareInboxCore,
+    /// compiled into both targets) so the share extension refuses up front
+    /// what this path would drop. It was a literal here — invisible to the
+    /// extension, which accepted 20 MB against it.
+    static let maxFileSize = StageableTypeCatalog.maxVerbatimBytes
 
     /// PDFs get their own, larger staging cap (#8): a raw PDF is NEVER
     /// transmitted — only its OCR-extracted text ships (as a delimited text
     /// part) — so the wire-oriented 350 KB cap doesn't apply. 10 MB keeps
     /// per-page rasterization + OCR memory sane.
-    static let maxPDFFileSize = 10 * 1024 * 1024
+    /// #431-A: same single-source move as `maxFileSize`.
+    static let maxPDFFileSize = StageableTypeCatalog.maxPDFBytes
 
     static let maxAttachmentsPerMessage = 4
 
@@ -58,8 +64,18 @@ struct PendingAttachment: Identifiable, Sendable {
     }
 
     /// Staging size cap by MIME type — see `maxPDFFileSize` for why PDFs differ.
+    ///
+    /// #431-A: derived from `StageableTypeCatalog.sizePolicy`, the same table
+    /// the share sheet reads, rather than from a second copy of the rule.
+    /// Images resolve to `maxFileSize` here on purpose and it is NOT their
+    /// acceptance cap: an image reaches this guard only when `UIImage` could
+    /// not decode it, because a decodable one is re-encoded above and returns
+    /// before ever getting here.
     static func stagingCap(forMimeType mimeType: String) -> Int {
-        mimeType == pdfMimeType ? maxPDFFileSize : maxFileSize
+        switch StageableTypeCatalog.sizePolicy(forMimeType: mimeType) {
+        case .refusedAbove(let bytes, _): bytes
+        case .reEncodedToFit, .unsupportedType: maxFileSize
+        }
     }
 
     /// True when the file's bytes can be inlined as a `{type:"text"}` content
@@ -163,6 +179,13 @@ struct PendingAttachment: Identifiable, Sendable {
         )
     }
 
+    /// #431 — does this buffer actually carry a PDF? `%PDF-` within the first
+    /// kilobyte, which is what PDF readers themselves accept.
+    // harness-visible
+    static func looksLikePDF(_ data: Data) -> Bool {
+        data.prefix(1024).range(of: Data("%PDF-".utf8)) != nil
+    }
+
     /// Create a file attachment from a URL.
     static func file(at url: URL) -> PendingAttachment? {
         let mimeType = Self.mimeType(for: url)
@@ -178,6 +201,19 @@ struct PendingAttachment: Identifiable, Sendable {
         // Per-mime cap: 350 KB for text (it ships inline), 10 MB for PDFs
         // (never transmitted raw — only their extracted text ships, #8).
         guard data.count <= stagingCap(forMimeType: mimeType) else { return nil }
+
+        // #431: a file NAMED `.pdf` whose bytes are not a PDF stages into a
+        // chip that can never leave the composer — `isTransmittable` is false
+        // for a raw PDF, and "Extract text" (#8) has nothing to rasterize — so
+        // it reads as a staged attachment forever. Refusing it is the better
+        // of two failures on ONE of the two paths that reach here, and the
+        // comment that stood here had that backwards: **the SHARE path names
+        // the refusal** (#431-C's banner), while **the PICKER still drops it
+        // in silence** — `ChatScreen.handleAttachmentResult` has no else arm,
+        // which is tracker #439's own lane, not this one's.
+        // Tolerant the way real readers are: the marker may sit behind
+        // leading junk, so the first 1 KB is searched rather than only byte 0.
+        if mimeType == pdfMimeType, !looksLikePDF(data) { return nil }
 
         var thumbData: Data?
         if let image = UIImage(data: data) {

@@ -629,6 +629,7 @@
 		E60743104E7E1D6D792F47D4 /* ToolProvenanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B68C8CE6ADD9A54C49C2AA1C /* ToolProvenanceTests.swift */; };
 		E66E1DCD6DDC6DFDF214ED71 /* SpaceGrotesk-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 57107F3D3770FAA8F93F1E70 /* SpaceGrotesk-Medium.ttf */; };
 		E720D0212714D677520D0169 /* ToolCallGovernorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A48706B93FBAD7CE6804E50 /* ToolCallGovernorTests.swift */; };
+		E742529507A8A17ABAFE88B5 /* ShareCapPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 888E03E46427850C7DB887B6 /* ShareCapPolicyTests.swift */; };
 		E817DEB19606C719ADD4B055 /* DueDateBatteryCellsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6C67092D5E6AF9CF7066340 /* DueDateBatteryCellsTests.swift */; };
 		E90A685B26E6B40E31C54A9F /* RecorderCaptureIntegrityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBFF1B1F3430AE071F4EC0C1 /* RecorderCaptureIntegrityTests.swift */; };
 		E91BA6F1F84BEBD94CE8DA22 /* HermesStatusWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61B9370067BF51189E67CA57 /* HermesStatusWidget.swift */; };
@@ -1106,6 +1107,7 @@
 		8773E04986D3946C5BFAEFBD /* RepoSourceWitness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepoSourceWitness.swift; sourceTree = "<group>"; };
 		87E097ED8DDD1535E7288D6D /* HealthServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthServiceProtocol.swift; sourceTree = "<group>"; };
 		885791BF5D014DFF87001553 /* Icon-LuchaLibre@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-LuchaLibre@3x.png"; sourceTree = "<group>"; };
+		888E03E46427850C7DB887B6 /* ShareCapPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCapPolicyTests.swift; sourceTree = "<group>"; };
 		88975BD7EEDA7212610A9EFC /* IconPreview-Terminal.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-Terminal.png"; sourceTree = "<group>"; };
 		88BFEAFBB2627EB4811BF076 /* MarkdownInterleavingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownInterleavingTests.swift; sourceTree = "<group>"; };
 		88CAC7066A927294099D41BE /* InboxItemStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxItemStatus.swift; sourceTree = "<group>"; };
@@ -1731,6 +1733,7 @@
 				F6F3C29A6904368CF4D9425B /* SessionStatsDecodingTests.swift */,
 				94E05147A8D3B6D984A29C34 /* SessionTotalsAfterReopenTests.swift */,
 				BE9FB9404BF9F249895C14D2 /* SettingsChannelsTests.swift */,
+				888E03E46427850C7DB887B6 /* ShareCapPolicyTests.swift */,
 				69E5B7A33B613AA64CF8495B /* ShareExtensionConfigTests.swift */,
 				8739CA6477AD05CC3DAF4CB7 /* ShareInboxCoreTests.swift */,
 				45D990DDA9BCE62652AA3929 /* ShareInboxDrainTests.swift */,
@@ -3326,6 +3329,7 @@
 				280E3E9040995E9E083A4298 /* SessionStatsDecodingTests.swift in Sources */,
 				44FB45C0518C09F2E950EF02 /* SessionTotalsAfterReopenTests.swift in Sources */,
 				26F620370853E1AA5C4D981D /* SettingsChannelsTests.swift in Sources */,
+				E742529507A8A17ABAFE88B5 /* ShareCapPolicyTests.swift in Sources */,
 				7B5BEC5E4D34AF13634F687A /* ShareExtensionConfigTests.swift in Sources */,
 				0274028F731054F34E316B14 /* ShareInboxCoreTests.swift in Sources */,
 				D15C0EED134302DE964210AB /* ShareInboxDrainTests.swift in Sources */,

@@ -57,7 +57,12 @@ final class ShareSheetModel {
             case webURL(String)
             case text(String)
             case fileBlob(fileName: String, data: Data)
-            case refused(name: String, reason: String)
+            /// #431 fix round 1: this used to carry `name` as well, and
+            /// nothing ever read it — every refusal MESSAGE names its own
+            /// file (`ShareRefusal`), which is what the row renders. A dead
+            /// associated value is a second name source waiting to disagree
+            /// with the first.
+            case refused(reason: String)
         }
 
         let id = UUID()
@@ -80,12 +85,17 @@ final class ShareSheetModel {
             }
         }
 
+        /// #431-B: a refusal's own message NAMES the file (it has to — the
+        /// drain's banner has no separate name line to lean on), so the row
+        /// shows the message and nothing else. Printing the name above it
+        /// would render the same string twice, which is the very shape #180-A
+        /// forbids on the session rows.
         var title: String {
             switch payload {
             case .webURL(let url): url
             case .text(let body): body
             case .fileBlob(let fileName, _): fileName
-            case .refused(let name, _): name
+            case .refused(let reason): reason
             }
         }
 
@@ -93,7 +103,7 @@ final class ShareSheetModel {
             switch payload {
             case .webURL, .text: nil
             case .fileBlob(_, let data): Self.byteLabel(data.count)
-            case .refused(_, let reason): reason
+            case .refused: nil
             }
         }
 
@@ -157,8 +167,7 @@ final class ShareSheetModel {
         if provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier)
             || provider.hasItemConformingToTypeIdentifier(UTType.audio.identifier) {
             return LoadedItem(payload: .refused(
-                name: fallbackName,
-                reason: "Audio and video can't be sent to Talaria"))
+                reason: ShareRefusal.audioOrVideo(fileName: fallbackName)))
         }
 
         if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
@@ -181,7 +190,8 @@ final class ShareSheetModel {
                     return blobItem(fileName: url.lastPathComponent, data: data, remainingBytes: remainingBytes)
                 }
             }
-            return LoadedItem(payload: .refused(name: fallbackName, reason: "Couldn't read this file"))
+            return LoadedItem(payload: .refused(
+                reason: ShareRefusal.unreadable(fileName: fallbackName)))
         }
 
         if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
@@ -202,25 +212,28 @@ final class ShareSheetModel {
         }
 
         return LoadedItem(payload: .refused(
-            name: fallbackName,
-            reason: "Talaria can't accept this type"))
+            reason: ShareRefusal.unsupportedType(fileName: fallbackName)))
     }
 
     /// Size + stageability gate for every file payload — refusals here are
     /// the honest counterpart of what the app's staging path would reject at
     /// drain time.
+    ///
+    /// **#431-B: the decision is not made here.** It used to be — type +
+    /// the 20 MB aggregate budget, and nothing else — which let a 20 MB `.md`
+    /// through against the app's 350 KB verbatim cap and a 15 MB PDF through
+    /// against its 10 MB one. `StageableTypeCatalog.acceptance` reads the same
+    /// table `PendingAttachment.stagingCap` does, and lives in the shared core
+    /// because the extension has no test target of its own.
     private func blobItem(fileName: String, data: Data, remainingBytes: Int) -> LoadedItem {
-        guard StageableTypeCatalog.isStageable(fileName: fileName) else {
-            return LoadedItem(payload: .refused(
-                name: fileName,
-                reason: "Talaria can't accept this file type"))
+        switch StageableTypeCatalog.acceptance(
+            fileName: fileName, byteCount: data.count, remainingBytes: remainingBytes
+        ) {
+        case .accepted:
+            return LoadedItem(payload: .fileBlob(fileName: fileName, data: data))
+        case .refused(let message):
+            return LoadedItem(payload: .refused(reason: message))
         }
-        guard data.count <= remainingBytes else {
-            return LoadedItem(payload: .refused(
-                name: fileName,
-                reason: "Too large to hand off (limit \(SharedInboxStore.sizeLimitLabel))"))
-        }
-        return LoadedItem(payload: .fileBlob(fileName: fileName, data: data))
     }
 
     private func loadBlob(
@@ -392,7 +405,10 @@ struct ShareSheetView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
                     .font(.callout)
-                    .lineLimit(2)
+                    // #431-B: a refusal is now the row's ONLY line, so the
+                    // warning colour moves up to it.
+                    .foregroundStyle(item.isSendable ? Color.primary : Color.orange)
+                    .lineLimit(3)
                 if let detail = item.detail {
                     Text(detail)
                         .font(.footnote)

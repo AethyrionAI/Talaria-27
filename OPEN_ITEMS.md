@@ -3351,6 +3351,29 @@ Logged 2026-07-22.
 > the **systematic** overstatement, not rounding itself. Do not read it as
 > byte-exact honesty.
 >
+> **⟵ DATED NOTE 2026-09-06 (#431-D). This bar fixed the arithmetic of ONE
+> number, and it is worth saying which one: the 20 MB ENVELOPE cap.** The share
+> sheet had no other size guard, so "the number in the size refusal explains the
+> refusal" was, at the time, the whole of the sheet's size honesty — and the app
+> was meanwhile refusing non-PDFs above 350 KB and PDFs above 10 MB on a path the
+> extension could not see. The label was made honest about a limit that was not
+> the operative one for most files (#431's 58× window).
+>
+> **#431 carried this bar's rule forward rather than restating it.** The
+> per-type caps ship their stated label BESIDE the number
+> (`StagingSizePolicy.refusedAbove(bytes:label:)`) instead of formatting it,
+> because `ByteCountFormatter` would have reproduced this defect exactly:
+> 10,485,760 renders as "10.5 MB", **a stated limit 14,240 bytes larger than the
+> guard** — the same shape as "21 MB" against 20,971,520. Pinned by
+> `ShareCapPolicyTests.everyStatedCapUnderstatesTheCapItExplains`, which is this
+> bar's (i) generalised to every cap in the table.
+>
+> **The "found in passing, NOT fixed" note in archived #123's 180-E block —
+> `blobItem` guarding on the REMAINING budget while naming the FULL cap —
+> is STILL not fixed.** #431 rewrote that refusal's wording and deliberately kept
+> its arithmetic; the residual is re-stated in `ShareRefusal.overShareBudget`'s
+> doc comment so it is visible at the site rather than only here.
+>
 > **180-F — the convention is written down and names the four forms.**
 > `HostFedListPresentation.swift`'s doc comment carries the review rule as
 > **rule 5**, names the monotonic-latch / collapsing-`else` /

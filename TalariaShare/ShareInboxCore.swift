@@ -63,12 +63,115 @@ enum SharedInboxError: Error, Equatable {
     case payloadTooLarge(totalBytes: Int)
 }
 
+/// #431 — what the APP's staging path does with a file of a given type, as a
+/// SIZE policy. The share extension cannot import `PendingAttachment` (UIKit,
+/// app target only), so before this existed the sheet knew only whether a type
+/// was stageable at all and let a 20 MB `.md` through against a 350 KB cap —
+/// a 58× window whose whole content vanished at drain.
+///
+/// **The three arms are not three caps; they are three different behaviours**,
+/// and that distinction is the reason a single `Int` would have been wrong:
+/// `PendingAttachment.file(at:)` RE-ENCODES an image (downscale to
+/// `imageMaxPixelDimension`, then step JPEG quality down) rather than refusing
+/// it, so an oversized image is not an over-cap refusal and must not be
+/// refused up front.
+enum StagingSizePolicy: Equatable, Sendable {
+    /// The bytes ship verbatim and the app REFUSES above `bytes`. `label` is
+    /// what a refusal states, and it is carried beside the number rather than
+    /// formatted from it: `ByteCountFormatter` ROUNDS, and 10,485,760 renders
+    /// as "10.5 MB" — a stated limit 14,240 bytes LARGER than the one
+    /// enforced, which is exactly the defect #180-E fixed at the envelope cap.
+    /// These labels understate by construction.
+    case refusedAbove(bytes: Int, label: String)
+    /// The app re-encodes the file to fit its own cap, so the SOURCE size is
+    /// never a refusal — only the aggregate envelope budget bounds it. An
+    /// image whose bytes turn out to be undecodable still fails, but only the
+    /// app can discover that, and #431-C makes that failure visible at drain.
+    case reEncodedToFit
+    /// Not stageable at all — refused on TYPE, before size is considered.
+    case unsupportedType
+}
+
+/// The acceptance decision the share sheet makes for one file, and the app's
+/// staging cap, derived from ONE table (#431-A). Lives in the shared core
+/// because there is no `TalariaShareTests` target: the extension's own sources
+/// are unreachable from the suite, so a decision that lives in
+/// `ShareViewController` cannot be tested at all.
+enum ShareItemAcceptance: Equatable, Sendable {
+    case accepted
+    /// `message` names the file, its size, and the limit — it is the whole
+    /// user-facing sentence, so a surface with no separate name line (the
+    /// drain's failure banner) can render it as-is.
+    case refused(message: String)
+}
+
+/// The sentences the extension and the drain both speak (#431). One builder
+/// per reason so the two processes cannot drift into two vocabularies for the
+/// same refusal.
+enum ShareRefusal {
+    static func unsupportedType(fileName: String) -> String {
+        "“\(fileName)” isn’t a file type Talaria can accept"
+    }
+
+    static func audioOrVideo(fileName: String) -> String {
+        "“\(fileName)” — audio and video can’t be sent to Talaria"
+    }
+
+    static func unreadable(fileName: String) -> String {
+        "“\(fileName)” couldn’t be read"
+    }
+
+    static func overTypeCap(fileName: String, byteCount: Int, capLabel: String) -> String {
+        "“\(fileName)” is \(SharedInboxStore.byteLabel(byteCount)); "
+            + "Talaria accepts up to \(capLabel) for this type"
+    }
+
+    /// The AGGREGATE refusal keeps its own reason (#431-B) — a share can be
+    /// under every per-type cap and still overflow one envelope.
+    ///
+    /// **Unchanged residual, stated rather than hidden (#180-E's own
+    /// found-but-not-fixed note):** `blobItem` guards on the REMAINING budget
+    /// across a multi-item share while this names the FULL cap, so a second
+    /// file refused because the first consumed the budget is told the limit
+    /// that would have applied on its own. #431 does not fix that.
+    static func overShareBudget(fileName: String, byteCount: Int) -> String {
+        "“\(fileName)” is \(SharedInboxStore.byteLabel(byteCount)); "
+            + "one share can carry up to \(SharedInboxStore.sizeLimitLabel)"
+    }
+
+    /// A file NAMED `.pdf` whose bytes carry no `%PDF-` header. Its own
+    /// sentence rather than `couldNotStage`'s, because "couldn't read the
+    /// file" is not what happened: the file read fine and is not a PDF. The
+    /// distinction is the difference between "try again" and "that file is
+    /// mislabelled", and only the app can make it (#431 fix round 1 — the
+    /// review's minor 4).
+    static func notAPDF(fileName: String) -> String {
+        "“\(fileName)” isn’t a PDF Talaria can attach"
+    }
+
+    /// The drain-time fallback for a file the app could not make sense of at
+    /// all — undecodable image bytes, or a read that failed under it. Kept for
+    /// the cases where "couldn't read" is literally true; the mislabelled-PDF
+    /// case has its own sentence above.
+    static func couldNotStage(fileName: String) -> String {
+        "“\(fileName)” couldn’t be added — Talaria couldn’t read the file"
+    }
+}
+
 /// Canonical "what can the composer stage" tables — single source of truth
 /// for the app's staging path (`PendingAttachment` forwards here) AND the
 /// share sheet's honesty check (#123): the sheet must refuse up front what
 /// the app would silently drop at drain time ("real data only" house rule).
 enum StageableTypeCatalog {
     static let pdfMimeType = "application/pdf"
+
+    /// #431-A — the app's verbatim staging caps, owned HERE and forwarded by
+    /// `PendingAttachment` (which used to own them as literals the extension
+    /// could not see). Today's values, deliberately unchanged by this lane.
+    static let maxVerbatimBytes = 350 * 1024
+    static let maxVerbatimLabel = "350 KB"
+    static let maxPDFBytes = 10 * 1024 * 1024
+    static let maxPDFLabel = "10 MB"
 
     static let textMimeTypes: Set<String> = [
         "text/plain",
@@ -110,6 +213,57 @@ enum StageableTypeCatalog {
 
     static func isStageable(fileName: String) -> Bool {
         isStageable(mimeType: mimeType(forFileExtension: (fileName as NSString).pathExtension))
+    }
+
+    /// #431-A — the ONE size table. `PendingAttachment.stagingCap(forMimeType:)`
+    /// reads it, and so does the extension's acceptance decision below, so the
+    /// two cannot diverge without an edit here.
+    ///
+    /// The arms mirror `isStageable(mimeType:)` exactly: a type is stageable
+    /// if and only if its policy is not `.unsupportedType` (pinned).
+    static func sizePolicy(forMimeType mimeType: String) -> StagingSizePolicy {
+        if mimeType.hasPrefix("image/") { return .reEncodedToFit }
+        if mimeType == pdfMimeType {
+            return .refusedAbove(bytes: maxPDFBytes, label: maxPDFLabel)
+        }
+        if textMimeTypes.contains(mimeType) {
+            return .refusedAbove(bytes: maxVerbatimBytes, label: maxVerbatimLabel)
+        }
+        return .unsupportedType
+    }
+
+    static func sizePolicy(fileName: String) -> StagingSizePolicy {
+        sizePolicy(forMimeType: mimeType(forFileExtension: (fileName as NSString).pathExtension))
+    }
+
+    /// #431-B — the extension's acceptance decision for one file, made BEFORE
+    /// Send. Type first, then the type's own cap, then the aggregate envelope
+    /// budget: the most specific reason wins, because "one share can carry up
+    /// to 20 MB" cannot explain a 400 KB `.md` being refused.
+    ///
+    /// `remainingBytes` is the budget LEFT in this share, not the cap — a
+    /// multi-item share spends it in order.
+    static func acceptance(
+        fileName: String,
+        byteCount: Int,
+        remainingBytes: Int
+    ) -> ShareItemAcceptance {
+        switch sizePolicy(fileName: fileName) {
+        case .unsupportedType:
+            return .refused(message: ShareRefusal.unsupportedType(fileName: fileName))
+        case .refusedAbove(let bytes, let label):
+            if byteCount > bytes {
+                return .refused(message: ShareRefusal.overTypeCap(
+                    fileName: fileName, byteCount: byteCount, capLabel: label))
+            }
+        case .reEncodedToFit:
+            break
+        }
+        guard byteCount <= remainingBytes else {
+            return .refused(message: ShareRefusal.overShareBudget(
+                fileName: fileName, byteCount: byteCount))
+        }
+        return .accepted
     }
 }
 
@@ -219,6 +373,19 @@ struct SharedInboxStore: Sendable {
     /// envelope id. Anything unreadable is cleaned up as it's encountered:
     /// corrupt or oversize envelopes and stale incomplete dirs are removed;
     /// fresh incomplete dirs (the extension may still be writing) survive.
+    ///
+    /// **⚠️ RESIDUAL, named rather than hidden (#431 fix round 1).** #431-C
+    /// gave the PER-ITEM failure a user-facing result — an item that fails to
+    /// stage now rides `DrainResult.failures` to a banner instead of a log
+    /// line. **Three ENVELOPE-level paths below still vanish exactly the way
+    /// the per-item skip used to**, one layer above `convertFileItem` and out
+    /// of that fix's reach: a **stale incomplete dir** (the extension died
+    /// mid-write), an **oversize envelope dir**, and a **corrupt
+    /// `envelope.json`**. Each logs `.notice` and deletes the whole share —
+    /// every item in it, with nothing on screen. Widening the failure channel
+    /// to this layer means giving the drain a way to report a share whose
+    /// items it cannot even enumerate (there is no file name to name), so it
+    /// is a design question, not an oversight: filed, not fixed here.
     func pendingEnvelopes() -> [ShareEnvelope] {
         let fileManager = FileManager.default
         guard let entries = try? fileManager.contentsOfDirectory(
