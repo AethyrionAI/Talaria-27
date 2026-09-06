@@ -316,6 +316,50 @@ struct RunStatusRecoveryTests {
         #expect(store.conversation?.messages.last?.content == "recovered after the budget was revoked")
     }
 
+    // MARK: - #430: the arming site reads the run's own send profile
+
+    /// **430-A, at the site production actually uses.**
+    /// `armingRecoveryPersistsTheRunsOwnSendProfile` (in
+    /// `ColdLaunchRunRecoveryTests`) calls `armPendingRunRecovery` directly
+    /// with a profile in hand, so it pins the DURABLE half and says nothing
+    /// about what the `.interrupted` arm passes. This row drives the whole
+    /// path — a stream that commits a run and drops — and reads the record
+    /// off disk.
+    ///
+    /// Isolating mutation: pass a literal `nil` for `profileID:` at the
+    /// `.interrupted` arm's `armPendingRunRecovery` call (`ChatStore.swift`)
+    /// → RED here, and green everywhere else in the lane, because every other
+    /// #430 row either hands the profile in itself or measures the client.
+    /// That mutation is the whole defect surviving with its plumbing intact:
+    /// a record on disk that does not know its host still asks the active one.
+    @Test @MainActor
+    func theInterruptedArmStampsTheRecordWithTheRunsOwnSendProfile() async throws {
+        let sendProfile = UUID()
+        // Never resolves: the record has to still be on disk when this row
+        // reads it, so the recovery loop must not settle it first.
+        let client = RunRecoveryClient(
+            resolution: .answered(content: "never delivered", usage: nil),
+            resolvesAfterCalls: .max
+        )
+        client.sendProfileID = sendProfile
+        let store = makeStore(client: client)
+        // The loop sleeps its interval BEFORE its first pass, so a 30s
+        // interval makes "no tick before the assertions" structural rather
+        // than a race against a stopwatch (#183's territory).
+        store.runRecoveryPollInterval = .seconds(30)
+        store.reconcilePollInterval = .seconds(30)
+
+        await store.sendMessage("do the thing")
+
+        #expect(store.pendingRunRunId == RunRecoveryClient.runID,
+                "the `.interrupted` arm must have armed — otherwise every assertion below is vacuous")
+        let record = try #require(store.persistence.loadPendingRunRecord(),
+                                  "the arm persists a record; nothing below can be read without one")
+        #expect(record.runId == RunRecoveryClient.runID)
+        #expect(record.profileID == sendProfile,
+                "#430: the arm asks the client BY RUN ID for the host the run was sent under, and stamps THAT")
+    }
+
     // MARK: - Fixtures
 
     /// The `.interrupted` arm arms the reconcile loop before any manual pass
@@ -421,6 +465,19 @@ private final class RunRecoveryClient: HermesClientProtocol {
     /// #322's read-before-clear source. The expiration arm reads this to
     /// learn which run it is arming recovery for.
     var activeRunID: String? { Self.runID }
+
+    /// #430: the host THIS fixture's run was submitted under. Nil by default,
+    /// so every pre-existing row is byte-unchanged.
+    var sendProfileID: UUID?
+
+    /// #430: KEYED, exactly as the real client's slot is. An indiscriminate
+    /// fixture would answer the same profile for any run id, and the row that
+    /// reads it would then pass without the arm ever having asked about the
+    /// run it armed.
+    func runProfileID(forRunID runID: String) -> UUID? {
+        guard runID == Self.runID else { return nil }
+        return sendProfileID
+    }
 
     /// The legacy instrument. Deliberately offers a TEMPTING candidate — a
     /// hermes row the positional filter would happily adopt — so any

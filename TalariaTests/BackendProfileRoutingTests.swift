@@ -509,4 +509,80 @@ struct BackendProfileRoutingTests {
         #expect(decodedLegacy.runId == "run_dropped_1")
     }
 
+    /// **430-A's channel — the keyed slot, which nothing else pins.** The
+    /// `.interrupted` arm cannot read `activeRunContext` to learn a dropped
+    /// run's host (the driver's `defer` clears it before that arm, in a
+    /// different task, ever looks — #304 §9 trap 1). It asks the client BY
+    /// RUN ID instead, and this row submits a REAL run to establish that the
+    /// answer comes from the submit rather than from live state.
+    ///
+    /// The run is born on the Mac while OJAMD stays active throughout, so a
+    /// slot populated from "whatever is active" would answer OJAMD and red
+    /// here rather than passing by coincidence.
+    ///
+    /// Three isolating mutations, each measured alone:
+    /// - delete the `lastRunProfile` write from `setActiveRunContext` → the
+    ///   submitted run's own id answers nil → RED on the first `#expect`
+    ///   (and every in-process arm would persist `nil` in production).
+    /// - drop the `last.runID == runID` guard from `runProfileID(forRunID:)`
+    ///   → a run this client never submitted is handed the Mac's profile →
+    ///   RED on the second. **That is #430 re-entering by the other door:**
+    ///   a stale profile served for a different run is a WRONG host, which
+    ///   is the same 404 → `.gone` chain the lane exists to close.
+    /// - `runProfileID` returning `activeProfileIDProvider()` instead of the
+    ///   slot → RED on the first (`ojamd`, not `mac`).
+    ///
+    /// The third `#expect` is the CONTROL for the slot's whole reason to
+    /// exist: the turn's own context is already cleared by the time these
+    /// reads run, so a `runProfileID` implemented over `activeRunContext`
+    /// would answer nil for every caller that needs it.
+    @Test @MainActor
+    func theSubmittedRunsHostIsAnswerableByRunIDAndOnlyForThatRun() async throws {
+        let persistence = makePersistence("keyed-run-profile")
+        let ojamd = BackendProfile(name: "OJAMD", gatewayBaseURL: "http://ojamd:8642", usesLegacyCredentialKeys: true)
+        let mac = BackendProfile(name: "Mac Mini", gatewayBaseURL: "http://macmini:8642")
+
+        let index = SessionProfileIndexStore(persistence: persistence)
+        let client = makeClient(
+            persistence: persistence,
+            active: ojamd,
+            others: [mac],
+            keys: [mac.id: "key-mac"],
+            activeKey: "key-ojamd",
+            index: index
+        )
+
+        RoutingStubURLProtocol.requestHandler = { request in
+            let path = request.url?.path ?? ""
+            if path == "/api/sessions" {
+                return Self.jsonResponse(for: request, body: #"{"session": {"id": "api_keyed"}}"#)
+            }
+            if path.hasSuffix("/messages") {
+                return Self.jsonResponse(for: request, body: #"{"session_id": "api_keyed", "data": []}"#)
+            }
+            if path == "/v1/runs" {
+                return Self.jsonResponse(for: request, body: #"{"run_id": "run_keyed_1", "status": "started"}"#)
+            }
+            if path == "/v1/runs/run_keyed_1" {
+                return Self.jsonResponse(for: request, body: #"{"run_id": "run_keyed_1", "status": "completed", "output": "ok"}"#)
+            }
+            return Self.jsonResponse(for: request, body: #"{"message": {"content": "ok"}}"#)
+        }
+        defer { RoutingStubURLProtocol.requestHandler = nil }
+
+        client.pendingNewSessionProfileID = mac.id
+        let reply = await client.send(message: "hello mac", attachments: [], clientMessageID: UUID())
+        #expect(reply.status == .delivered,
+                "the fixture must actually complete a run — every assertion below is vacuous otherwise")
+        #expect(index.profileID(forSessionID: "api_keyed") == mac.id,
+                "and it must have been born on the MAC, or the two profiles are indistinguishable here")
+
+        #expect(client.runProfileID(forRunID: "run_keyed_1") == mac.id,
+                "#430: the host the run was SENT under, answered by that run's own id")
+        #expect(client.runProfileID(forRunID: "run_never_submitted") == nil,
+                "#430: a run this client did not submit gets nil, never a stranger's host")
+        #expect(client.activeRunID == nil,
+                "control: the turn-scoped context is already cleared — which is precisely why the keyed slot is a separate, never-cleared one")
+    }
+
 }
