@@ -1710,13 +1710,23 @@ extension LocalChatBackend {
     }
 
     /// How many trials each prompt of a cell-supplied list gets, so the CELL's
-    /// total stays the run's `trials`.
+    /// total stays CLOSE to the run's `trials` instead of multiplying it.
     ///
     /// **Without this, `--trials 40` would mean 40 × 8 = 320 trials for one
     /// cell** — a ~2-hour run where the operator asked for the same twenty
     /// minutes every other due-date cell takes, on a phone whose thermal state
     /// is a VOID condition. 40 ÷ 8 = 5 is the ruling's own "eight phrasings ×
     /// 5".
+    ///
+    /// **The cell's total is `promptCount × (trials / promptCount)`, NOT
+    /// `trials`** — integer division, so it equals `trials` only when the count
+    /// divides evenly (corrected 2026-09-06; the previous wording promised an
+    /// exact total the arithmetic never delivered). `--trials 40` over eight
+    /// phrasings is 40; `--trials 30` is 24, not 30; and the floor below can
+    /// take it ABOVE `trials` — `--trials 3` over eight phrasings runs 8. The
+    /// artifact does not have to be read for this: the run emits
+    /// `battery: CELLPROMPTS cell=… prompts=… trialsPerPrompt=…`, whose product
+    /// is the cell's real denominator.
     ///
     /// Floors at 1 so a small `--trials` still runs every phrasing once rather
     /// than silently running none, and passes `trials` straight through for a

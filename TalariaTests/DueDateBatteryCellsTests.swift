@@ -177,9 +177,6 @@ struct DueDateBatteryCellsTests {
     /// **Armed exactly like `.armed`.** The cell is a phrase-diversity arm, not
     /// a treatment: identical belt (no tool swap), no routing, and — critically
     /// — it is NOT the nofallback arm, so the fallback is ON.
-    /// **Armed exactly like `.armed`.** The cell is a phrase-diversity arm, not
-    /// a treatment: no tool swap, no routing, and — critically — it is not the
-    /// nofallback arm, so the fallback is ON.
     ///
     /// The belt half is a SOURCE witness rather than a call, because
     /// `destallBelt` over an empty array returns an empty array for every cell
@@ -201,15 +198,6 @@ struct DueDateBatteryCellsTests {
                 "the fallback must be ON for this cell")
     }
 
-    /// **The three honest `nil`s, pinned as the expected-resolution column.**
-    ///
-    /// The device bar is written against THIS, not against 40/40: `in 20
-    /// minutes` is a duration and 340-U-A's allowlist refuses it by design;
-    /// `tonight` and `on Friday` name no clock time and `NSDataDetector`
-    /// declines them. Five of the eight resolve. Pinning it here means the
-    /// column in the RESULT was measured rather than predicted, and a parser
-    /// change that quietly started inventing a time for "tonight" reds this
-    /// row rather than reading as a better device number.
     /// **THE EXPECTED-RESOLUTION COLUMN — MEASURED 2026-09-06, not predicted,
     /// and it falsified the prediction the bar itself carried.**
     ///
