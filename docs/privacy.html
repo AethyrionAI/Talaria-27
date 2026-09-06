@@ -142,8 +142,14 @@
   </ul>
 
   <h2>Your data, your controls</h2>
-  <p>Delete a conversation in the app to remove it locally; delete the app to
-  remove everything local; unpair to stop all traffic to your server.
+  <p>Delete a conversation in the app to remove it locally. Deleting the app
+  removes your conversations, memory index, notes, and settings, but a
+  connected host's credentials stay in the iPhone Keychain by design, so
+  reinstalling the app does not make you pair again. Disconnect a host,
+  under Settings &rarr; Connect Host, to clear its credentials from this
+  device and stop traffic to that server &mdash; do this before you delete
+  the app, since there is no app afterward to do it from, and no single
+  control disconnects every host at once.
   <strong>Forget everything</strong>, under Settings &rarr; Sessions &rarr;
   Memory, erases the on-device memory index and every remembered note; the same
   screen lists what is stored and lets you delete or stop using any single

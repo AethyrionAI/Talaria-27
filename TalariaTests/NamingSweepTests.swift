@@ -519,6 +519,48 @@ struct NamingSweepTests {
             """)
     }
 
+    /// **#433 — the "Your data, your controls" paragraph tells the truth
+    /// about deletion.** The 2026-09-04 audit (A8) found the old sentence
+    /// ("delete the app to remove everything local") false: a connected
+    /// host's credentials are kept in the iOS Keychain by design (#41 —
+    /// "survives … app deletion, which is the whole point"), specifically so
+    /// a reinstall does not force a re-pair. This lane's corrected paragraph
+    /// names that survival AND the control that clears it — Disconnect,
+    /// under Settings → Connect Host, which only works before the app is
+    /// deleted. RED on the untouched tree: the old sentence is still there.
+    @Test func theControlsParagraphNamesKeychainSurvivalAndDisconnect() throws {
+        let policy = try Self.read("docs/privacy.html")
+
+        // The file hand-wraps its prose across source lines (this file's own
+        // `collapsedWhitespace` note, above): the old sentence's raw bytes
+        // are actually "delete the app to\n  remove everything local", so a
+        // literal `.contains` on the UN-collapsed text never sees it and
+        // this check would pass vacuously on the untouched tree.
+        let policyCollapsed = Self.collapsedWhitespace(policy)
+        #expect(!policyCollapsed.contains("delete the app to remove everything local"), """
+            the privacy policy still claims deleting the app removes everything local — a \
+            connected host's credentials survive in the iOS Keychain by design (#41), and \
+            #433's audit found this sentence false
+            """)
+
+        let headingStart = try #require(
+            policy.range(of: "<h2>Your data, your controls</h2>"),
+            "the controls section heading is gone from docs/privacy.html — re-point this pin")
+        let headingEnd = try #require(
+            policy.range(of: "<h2>Children</h2>", range: headingStart.upperBound..<policy.endIndex),
+            "the heading after the controls section is gone from docs/privacy.html — re-point this pin")
+        let controlsParagraph = Self.collapsedWhitespace(String(policy[headingStart.upperBound..<headingEnd.lowerBound]))
+
+        #expect(controlsParagraph.contains("Keychain"), """
+            the controls paragraph no longer names the Keychain, where a disconnected-but-not- \
+            deleted host's credentials continue to live
+            """)
+        #expect(controlsParagraph.contains("Disconnect"), """
+            the controls paragraph no longer names Disconnect, the control that clears a \
+            host's credentials from this device
+            """)
+    }
+
     /// Collapses any run of whitespace (including newlines) to a single
     /// space — a browser does the same to hand-wrapped HTML prose on render,
     /// so this is what makes "byte-identical" a claim about the WORDS rather
