@@ -55,6 +55,17 @@ enum ChatKeyboardShortcuts {
     /// today/yesterday/earlier in fetch (recency) order. Archived rows are
     /// not reachable by shortcut. (@MainActor because the drawer model —
     /// and therefore its static grouping rule — is main-actor isolated.)
+    ///
+    /// **425-F1: unresumable rows are not targets.** #190 put one choke point
+    /// on opening a dimmed host stub — `SessionsDrawerModel.selectSession` —
+    /// and the row itself is `.disabled`, so tap, sidebar and search hit all
+    /// pass through it. ⌘1…⌘9 never did: it resolves its own list and calls
+    /// `chatStore.openSession` directly, which made this the fourth door.
+    /// 425-D turned that from rare into ordinary, because every configured
+    /// launch now paints "Contacting host…" stubs for the host's whole
+    /// timeout. The rows stay VISIBLE — hiding them would lie about history,
+    /// which is #190's rule — they are simply not addressable by ordinal, and
+    /// the ordinals re-number over what is left rather than leaving a hole.
     @MainActor
     static func sessionJumpTargets(
         sessions: [SessionsDrawerModel.SessionSummary],
@@ -71,6 +82,7 @@ enum ChatKeyboardShortcuts {
             showEmptySessions: showEmptySessions
         )
         .flatMap(\.items)
+        .filter { !$0.isUnresumable }
     }
 }
 
