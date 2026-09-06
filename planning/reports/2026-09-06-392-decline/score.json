@@ -1,0 +1,46 @@
+[
+  {
+    "cell": "armed",
+    "surface": "alarm",
+    "n": 75,
+    "scorable": 24,
+    "unscorable": 51,
+    "attributedToTool": 0,
+    "attributedToUser": 23,
+    "actorUnnamed": 1,
+    "misattributionRate": 0.0
+  },
+  {
+    "cell": "armed",
+    "surface": "calendar",
+    "n": 75,
+    "scorable": 40,
+    "unscorable": 35,
+    "attributedToTool": 5,
+    "attributedToUser": 32,
+    "actorUnnamed": 3,
+    "misattributionRate": 0.125
+  },
+  {
+    "cell": "armed",
+    "surface": "haiku",
+    "n": 75,
+    "scorable": 2,
+    "unscorable": 73,
+    "attributedToTool": 0,
+    "attributedToUser": 2,
+    "actorUnnamed": 0,
+    "misattributionRate": 0.0
+  },
+  {
+    "cell": "armed",
+    "surface": "remind",
+    "n": 75,
+    "scorable": 53,
+    "unscorable": 22,
+    "attributedToTool": 0,
+    "attributedToUser": 52,
+    "actorUnnamed": 1,
+    "misattributionRate": 0.0
+  }
+]
