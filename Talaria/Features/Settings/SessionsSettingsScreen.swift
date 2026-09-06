@@ -48,9 +48,14 @@ final class SessionsSettingsListModel {
     var showsEmptyCopy: Bool { hasLoaded && sessions.isEmpty }
 
     /// "Loading sessions…" — the honest state whenever there is nothing to
-    /// show and nothing has come back yet, including the frames before the
-    /// screen's `.task` has run at all.
-    var showsLoadingRow: Bool { sessions.isEmpty && !showsEmptyCopy }
+    /// show and either nothing has come back yet, or a load is in flight
+    /// right now. Checked first by the screen (`if showsLoadingRow { … }
+    /// else if showsEmptyCopy { … }`), so this is what stops a REFRESH over
+    /// an account that previously answered empty from painting the static
+    /// "No sessions yet" copy instead of the spinner (fix round 1 —
+    /// `showsEmptyCopy` alone stays true across that refresh, which is
+    /// correct for it but was wrongly load-bearing here too).
+    var showsLoadingRow: Bool { sessions.isEmpty && (isLoading || !hasLoaded) }
 
     /// 425-F2: the load goes through 425-D's interim conduit.
     ///
@@ -544,8 +549,8 @@ struct SessionsSettingsScreen: View {
 
     // MARK: Actions
 
-    private func load() async {
-        await list.load(from: container.chatStore)
+    private func load(force: Bool = false) async {
+        await list.load(from: container.chatStore, force: force)
     }
 
     private func open(_ session: HermesSessionInfo) async {
@@ -557,7 +562,11 @@ struct SessionsSettingsScreen: View {
         isClearing = true
         try? await container.chatStore.clearConversation()
         isClearing = false
-        await load()
+        // #425-followups fix round 1: everything that MUTATES the list forces
+        // through (ChatStore.swift's own rule on `sessionsSnapshotTTL`) — an
+        // unforced reload here would serve the pre-clear snapshot for up to
+        // 15 s, showing a thread this action just cleared.
+        await load(force: true)
     }
 
     private func prepareExport() async {

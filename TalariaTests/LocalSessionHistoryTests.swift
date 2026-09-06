@@ -1150,6 +1150,27 @@ struct LocalSessionHistoryTests {
         #expect(model.showsEmptyCopy,
                 "a load that answered with nothing IS the empty account — the copy is the truth here")
         #expect(model.showsLoadingRow == false)
+
+        // Fix round 1: a REFRESH over that same genuinely-empty account must
+        // not paint "No sessions yet" for the duration of the load. The
+        // screen renders `if showsLoadingRow { … } else if showsEmptyCopy
+        // { … }`, so the spinner must win while this second load is parked —
+        // even though `showsEmptyCopy` stays (correctly) true underneath it.
+        let gate = ListGate()
+        hermes.listGate = gate
+        let round = Task { @MainActor in await model.load(from: chatStore, force: true) }
+        await waitUntil { hermes.listCallCount == 2 && gate.entered }
+
+        #expect(hermes.listCallCount == 2,
+                "the second host list never started — this window's assertions would be vacuous")
+        #expect(gate.entered, "the second host call is not parked; this is not measuring the window it claims")
+        #expect(model.showsLoadingRow,
+                "a load in flight over a previously-empty account must show the spinner, not the static copy — the bug this fix round closes")
+
+        gate.release()
+        await round.value
+        #expect(model.showsEmptyCopy)
+        #expect(model.showsLoadingRow == false)
     }
 
     /// **425-F2, the composed half.** A model nobody consumes fixes nothing —
@@ -1164,7 +1185,7 @@ struct LocalSessionHistoryTests {
                    "reads the repo's own sources — simulator only"))
     func settingsSessionsScreenLoadGoesThroughTheModel() throws {
         let path = "Talaria/Features/Settings/SessionsSettingsScreen.swift"
-        let anchor = "private func load() async {"
+        let anchor = "private func load(force: Bool = false) async {"
         let whole = try RepoSourceWitness.source(path)
         #expect(whole.components(separatedBy: anchor).count == 2,
                 "\(anchor) is not unique in \(path) — this pin cannot say which one it read")
@@ -1176,6 +1197,35 @@ struct LocalSessionHistoryTests {
                 "the screen no longer loads through the model — its rows are held hostage by the host's timeout again (425-F2)")
         #expect(!body.contains("container.chatStore.loadSessions("),
                 "the bare, blocking call is back in the screen")
+    }
+
+    /// **Fix round 1 (425-F review, finding 1).** The post-clear reload must
+    /// force through `ChatStore`'s 15 s snapshot TTL — its own documented
+    /// rule is "everything that MUTATES the list passes `force: true`", and
+    /// an unforced reload here would serve the pre-clear snapshot for up to
+    /// 15 s, showing a thread this very action just cleared. No runtime test
+    /// can reach `SessionsSettingsScreen.clearConversation()` (private on a
+    /// SwiftUI `View`), so this reads the repo's own bytes, same idiom as
+    /// `settingsSessionsScreenLoadGoesThroughTheModel` above.
+    ///
+    /// Isolating mutation: drop `force: true` back to the bare `load()` call
+    /// → this row reds and nothing else does.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo's own sources — simulator only"))
+    func settingsSessionsScreenClearConversationForcesTheReload() throws {
+        let path = "Talaria/Features/Settings/SessionsSettingsScreen.swift"
+        let anchor = "private func clearConversation() async {"
+        let whole = try RepoSourceWitness.source(path)
+        #expect(whole.components(separatedBy: anchor).count == 2,
+                "\(anchor) is not unique in \(path) — this pin cannot say which one it read")
+        let body = try RepoSourceWitness.functionBody(from: anchor, in: path,
+                                                      boundary: "\n    private func ")
+        #expect(!body.contains("func "),
+                "the slice swallowed a neighbour: the boundary stops at the next member, so a neighbour's lines could satisfy this pin instead")
+        #expect(body.contains("load(force: true)"),
+                "the post-clear reload no longer forces through the snapshot TTL — a just-cleared thread can linger for 15 s (425-F review finding 1)")
+        #expect(!body.contains("await load()"),
+                "a bare, unforced load() call is back after the clear")
     }
 
     @Test @MainActor
