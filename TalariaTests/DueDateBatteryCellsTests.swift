@@ -220,7 +220,7 @@ struct DueDateBatteryCellsTests {
     /// | tag | measured | resolves? |
     /// |---|---|---|
     /// | `tmrw4pm` | tomorrow 16:00 | yes |
-    /// | `at430` | **tomorrow 04:30** | yes — see below |
+    /// | `at430` | **04:30 or 16:30 — the detector's hand, see below** | yes |
     /// | `in20min` | nil | **no** |
     /// | `nexttue9am` | next Tuesday 09:00 | yes |
     /// | `tonight` | today 19:00 | yes |
@@ -235,18 +235,26 @@ struct DueDateBatteryCellsTests {
     ///
     /// **And the measurement found something 340-F1 does NOT fix.** `at 4:30`
     /// is matched by the DETECTOR, so it never reaches the second pass and the
-    /// 12-hour rule never sees it: at 09:15 it resolves to **04:30 TOMORROW**,
-    /// not 16:30 today. That is the same reading 340-F1 was ruled against, on
-    /// the one path the ruling scoped out ("in the second pass ONLY"). It is
-    /// pinned here by value, deliberately, so the device card's `at430` column
-    /// is read as an AM answer rather than a win — and so a later lane that
-    /// extends the 12-hour rule to the detector's clock-only roll-forward reds
-    /// this row and has to say so.
+    /// 12-hour rule never sees it. At 04:06 local it came back as **04:30
+    /// TOMORROW** — the AM reading 340-F1 was ruled against, surviving on the
+    /// one path the ruling scoped out ("in the SECOND PASS only").
+    ///
+    /// **⚠️ AND ITS HAND DEPENDS ON THE PROCESS'S REAL CLOCK, which the first
+    /// cut of this row got wrong and the 340-F4 mutation run caught.** The pin
+    /// was written as 04:30/offset 1 from the 04:06 measurement and RED at
+    /// 05:22 for a reason that had nothing to do with the mutation: the
+    /// detector picks the next occurrence of 4:30 on a 12-hour clock relative
+    /// to `Date()`, not to the injected `now`, so before 04:30 it yields
+    /// today's 04:30 (then rolled to tomorrow against `now`) and after it
+    /// yields today's 16:30 (kept, because 16:30 > 09:15). **Both readings are
+    /// this row's subject; only the HAND is invariant.** So the assertion is
+    /// `hour % 12 == 4`, minute 30, strictly future — and the device card must
+    /// record the run's local time, because `at430`'s expected value is not
+    /// knowable without it.
     ///
     /// Rows whose hand comes from the detector's own defaults (`tonight`,
-    /// `eve7`, `friday`) are asserted only as "resolves, strictly future": the
-    /// detector reads the process's REAL clock, and pinning their hour or day
-    /// would rot with the time of day the suite runs at.
+    /// `eve7`, `friday`) are asserted only as "resolves, strictly future" for
+    /// the same reason.
     @Test func theExpectedResolutionColumnIsPinnedPerPhrasing() throws {
         let now = todayAt(9, 15)
         let due = { (tag: String) -> Date? in
@@ -263,10 +271,15 @@ struct DueDateBatteryCellsTests {
         #expect(hourMinute(tomorrow4pm) == (16, 0))
         #expect(dayOffset(from: now, to: tomorrow4pm) == 1)
 
+        // `at 4:30` is the DETECTOR's, which reads the REAL clock: 04:30
+        // tomorrow before 04:30 local, 16:30 today after it. Only the HAND is
+        // invariant — and the hand is what says 340-F1 does not reach this
+        // shape, since the second pass would have made it unambiguous.
         let ambiguousHalfPast = try #require(due("at430"))
-        #expect(hourMinute(ambiguousHalfPast) == (4, 30),
-                "`at 4:30` is the DETECTOR's, and it reads AM — 340-F1 does not reach it")
-        #expect(dayOffset(from: now, to: ambiguousHalfPast) == 1)
+        #expect(hourMinute(ambiguousHalfPast).minute == 30)
+        #expect(hourMinute(ambiguousHalfPast).hour % 12 == 4,
+                "`at 4:30` must still read as the 4 hand, got \(hourMinute(ambiguousHalfPast).hour)")
+        #expect(ambiguousHalfPast > now)
 
         let nextTuesday = try #require(due("nexttue9am"))
         #expect(hourMinute(nextTuesday) == (9, 0))
