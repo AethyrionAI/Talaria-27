@@ -379,10 +379,29 @@ struct AboutSettingsContent: View {
                 footerDot
                 footerLink("Support", settingsStore.buildConfiguration.supportURL)
             }
+            footerDot
+            licensesLink
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(.top, Design.Spacing.xs)
         .padding(.bottom, Design.Spacing.md)
+    }
+
+    /// #434: the way into the bundled third-party notices.
+    ///
+    /// A `NavigationLink`, not a `footerLink` — its three neighbours leave the
+    /// app through `openURL`, and this one must not: the notice document ships
+    /// INSIDE the bundle precisely so it can be read with no network, no host
+    /// and no account, which is the state a reviewer opens it in.
+    private var licensesLink: some View {
+        NavigationLink {
+            LicensesScreen()
+        } label: {
+            MonoLabel(LicensesDocument.title, size: 9, weight: .medium,
+                      tracking: Design.Tracking.monoWide, color: Design.Brand.accentText)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("settings.about.licenses")
     }
 
     private var footerDot: some View {
