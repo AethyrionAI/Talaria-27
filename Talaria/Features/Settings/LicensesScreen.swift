@@ -82,6 +82,19 @@ enum LicensesDocument {
         case rule
     }
 
+    /// Whether a fenced (`.preformatted`) block renders as a single line.
+    ///
+    /// The three copyright fences are one line each and wrap cleanly — a
+    /// horizontal scroll over one short line shows nothing extra and hides
+    /// the fact that there is nothing to scroll to (worse with
+    /// `showsIndicators: false`, which was the finding). The WebRTC and OFL
+    /// license bodies are real multi-line texts where rewrapping would be a
+    /// paraphrase, so they keep the horizontal scroll. A pure function of the
+    /// text, so the split is pinned without touching SwiftUI.
+    static func isSingleLine(_ preformatted: String) -> Bool {
+        !preformatted.contains("\n")
+    }
+
     /// Block-parses the notice document.
     ///
     /// Three rules earn their place:
@@ -131,8 +144,13 @@ enum LicensesDocument {
             }
 
             // GitHub's collapse wrapper — the content stays, the tags go.
+            // `</summary` matters even though the shipped document always
+            // closes `<summary>` on the line it opens on (so this branch
+            // never fires today): a `<summary>` / `</summary>` pair split
+            // across two lines would otherwise leak the closing tag as
+            // literal text in a rendered paragraph.
             if trimmed.hasPrefix("<details") || trimmed.hasPrefix("</details")
-                || trimmed.hasPrefix("<summary") {
+                || trimmed.hasPrefix("<summary") || trimmed.hasPrefix("</summary") {
                 flushParagraph()
                 continue
             }
@@ -281,21 +299,44 @@ struct LicensesScreen: View {
             }
 
         case .preformatted(let text):
-            // Horizontal scroll, not wrapping: these are license texts, and a
-            // reflowed license is a paraphrase of one.
-            ScrollView(.horizontal, showsIndicators: false) {
+            if LicensesDocument.isSingleLine(text) {
+                // A one-line fence — e.g. a copyright statement — reproduces
+                // exactly whether wrapped or not, and wrapping costs nothing.
+                // A horizontal scroll here showed nothing extra and (with
+                // `showsIndicators: false`, below) gave no sign there was
+                // nothing to scroll to — the finding this branch fixes.
                 Text(text)
                     .font(Design.Typography.mono(9, weight: .regular))
                     .foregroundStyle(Design.Colors.foreground)
                     .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(Design.Spacing.sm)
+                    .hudPanel(
+                        cornerRadius: Design.CornerRadius.md,
+                        borderColor: Design.Colors.hairline,
+                        fill: Design.Colors.background.opacity(0.5),
+                        innerGlow: false
+                    )
+            } else {
+                // Multi-line license bodies stay horizontally scrollable — a
+                // reflowed license is a paraphrase of one — but WITH
+                // indicators, so a reader can see there is more off-screen
+                // rather than never finding out.
+                ScrollView(.horizontal, showsIndicators: true) {
+                    Text(text)
+                        .font(Design.Typography.mono(9, weight: .regular))
+                        .foregroundStyle(Design.Colors.foreground)
+                        .textSelection(.enabled)
+                        .padding(Design.Spacing.sm)
+                }
+                .hudPanel(
+                    cornerRadius: Design.CornerRadius.md,
+                    borderColor: Design.Colors.hairline,
+                    fill: Design.Colors.background.opacity(0.5),
+                    innerGlow: false
+                )
             }
-            .hudPanel(
-                cornerRadius: Design.CornerRadius.md,
-                borderColor: Design.Colors.hairline,
-                fill: Design.Colors.background.opacity(0.5),
-                innerGlow: false
-            )
 
         case .rule:
             Rectangle()

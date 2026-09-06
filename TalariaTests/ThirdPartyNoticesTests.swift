@@ -115,6 +115,33 @@ struct ThirdPartyNoticesTests {
                 "the 'Not covered here' section is gone from \(Self.documentPath) — #435 owns it, #434 must not remove it")
     }
 
+    /// **434-A-5 — the OFL body's LOAD-BEARING CLAUSES are reproduced, not
+    /// just its title line.**
+    ///
+    /// `documentReproducesTheOFLTextOnce` pins only `oflTitleLine`. A rebase
+    /// that mangled the fenced body — dropping DISCLAIMER, TERMINATION or a
+    /// numbered condition's operative sentence while leaving the title and
+    /// the dashed rule around it intact — would still pass every existing
+    /// row. Pin the substance the license actually turns on.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo — simulator only"))
+    func documentReproducesTheOFLBodyLoadBearingClauses() throws {
+        let text = try Self.document()
+        for needle in [
+            "must be distributed entirely under this license",
+            "TERMINATION",
+            "This license becomes null and void if any of the above conditions are",
+            "DISCLAIMER",
+            "THE FONT SOFTWARE IS PROVIDED \"AS IS\"",
+        ] {
+            #expect(text.contains(needle),
+                    """
+                    \(Self.documentPath)'s OFL body is missing a load-bearing clause: \
+                    "\(needle)" — the title-line pin alone cannot see this
+                    """)
+        }
+    }
+
     // MARK: - 434-B — the built product
 
     /// **434-B-1 — the BUILT app bundle carries the notice document.**
@@ -283,10 +310,86 @@ struct ThirdPartyNoticesTests {
         }
         #expect(fenced.filter { $0.contains(Self.oflTitleLine) }.count == 1,
                 "the OFL text does not render as exactly one verbatim block")
+        // Any fragment of the collapse wrapper — opening or closing, `<details`
+        // or `<summary` — is a leak. Matching only `<details>`/`<summary>`
+        // (with the closing `>`) would miss `</details` and `</summary`,
+        // which do not contain either of those substrings.
         #expect(!blocks.contains { block in
-            if case .paragraph(let p) = block { return p.contains("<details>") || p.contains("<summary>") }
-            return false
+            guard case .paragraph(let p) = block else { return false }
+            return ["<details", "</details", "<summary", "</summary"].contains { p.contains($0) }
         }, "raw HTML wrapper tags reached the rendered page")
+    }
+
+    /// **434-C-8 — a `</summary>` on its OWN LINE is dropped too.**
+    ///
+    /// The parse used to match `<details`, `</details` and `<summary` — not
+    /// `</summary`. The shipped document happens to always close `<summary>`
+    /// on the same line it opens on, so the gap never fired in practice, but
+    /// a `<summary>` / `</summary>` pair split across two lines (a plausible
+    /// GitHub-flavoured-Markdown reformat) would leak the closing tag as
+    /// literal text in a rendered paragraph. This pins the failure mode
+    /// directly rather than trusting that today's document never triggers it.
+    @Test
+    func theParseDropsAClosingSummaryTagOnItsOwnLine() {
+        let blocks = LicensesDocument.blocks(from: """
+        <details>
+        <summary>
+        Verbatim license text
+        </summary>
+
+        ```
+        LICENSE BODY
+        ```
+
+        </details>
+        """)
+        let paragraphs = blocks.compactMap { block -> String? in
+            if case .paragraph(let p) = block { return p }
+            return nil
+        }
+        #expect(!paragraphs.contains { $0.contains("</summary") },
+                "a closing </summary> tag on its own line leaked into a rendered paragraph: \(paragraphs)")
+        #expect(blocks.contains(.preformatted("LICENSE BODY")),
+                "the fenced body inside the two-line <summary> wrapper did not survive the parse")
+    }
+
+    /// **434-C-9 — single-line fences are flagged for wrapped rendering; the
+    /// multi-line license bodies are flagged for horizontal scroll.**
+    ///
+    /// The three copyright fences are one line each and gain nothing from a
+    /// horizontal scroll — `showsIndicators: false` on top of that is what
+    /// turned it from taste into a defect. The WebRTC, OFL and vendored MIT
+    /// (Foundation-Models-Framework-Lab) fenced bodies are real license texts
+    /// where rewrapping would be a paraphrase, so they stay horizontally
+    /// scrollable. This pins the split the view reads to choose between the
+    /// two renderings — six fenced blocks in the shipped document, three of
+    /// each kind.
+    @Test
+    func theBundledDocumentsSingleLineFencesAreDistinguishedFromMultilineOnes() throws {
+        let text = try #require(LicensesDocument.load(), "no bundled document to parse")
+        let blocks = LicensesDocument.blocks(from: text)
+        let fenced = blocks.compactMap { block -> String? in
+            if case .preformatted(let body) = block { return body }
+            return nil
+        }
+
+        let singleLine = fenced.filter { LicensesDocument.isSingleLine($0) }
+        let multiLine = fenced.filter { !LicensesDocument.isSingleLine($0) }
+
+        #expect(singleLine.count == 3,
+                "expected the three copyright one-liners to be flagged single-line, found \(singleLine.count)")
+        for entry in Self.familyCopyrights {
+            #expect(singleLine.contains(entry.copyright),
+                    """
+                    \(entry.family)'s copyright fence is not flagged single-line — it would \
+                    scroll horizontally for no benefit
+                    """)
+        }
+        #expect(multiLine.count == 3,
+                """
+                expected the WebRTC, OFL and vendored-MIT license bodies to be flagged \
+                multi-line, found \(multiLine.count)
+                """)
     }
 
     // MARK: - 434-D — which targets embed the fonts
