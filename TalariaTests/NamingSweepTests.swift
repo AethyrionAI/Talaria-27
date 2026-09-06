@@ -559,6 +559,29 @@ struct NamingSweepTests {
             the controls paragraph no longer names Disconnect, the control that clears a \
             host's credentials from this device
             """)
+
+        // **`:82`'s Keychain line makes the same falsified claim, two
+        // headings earlier, and this lane's controller ruled it in scope
+        // ("The `:82` Keychain line stays consistent with it", 433-A).** The
+        // "What the app stores on your device" paragraph lists pairing
+        // credentials among the local data it says deletion removes — the
+        // same claim the controls paragraph made and this lane already
+        // corrected above. RED on the untouched tree: the sentence is still
+        // there, unchanged by the first commit.
+        let storesHeadingStart = try #require(
+            policy.range(of: "<h2>What the app stores on your device</h2>"),
+            "the \"What the app stores on your device\" heading is gone from docs/privacy.html — re-point this pin")
+        let storesHeadingEnd = try #require(
+            policy.range(of: "<h2>Voice</h2>", range: storesHeadingStart.upperBound..<policy.endIndex),
+            "the heading after the device-storage section is gone from docs/privacy.html — re-point this pin")
+        let storesParagraph = Self.collapsedWhitespace(String(policy[storesHeadingStart.upperBound..<storesHeadingEnd.lowerBound]))
+
+        #expect(!storesParagraph.contains("Deleting the app deletes this local data"), """
+            docs/privacy.html's device-storage paragraph (\":82\") still claims deleting the \
+            app deletes all the local data it just listed, including pairing credentials — \
+            the same claim #433's audit found false in the controls paragraph, restated two \
+            headings earlier and left inconsistent with the fix above
+            """)
     }
 
     /// Collapses any run of whitespace (including newlines) to a single
