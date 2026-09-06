@@ -45993,6 +45993,37 @@ Logged 2026-07-17.
 
 > **✅ CLOSED 2026-08-27 — Owen's formal close (SWEEP 11, "You can sweep", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
 
+> **📌 POINTER 2026-09-06 (#431-D, append-only per #317 ruling (a) — the bytes
+> above are untouched). This entry's own contract sentence — "wrong-type and
+> over-20MB payloads … are refused with visible reasons instead of vanishing at
+> drain time" — was HALF TRUE for 14 months, and #431 closed the other half.**
+>
+> The **type** half worked. The **size** half was written against ONE cap, the
+> 20 MB envelope budget, and the app's staging path has always enforced two
+> tighter ones the extension could not see: 350 KB for anything shipping its
+> bytes verbatim, 10 MB for a PDF (`PendingAttachment.maxFileSize` /
+> `maxPDFFileSize`, literals in the app target). **A 20 MB `.md` — a 58× window
+> — was accepted with a green tick, queued, drained, logged as
+> `skipped unconvertible item`, and deleted**, which is the exact "vanishing at
+> drain time" this entry set out to prevent. The same paragraph names the cause
+> without noticing it: blobs "re-materialize through the EXISTING
+> `PendingAttachment.file(at:)` staging path", and that path's caps were never
+> reconciled with the sheet's.
+>
+> **What #431 changed** (bars A–D, `OPEN_ITEMS.md` #431): the per-type caps moved
+> into `StageableTypeCatalog` (ShareInboxCore — the one file both targets
+> compile) and `PendingAttachment` now reads them; the sheet's acceptance
+> decision is `StageableTypeCatalog.acceptance`, refusing over-cap items before
+> Send with a reason naming the file, its size and the cap; and a conversion
+> failure at drain reaches a banner on the chat screen instead of a log line.
+>
+> **And the correction extends to a specific claim of this entry's own 2026-08-06
+> audit note.** Item (a) there says the 25 MB-video case "is UNREACHABLE BY
+> CONSTRUCTION" because a video hits the type refusal first — true, and it
+> concluded that "the size guard's actual evidence is a deliberately oversized
+> 25.07 MiB PDF". That PDF exercised the ENVELOPE guard. **No size guard for the
+> per-type caps existed to be evidenced**, on any file, until #431.
+
 ## 190. 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151); two unexercised checks owed *(was filed as SHIP BLOCKER)*
 
 > **RE-FRAMED 2026-08-01 (Hermes audit Part 1B).** The gate CLEARED 2026-07-27 and the 07-26 FAIL was re-verified passing; the header outlived the fix. Exactly two checks were never exercised — read-aloud stop on session switch, and the failure banner. Both queued as device-list §F2.

@@ -271,6 +271,11 @@ struct ChatScreen: View {
                     standaloneUnavailableBanner(explanation)
                 } else if let failure = chatStore.sessionOpenFailure {
                     sessionOpenFailureBanner(failure)
+                } else if let notice = chatStore.shareStagingFailureMessage {
+                    // #431-C: shared files the drain could not stage. Same
+                    // banner shape as the failed session open above, and for
+                    // the same reason — the old drain logged and removed.
+                    shareStagingFailureBanner(notice)
                 } else if let notice = container.profileSwitchNotice {
                     // #247 B2: the switch verdict — a dead host is NAMED, and
                     // when every host is dead the banner says to check this
@@ -1418,6 +1423,44 @@ struct ChatScreen: View {
         .padding(.horizontal, Design.Spacing.md)
         .padding(.top, Design.Spacing.md)
         .frame(maxWidth: Design.Layout.chatMeasureMaxWidth)
+    }
+
+    /// #431-C: shared files the drain could not stage — the banner form of
+    /// what used to be `skipped unconvertible item` in the log and nothing on
+    /// screen. Each line already names its file and its reason.
+    private func shareStagingFailureBanner(_ message: String) -> some View {
+        HStack(alignment: .center, spacing: Design.Spacing.sm) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: Design.Size.iconSmall))
+                .foregroundStyle(Design.Brand.forge)
+
+            VStack(alignment: .leading, spacing: Design.Spacing.xxxs) {
+                MonoLabel("COULDN'T ADD SHARED FILE", size: 11, weight: .medium,
+                          tracking: Design.Tracking.mono, color: Design.Colors.foregroundBright)
+                Text(message)
+                    .font(Design.Typography.caption)
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+            }
+
+            Spacer()
+
+            Button {
+                chatStore.dismissShareStagingFailures()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: Design.Size.iconSmall, weight: .medium))
+                    .foregroundStyle(Design.Colors.mutedForeground)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss")
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+        .hudPanel(cornerRadius: Design.CornerRadius.lg, borderColor: Design.Brand.forge.opacity(0.35))
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.top, Design.Spacing.md)
+        .frame(maxWidth: Design.Layout.chatMeasureMaxWidth)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Private Cloud β surfaces (#30)
