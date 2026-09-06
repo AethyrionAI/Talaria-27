@@ -5107,6 +5107,8 @@ Related: #156 review noted hermex ships an in-app acknowledgements surface. Wort
 
 Logged 2026-07-22.
 
+> **📌 POINTER 2026-09-06 (#434, GitHub PR #445 → `80c54fe4`):** this entry deferred an in-app acknowledgements screen as "NOT blocking submission … should not be built speculatively". The 2026-09-04 launch audit (A9) supplied the reason it lacked: the notice document was OUTSIDE the resource tree — nothing shipped — and the three OFL font families were unlisted. Built as Settings → About → Licenses with the root document bundled; the original bytes above are untouched. Tracker #434.
+
 ## 158. ✅ #156 source-confirms ANSWERED — hermes-agent 0.19.0 capability inventory
 
 Dispatched to Kimi K3 on the Mac host 2026-07-22 (session `api_1784695729_f089fe1f`, 30 tool calls). Every claim traces to a file/line in the local install at `~/.hermes/hermes-agent` (upstream `e57918ac`) or to a query against the real `state.db`. Nothing returned UNKNOWN. This resolves the source-confirms attached to #156 and re-sizes every sub-lane.
