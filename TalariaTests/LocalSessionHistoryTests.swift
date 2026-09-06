@@ -1065,6 +1065,119 @@ struct LocalSessionHistoryTests {
         #expect(interim.map(\.isResumable) == [false, true])
     }
 
+    // MARK: - 425-F2: the blank one screen over
+    //
+    // The 425-D review's follow-up (2). Settings → Sessions awaits the same
+    // blocking `loadSessions()` the drawer used to, so with an unreachable
+    // host its Recent list reads "No sessions yet" for the host's full
+    // request timeout — local chats and all. The conduit 425-D built is
+    // available to it; these rows are what make the adoption a measurement
+    // rather than a claim.
+
+    /// **425-F2.** With the host's list parked, the settings screen's model
+    /// already holds the rows the phone had all along.
+    ///
+    /// The gate is what makes this a bar rather than a coincidence: the rows
+    /// are asserted while the host call is PARKED, so no ordering can be read
+    /// into a lucky scheduling.
+    ///
+    /// Isolating mutation: revert `SessionsSettingsListModel.load` to the bare
+    /// `chatStore.loadSessions(force:)` → this row reds and nothing else does.
+    @Test @MainActor
+    func settingsSessionListPaintsLocalRowsBeforeTheHostResolves() async throws {
+        let hermes = ScriptedClient()
+        let local = ScriptedClient()
+        let gate = ListGate()
+        hermes.listGate = gate
+        hermes.listError = StubError()          // the unreachable host of #425
+        local.sessions = [
+            HermesSessionInfo(
+                id: UUID().uuidString, title: "Local one", preview: nil, model: "on-device",
+                source: "local", messageCount: 2,
+                lastActive: Date(timeIntervalSince1970: 4_000), isActive: false
+            ),
+            HermesSessionInfo(
+                id: UUID().uuidString, title: "Local two", preview: nil, model: "on-device",
+                source: "local", messageCount: 5,
+                lastActive: Date(timeIntervalSince1970: 3_000), isActive: false
+            ),
+        ]
+        let router = makeRouter(hermes: hermes, local: local, configured: true)
+        let chatStore = ChatStore(hermesClient: router, persistence: makePersistence())
+        let model = SessionsSettingsListModel()
+
+        let round = Task { @MainActor in await model.load(from: chatStore, force: true) }
+        await waitUntil { hermes.listCallCount == 1 && gate.entered }
+
+        #expect(hermes.listCallCount == 1,
+                "the host list never started — every assertion in this parked window would be vacuous")
+        #expect(gate.entered, "the host call is not parked; this test is not measuring the window it claims")
+        #expect(model.sortedSessions.map(\.title) == ["Local one", "Local two"],
+                "the local rows are in hand from the first millisecond — holding them hostage to the host's timeout is the 20 s blank, one screen over")
+        #expect(model.showsEmptyCopy == false,
+                "\"No sessions yet\" is a claim about the account; over two local chats it is simply false")
+
+        gate.release()
+        await round.value
+
+        #expect(model.sortedSessions.map(\.title) == ["Local one", "Local two"],
+                "the answer supersedes the interim — an unreachable host still degrades to the #425 shape")
+        #expect(model.hasLoaded)
+        #expect(model.showsEmptyCopy == false)
+        #expect(model.isLoading == false)
+    }
+
+    /// **425-F2, the other half.** The empty copy still renders when the list
+    /// is GENUINELY empty — and never before a load has answered.
+    ///
+    /// A fix that simply deleted "No sessions yet" would pass the row above
+    /// and lie to a user with no sessions at all; this is what stops it.
+    @Test @MainActor
+    func settingsSessionEmptyCopyRendersOnlyWhenGenuinelyEmpty() async throws {
+        let model = SessionsSettingsListModel()
+        #expect(model.showsEmptyCopy == false,
+                "before any load there is no answer to report — an untried load is not an empty account")
+        #expect(model.showsLoadingRow)
+
+        let hermes = ScriptedClient()          // no sessions on either side
+        let local = ScriptedClient()
+        let router = makeRouter(hermes: hermes, local: local, configured: true)
+        let chatStore = ChatStore(hermesClient: router, persistence: makePersistence())
+
+        await model.load(from: chatStore, force: true)
+
+        #expect(model.sessions.isEmpty)
+        #expect(model.showsEmptyCopy,
+                "a load that answered with nothing IS the empty account — the copy is the truth here")
+        #expect(model.showsLoadingRow == false)
+    }
+
+    /// **425-F2, the composed half.** A model nobody consumes fixes nothing —
+    /// the M-D1b lesson, one screen over. No runtime test can reach
+    /// `SessionsSettingsScreen.load()` (a private method on a SwiftUI `View`),
+    /// so this reads the repo's own bytes.
+    ///
+    /// Isolating mutation: point the screen's `load()` back at
+    /// `container.chatStore.loadSessions()` → this row reds and nothing else
+    /// does.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo's own sources — simulator only"))
+    func settingsSessionsScreenLoadGoesThroughTheModel() throws {
+        let path = "Talaria/Features/Settings/SessionsSettingsScreen.swift"
+        let anchor = "private func load() async {"
+        let whole = try RepoSourceWitness.source(path)
+        #expect(whole.components(separatedBy: anchor).count == 2,
+                "\(anchor) is not unique in \(path) — this pin cannot say which one it read")
+        let body = try RepoSourceWitness.functionBody(from: anchor, in: path,
+                                                      boundary: "\n    private func ")
+        #expect(!body.contains("func "),
+                "the slice swallowed a neighbour: the boundary stops at the next member, so a neighbour's lines could satisfy this pin instead")
+        #expect(body.contains("list.load(from: container.chatStore"),
+                "the screen no longer loads through the model — its rows are held hostage by the host's timeout again (425-F2)")
+        #expect(!body.contains("container.chatStore.loadSessions("),
+                "the bare, blocking call is back in the screen")
+    }
+
     @Test @MainActor
     func routerRoutesLocalSessionIDsToLocalBackendWhileHermesActive() async throws {
         let hermes = ScriptedClient()

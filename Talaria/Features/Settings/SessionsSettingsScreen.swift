@@ -13,6 +13,72 @@ import SwiftUI
 //     clearConversation() (the current thread — it clears BOTH brains), so
 //     the destructive action is "Clear Conversation", not "Clear All
 //     Sessions". A true delete-all would need a new host route.
+
+// MARK: View model (wiring seam)
+
+/// The Recent list's rows and its one load, hoisted out of the screen so the
+/// suite can drive them (425-F2).
+///
+/// **Why it exists.** Nothing in the test target can reach a private method on
+/// a SwiftUI `View` — which is why 425-D's drawer fix could only be pinned by
+/// reading the repo's own bytes. This screen carries the same defect one screen
+/// over (the 425-D review's follow-up 2), and a model is what lets the fix be
+/// MEASURED rather than witnessed.
+@MainActor
+@Observable
+final class SessionsSettingsListModel {
+
+    /// The rows the screen renders.
+    private(set) var sessions: [HermesSessionInfo] = []
+
+    /// True while a load is in flight.
+    private(set) var isLoading = false
+
+    /// True once a load has RETURNED at least once. The empty copy reads this,
+    /// never `sessions.isEmpty` alone: "No sessions yet" is a claim about the
+    /// ACCOUNT, and before the first answer there is no such claim to make.
+    private(set) var hasLoaded = false
+
+    /// Most-recent first; sessions with no timestamp sort last.
+    var sortedSessions: [HermesSessionInfo] {
+        sessions.sorted { ($0.lastActive ?? .distantPast) > ($1.lastActive ?? .distantPast) }
+    }
+
+    /// "No sessions yet" — only over a list a load actually answered with.
+    var showsEmptyCopy: Bool { hasLoaded && sessions.isEmpty }
+
+    /// "Loading sessions…" — the honest state whenever there is nothing to
+    /// show and nothing has come back yet, including the frames before the
+    /// screen's `.task` has run at all.
+    var showsLoadingRow: Bool { sessions.isEmpty && !showsEmptyCopy }
+
+    /// 425-F2: the load goes through 425-D's interim conduit.
+    ///
+    /// `loadSessions` cannot answer until the HOST has, and an unreachable
+    /// host answers with a request timeout — #425's device pass measured ~20 s
+    /// of blank shelf in the drawer for exactly that reason, and this screen
+    /// was awaiting the same call one screen over. The interim is a PREVIEW:
+    /// the assignment below always supersedes it, so a reachable host's final
+    /// list is byte-identical to what it was before this lane.
+    ///
+    /// Suppressed once rows exist, and the check lives INSIDE the closure
+    /// rather than around it because a concurrent load can fill the list in
+    /// between. The interim is strictly worse than a list already on screen
+    /// (host rows dimmed to "Contacting host…"), so publishing it over one
+    /// would be a dim-then-un-dim flicker on every refresh against a healthy
+    /// host — the wrong state this fix is forbidden to flash.
+    func load(from chatStore: ChatStore, force: Bool = false) async {
+        isLoading = true
+        let interim: @MainActor ([HermesSessionInfo]) -> Void = { [weak self] infos in
+            guard let self, self.sessions.isEmpty else { return }
+            self.sessions = infos
+        }
+        sessions = await chatStore.loadSessions(force: force, interim: interim)
+        hasLoaded = true
+        isLoading = false
+    }
+}
+
 struct SessionsSettingsScreen: View {
     // #252: deck pages supply the background and top bar; the screen keeps
     // owning its content, tasks, and sheets in both presentations.
@@ -22,21 +88,22 @@ struct SessionsSettingsScreen: View {
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(TabRouter.self) private var router
 
-    @State private var sessions: [HermesSessionInfo] = []
-    @State private var isLoading = false
+    /// 425-F2: the Recent list's rows and its load live here, not in `@State`
+    /// on the view — see `SessionsSettingsListModel`.
+    @State private var list = SessionsSettingsListModel()
     @State private var isClearing = false
     @State private var isExporting = false
     @State private var showClearConfirm = false
     @State private var showExportSheet = false
     @State private var exportURL: URL?
 
+    private var sessions: [HermesSessionInfo] { list.sessions }
+    private var isLoading: Bool { list.isLoading }
     private var totalMessages: Int { sessions.reduce(0) { $0 + $1.messageCount } }
     private var activeCount: Int { sessions.filter(\.isActive).count }
 
     /// Most-recent first; sessions with no timestamp sort last.
-    private var sortedSessions: [HermesSessionInfo] {
-        sessions.sorted { ($0.lastActive ?? .distantPast) > ($1.lastActive ?? .distantPast) }
-    }
+    private var sortedSessions: [HermesSessionInfo] { list.sortedSessions }
 
     var body: some View {
         ZStack {
@@ -264,9 +331,13 @@ struct SessionsSettingsScreen: View {
                       color: Design.Colors.mutedForeground)
 
             VStack(spacing: 0) {
-                if isLoading && sessions.isEmpty {
+                // 425-F2: the empty copy is a claim about the ACCOUNT and
+                // renders only over a list a load actually answered with —
+                // never over the wait, which with an unreachable host is the
+                // host's whole request timeout.
+                if list.showsLoadingRow {
                     infoRow("Loading sessions…", showSpinner: true)
-                } else if sortedSessions.isEmpty {
+                } else if list.showsEmptyCopy {
                     infoRow("No sessions yet", showSpinner: false)
                 } else {
                     let rows = Array(sortedSessions.prefix(8))
@@ -474,9 +545,7 @@ struct SessionsSettingsScreen: View {
     // MARK: Actions
 
     private func load() async {
-        isLoading = true
-        sessions = await container.chatStore.loadSessions()
-        isLoading = false
+        await list.load(from: container.chatStore)
     }
 
     private func open(_ session: HermesSessionInfo) async {
