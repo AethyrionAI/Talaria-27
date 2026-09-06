@@ -23,4 +23,22 @@ struct PendingRunRecord: Codable, Equatable, Sendable {
     /// Reasoning streamed before the process died (#4.15) — the server
     /// transcript filters `_thinking`, so this copy is the only survivor.
     let partialReasoning: String?
+    /// #430: the backend profile this run was SENT under — the host that
+    /// actually has it. **Identity only: a profile UUID, never a base URL and
+    /// never a key**, so a record read off disk cannot widen the credential
+    /// surface even by accident.
+    ///
+    /// Without it, recovery asked `readRunStatus(runID:profileID: nil)`, and
+    /// nil resolves to whichever profile is ACTIVE at relaunch. On a
+    /// multi-profile phone that is routinely a host which has never heard of
+    /// this run: it answers 404, and a 404 is classified `.gone` — a real
+    /// answer destroyed as "the host forgot it".
+    ///
+    /// Optional because every record written before this build carries no
+    /// such key. Those decode `nil` and recovery falls back to the session's
+    /// BIRTH profile (`SessionProfileIndexStore`), then to the active one.
+    /// A non-optional field would fail the whole decode instead, and a failed
+    /// decode of this record presents downstream as "there was no pending run
+    /// at all" — the #42 shape.
+    let profileID: UUID?
 }

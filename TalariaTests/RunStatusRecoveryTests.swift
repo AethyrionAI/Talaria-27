@@ -213,7 +213,8 @@ struct RunStatusRecoveryTests {
             placeholderID: UUID(),
             sessionId: "probe-session",
             runId: RunRecoveryClient.runID,
-            userMessageID: prompt.id
+            userMessageID: prompt.id,
+            profileID: nil
         )
         await store.reconcilePendingRuns()
 
@@ -441,7 +442,7 @@ private final class RunRecoveryClient: HermesClientProtocol {
         )
     }
 
-    func resolveDroppedRun(runID: String, sessionID: String) async -> DroppedRunResolution? {
+    func resolveDroppedRun(runID: String, sessionID: String, profileID: UUID?) async -> DroppedRunResolution? {
         resolveCallCount += 1
         guard resolveCallCount >= resolvesAfterCalls else { return nil }
         return resolution

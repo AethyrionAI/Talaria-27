@@ -17132,6 +17132,24 @@ whole-branch review as a look-at, not a blocker.
 > **Consequence for this lane:** whatever per-turn snapshot 285 lands should
 > cover the runs driver's request family, not just the platform link.
 
+> **⟵ 📌 POINTER 2026-09-06 (#430) — append-only, the original bytes above
+> are untouched (#261/#317(a)).** Part 3's list of what carries the frozen
+> endpoint names "status polls, **the catch-path recovery poll**, and the
+> stop POST". That was accurate when written and is still accurate about
+> the poll it names: `pollRunToTerminal`'s in-turn catch-path poll carries
+> the turn's `ResolvedEndpoint` and this lane left those bytes untouched
+> (pinned green by
+> `BackendProfileRoutingTests.theWarmInTurnPollStillRidesItsFrozenEndpointAcrossASwitch`).
+> **What the phrase later came to cover, and never did:** #368 (3E,
+> 2026-08-19) added a SECOND recovery read — `resolveDroppedRun`, the
+> COLD-launch one, reached from `ChatStore`'s reconcile loop in a process
+> that may never have submitted the run. It took no endpoint and passed
+> `profileID: nil`, which resolves to the ACTIVE profile; a wrong-host 404
+> was then classified `.gone`. Two reads share the name "recovery poll"
+> and only one was ever frozen. Fixed 2026-09-06 by #430: the pending
+> record carries the profile the run was SENT under, and recovery resolves
+> record → session birth profile → active, in that order.
+
 ## 284. 💡 CAPABILITY BROKER for the local brain — capability discovery + selective typed-tool arming over ONE registry (native tools / MCP / Skills / Hermes-side) — **FILED 2026-08-07 from the open-source momentum report (`planning/reports/2026-08-07-open-source-momentum-report.md`), on Owen's instruction ("create / update open items for the ones we want to implement later"); claims VALIDATED same day against tracker, code, and the external repos. NO LANE, NO BARS — post-Phase-3 candidate by the report's own ordering; Owen routes.**
 
 **The idea (OpenWork's pattern, adapted):** instead of arming the full belt

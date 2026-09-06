@@ -265,4 +265,248 @@ struct BackendProfileRoutingTests {
     // relay-LESS paired profile must not be due) is now true by construction
     // because nothing is ever due.
 
+    // MARK: - #430: dropped-run recovery asks the RUN'S host, not the active one
+
+    /// **430-B, the defect's own shape.** A run is submitted under the Mac
+    /// profile; the user switches the active profile to OJAMD; the process
+    /// dies; the next cold launch reads the pending record and asks the host
+    /// for that run's verdict. Before this lane the read went to
+    /// `readRunStatus(runID:profileID: nil)`, and nil resolves to the ACTIVE
+    /// profile — so the question reached OJAMD, which has never heard of the
+    /// run, answered 404, and the 404 was classified `.gone`: a real answer
+    /// destroyed as "the host forgot it".
+    ///
+    /// Isolating mutation: restore `profileID: nil` inside `resolveDroppedRun`
+    /// → this row reds (host `ojamd`, `Bearer key-ojamd`) and the two rows
+    /// below stay green, because their fallbacks resolve to the same nil.
+    @Test @MainActor
+    func droppedRunRecoveryReadsTheRecordsProfileNotTheActiveOne() async throws {
+        let persistence = makePersistence("recovery-record-profile")
+        let ojamd = BackendProfile(name: "OJAMD", gatewayBaseURL: "http://ojamd:8642", usesLegacyCredentialKeys: true)
+        let mac = BackendProfile(name: "Mac Mini", gatewayBaseURL: "http://macmini:8642")
+
+        // Deliberately EMPTY: the record's own profile must be enough. If the
+        // read only works because the birth index happens to agree, this row
+        // is not measuring what it claims.
+        let index = SessionProfileIndexStore(persistence: persistence)
+        let client = makeClient(
+            persistence: persistence,
+            active: ojamd,
+            others: [mac],
+            keys: [mac.id: "key-mac"],
+            activeKey: "key-ojamd",
+            index: index
+        )
+
+        let log = RequestLog()
+        RoutingStubURLProtocol.requestHandler = { request in
+            log.record(request)
+            return Self.jsonResponse(
+                for: request,
+                body: #"{"run_id": "run_dropped_1", "status": "completed", "output": "the answer that survived"}"#
+            )
+        }
+        defer { RoutingStubURLProtocol.requestHandler = nil }
+
+        let resolution = await client.resolveDroppedRun(
+            runID: "run_dropped_1",
+            sessionID: "api_mac_dropped",
+            profileID: mac.id
+        )
+
+        guard case .answered(let content, _) = resolution else {
+            Issue.record("expected the run's host to answer, got \(String(describing: resolution))")
+            return
+        }
+        #expect(content == "the answer that survived")
+
+        let requests = log.all
+        #expect(requests.count == 1)
+        #expect(requests.first?.path == "/v1/runs/run_dropped_1")
+        #expect(requests.first?.host == "macmini", "the recovery read must address the run's OWN host")
+        #expect(requests.first?.authorization == "Bearer key-mac", "and carry that host's key")
+    }
+
+    /// **430-B, the legacy record.** A record written before this lane carries
+    /// no profile at all (it decodes `nil`). The session's BIRTH profile is
+    /// the next-best answer and is the same resolution `openSession` already
+    /// uses (`SessionsHermesClient.swift` — `profileIndex?.profileID(forSessionID:)`).
+    ///
+    /// Isolating mutation: drop the `profileIndex` term from the recovery
+    /// resolution → this row reds (host `ojamd`) while the row above stays
+    /// green.
+    @Test @MainActor
+    func aLegacyRecordWithNoProfileFallsBackToTheSessionsBirthHost() async throws {
+        let persistence = makePersistence("recovery-birth-profile")
+        let ojamd = BackendProfile(name: "OJAMD", gatewayBaseURL: "http://ojamd:8642", usesLegacyCredentialKeys: true)
+        let mac = BackendProfile(name: "Mac Mini", gatewayBaseURL: "http://macmini:8642")
+
+        let index = SessionProfileIndexStore(persistence: persistence)
+        index.record(sessionID: "api_mac_legacy", profileID: mac.id)
+
+        let client = makeClient(
+            persistence: persistence,
+            active: ojamd,
+            others: [mac],
+            keys: [mac.id: "key-mac"],
+            activeKey: "key-ojamd",
+            index: index
+        )
+
+        let log = RequestLog()
+        RoutingStubURLProtocol.requestHandler = { request in
+            log.record(request)
+            return Self.jsonResponse(
+                for: request,
+                body: #"{"run_id": "run_legacy_1", "status": "completed", "output": "legacy answer"}"#
+            )
+        }
+        defer { RoutingStubURLProtocol.requestHandler = nil }
+
+        _ = await client.resolveDroppedRun(
+            runID: "run_legacy_1",
+            sessionID: "api_mac_legacy",
+            profileID: nil
+        )
+
+        let requests = log.all
+        #expect(requests.count == 1)
+        #expect(requests.first?.host == "macmini", "a profile-less record still knows its session's birth host")
+        #expect(requests.first?.authorization == "Bearer key-mac")
+    }
+
+    /// **430-B, the honest last resort.** Neither the record nor the index
+    /// knows the host — a pre-Lane-M session id. Only then does the active
+    /// profile answer, which is exactly today's behaviour and must stay
+    /// byte-identical for the single-profile user.
+    @Test @MainActor
+    func withNeitherRecordNorBirthProfileRecoveryAsksTheActiveHost() async throws {
+        let persistence = makePersistence("recovery-active-fallback")
+        let ojamd = BackendProfile(name: "OJAMD", gatewayBaseURL: "http://ojamd:8642", usesLegacyCredentialKeys: true)
+        let mac = BackendProfile(name: "Mac Mini", gatewayBaseURL: "http://macmini:8642")
+
+        let index = SessionProfileIndexStore(persistence: persistence)
+        let client = makeClient(
+            persistence: persistence,
+            active: ojamd,
+            others: [mac],
+            keys: [mac.id: "key-mac"],
+            activeKey: "key-ojamd",
+            index: index
+        )
+
+        let log = RequestLog()
+        RoutingStubURLProtocol.requestHandler = { request in
+            log.record(request)
+            return Self.jsonResponse(
+                for: request,
+                body: #"{"run_id": "run_unknown_1", "status": "completed", "output": "active answer"}"#
+            )
+        }
+        defer { RoutingStubURLProtocol.requestHandler = nil }
+
+        _ = await client.resolveDroppedRun(
+            runID: "run_unknown_1",
+            sessionID: "api_prelane_m",
+            profileID: nil
+        )
+
+        let requests = log.all
+        #expect(requests.count == 1)
+        #expect(requests.first?.host == "ojamd", "unknown on both counts → the active host, as before")
+        #expect(requests.first?.authorization == "Bearer key-ojamd")
+    }
+
+    /// **430-B's control — the WARM in-turn poll is untouched.** #285's
+    /// frozen-endpoint rule owns the poll that runs INSIDE a live turn: it
+    /// carries the turn's already-resolved `ResolvedEndpoint`, which wins over
+    /// any profile resolution. This lane changed the COLD entry point only, so
+    /// this row must stay green with the bytes at `pollRunToTerminal`
+    /// unedited — and it is the row that would catch a "fix" that made the
+    /// frozen endpoint negotiable.
+    @Test @MainActor
+    func theWarmInTurnPollStillRidesItsFrozenEndpointAcrossASwitch() async throws {
+        let persistence = makePersistence("warm-poll-frozen")
+        let ojamd = BackendProfile(name: "OJAMD", gatewayBaseURL: "http://ojamd:8642", usesLegacyCredentialKeys: true)
+        let mac = BackendProfile(name: "Mac Mini", gatewayBaseURL: "http://macmini:8642")
+
+        let index = SessionProfileIndexStore(persistence: persistence)
+        let client = makeClient(
+            persistence: persistence,
+            active: ojamd,
+            others: [mac],
+            keys: [mac.id: "key-mac"],
+            activeKey: "key-ojamd",
+            index: index
+        )
+
+        let log = RequestLog()
+        RoutingStubURLProtocol.requestHandler = { request in
+            log.record(request)
+            return Self.jsonResponse(
+                for: request,
+                body: #"{"run_id": "run_warm_1", "status": "completed", "output": "warm answer"}"#
+            )
+        }
+        defer { RoutingStubURLProtocol.requestHandler = nil }
+
+        // The turn's ONE resolution, frozen at birth on the Mac — the active
+        // profile is OJAMD throughout.
+        let frozen = SessionsHermesClient.ResolvedEndpoint(baseURL: "http://macmini:8642", apiKey: "key-mac")
+        let snapshot = await client.pollRunToTerminal(
+            runID: "run_warm_1",
+            profileID: nil,
+            endpoint: frozen
+        )
+
+        #expect(snapshot?.status == "completed")
+        let requests = log.all
+        #expect(requests.count == 1)
+        #expect(requests.first?.host == "macmini", "#285: the frozen endpoint wins over the live profile, still")
+        #expect(requests.first?.authorization == "Bearer key-mac")
+    }
+
+    // MARK: - #430-A: the record carries the host it was SENT under
+
+    /// **430-A.** The field is identity only — a profile UUID, never a key or
+    /// a URL (the round-trip below is the pin that keeps it that way: a
+    /// `PendingRunRecord` whose JSON grew a secret would fail review here
+    /// first). And a record written by ANY build before this lane decodes
+    /// with `profileID == nil` rather than failing to decode at all — a
+    /// decode failure presents downstream as a silent unpair (#42), so the
+    /// legacy arm is the one that must not be assumed.
+    ///
+    /// Isolating mutation: make `PendingRunRecord.profileID` non-optional
+    /// (`UUID`) → the legacy arm reds (`nil` decode) and the round-trip stays
+    /// green, which is precisely why both arms are here.
+    @Test
+    func thePendingRunRecordCarriesItsSendProfileAndLegacyRecordsDecodeNil() throws {
+        let sendProfile = UUID()
+        let record = PendingRunRecord(
+            sessionId: "api_mac_dropped",
+            runId: "run_dropped_1",
+            userMessageID: UUID(),
+            conversationID: UUID(),
+            sentAt: Date(timeIntervalSince1970: 1_757_000_000),
+            partialReasoning: nil,
+            profileID: sendProfile
+        )
+
+        let encoded = try JSONEncoder().encode(record)
+        let round = try JSONDecoder().decode(PendingRunRecord.self, from: encoded)
+        #expect(round == record)
+        #expect(round.profileID == sendProfile)
+
+        let json = try #require(String(data: encoded, encoding: .utf8))
+        #expect(!json.contains("http"), "identity only — no URL may ride the record")
+        #expect(!json.contains("Bearer"), "identity only — no key may ride the record")
+
+        // A record written before this lane: the key is simply absent.
+        let legacyJSON = #"{"sessionId":"api_mac_dropped","runId":"run_dropped_1","userMessageID":"11111111-1111-1111-1111-111111111111","conversationID":"22222222-2222-2222-2222-222222222222","sentAt":747000000.0}"#
+        let legacy = Data(legacyJSON.utf8)
+        let decodedLegacy = try JSONDecoder().decode(PendingRunRecord.self, from: legacy)
+        #expect(decodedLegacy.profileID == nil, "a legacy record decodes, and knows it does not know its host")
+        #expect(decodedLegacy.runId == "run_dropped_1")
+    }
+
 }

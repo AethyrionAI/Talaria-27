@@ -337,7 +337,22 @@ protocol HermesClientProtocol {
     /// The default is `nil`: a client with no runs plane (mock / legacy relay
     /// / the on-device brain) has no run to read, and `nil` is the caller's
     /// "not resolved" answer either way.
-    func resolveDroppedRun(runID: String, sessionID: String) async -> DroppedRunResolution?
+    func resolveDroppedRun(runID: String, sessionID: String, profileID: UUID?) async -> DroppedRunResolution?
+
+    /// #430: the backend profile a given run was SUBMITTED under, so the
+    /// pending-run record can carry the run's own host into a later process.
+    ///
+    /// Keyed on the run id and answered from a slot the turn's terminal exit
+    /// does NOT clear — `activeRunID` above is cleared there, and the caller
+    /// that needs this (`ChatStore.armPendingRunRecovery`, arming recovery for
+    /// the run that just dropped) reads it from another task after the driver
+    /// returned. A read naming a run this client did not submit answers nil,
+    /// which degrades to the session's birth profile rather than to a wrong
+    /// host.
+    ///
+    /// The default is `nil` for the same reason `activeRunID`'s is: a plane
+    /// with no runs has no run to attribute.
+    func runProfileID(forRunID runID: String) -> UUID?
 
     /// #304 (Phase 3 slice 3B): answer a HOST approval parked on a `/v1/runs`
     /// run — `POST /v1/runs/{run_id}/approval {"choice": …}`. Declared beside
@@ -421,7 +436,10 @@ extension HermesClientProtocol {
     // which for a client that will never have an answer simply means the
     // caller's own budget retires the loop. Same honest-absence shape as
     // `activeRunID`/`finalRunUsage` above.
-    func resolveDroppedRun(runID: String, sessionID: String) async -> DroppedRunResolution? { nil }
+    func resolveDroppedRun(runID: String, sessionID: String, profileID: UUID?) async -> DroppedRunResolution? { nil }
+    // #430: no runs plane, so no run whose host there is anything to say
+    // about — the same honest absence as `activeRunID`.
+    func runProfileID(forRunID runID: String) -> UUID? { nil }
     // #304: no runs plane to answer on — the honest dead end, never a fake
     // success. `SessionsHermesClient` overrides with the real POST;
     // `ResilientHermesClient`/`ChatBackendRouter` override to forward.

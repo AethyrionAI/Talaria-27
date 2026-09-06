@@ -11967,6 +11967,26 @@ scope: **wholesale, or a permanent dual path?**
   (#364), the #306 hold-slot matrix rows, and the #285 frozen-endpoint rule.
   Falsifier: any edit to those mechanisms riding this PR.
 
+  **⟵ 📌 CORRECTED 2026-09-06 (#430, in the same commit as the fix — the
+  close-out rule).** The clause "**the #285 frozen-endpoint rule**" is
+  half true, and the half it misses is the half 3E created. The bar
+  checked that this diff did not EDIT the frozen-endpoint machinery, and
+  it did not — every pre-existing site still carries its turn's frozen
+  `ResolvedEndpoint`. But 3E also added a NEW entry point that had never
+  been under that rule: `resolveDroppedRun`, the cold-launch recovery
+  read, which called `readRunStatus(runID:profileID: nil)` — and nil
+  resolves to whichever profile is ACTIVE at relaunch, not to the run's
+  host. `PendingRunRecord` carried no profile, so there was nothing for it
+  to resolve from. On a multi-profile phone whose active profile changed
+  between the drop and the relaunch, the question reached a host that had
+  never heard of the run, got a 404, and the 404 was classified `.gone`:
+  a real answer destroyed as "the host forgot it". **The general lesson,
+  which is the reason this correction is here and not only in #430:** a
+  "nothing smuggled" bar that scores DIFF-UNCHANGED cannot see an
+  invariant that a NEW site was never brought under. Ask both questions —
+  did the diff edit the mechanism, and does every site the diff ADDED obey
+  it. Closed by #430 (record → birth → active).
+
 **Sequencing:** commit 1 = recovery collapse (3E-B/C/D), commit 2 = the flip
 + migration (3E-A/F/I), commit 3 = deletion (3E-E). Gate once at the end
 (3E-G). Device leg 3E-H is Owen's, evening.
@@ -12092,7 +12112,7 @@ scope: **wholesale, or a permanent dual path?**
 > | 3E-G gate | **MET** | above |
 > | 3E-H device | **OWED — Owen, PM slot** | see below |
 > | 3E-I honesty on a runs-less host | **MET** | `RunsPlaneTransportTests.aHostThatCannotServeRunsFailsVisiblyRatherThanSilently` — one `.failed` with words, never `.interrupted` or `.unreachable` |
-> | 3E-J nothing smuggled | **MET** | the artifact correlator, stored-args reconstruction, the #306 matrix and the #285 frozen-endpoint rule are untouched; the one lingering-loop imperfection found mid-build was deliberately LEFT ALONE for this reason |
+> | 3E-J nothing smuggled | **MET** | the artifact correlator, stored-args reconstruction, the #306 matrix and the #285 frozen-endpoint rule are untouched; the one lingering-loop imperfection found mid-build was deliberately LEFT ALONE for this reason — **⟵ the last clause is CORRECTED 2026-09-06 (#430): untouched, yes, but 3E's own NEW cold-launch entry point (`resolveDroppedRun`) was never brought under the rule and asked the active host instead of the run's. See the dated block under the 3E-J bar text above.** |
 >
 > **What the full suite caught that the targeted suites could not:** four
 > existing tests modelled the OLD recovery and went red on the flip

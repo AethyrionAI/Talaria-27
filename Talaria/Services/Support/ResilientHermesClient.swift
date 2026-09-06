@@ -102,8 +102,14 @@ final class ResilientHermesClient: HermesClientProtocol {
     /// the same reason `finalRunUsage` is — a `/v1/runs/{id}` id can only
     /// have come from the primary's plane, and the fallback has no runs
     /// endpoint to answer with.
-    func resolveDroppedRun(runID: String, sessionID: String) async -> DroppedRunResolution? {
-        await primary.resolveDroppedRun(runID: runID, sessionID: sessionID)
+    func resolveDroppedRun(runID: String, sessionID: String, profileID: UUID?) async -> DroppedRunResolution? {
+        await primary.resolveDroppedRun(runID: runID, sessionID: sessionID, profileID: profileID)
+    }
+
+    /// #430: same rule again — only `primary` ever submitted a run, so only
+    /// `primary` can name the host it went to.
+    func runProfileID(forRunID runID: String) -> UUID? {
+        primary.runProfileID(forRunID: runID)
     }
 
     /// #304: same rule as `hardStopActiveRun` above — `sendStreaming` only

@@ -140,6 +140,8 @@ final class SessionsHermesClient: HermesClientProtocol {
     // while keeping the properties themselves `private(set)`.
     func setActiveRunContext(runID: String, profileID: UUID?, endpoint: ResolvedEndpoint) {
         activeRunContext = (runID, profileID, endpoint)
+        // #430: deliberately OUTLIVES the context above — see `lastRunProfile`.
+        lastRunProfile = (runID, profileID)
     }
 
     /// No-ops if `activeRunContext` no longer names `matchingRunID` — either
@@ -168,6 +170,49 @@ final class SessionsHermesClient: HermesClientProtocol {
         guard let index = selfStoppedRunIDs.firstIndex(of: runID) else { return false }
         selfStoppedRunIDs.remove(at: index)
         return true
+    }
+
+    /// #430: the profile the most recently SUBMITTED run was sent under,
+    /// keyed by that run's id.
+    ///
+    /// `activeRunContext` cannot answer this question and must not be made to:
+    /// it is cleared on the turn's terminal exit, while the consumer that
+    /// needs the answer — `ChatStore`'s `.interrupted` arm, arming recovery
+    /// for the run that just dropped — reads it from a DIFFERENT task, after
+    /// the driver's `defer` has already run. Reading a single slot that may
+    /// have been cleared is the #304 §9 trap 1 shape.
+    ///
+    /// This slot is never cleared, only overwritten by the next submit, and it
+    /// is KEYED: a read naming any other run answers nil rather than handing
+    /// back a stranger's host, and nil degrades to the birth-profile fallback
+    /// rather than to a wrong answer. One slot suffices because this client
+    /// drives one turn at a time.
+    private(set) var lastRunProfile: (runID: String, profileID: UUID?)?
+
+    /// #430: the host a given run was submitted to — nil when this client
+    /// never submitted it, or has since submitted another.
+    func runProfileID(forRunID runID: String) -> UUID? {
+        guard let last = lastRunProfile, last.runID == runID else { return nil }
+        return last.profileID
+    }
+
+    /// #430: the host to address a DROPPED run's status read to, in the only
+    /// order the client can honestly know it.
+    ///
+    /// 1. **The pending record's own profile** — the host the run was SENT
+    ///    under, frozen at submit time.
+    /// 2. **The session's BIRTH profile**, for a record written before #430.
+    ///    This is the same resolution `openSession` already uses (see
+    ///    `birthProfileID` above) applied to the same session id the recovery
+    ///    path already receives — the data was there the whole time.
+    /// 3. **The active profile**, which is where this read always went. Right
+    ///    only when the first two are unknown (a pre-Lane-M session id).
+    ///
+    /// `requestProfileID` collapses the active profile back to nil, so on a
+    /// single-profile install every arm produces byte-identical requests to
+    /// the pre-#430 code.
+    func recoveryProfileID(recordProfileID: UUID?, sessionID: String) -> UUID? {
+        recordProfileID ?? profileIndex?.profileID(forSessionID: sessionID) ?? activeProfileIDProvider()
     }
 
     /// The durable journal (shared with ChatStore via AppContainer). Owns the

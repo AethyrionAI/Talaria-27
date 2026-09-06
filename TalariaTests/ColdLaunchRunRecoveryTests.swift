@@ -36,7 +36,8 @@ struct ColdLaunchRunRecoveryTests {
         into persistence: UserDefaultsAppPersistenceStore,
         rowID: UUID,
         record: Bool,
-        recordConversationID: UUID? = nil
+        recordConversationID: UUID? = nil,
+        recordProfileID: UUID? = nil
     ) -> Conversation {
         let conversation = Conversation(
             title: "Hermes",
@@ -52,7 +53,8 @@ struct ColdLaunchRunRecoveryTests {
                 userMessageID: rowID,
                 conversationID: recordConversationID ?? conversation.id,
                 sentAt: Date(timeIntervalSinceNow: -30),
-                partialReasoning: nil
+                partialReasoning: nil,
+                profileID: recordProfileID
             ))
         }
         return conversation
@@ -249,7 +251,8 @@ struct ColdLaunchRunRecoveryTests {
             placeholderID: UUID(),
             sessionId: "arm-session",
             runId: "arm-run",
-            userMessageID: rowID
+            userMessageID: rowID,
+            profileID: nil
         )
         let record = persistence.loadPendingRunRecord()
         #expect(record?.runId == "arm-run", "arming with a run id persists the durable record")
@@ -257,6 +260,67 @@ struct ColdLaunchRunRecoveryTests {
 
         let cleared = await pollUntil { persistence.loadPendingRunRecord() == nil }
         #expect(cleared, "settling the run clears the record — the didSet choke point, not a scattered edit")
+    }
+
+    // MARK: - #430: the record's host reaches the recovery read
+
+    /// **430-A/B end to end, through the door a relaunch actually uses.** The
+    /// dying process left a record naming the profile the run was SENT under.
+    /// The cold load restores it and the recovery read must be addressed to
+    /// THAT profile — not to whichever profile is active now, which on a
+    /// multi-profile phone is a host that has never heard of this run and
+    /// answers 404 (classified `.gone`: a real answer destroyed).
+    ///
+    /// Isolating mutation: pass `profileID: nil` at
+    /// `attemptRunStatusReconcile`'s `resolveDroppedRun` call → this row reds
+    /// and `armingRecoveryPersistsTheRecordAndSettlingClearsIt` stays green.
+    @Test func theRestoredRecordsSendProfileReachesTheRecoveryRead() async {
+        let persistence = Self.isolatedPersistence()
+        let rowID = UUID()
+        let sendProfile = UUID()
+        _ = Self.seedCrashState(into: persistence, rowID: rowID, record: true, recordProfileID: sendProfile)
+        let client = ColdLaunchRecoveryClient(resolution: .answered(content: "recovered", usage: nil))
+        let store = Self.makeStore(client: client, persistence: persistence)
+
+        await store.loadConversationIfNeeded()
+
+        let asked = await pollUntil { client.resolveProfileIDs.isEmpty == false }
+        #expect(asked, "the cold load consults the run's status")
+        #expect(
+            client.resolveProfileIDs.allSatisfy { $0 == sendProfile },
+            "every recovery read is addressed to the run's OWN host (#430)"
+        )
+    }
+
+    /// **430-A, the arming half.** The durable record carries the profile the
+    /// SEND resolved, handed down from the run's own frozen endpoint — never
+    /// re-derived at write time. A record that learned its host from
+    /// "whatever is active now" would be the #427 shape pointed at the host
+    /// axis instead of the thread axis.
+    ///
+    /// Isolating mutation: have the `didSet` write a constant `nil` instead of
+    /// `pending.profileID` → this row reds.
+    @Test func armingRecoveryPersistsTheRunsOwnSendProfile() async {
+        let persistence = Self.isolatedPersistence()
+        let rowID = UUID()
+        _ = Self.seedCrashState(into: persistence, rowID: rowID, record: false)
+        let client = ColdLaunchRecoveryClient(resolution: .answered(content: "settled", usage: nil))
+        let store = Self.makeStore(client: client, persistence: persistence)
+        await store.loadConversationIfNeeded()
+
+        let sendProfile = UUID()
+        store.armPendingRunRecovery(
+            placeholderID: UUID(),
+            sessionId: "arm-session",
+            runId: "arm-run-profile",
+            userMessageID: rowID,
+            profileID: sendProfile
+        )
+
+        #expect(
+            persistence.loadPendingRunRecord()?.profileID == sendProfile,
+            "the run's send profile is what the record persists"
+        )
     }
 }
 
@@ -270,6 +334,10 @@ private final class ColdLaunchRecoveryClient: HermesClientProtocol {
     private let resolution: DroppedRunResolution
     private let resolvesAfterCalls: Int
     private(set) var resolveCallCount = 0
+    /// #430: the host each recovery read was addressed to — the whole point
+    /// of the record's profile field is that this is not always the active
+    /// one, so the fixture has to be able to say which it was.
+    private(set) var resolveProfileIDs: [UUID?] = []
 
     init(resolution: DroppedRunResolution, resolvesAfterCalls: Int = 1) {
         self.resolution = resolution
@@ -293,8 +361,9 @@ private final class ColdLaunchRecoveryClient: HermesClientProtocol {
 
     func clearConversation() async throws -> Conversation { Conversation(title: "Hermes") }
 
-    func resolveDroppedRun(runID: String, sessionID: String) async -> DroppedRunResolution? {
+    func resolveDroppedRun(runID: String, sessionID: String, profileID: UUID?) async -> DroppedRunResolution? {
         resolveCallCount += 1
+        resolveProfileIDs.append(profileID)
         guard resolveCallCount >= resolvesAfterCalls else { return nil }
         return resolution
     }

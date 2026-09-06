@@ -739,7 +739,7 @@ struct AppStoresTests {
         /// `replyAvailable` gate so the test keeps measuring what it always
         /// measured (a resolved run never re-arms and never resolves twice),
         /// now on the path production actually takes.
-        func resolveDroppedRun(runID: String, sessionID: String) async -> DroppedRunResolution? {
+        func resolveDroppedRun(runID: String, sessionID: String, profileID: UUID?) async -> DroppedRunResolution? {
             guard replyAvailable else { return nil }
             return .answered(content: "Resolved once", usage: nil)
         }

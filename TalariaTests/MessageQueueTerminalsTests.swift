@@ -98,7 +98,7 @@ struct MessageQueueTerminalsTests {
         /// already sets — the newest hermes row in it — so every test here
         /// keeps its existing arrange step and now measures the #306 matrix
         /// on the path production takes.
-        func resolveDroppedRun(runID: String, sessionID: String) async -> DroppedRunResolution? {
+        func resolveDroppedRun(runID: String, sessionID: String, profileID: UUID?) async -> DroppedRunResolution? {
             reconcileCallCount += 1
             guard let reply = reconcileConversation?.messages.last(where: { $0.sender == .hermes }) else {
                 return nil
