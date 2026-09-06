@@ -1,0 +1,395 @@
+battery: CONTAINER-REAP start calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+battery: START trials=40 cells=2 prompts=1 warmup=true (#200)
+battery: WARMUP begin cell=armed prompts=1 (#200V)
+battery: BEGIN shape=warmup p=remind t=0
+battery: tool=createReminder shape=warmup p=remind t=0 detail=test Talaria
+battery: confirm=declined shape=warmup p=remind t=0
+battery: shape=warmup p=remind t=0 cant=false denial=false chars=69 inTok=1889 outTok=29 text=You’ve declined the reminder. Let me know if you’d like to try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=warmup p=remind t=0 (#200F)
+battery: WARMUP done — discarded, not counted (#200V)
+battery: THERMAL cell=armed at=start state=nominal (#201B)
+battery: MANIPULATION cell=armed reminderTool=ReminderCreateTool (#340-G5)
+battery: BEGIN shape=armed p=remind t=1
+battery: tool=createReminder shape=armed p=remind t=1 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=1
+battery: shape=armed p=remind t=1 cant=false denial=false chars=102 inTok=1889 outTok=27 text=I couldn’t create the reminder because you declined the request. Let me know if there’s anything else.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=1 (#200F)
+battery: BEGIN shape=armed p=remind t=2
+battery: tool=createReminder shape=armed p=remind t=2 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=2
+battery: shape=armed p=remind t=2 cant=false denial=false chars=112 inTok=1879 outTok=33 text=I couldn’t create the reminder because you declined. Let me know if you'd like to try again or adjust something.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=2 (#200F)
+battery: BEGIN shape=armed p=remind t=3
+battery: shape=armed p=remind t=3 cant=false denial=false chars=105 inTok=1835 outTok=33 text=Here’s the confirmation: I’ll create a reminder titled "Test Talaria" for 4:30 PM today. Shall I proceed?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=3 (#200F)
+battery: BEGIN shape=armed p=remind t=4
+battery: tool=createReminder shape=armed p=remind t=4 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=4
+battery: shape=armed p=remind t=4 cant=false denial=false chars=84 inTok=1889 outTok=29 text=I couldn’t create the reminder because you declined. Would you like me to try again?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=4 (#200F)
+battery: BEGIN shape=armed p=remind t=5
+battery: tool=createReminder shape=armed p=remind t=5 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=5
+battery: shape=armed p=remind t=5 cant=false denial=false chars=124 inTok=1879 outTok=39 text=I couldn’t create the reminder because you declined. Let me know if you’d like to try again or need help with anything else.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=5 (#200F)
+battery: BEGIN shape=armed p=remind t=6
+battery: tool=createReminder shape=armed p=remind t=6 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=6
+battery: shape=armed p=remind t=6 cant=false denial=false chars=111 inTok=1879 outTok=33 text=I couldn’t create the reminder because you declined. Let me know if you’d like to try again or adjust anything.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=6 (#200F)
+battery: BEGIN shape=armed p=remind t=7
+battery: tool=createReminder shape=armed p=remind t=7 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=7
+battery: shape=armed p=remind t=7 cant=false denial=false chars=104 inTok=1889 outTok=31 text=I couldn’t create the reminder because you declined the request. Let me know if you’d like to try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=7 (#200F)
+battery: BEGIN shape=armed p=remind t=8
+battery: tool=createReminder shape=armed p=remind t=8 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=8
+battery: shape=armed p=remind t=8 cant=false denial=false chars=104 inTok=1889 outTok=31 text=I couldn’t create the reminder since you declined. Let me know if there’s anything else I can help with.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=8 (#200F)
+battery: BEGIN shape=armed p=remind t=9
+battery: tool=createReminder shape=armed p=remind t=9 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=9
+battery: shape=armed p=remind t=9 cant=false denial=false chars=103 inTok=1889 outTok=25 text=I couldn’t create the reminder because you declined. Would you like to try again or adjust the request?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=9 (#200F)
+battery: BEGIN shape=armed p=remind t=10
+battery: tool=createReminder shape=armed p=remind t=10 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=10
+battery: shape=armed p=remind t=10 cant=false denial=false chars=107 inTok=1889 outTok=35 text=I couldn’t create the reminder because you declined. Let me know if there’s anything else you’d like to do.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=10 (#200F)
+battery: BEGIN shape=armed p=remind t=11
+battery: shape=armed p=remind t=11 cant=false denial=false chars=74 inTok=1835 outTok=29 text=I’ll create a reminder to test Talaria at 4:30 PM. Do you want to proceed?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=11 (#200F)
+battery: BEGIN shape=armed p=remind t=12
+battery: tool=createReminder shape=armed p=remind t=12 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=12
+battery: shape=armed p=remind t=12 cant=false denial=false chars=92 inTok=1879 outTok=27 text=I couldn't create the reminder because you declined. Let me know if you'd like to try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=12 (#200F)
+battery: BEGIN shape=armed p=remind t=13
+battery: tool=createReminder shape=armed p=remind t=13 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=13
+battery: shape=armed p=remind t=13 cant=false denial=false chars=106 inTok=1879 outTok=31 text=I couldn't create the reminder because you declined. Let me know if there’s anything else I can help with.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=13 (#200F)
+battery: BEGIN shape=armed p=remind t=14
+battery: tool=createReminder shape=armed p=remind t=14 detail=test Talaria
+battery: confirm=declined shape=armed p=remind t=14
+battery: shape=armed p=remind t=14 cant=false denial=false chars=111 inTok=1879 outTok=35 text=I couldn’t create the reminder because you declined. Let me know if there’s anything else you’d like to adjust.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=14 (#200F)
+battery: BEGIN shape=armed p=remind t=15
+battery: shape=armed p=remind t=15 cant=false denial=false chars=80 inTok=1835 outTok=31 text=I’ll create a reminder for you to test Talaria at 4:30 PM today. Do you approve?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=15 (#200F)
+battery: BEGIN shape=armed p=remind t=16
+battery: tool=createReminder shape=armed p=remind t=16 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=16
+battery: shape=armed p=remind t=16 cant=false denial=false chars=92 inTok=1889 outTok=27 text=I couldn’t create the reminder because you declined. Let me know if you’d like to try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=16 (#200F)
+battery: BEGIN shape=armed p=remind t=17
+battery: shape=armed p=remind t=17 cant=false denial=false chars=73 inTok=1835 outTok=25 text=Would you like me to create a reminder titled "Test Talaria" for 4:30 PM?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=17 (#200F)
+battery: BEGIN shape=armed p=remind t=18
+battery: tool=createReminder shape=armed p=remind t=18 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=18
+battery: shape=armed p=remind t=18 cant=false denial=false chars=89 inTok=1879 outTok=29 text=I couldn’t create the reminder because you declined. Would you like me to proceed anyway?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=18 (#200F)
+battery: BEGIN shape=armed p=remind t=19
+battery: tool=createReminder shape=armed p=remind t=19 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=19
+battery: shape=armed p=remind t=19 cant=false denial=false chars=69 inTok=1889 outTok=29 text=You’ve declined the reminder. Let me know if you’d like to try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=19 (#200F)
+battery: BEGIN shape=armed p=remind t=20
+battery: shape=armed p=remind t=20 cant=false denial=false chars=104 inTok=1835 outTok=33 text=Here’s the confirmation: I’ll create a reminder titled “Test Talaria” at 4:30 PM today. Shall I proceed?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=20 (#200F)
+battery: BEGIN shape=armed p=remind t=21
+battery: shape=armed p=remind t=21 cant=false denial=false chars=73 inTok=1835 outTok=27 text=I’ll create a reminder to test Talaria at 4:30 PM today. Shall I proceed?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=21 (#200F)
+battery: BEGIN shape=armed p=remind t=22
+battery: tool=createReminder shape=armed p=remind t=22 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=22
+battery: shape=armed p=remind t=22 cant=false denial=false chars=92 inTok=1889 outTok=27 text=I couldn’t create the reminder because you declined. Let me know if you’d like to try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=22 (#200F)
+battery: BEGIN shape=armed p=remind t=23
+battery: tool=createReminder shape=armed p=remind t=23 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=23
+battery: shape=armed p=remind t=23 cant=false denial=false chars=92 inTok=1889 outTok=27 text=I couldn’t create the reminder because you declined. Let me know if you’d like to try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=23 (#200F)
+battery: BEGIN shape=armed p=remind t=24
+battery: tool=createReminder shape=armed p=remind t=24 detail=test Talaria
+battery: confirm=declined shape=armed p=remind t=24
+battery: shape=armed p=remind t=24 cant=false denial=false chars=81 inTok=1879 outTok=27 text=I couldn’t create the reminder because you declined. Would you like to try again?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=24 (#200F)
+battery: BEGIN shape=armed p=remind t=25
+battery: tool=createReminder shape=armed p=remind t=25 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=25
+battery: shape=armed p=remind t=25 cant=false denial=false chars=75 inTok=1889 outTok=27 text=You declined creating the reminder. Let me know if you'd like to try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=25 (#200F)
+battery: BEGIN shape=armed p=remind t=26
+battery: tool=createReminder shape=armed p=remind t=26 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=26
+battery: shape=armed p=remind t=26 cant=false denial=false chars=121 inTok=1889 outTok=39 text=You declined the request to create a reminder for "Test Talaria" at 4:30pm. Let me know if you'd like to adjust anything.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=26 (#200F)
+battery: BEGIN shape=armed p=remind t=27
+battery: tool=createReminder shape=armed p=remind t=27 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=27
+battery: shape=armed p=remind t=27 cant=false denial=false chars=102 inTok=1889 outTok=31 text=I couldn't create the reminder because you declined. Let me know if you'd like to adjust or try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=27 (#200F)
+battery: BEGIN shape=armed p=remind t=28
+battery: tool=createReminder shape=armed p=remind t=28 detail=test Talaria
+battery: confirm=declined shape=armed p=remind t=28
+battery: shape=armed p=remind t=28 cant=false denial=false chars=97 inTok=1879 outTok=29 text=It seems you’ve declined the reminder. Let me know if you’d like to adjust anything or try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=28 (#200F)
+battery: BEGIN shape=armed p=remind t=29
+battery: tool=createReminder shape=armed p=remind t=29 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=29
+battery: shape=armed p=remind t=29 cant=false denial=false chars=90 inTok=1879 outTok=23 text=I couldn’t create the reminder because you declined. Let me know if there’s anything else.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=29 (#200F)
+battery: BEGIN shape=armed p=remind t=30
+battery: tool=createReminder shape=armed p=remind t=30 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=30
+battery: shape=armed p=remind t=30 cant=false denial=false chars=100 inTok=1889 outTok=31 text=I couldn’t create the reminder since you declined. Let me know if you’d like to adjust or try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=30 (#200F)
+battery: BEGIN shape=armed p=remind t=31
+battery: shape=armed p=remind t=31 cant=false denial=false chars=108 inTok=1835 outTok=45 text=I’ll create a reminder for you:   / **Title:** Test Talaria   / **Due:** 4:30pm today   /  / Do you want to proceed?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=31 (#200F)
+battery: BEGIN shape=armed p=remind t=32
+battery: tool=createReminder shape=armed p=remind t=32 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=32
+battery: shape=armed p=remind t=32 cant=false denial=false chars=92 inTok=1889 outTok=27 text=I couldn’t create the reminder because you declined. Let me know if you’d like to try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=32 (#200F)
+battery: BEGIN shape=armed p=remind t=33
+battery: tool=createReminder shape=armed p=remind t=33 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=33
+battery: shape=armed p=remind t=33 cant=false denial=false chars=88 inTok=1889 outTok=23 text=I couldn’t create the reminder since you declined. Let me know if there’s anything else.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=33 (#200F)
+battery: BEGIN shape=armed p=remind t=34
+battery: shape=armed p=remind t=34 cant=false denial=false chars=81 inTok=1835 outTok=31 text=I’ll create a reminder for you to test Talaria at 4:30 PM today. Shall I proceed?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=34 (#200F)
+battery: BEGIN shape=armed p=remind t=35
+battery: tool=createReminder shape=armed p=remind t=35 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=35
+battery: shape=armed p=remind t=35 cant=false denial=false chars=103 inTok=1889 outTok=37 text=It seems you'd prefer not to be reminded, so nothing was added. Let me know if you'd like to try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=35 (#200F)
+battery: BEGIN shape=armed p=remind t=36
+battery: tool=createReminder shape=armed p=remind t=36 detail=test Talaria
+battery: confirm=declined shape=armed p=remind t=36
+battery: shape=armed p=remind t=36 cant=false denial=false chars=112 inTok=1879 outTok=35 text=I couldn’t create the reminder because you declined. Let me know if there’s anything else you’d like to explore.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=36 (#200F)
+battery: BEGIN shape=armed p=remind t=37
+battery: shape=armed p=remind t=37 cant=false denial=false chars=72 inTok=1835 outTok=27 text=I'll create a reminder to test Talaria at 4:30pm today. Shall I proceed?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=37 (#200F)
+battery: BEGIN shape=armed p=remind t=38
+battery: shape=armed p=remind t=38 cant=false denial=false chars=75 inTok=1835 outTok=29 text=I’ll create a reminder for you to test Talaria at 4:30 PM. Shall I proceed?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=38 (#200F)
+battery: BEGIN shape=armed p=remind t=39
+battery: tool=createReminder shape=armed p=remind t=39 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=39
+battery: shape=armed p=remind t=39 cant=false denial=false chars=95 inTok=1879 outTok=27 text=You’ve declined the reminder. Let me know if you’d like to try again or explore something else.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=39 (#200F)
+battery: BEGIN shape=armed p=remind t=40
+battery: tool=createReminder shape=armed p=remind t=40 detail=Test Talaria
+battery: confirm=declined shape=armed p=remind t=40
+battery: shape=armed p=remind t=40 cant=false denial=false chars=90 inTok=1879 outTok=27 text=I couldn’t create the reminder since you declined. Let me know if you’d like to try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=remind t=40 (#200F)
+battery: THERMAL cell=armed at=end state=fair (#201B)
+battery: THERMAL cell=armed-nofallback at=start state=fair (#201B)
+battery: MANIPULATION cell=armed-nofallback reminderTool=ReminderCreateTool (#340-G5)
+battery: BEGIN shape=armed-nofallback p=remind t=1
+battery: tool=createReminder shape=armed-nofallback p=remind t=1 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=1
+battery: shape=armed-nofallback p=remind t=1 cant=false denial=false chars=111 inTok=1879 outTok=33 text=I couldn’t create the reminder because you declined. Let me know if you’d like to try again or adjust anything.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=1 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=2
+battery: tool=createReminder shape=armed-nofallback p=remind t=2 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=2
+battery: shape=armed-nofallback p=remind t=2 cant=false denial=false chars=118 inTok=1889 outTok=35 text=I couldn’t create the reminder because you declined the request. Let me know if there’s anything else I can help with.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=2 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=3
+battery: tool=createReminder shape=armed-nofallback p=remind t=3 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=3
+battery: shape=armed-nofallback p=remind t=3 cant=false denial=false chars=127 inTok=1879 outTok=43 text=You’ve declined creating the reminder for "Test Talaria" at 4:30 PM. Let me know if you’d like to try again or adjust anything.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=3 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=4
+battery: tool=createReminder shape=armed-nofallback p=remind t=4 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=4
+battery: shape=armed-nofallback p=remind t=4 cant=false denial=false chars=89 inTok=1889 outTok=29 text=You've declined the reminder, so nothing was set. Let me know if you'd like to try again!
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=4 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=5
+battery: shape=armed-nofallback p=remind t=5 cant=false denial=false chars=78 inTok=1835 outTok=31 text=I'll set a reminder for you to test Talaria at 4:30 PM today. Shall I proceed?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=5 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=6
+battery: tool=createReminder shape=armed-nofallback p=remind t=6 detail=test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=6
+battery: shape=armed-nofallback p=remind t=6 cant=false denial=false chars=112 inTok=1879 outTok=33 text=I couldn’t create the reminder because you declined. Let me know if you’d like to try again or adjust something.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=6 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=7
+battery: tool=createReminder shape=armed-nofallback p=remind t=7 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=7
+battery: shape=armed-nofallback p=remind t=7 cant=false denial=false chars=114 inTok=1889 outTok=35 text=I couldn’t create the reminder because you declined. Let me know if you’d like me to try again or adjust anything.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=7 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=8
+battery: tool=createReminder shape=armed-nofallback p=remind t=8 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=8
+battery: shape=armed-nofallback p=remind t=8 cant=false denial=false chars=98 inTok=1889 outTok=29 text=I couldn’t create the reminder because you declined. Would you like to keep it as-is or try again?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=8 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=9
+battery: tool=createReminder shape=armed-nofallback p=remind t=9 detail=test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=9
+battery: shape=armed-nofallback p=remind t=9 cant=false denial=false chars=133 inTok=1889 outTok=47 text=You’ve declined the request to create a reminder for "test Talaria" at 4:30 PM. Let me know if there’s anything else I can help with.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=9 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=10
+battery: tool=createReminder shape=armed-nofallback p=remind t=10 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=10
+battery: shape=armed-nofallback p=remind t=10 cant=false denial=false chars=114 inTok=1879 outTok=35 text=I couldn't create the reminder because you declined. Let me know if you'd like to try again or adjust the request.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=10 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=11
+battery: tool=createReminder shape=armed-nofallback p=remind t=11 detail=test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=11
+battery: shape=armed-nofallback p=remind t=11 cant=false denial=false chars=69 inTok=1889 outTok=29 text=You’ve declined the reminder. Let me know if you’d like to try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=11 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=12
+battery: tool=createReminder shape=armed-nofallback p=remind t=12 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=12
+battery: shape=armed-nofallback p=remind t=12 cant=false denial=false chars=67 inTok=1879 outTok=25 text=You’ve declined the reminder. Let me know if there’s anything else.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=12 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=13
+battery: tool=createReminder shape=armed-nofallback p=remind t=13 detail=test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=13
+battery: shape=armed-nofallback p=remind t=13 cant=false denial=false chars=90 inTok=1879 outTok=27 text=I couldn’t create the reminder since you declined. Let me know if you’d like to try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=13 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=14
+battery: shape=armed-nofallback p=remind t=14 cant=false denial=false chars=81 inTok=1835 outTok=31 text=I’ll create a reminder for you to test Talaria at 4:30 PM today. Shall I proceed?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=14 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=15
+battery: tool=createReminder shape=armed-nofallback p=remind t=15 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=15
+battery: shape=armed-nofallback p=remind t=15 cant=false denial=false chars=86 inTok=1879 outTok=27 text=I couldn’t create the reminder because you declined. Would you like to proceed anyway?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=15 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=16
+battery: tool=createReminder shape=armed-nofallback p=remind t=16 detail=test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=16
+battery: shape=armed-nofallback p=remind t=16 cant=false denial=false chars=90 inTok=1879 outTok=23 text=I couldn’t create the reminder because you declined. Let me know if there’s anything else.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=16 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=17
+battery: tool=createReminder shape=armed-nofallback p=remind t=17 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=17
+battery: shape=armed-nofallback p=remind t=17 cant=false denial=false chars=90 inTok=1889 outTok=23 text=I couldn’t create the reminder because you declined. Let me know if there’s anything else.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=17 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=18
+battery: tool=createReminder shape=armed-nofallback p=remind t=18 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=18
+battery: shape=armed-nofallback p=remind t=18 cant=false denial=false chars=111 inTok=1889 outTok=33 text=I couldn’t create the reminder because you declined. Let me know if you’d like to try again or adjust anything.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=18 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=19
+battery: shape=armed-nofallback p=remind t=19 cant=false denial=false chars=104 inTok=1835 outTok=33 text=Here’s the confirmation: I’ll create a reminder titled “Test Talaria” at 4:30 PM today. Shall I proceed?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=19 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=20
+battery: tool=createReminder shape=armed-nofallback p=remind t=20 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=20
+battery: shape=armed-nofallback p=remind t=20 cant=false denial=false chars=125 inTok=1889 outTok=39 text=I couldn’t create the reminder because you declined. Let me know if you’d like to try again or need help with something else.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=20 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=21
+battery: tool=createReminder shape=armed-nofallback p=remind t=21 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=21
+battery: shape=armed-nofallback p=remind t=21 cant=false denial=false chars=90 inTok=1879 outTok=23 text=I couldn’t create the reminder because you declined. Let me know if there’s anything else.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=21 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=22
+battery: tool=createReminder shape=armed-nofallback p=remind t=22 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=22
+battery: shape=armed-nofallback p=remind t=22 cant=false denial=false chars=107 inTok=1879 outTok=35 text=I couldn’t create the reminder because you declined. Let me know if there’s anything else you’d like to do.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=22 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=23
+battery: tool=createReminder shape=armed-nofallback p=remind t=23 detail=test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=23
+battery: shape=armed-nofallback p=remind t=23 cant=false denial=false chars=106 inTok=1889 outTok=31 text=I couldn’t create the reminder because you declined. Let me know if there’s anything else I can help with.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=23 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=24
+battery: tool=createReminder shape=armed-nofallback p=remind t=24 detail=test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=24
+battery: shape=armed-nofallback p=remind t=24 cant=false denial=false chars=114 inTok=1879 outTok=35 text=I couldn’t create the reminder because you declined. Let me know if you’d like to try again or need anything else.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=24 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=25
+battery: tool=createReminder shape=armed-nofallback p=remind t=25 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=25
+battery: shape=armed-nofallback p=remind t=25 cant=false denial=false chars=67 inTok=1889 outTok=25 text=It looks like you'd prefer not to be reminded. No action was taken.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=25 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=26
+battery: tool=createReminder shape=armed-nofallback p=remind t=26 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=26
+battery: shape=armed-nofallback p=remind t=26 cant=false denial=false chars=81 inTok=1879 outTok=27 text=I couldn’t create the reminder because you declined. Would you like to try again?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=26 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=27
+battery: tool=createReminder shape=armed-nofallback p=remind t=27 detail=test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=27
+battery: shape=armed-nofallback p=remind t=27 cant=false denial=false chars=92 inTok=1889 outTok=27 text=I couldn’t create the reminder because you declined. Let me know if you’d like to try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=27 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=28
+battery: tool=createReminder shape=armed-nofallback p=remind t=28 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=28
+battery: shape=armed-nofallback p=remind t=28 cant=false denial=false chars=112 inTok=1879 outTok=33 text=I couldn’t create the reminder because you declined. Let me know if you’d like to try again or adjust something.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=28 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=29
+battery: tool=createReminder shape=armed-nofallback p=remind t=29 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=29
+battery: shape=armed-nofallback p=remind t=29 cant=false denial=false chars=92 inTok=1879 outTok=27 text=I couldn’t create the reminder because you declined. Let me know if you’d like to try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=29 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=30
+battery: shape=armed-nofallback p=remind t=30 cant=false denial=false chars=73 inTok=1835 outTok=27 text=I'll create a reminder to test Talaria at 4:30 PM today. Shall I proceed?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=30 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=31
+battery: tool=createReminder shape=armed-nofallback p=remind t=31 detail=test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=31
+battery: shape=armed-nofallback p=remind t=31 cant=false denial=false chars=111 inTok=1889 outTok=33 text=I couldn’t create the reminder because you declined. Let me know if you’d like to try again or adjust anything.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=31 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=32
+battery: tool=createReminder shape=armed-nofallback p=remind t=32 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=32
+battery: shape=armed-nofallback p=remind t=32 cant=false denial=false chars=106 inTok=1879 outTok=31 text=I couldn't create the reminder because you declined. Let me know if there’s anything else I can help with.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=32 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=33
+battery: tool=createReminder shape=armed-nofallback p=remind t=33 detail=test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=33
+battery: shape=armed-nofallback p=remind t=33 cant=false denial=false chars=103 inTok=1879 outTok=25 text=I couldn't create the reminder because you declined. Would you like to try again or adjust the request?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=33 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=34
+battery: tool=createReminder shape=armed-nofallback p=remind t=34 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=34
+battery: shape=armed-nofallback p=remind t=34 cant=false denial=false chars=89 inTok=1879 outTok=29 text=I couldn’t create the reminder because you declined. Would you like me to proceed anyway?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=34 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=35
+battery: tool=createReminder shape=armed-nofallback p=remind t=35 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=35
+battery: shape=armed-nofallback p=remind t=35 cant=false denial=false chars=111 inTok=1889 outTok=35 text=You’ve declined the request to create the reminder. Let me know if there’s anything else you’d like to explore!
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=35 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=36
+battery: shape=armed-nofallback p=remind t=36 cant=false denial=false chars=81 inTok=1835 outTok=31 text=I'll create a reminder for you to test Talaria at 4:30 PM today. Shall I proceed?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=36 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=37
+battery: tool=createReminder shape=armed-nofallback p=remind t=37 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=37
+battery: shape=armed-nofallback p=remind t=37 cant=false denial=false chars=88 inTok=1889 outTok=25 text=You've declined the reminder. Let me know if you'd like to adjust or create another one.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=37 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=38
+battery: tool=createReminder shape=armed-nofallback p=remind t=38 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=38
+battery: shape=armed-nofallback p=remind t=38 cant=false denial=false chars=125 inTok=1889 outTok=39 text=I couldn’t create the reminder because you declined. Let me know if you’d like to try again or need help with something else.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=38 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=39
+battery: tool=createReminder shape=armed-nofallback p=remind t=39 detail=Test Talaria
+battery: confirm=declined shape=armed-nofallback p=remind t=39
+battery: shape=armed-nofallback p=remind t=39 cant=false denial=false chars=92 inTok=1889 outTok=27 text=I couldn’t create the reminder because you declined. Let me know if you’d like to try again.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=39 (#200F)
+battery: BEGIN shape=armed-nofallback p=remind t=40
+battery: shape=armed-nofallback p=remind t=40 cant=false denial=false chars=131 inTok=1835 outTok=43 text=Here’s the card for your reminder: /  / - **Title**: Test Talaria   / - **Due**: 4:30 PM today   /  / Do you want me to create this reminder?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-nofallback p=remind t=40 (#200F)
+battery: THERMAL cell=armed-nofallback at=end state=fair (#201B)
+battery: REAP-STEP reminders begin (#200)
+battery: REAP-STEP events begin (#200)
+battery: CONTAINER-REAP finish calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+battery: REAP-STEP alarms begin (#200)
+battery: REAP-STEP alarms done cancelled=0 failed=0 (#200)
+battery: REAP reminders=0 events=0 alarms=0 failures=0 (#200)
+battery: DONE (#200)
+instrument: COMPLETED due-date (#333)
+instrument: AUTO COMPLETE (#333)
+Launched application with org.aethyrion.talaria27 bundle identifier.
+Waiting for the application to terminate...
+App terminated due to signal 15.

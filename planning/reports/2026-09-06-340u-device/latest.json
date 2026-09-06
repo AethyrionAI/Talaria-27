@@ -1,0 +1,1521 @@
+{
+  "appBuild" : "3287",
+  "appVersion" : "1.0.0",
+  "buildSha" : "876c5adc",
+  "cells" : [
+    "armed",
+    "armed-nofallback"
+  ],
+  "deviceModel" : "iPhone",
+  "endedAt" : "2026-09-06T07:37:54Z",
+  "instrument" : "due-date",
+  "osVersion" : "Version 27.0 (Build 24A5430a)",
+  "runRecord" : {
+    "appBuild" : "3287",
+    "appVersion" : "1.0.0",
+    "cells" : [
+      "armed",
+      "armed-nofallback"
+    ],
+    "endedCleanly" : true,
+    "id" : "2939BA97-1ED3-4906-B298-49D955CD8527",
+    "kind" : "action",
+    "osVersion" : "Version 27.0 (Build 24A5430a)",
+    "probes" : [
+      {
+        "correct" : 1,
+        "expected" : true,
+        "notes" : {
+          "cell" : "armed",
+          "reminderTool" : "ReminderCreateTool"
+        },
+        "probe" : "manipulation",
+        "trials" : 1,
+        "variant" : "armed"
+      },
+      {
+        "correct" : 1,
+        "expected" : true,
+        "notes" : {
+          "cell" : "armed-nofallback",
+          "reminderTool" : "ReminderCreateTool"
+        },
+        "probe" : "manipulation",
+        "trials" : 1,
+        "variant" : "armed-nofallback"
+      }
+    ],
+    "reapSummary" : "reminders=0 events=0 alarms=0 failures=0",
+    "startedAt" : "2026-09-06T07:33:15Z",
+    "thermal" : [
+      "armed:start=nominal",
+      "armed:end=fair",
+      "armed-nofallback:start=fair",
+      "armed-nofallback:end=fair"
+    ],
+    "trials" : [
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.068730542,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder because you declined the request. Let me know if there’s anything else.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 2.921901542,
+        "outputTokens" : 33,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you'd like to try again or adjust something.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1835,
+        "latencySeconds" : 3.047318791,
+        "outputTokens" : 33,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "Here’s the confirmation: I’ll create a reminder titled \"Test Talaria\" for 4:30 PM today. Shall I proceed?",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.08561025,
+        "outputTokens" : 29,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder because you declined. Would you like me to try again?",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 2.993973209,
+        "outputTokens" : 39,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you’d like to try again or need help with anything else.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 2.924361,
+        "outputTokens" : 33,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you’d like to try again or adjust anything.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.292745292,
+        "outputTokens" : 31,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder because you declined the request. Let me know if you’d like to try again.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.236696208,
+        "outputTokens" : 31,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder since you declined. Let me know if there’s anything else I can help with.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.353771125,
+        "outputTokens" : 25,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder because you declined. Would you like to try again or adjust the request?",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.341942875,
+        "outputTokens" : 35,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if there’s anything else you’d like to do.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1835,
+        "latencySeconds" : 3.114534208,
+        "outputTokens" : 29,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I’ll create a reminder to test Talaria at 4:30 PM. Do you want to proceed?",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 11
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.005716041,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn't create the reminder because you declined. Let me know if you'd like to try again.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 12
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.116605334,
+        "outputTokens" : 31,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn't create the reminder because you declined. Let me know if there’s anything else I can help with.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 13
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.183305042,
+        "outputTokens" : 35,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if there’s anything else you’d like to adjust.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 14
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1835,
+        "latencySeconds" : 3.207728292,
+        "outputTokens" : 31,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I’ll create a reminder for you to test Talaria at 4:30 PM today. Do you approve?",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 15
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.644271916,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you’d like to try again.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 16
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1835,
+        "latencySeconds" : 3.0521715,
+        "outputTokens" : 25,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "Would you like me to create a reminder titled \"Test Talaria\" for 4:30 PM?",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 17
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.047558167,
+        "outputTokens" : 29,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder because you declined. Would you like me to proceed anyway?",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 18
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.337596333,
+        "outputTokens" : 29,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "You’ve declined the reminder. Let me know if you’d like to try again.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 19
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1835,
+        "latencySeconds" : 3.447501666,
+        "outputTokens" : 33,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "Here’s the confirmation: I’ll create a reminder titled “Test Talaria” at 4:30 PM today. Shall I proceed?",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 20
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1835,
+        "latencySeconds" : 3.197342167,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I’ll create a reminder to test Talaria at 4:30 PM today. Shall I proceed?",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 21
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.4442021670000003,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you’d like to try again.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 22
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.449038708,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you’d like to try again.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 23
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.052385459,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder because you declined. Would you like to try again?",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 24
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.346547708,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "You declined creating the reminder. Let me know if you'd like to try again.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 25
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.819100333,
+        "outputTokens" : 39,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "You declined the request to create a reminder for \"Test Talaria\" at 4:30pm. Let me know if you'd like to adjust anything.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 26
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.586694833,
+        "outputTokens" : 31,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn't create the reminder because you declined. Let me know if you'd like to adjust or try again.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 27
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.340310083,
+        "outputTokens" : 29,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "It seems you’ve declined the reminder. Let me know if you’d like to adjust anything or try again.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 28
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.118798917,
+        "outputTokens" : 23,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if there’s anything else.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 29
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.559461209,
+        "outputTokens" : 31,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder since you declined. Let me know if you’d like to adjust or try again.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 30
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1835,
+        "latencySeconds" : 3.6367626250000002,
+        "outputTokens" : 45,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I’ll create a reminder for you:  \n**Title:** Test Talaria  \n**Due:** 4:30pm today  \n\nDo you want to proceed?",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 31
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.554605584,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you’d like to try again.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 32
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.48404025,
+        "outputTokens" : 23,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder since you declined. Let me know if there’s anything else.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 33
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1835,
+        "latencySeconds" : 3.301398667,
+        "outputTokens" : 31,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I’ll create a reminder for you to test Talaria at 4:30 PM today. Shall I proceed?",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 34
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.858639917,
+        "outputTokens" : 37,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "It seems you'd prefer not to be reminded, so nothing was added. Let me know if you'd like to try again.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 35
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.285974333,
+        "outputTokens" : 35,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if there’s anything else you’d like to explore.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 36
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1835,
+        "latencySeconds" : 3.193186791,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I'll create a reminder to test Talaria at 4:30pm today. Shall I proceed?",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 37
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1835,
+        "latencySeconds" : 3.208519584,
+        "outputTokens" : 29,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I’ll create a reminder for you to test Talaria at 4:30 PM. Shall I proceed?",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 38
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.413961834,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "You’ve declined the reminder. Let me know if you’d like to try again or explore something else.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 39
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.200189291,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed",
+        "text" : "I couldn’t create the reminder since you declined. Let me know if you’d like to try again.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 40
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.36322725,
+        "outputTokens" : 33,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you’d like to try again or adjust anything.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.8481482920000003,
+        "outputTokens" : 35,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined the request. Let me know if there’s anything else I can help with.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.71663175,
+        "outputTokens" : 43,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "You’ve declined creating the reminder for \"Test Talaria\" at 4:30 PM. Let me know if you’d like to try again or adjust anything.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.734022,
+        "outputTokens" : 29,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "You've declined the reminder, so nothing was set. Let me know if you'd like to try again!",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1835,
+        "latencySeconds" : 3.268720459,
+        "outputTokens" : 31,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I'll set a reminder for you to test Talaria at 4:30 PM today. Shall I proceed?",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.534990208,
+        "outputTokens" : 33,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you’d like to try again or adjust something.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.81876375,
+        "outputTokens" : 35,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you’d like me to try again or adjust anything.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.939134,
+        "outputTokens" : 29,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Would you like to keep it as-is or try again?",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 4.125883,
+        "outputTokens" : 47,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "You’ve declined the request to create a reminder for \"test Talaria\" at 4:30 PM. Let me know if there’s anything else I can help with.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.5388955,
+        "outputTokens" : 35,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn't create the reminder because you declined. Let me know if you'd like to try again or adjust the request.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.5821709999999998,
+        "outputTokens" : 29,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "You’ve declined the reminder. Let me know if you’d like to try again.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 11
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.193762959,
+        "outputTokens" : 25,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "You’ve declined the reminder. Let me know if there’s anything else.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 12
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.346830667,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder since you declined. Let me know if you’d like to try again.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 13
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1835,
+        "latencySeconds" : 3.455546042,
+        "outputTokens" : 31,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I’ll create a reminder for you to test Talaria at 4:30 PM today. Shall I proceed?",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 14
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.250408833,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Would you like to proceed anyway?",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 15
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.247727583,
+        "outputTokens" : 23,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if there’s anything else.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 16
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.633032083,
+        "outputTokens" : 23,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if there’s anything else.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 17
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.694147375,
+        "outputTokens" : 33,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you’d like to try again or adjust anything.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 18
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1835,
+        "latencySeconds" : 3.750358667,
+        "outputTokens" : 33,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "Here’s the confirmation: I’ll create a reminder titled “Test Talaria” at 4:30 PM today. Shall I proceed?",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 19
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.8740398750000002,
+        "outputTokens" : 39,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you’d like to try again or need help with something else.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 20
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.274804584,
+        "outputTokens" : 23,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if there’s anything else.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 21
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.436093667,
+        "outputTokens" : 35,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if there’s anything else you’d like to do.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 22
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.666524583,
+        "outputTokens" : 31,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if there’s anything else I can help with.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 23
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.434911166,
+        "outputTokens" : 35,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you’d like to try again or need anything else.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 24
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.657161834,
+        "outputTokens" : 25,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "It looks like you'd prefer not to be reminded. No action was taken.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 25
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.207156334,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Would you like to try again?",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 26
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.6326477500000003,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you’d like to try again.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 27
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.483884375,
+        "outputTokens" : 33,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you’d like to try again or adjust something.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 28
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.307673458,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you’d like to try again.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 29
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1835,
+        "latencySeconds" : 3.450242417,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I'll create a reminder to test Talaria at 4:30 PM today. Shall I proceed?",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 30
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.814406917,
+        "outputTokens" : 33,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you’d like to try again or adjust anything.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 31
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.280710666,
+        "outputTokens" : 31,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn't create the reminder because you declined. Let me know if there’s anything else I can help with.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 32
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.376482917,
+        "outputTokens" : 25,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn't create the reminder because you declined. Would you like to try again or adjust the request?",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 33
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1879,
+        "latencySeconds" : 3.233055292,
+        "outputTokens" : 29,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Would you like me to proceed anyway?",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 34
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.7415130000000003,
+        "outputTokens" : 35,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "You’ve declined the request to create the reminder. Let me know if there’s anything else you’d like to explore!",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 35
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1835,
+        "latencySeconds" : 3.50842925,
+        "outputTokens" : 31,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I'll create a reminder for you to test Talaria at 4:30 PM today. Shall I proceed?",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 36
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.735856167,
+        "outputTokens" : 25,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "You've declined the reminder. Let me know if you'd like to adjust or create another one.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 37
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.796571209,
+        "outputTokens" : 39,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you’d like to try again or need help with something else.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 38
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.640615625,
+        "outputTokens" : 27,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "I couldn’t create the reminder because you declined. Let me know if you’d like to try again.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "confirmation" : "declined",
+            "detail" : "Test Talaria",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 39
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1835,
+        "latencySeconds" : 4.014701416,
+        "outputTokens" : 43,
+        "prompt" : "remind",
+        "shape" : "armed-nofallback",
+        "text" : "Here’s the card for your reminder:\n\n- **Title**: Test Talaria  \n- **Due**: 4:30 PM today  \n\nDo you want me to create this reminder?",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 40
+      }
+    ],
+    "trialsPerCell" : 40
+  },
+  "schemaVersion" : 1,
+  "startedAt" : "2026-09-06T07:33:10Z",
+  "status" : "completed",
+  "trialsRequested" : 40,
+  "unattended" : true
+}

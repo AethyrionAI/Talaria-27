@@ -1,0 +1,16 @@
+device=00008150-000E794C3C47801C instrument=due-date trials=40 cells=armed,armed-nofallback timeout=2400s sha=876c5adc
+launched (console pid 81503); polling every 20s
+t+20s status=running
+t+40s status=running
+t+60s status=running
+t+81s status=running
+t+101s status=running
+t+121s status=running
+t+141s status=running
+t+162s status=running
+t+182s status=running
+t+203s status=running
+t+224s status=running
+t+244s status=running
+t+264s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/20260906T073308Z-due-date/latest.json
