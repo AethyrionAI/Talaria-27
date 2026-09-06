@@ -103,9 +103,21 @@ targets:
       # surface. Compiled here as a single file (the TalariaShare target
       # compiles the whole dir) so the widgets target stays untouched.
       - path: TalariaShare/ShareInboxCore.swift
-    resources:
-      - path: Talaria/Resources
-        optional: true
+      # #434: the third-party notice document SHIPS. The ROOT file is the
+      # single source (the GitHub convention) and is copied into the bundle
+      # from here — there is deliberately no second in-app copy to drift.
+      #
+      # `buildPhase: resources` is load-bearing and was measured, not assumed:
+      # XcodeGen 2.45.4 has NO target-level `resources:` key and silently
+      # ignores one (probed both a file and a directory — neither reached the
+      # generated project, with no warning). A `resources:` block used to sit
+      # here listing `Talaria/Resources`; it never did anything, and the fonts
+      # ship only because `- path: Talaria` above sweeps them in. It was
+      # removed rather than added to, because a key whose failure mode is a
+      # silent no-op is exactly how a notice file can be "bundled" in the
+      # config and absent from the product (#434's own finding).
+      - path: THIRD_PARTY_LICENSES.md
+        buildPhase: resources
     dependencies:
       - package: WebRTC
       - target: TalariaWidgets

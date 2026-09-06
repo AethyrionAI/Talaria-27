@@ -118,6 +118,15 @@ enum SettingsSearchIndex {
             // ABOUT
             SettingsSearchEntry("App Version", ["version", "build number"], .about),
             SettingsSearchEntry("Terms & Privacy Policy", ["terms of service", "policy", "support"], .about),
+            // #434: the bundled third-party notices. Four vocabularies because
+            // four different people look for this row — a user ("licenses"),
+            // an open-source reader ("open source"), a reviewer
+            // ("acknowledgements") and whoever wonders where the type came
+            // from ("fonts").
+            SettingsSearchEntry("Licenses",
+                                ["acknowledgements", "acknowledgments", "open source",
+                                 "fonts", "third-party", "notices", "attribution", "ofl"],
+                                .about, detail: "About → Licenses"),
 
             // DEVELOPER (Release-visible rows)
             SettingsSearchEntry("Verbose Logging", ["verbose", "debug logging", "logs"], .developer),
