@@ -246,6 +246,15 @@ enum DeviceActionParsing {
             // bare "11" as "tonight" would be a guess about intent, and #233's
             // wee-hour guard already covers the one range where guessing is
             // dangerous.
+            //
+            // ⚠️ SCOPED 2026-09-06 (bar 340-F1): this rule governs THE MODEL'S
+            // OWN `due` ARGUMENT, which is what this function parses. It no
+            // longer describes what the app does with a bare hour in the
+            // USER'S words — `detectDueCandidates`' second pass reads a
+            // meridiem-less 1–12 as the next occurrence on a 12-HOUR clock
+            // (`nextTwelveHourOccurrence`), because a person who says
+            // "remind me at 4" at breakfast means the afternoon. Two readers,
+            // two rules, and Owen ruled them apart deliberately.
             guard (0...23).contains(hour) else { return nil }
         }
         return DateComponents(hour: hour, minute: minute)
@@ -326,6 +335,70 @@ enum DeviceActionParsing {
         return Calendar.current.date(byAdding: .day, value: 1, to: resolved)
     }
 
+    /// A clock the second pass lifted out of an `at <clock>` frame, together
+    /// with the one thing `DateComponents` cannot carry: whether the USER
+    /// wrote a meridiem.
+    ///
+    /// **The flag is the whole of bar 340-F1's precondition.** `parseBareClock`
+    /// folds `8am`/`8 pm` into an hour and returns the same shape it returns
+    /// for a bare `8`, so by the time the components come back there is no way
+    /// to tell "the user said 8 and left the hand open" from "the user said 8
+    /// AM". The 12-hour rule may only touch the first.
+    private struct FramedClock {
+        var clock: DateComponents
+        var carriesMeridiem: Bool
+    }
+
+    /// **Bar 340-F1 (Owen, 2026-09-04): in the SECOND PASS a meridiem-less
+    /// 1–12 is the next occurrence on a 12-HOUR clock.**
+    ///
+    /// *"Remind me at 8"* said at 10:00 means tonight, not tomorrow morning:
+    /// both hands of the clock are candidates and the earliest FUTURE one wins
+    /// — 20:00 today. Said at 21:00 both of today's hands are behind, so the
+    /// answer rolls to 08:00 tomorrow. `12` is the case the modular arithmetic
+    /// exists for: its hands are **noon and midnight** (12 and 0), never 12 and
+    /// 24, so before noon it is today's noon and after noon it is tonight's
+    /// midnight.
+    ///
+    /// **Why this is the user's path and not the model's.** The ruling is
+    /// explicit that `parseBareClock`/`resolveBareClock` — the pair
+    /// `resolvedDue` runs over the model's OWN `due` argument — keep their
+    /// 24-hour rule untouched. A model that emits `"8"` is emitting a field
+    /// value, and 340-G measured what it does with hours; a PERSON who types
+    /// "at 8" is speaking. Two readers, two rules, and the fence is pinned by
+    /// `theModelArgumentPathKeepsItsTwentyFourHourReading`.
+    ///
+    /// **13–23 falls through to the 24-hour resolver unchanged**, because there
+    /// is no second hand that reads 16 — the value is already unambiguous. So
+    /// is 0.
+    ///
+    /// Strictly future by construction (`candidate > now`), which is
+    /// `detectDue`'s contract; `nextStrictlyFutureOccurrence` reaches the same
+    /// place through `resolveBareClock`'s five-minute grace and is left to
+    /// serve the unambiguous hours.
+    private nonisolated static func nextTwelveHourOccurrence(
+        of clock: DateComponents, now: Date
+    ) -> Date? {
+        guard let hour = clock.hour, let minute = clock.minute else { return nil }
+        guard (1...12).contains(hour) else {
+            return nextStrictlyFutureOccurrence(of: clock, now: now)
+        }
+        let calendar = Calendar.current
+        // 12 → 0 and 12 (midnight, noon); 1…11 → h and h+12.
+        let hands = [hour % 12, hour % 12 + 12]
+        var best: Date?
+        for dayOffset in 0...1 {
+            guard let day = calendar.date(byAdding: .day, value: dayOffset, to: now) else { continue }
+            for hand in hands {
+                guard let candidate = calendar.date(bySettingHour: hand, minute: minute,
+                                                    second: 0, of: day),
+                      candidate > now else { continue }
+                if best == nil || candidate < best! { best = candidate }
+            }
+        }
+        return best
+    }
+
     /// The bare clock in an **`at <clock>` frame**, or nil.
     ///
     /// **Framed rather than token-wise, and that is the whole point.**
@@ -350,7 +423,7 @@ enum DeviceActionParsing {
     /// absent, punctuation-only, or in `clockContinuations`. A token that
     /// carries a colon or a meridiem of its own — `at 4:30`, `at 5pm` — is
     /// unambiguous already and is not put through that test.
-    private nonisolated static func bareClockInAtFrame(_ text: String) -> DateComponents? {
+    private nonisolated static func bareClockInAtFrame(_ text: String) -> FramedClock? {
         let tokens = text.split(whereSeparator: \.isWhitespace).map { token -> String in
             var trimmed = String(token)
             while let last = trimmed.last, ".,;!?\"')".contains(last) { trimmed.removeLast() }
@@ -383,7 +456,15 @@ enum DeviceActionParsing {
                 // `at` was not temporal.
                 guard following.isEmpty || clockContinuations.contains(following) else { continue }
             }
-            if let clock = parseBareClock(candidate) { return clock }
+            if let clock = parseBareClock(candidate) {
+                // 340-F1: read off the CANDIDATE, before `parseBareClock`
+                // folds the marker into the hour and the evidence is gone.
+                // NOT `!isBareIntegerToken` — that answers a different
+                // question, and `at 8:30` would come back as "the user gave a
+                // meridiem" when they gave a colon.
+                return FramedClock(clock: clock,
+                                   carriesMeridiem: tokenCarriesMeridiem(candidate))
+            }
         }
         return nil
     }
@@ -400,6 +481,15 @@ enum DeviceActionParsing {
         "am", "pm", "o'clock", "oclock", "to", "that", "for", "and", "then",
         "about", "tomorrow", "today", "tonight", "this", "next", "on", "in"
     ]
+
+    /// Whether the user wrote a meridiem on the clock token itself — 340-F1's
+    /// one discriminator. `parseBareClock`'s own marker test, applied to the
+    /// token BEFORE it folds `pm` into the hour: same `.` stripping, same two
+    /// suffixes, so `p.m.`, `PM` and `pm` all answer true.
+    private nonisolated static func tokenCarriesMeridiem(_ token: String) -> Bool {
+        let lowered = token.lowercased().replacingOccurrences(of: ".", with: "")
+        return lowered.hasSuffix("am") || lowered.hasSuffix("pm")
+    }
 
     /// A token that is nothing but digits — the ambiguous form, and the only
     /// one the continuation test applies to. A colon or a meridiem makes the
@@ -467,9 +557,16 @@ enum DeviceActionParsing {
             }
         }
 
-        if !detectorMatchedSomething, let clock = bareClockInAtFrame(text),
-           let resolved = nextStrictlyFutureOccurrence(of: clock, now: now) {
-            candidates.append(resolved)
+        // 340-F1: the SECOND PASS reads a meridiem-less 1–12 on a 12-hour
+        // clock; a clock the user marked `am`/`pm` is already unambiguous and
+        // keeps the 24-hour next-occurrence resolver. The model-argument path
+        // never reaches either branch — it resolves through
+        // `resolveBareClock` in `resolvedDue`, untouched.
+        if !detectorMatchedSomething, let framed = bareClockInAtFrame(text) {
+            let resolved = framed.carriesMeridiem
+                ? nextStrictlyFutureOccurrence(of: framed.clock, now: now)
+                : nextTwelveHourOccurrence(of: framed.clock, now: now)
+            if let resolved { candidates.append(resolved) }
         }
 
         return candidates.sorted()
@@ -658,8 +755,25 @@ struct ReminderCreateTool: Tool {
     /// turn's text, deliberately: they share one engine, and letting only
     /// production read the user's words would have made the engine a second,
     /// silent delta in every A/B those copies are used for.
+    ///
+    /// **`candidateCursor` is bar 340-F2 (Owen's decision 2, second create).**
+    /// It is how many of this TURN's candidates earlier creates already took;
+    /// the resolver hands back `candidates[cursor]` rather than
+    /// `candidates.first`, and `nil` once the list is spent. It is a
+    /// PARAMETER, not state read here, so this function stays pure and the
+    /// three cursor positions are testable without driving a tool —
+    /// `performCreate` reads the count off the relay and advances it.
+    ///
+    /// **`candidates` keeps reporting the sentence's TOTAL at every cursor
+    /// position**, because that is the field decision 2 asked for: how often a
+    /// turn carries two dates at all. A field that counted the REMAINDER would
+    /// answer a different question wearing the same name. The exhausted
+    /// position is therefore legible on its own log line —
+    /// `source=none candidates=2` is a spent list, `source=none candidates=0`
+    /// is a sentence that named nothing.
     nonisolated static func resolvedDue(rawDue: String, userText: String, now: Date,
-                                        allowUserTextFallback: Bool = true)
+                                        allowUserTextFallback: Bool = true,
+                                        candidateCursor: Int = 0)
         -> (date: Date?, source: String, bareClock: String, candidates: Int) {
         // #340 route (a), ruled by Owen 2026-08-18. The model can produce the
         // TIME and cannot produce the DAY (340-G: every value it sent was
@@ -692,6 +806,15 @@ struct ReminderCreateTool: Tool {
         // first was built. `detectDue` is exactly `candidates.first`, so the
         // answer is unchanged and the count costs no second detector run.
         //
+        // ⚠️ CORRECTED 2026-09-06 (bar 340-F2): the last clause of the
+        // paragraph above is now false. The answer is
+        // `candidates[candidateCursor]`, not `candidates.first` — decision 2's
+        // FIRST clause grew a per-turn cursor so a second empty-`due` create in
+        // one turn takes the next date the user named rather than the same one
+        // twice. `detectDue` (the reduction) is still `candidates.first` and is
+        // still what a single-create turn gets, so nothing about the common
+        // case moved.
+        //
         // `modelDue == nil` LEADS the condition so a populated argument
         // short-circuits before `NSDataDetector` is constructed at all, which
         // is what `??` was doing implicitly and what keeps today's path
@@ -701,7 +824,13 @@ struct ReminderCreateTool: Tool {
         // line is what tells "the fallback did not run" apart from "it ran and
         // the sentence named nothing".
         let fallbackCandidates = modelDue == nil && allowUserTextFallback && rawDue.isEmpty ? DeviceActionParsing.detectDueCandidates(in: userText, now: now) : []
-        let parsedDue = modelDue ?? fallbackCandidates.first
+        // 340-F2: `dropFirst(cursor).first`, not `.first`. A negative cursor
+        // cannot arrive from the relay (the counter only increments from zero)
+        // and `dropFirst` clamps it anyway; a cursor at or past the end is the
+        // EXHAUSTED position and yields nil — a dateless card, which is
+        // decision 3's answer, never the same date twice and never an
+        // invented one.
+        let parsedDue = modelDue ?? fallbackCandidates.dropFirst(max(0, candidateCursor)).first
         let source: String
         if parsedDue == nil {
             source = "none"
@@ -746,8 +875,21 @@ struct ReminderCreateTool: Tool {
         #else
         let allowUserTextFallback = true
         #endif
+        // #340 bar 340-F2: how many of this turn's candidates earlier creates
+        // already took. Read BEFORE the resolver so a second create in the
+        // same turn takes the NEXT date the user named rather than the first
+        // one again.
+        //
+        // **Two hops rather than one, and the reason it is safe.** Tools run
+        // SERIALLY within a turn — the same fact `recordConfirmation` already
+        // relies on to attach a gate outcome to the call that staged it — so
+        // nothing can slip between this read and the advance below. If that
+        // ever stopped being true the worst case is the PRE-340-F2 behaviour
+        // (a candidate reused), never a wrong or invented date.
+        let candidateCursor = await relay.dueCandidatesConsumedThisTurn
         let resolution = Self.resolvedDue(rawDue: rawDue, userText: userText, now: now,
-                                          allowUserTextFallback: allowUserTextFallback)
+                                          allowUserTextFallback: allowUserTextFallback,
+                                          candidateCursor: candidateCursor)
         let parsedDue = resolution.date
         // #249 instrument: raw model-supplied due vs the parsed local time.
         // A zone-bearing raw string takes the ISO branch and gets CONVERTED
@@ -814,6 +956,36 @@ struct ReminderCreateTool: Tool {
             // quote's own negative needs word-DELETION to flip, a harder
             // mining error than the word-drop that burned 233-E.
             return "No reminder was created. Evening requests that resolve to the next morning are usually a misread clock time. Reply to the user with exactly this question: \"Nothing is scheduled yet — did you mean tonight or tomorrow morning?\" Then create the reminder with the time they confirm."
+        }
+        // #340 bar 340-F2: the candidate is spent HERE — below all three
+        // guards, and above the confirmation gate.
+        //
+        // Advance only when the FALLBACK produced the date. A create the model
+        // dated never reached the detector, so it has spent nothing.
+        //
+        // **BELOW THE GUARDS, and the review that moved it here named the case
+        // (2026-09-06).** The first cut consumed at RESOLUTION, four lines
+        // under `resolvedDue`. Each of the three guards above returns WITHOUT
+        // staging, so a bounced create spent a candidate on a card the user
+        // never saw — and every one of those guards exists precisely to invite
+        // an in-turn RE-CALL ("ask, then create the reminder with the time they
+        // confirm"). The latches are conversation-scoped, so the re-call sails
+        // past the guard and resolves at the ADVANCED cursor: on a one-date
+        // sentence it finds nothing and stages a DATELESS card, and on a
+        // two-date sentence it stages the OTHER date. `at 8` asked at 21:00 —
+        // 340-F1's own canonical case — resolves to 08:00 tomorrow, which is
+        // exactly `isNextMorning`, so the defect fired on the ruling's own
+        // second example. Both shapes are pinned
+        // (`aGuardBouncedCreateSpendsNoCandidate`,
+        // `aBouncedCreateDoesNotShiftTheNextOneOntoTheSecondDate`).
+        //
+        // **A DECLINED card still consumes, deliberately.** The gate is below
+        // this line, so a user who sees the date and says no has spent the
+        // candidate — which is right: the offer was made and answered. What a
+        // bounce and a decline do NOT share is that the bounce shows the user
+        // nothing at all.
+        if resolution.source == "userText" {
+            await relay.consumeDueCandidate()
         }
         let decision = await confirmations.requestConfirmation(
             title: "Create this reminder?",

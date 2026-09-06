@@ -1107,7 +1107,11 @@ struct DeviceToolBeltTests {
         // #340 Task 4: the user-words fallback's same-run control — production
         // with the fallback switched off, `armed-nofallback`. 32 → 33.
         #expect(LocalChatBackend.ActionBatteryCell.armedNofallback.rawValue == "armed-nofallback")
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 33)
+        // #340 bar 340-F4: the phrase-diversity cell — production on the plan's
+        // eight date phrasings instead of the one explicit-meridiem prompt every
+        // other due-date number was measured on. 33 → 34.
+        #expect(LocalChatBackend.ActionBatteryCell.armedPhrases.rawValue == "armed-phrases")
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 34)
     }
 
     /// #216: routing is a property of the CELL, and exactly two cells have it.

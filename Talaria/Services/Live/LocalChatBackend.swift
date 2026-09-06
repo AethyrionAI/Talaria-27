@@ -699,7 +699,37 @@ final class LocalChatBackend: HermesClientProtocol {
     private func beginToolTurn(userText: String? = nil) {
         // #228: one call resets the governor's budget AND the instrument's
         // per-turn counters — split resets could describe different turns.
-        toolRelay?.beginTurn(userText: userText)
+        // #340 bar 340-F3: and the belt sees the USER's half of a synthesized
+        // voice transcript, never the assistant's — see `beltUserText`.
+        toolRelay?.beginTurn(userText: userText.map(Self.beltUserText(from:)))
+    }
+
+    /// **What the tool belt is allowed to call "the user's words" (#340 bar
+    /// 340-F3, Owen's ruling of 2026-09-04).**
+    ///
+    /// Ordinary messages pass through byte-for-byte. The one exception is the
+    /// SYNTHESIZED VOICE TURN: `ChatStore.appendVoiceTranscript` POSTs a whole
+    /// voice session — `User:` and `Talaria:` lines together — through the same
+    /// `send(message:)` every typed turn uses, so `message` there is not one
+    /// person's sentence but a two-party transcript. #340's fallback mines that
+    /// text for a due date when the model leaves `due` empty, and on that turn
+    /// it could mine a date the ASSISTANT said. The user asks for a reminder
+    /// with no time; the card comes back carrying a time out of Talaria's own
+    /// earlier line. That is the founding wrong-value shape reached through a
+    /// door #340 Task 2 did not look at.
+    ///
+    /// **Why here and not at the call sites.** `send` and `streamTurn` must
+    /// keep passing `message` — pinned by source witness, because the hazard
+    /// they guard against (`promptText`, carrying the memory prefix) is a
+    /// different and larger one. Filtering inside the single seam both paths
+    /// already funnel through covers every caller, present and future, and
+    /// leaves that pin byte-identical.
+    ///
+    /// **Only the belt's view narrows.** The message the model receives, the
+    /// transcript row the user sees, and the journal are all untouched — this
+    /// is what a TOOL may read as "what the user just said", nothing else.
+    nonisolated static func beltUserText(from message: String) -> String {
+        VoiceTranscriptFormat.userLines(in: message) ?? message
     }
 
     /// Honest explanation for the CURRENT unavailability, nil when the model

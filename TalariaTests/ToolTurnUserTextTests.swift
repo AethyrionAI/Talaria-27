@@ -79,6 +79,16 @@ struct ToolTurnUserTextTests {
     /// remembered "your dentist appointment is Thursday at 3" set the due date
     /// of a reminder the user asked for with no time at all.
     ///
+    /// **What this row does NOT say, since 2026-09-06 (bar 340-F3).** It pins
+    /// what the two paths HAND the seam — `message`, the user's own bubble.
+    /// What the seam then hands the BELT is narrower on exactly one path: a
+    /// synthesized voice transcript is reduced to its `User:` lines by
+    /// `LocalChatBackend.beltUserText(from:)` inside `beginToolTurn`, so the
+    /// assistant's own words can never set a reminder's due date. That
+    /// narrowing is pinned in `VoiceTranscriptTests`; this row was deliberately
+    /// left byte-identical, because its hazard (`promptText`, carrying the
+    /// memory prefix) is a different and larger one.
+    ///
     /// Same source-witness shape as `MemoryInjectionTests`, deliberately: the
     /// body is bounded at the next method declaration rather than by a
     /// character count, because `send` and `streamTurn` carry near-identical

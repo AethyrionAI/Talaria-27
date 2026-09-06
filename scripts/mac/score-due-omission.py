@@ -573,6 +573,40 @@ def report_by_cell(by_cell: "dict[str, list]") -> int:
         else:
             print("  words carried 2+ date candidates: field absent"
                   "   <- predates candidates= (2026-09-04); NOT a zero")
+        # #340 fix round 1 (2026-09-06): the SAME four buckets again, split by
+        # the trial's `p=` tag, for a cell that ran more than one phrasing.
+        #
+        # WHY. 340-F4's `armed-phrases` cell runs EIGHT sentences x 5 trials
+        # under one cell name and pools them into a single 40-trial rate — the
+        # one number that cannot answer the question the cell was built to ask.
+        # 35/40 populated-future is either eight phrasings at roughly 7/8 each
+        # or seven perfect phrasings and one that never resolves at all, and the
+        # device card is written from that difference. `by_prompt` is the split.
+        #
+        # ADDITIVE BY CONSTRUCTION: every line above is computed and printed
+        # exactly as before, over the same pooled rows, so no earlier bar's
+        # number moves and every fixture that pinned those lines still pins
+        # them.
+        #
+        # Printed ONLY when the cell actually ran more than one prompt. Every
+        # other cell in every archive this script has read is single-prompt, and
+        # a one-row "breakdown" restating the line above it is noise the
+        # operator has to read past.
+        by_prompt: "dict[str, list]" = {}
+        for trial, call in rows:
+            by_prompt.setdefault(trial.prompt, []).append(call)
+        if len(by_prompt) > 1:
+            print(f"  by PHRASING — {len(by_prompt)} prompts in this cell"
+                  " (the pooled rates above are unchanged):")
+            width = max(len(tag) for tag in by_prompt)
+            for tag in sorted(by_prompt):
+                prompt_calls = by_prompt[tag]
+                pn = len(prompt_calls)
+                pcounts = {name: 0 for name in order}
+                for call in prompt_calls:
+                    pcounts[bucket(call)] += 1
+                split = ", ".join(f"{name}={pcounts[name]}/{pn}" for name in order)
+                print(f"    p={tag:<{width}}  {split}")
         if counts["no-call"] == n:
             print("  ⚠️  EVERY trial made no call — this arm measured nothing about due dates.")
             exit_code = 2
@@ -1169,6 +1203,51 @@ def self_test() -> int:
     # And no `legacy` warning on an archive that carries the field.
     assert "predates the source= field" not in sourced_out, sourced_out
 
+    # ---- Fix round 1 (2026-09-06): the per-PHRASING split. ----
+    #
+    # 340-F4's `armed-phrases` cell runs eight sentences under ONE cell name, so
+    # its pooled rate cannot say WHICH phrasing failed — and the device card is
+    # written from exactly that. This is the smallest fixture that can tell a
+    # real split from a printed one: two prompts in one cell whose buckets
+    # DIFFER, so a breakdown that merely re-printed the pooled numbers reds
+    # here. The last trial makes no call, which is the bucket only the
+    # trial-denominated view can see, and it must land under its OWN phrasing.
+    phrased = (
+        'Timestamp               Ty Process[PID:TID]\n'
+        '2026-09-06 09:00:00.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed-phrases p=tmrw4pm t=1\n'
+        '2026-09-06 09:00:01.100 Df Talaria 27[1:1] [x] createReminder due raw="" bareClock=no source=userText candidates=1 parsed=Sep 7, 2026 at 4:00 PM\n'
+        '2026-09-06 09:00:02.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed-phrases p=tmrw4pm t=2\n'
+        '2026-09-06 09:00:03.100 Df Talaria 27[1:1] [x] createReminder due raw="" bareClock=no source=userText candidates=1 parsed=Sep 7, 2026 at 4:00 PM\n'
+        '2026-09-06 09:00:04.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed-phrases p=in20min t=1\n'
+        '2026-09-06 09:00:05.100 Df Talaria 27[1:1] [x] createReminder due raw="" bareClock=no source=none candidates=0 parsed=nil\n'
+        '2026-09-06 09:00:06.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed-phrases p=in20min t=2\n'
+        '==========\n'
+    )
+    phrased_cells = attribute(extract(phrased), extract_trials(phrased))
+    assert set(phrased_cells) == {"armed-phrases"}, sorted(phrased_cells)
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        phrased_code = report_by_cell(phrased_cells)
+    phrased_out = buf.getvalue()
+    assert phrased_code == 0, phrased_code
+    # The POOLED lines are byte-unchanged — the split is additive, and a change
+    # that moved an existing number would red here before it reached a card.
+    assert "cell armed-phrases — 4 TRIALS" in phrased_out, phrased_out
+    assert "populated-future  : 2/4" in phrased_out, phrased_out
+    assert "no-call           : 1/4" in phrased_out, phrased_out
+    # …and the split says WHICH phrasing produced which half, which 2/4 cannot.
+    assert "by PHRASING — 2 prompts in this cell" in phrased_out, phrased_out
+    assert ("p=tmrw4pm  populated-future=2/2, omitted=0/2, wrong-value=0/2, "
+            "no-call=0/2") in phrased_out, phrased_out
+    assert ("p=in20min  populated-future=0/2, omitted=1/2, wrong-value=0/2, "
+            "no-call=1/2") in phrased_out, phrased_out
+    # A SINGLE-prompt cell prints no split at all: every archive this script has
+    # ever read is single-prompt, and the section would restate the line above
+    # it. Asserted over BOTH earlier fixtures so the gate is on the CELL's
+    # prompt count and not on some property of the current shape.
+    assert "by PHRASING" not in sourced_out, sourced_out
+    assert "by PHRASING" not in legacy_out, legacy_out
+
     # ---- #200V: the DISCARDED warm-up trial is NOT an arm. ----
     #
     # The battery pays the model's cold start up front, outside the counts, and
@@ -1242,6 +1321,10 @@ def self_test() -> int:
     print("U+202F), gated on source=userText so legacy and model rows are")
     print("untouched, and the per-CALL past list no longer attributes a")
     print("fallback-produced value to the model.")
+    print("And fix round 1 (2026-09-06): the four buckets split per `p=` tag for")
+    print("a cell that ran more than one phrasing (340-F4's eight), asserted on")
+    print("two prompts whose buckets differ, with the pooled lines unchanged and")
+    print("no split printed for a single-prompt cell.")
     return 0
 
 

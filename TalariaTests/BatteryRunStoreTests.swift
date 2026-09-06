@@ -549,6 +549,61 @@ struct BatteryRunStoreTests {
         #expect(lines[10] == "battery: DONE (#200)")
     }
 
+    // MARK: - #340 bar 340-F5 — the belt-text configuration rides the artifact
+
+    /// **The field survives a round trip, in both states.**
+    ///
+    /// #398-A's third axis: a rate must carry its configuration. A due-date
+    /// number measured WITHOUT the belt text is the fallback measured switched
+    /// off — `source=userText 0/N`, reading as a product that does not work —
+    /// and nothing in the artifact said which run was which until this field.
+    @Test func theRunRecordCarriesTheBeltTextConfiguration() throws {
+        for value in [true, false] {
+            var run = makeRun()
+            run.carriesUserText = value
+
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let decoded = try decoder.decode(BatteryRunRecord.self,
+                                             from: try encoder.encode(run))
+
+            #expect(decoded.carriesUserText == value)
+        }
+    }
+
+    /// **The recorder writes what the battery was actually run with**, and
+    /// leaves it NOT RECORDED for the instruments that have no belt-text
+    /// dimension at all — the default is `nil`, so a probe run never claims a
+    /// configuration nobody measured.
+    @Test func theRecorderStampsTheConfigurationOnlyWhenItIsGiven() {
+        // One trial each: `endRun` DROPS a run with no trials and no probes,
+        // so a trial-free fixture would assert against an empty store and pass
+        // for the wrong reason on the nil half.
+        func run(_ recorder: BatteryRunRecorder) {
+            recorder.beginTrial()
+            recorder.endTrial(shape: "armed", prompt: "remind", trial: 1,
+                              text: "ok", cant: false, denial: false)
+            recorder.endRun()
+        }
+
+        let armed = CapturingStore()
+        let recorderOn = BatteryRunRecorder(store: armed)
+        recorderOn.beginRun(trialsPerCell: 1, cells: ["armed"], kind: "action",
+                            carriesUserText: true)
+        run(recorderOn)
+        #expect(armed.persisted.last?.carriesUserText == true)
+
+        let silent = CapturingStore()
+        let recorderOff = BatteryRunRecorder(store: silent)
+        recorderOff.beginRun(trialsPerCell: 1, cells: ["armed"])
+        run(recorderOff)
+        #expect(silent.persisted.isEmpty == false, "the fixture recorded nothing — a vacuous nil")
+        #expect(silent.persisted.last?.carriesUserText == nil,
+                "an instrument with no belt-text dimension must record NOT MEASURED")
+    }
+
     // MARK: Decode compatibility — old run JSONs must still decode (#200)
 
     /// A pre-#200 run file has no `confirmation`, `kind`, or `reapSummary`
@@ -589,6 +644,11 @@ struct BatteryRunStoreTests {
         #expect(run.kind == nil)
         #expect(run.reapSummary == nil)
         #expect(run.endedCleanly == nil)
+        // #340 bar 340-F5: ABSENT decodes to nil, never false. `false` would
+        // claim of every pre-2026-09 archive that its belt was measured with
+        // the user's text withheld — true of the mechanism, never measured.
+        #expect(run.carriesUserText == nil,
+                "an absent carriesUserText must read NOT RECORDED, not `false`")
         #expect(run.trials.count == 1)
         #expect(run.trials[0].toolCalls == [
             BatteryToolCallRecord(name: "createReminder", detail: "title: sledding", confirmation: nil),
