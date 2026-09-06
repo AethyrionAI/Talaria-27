@@ -513,9 +513,74 @@ struct NamingSweepTests {
     /// behind tells a reader the text they are looking at is older than it is.
     @Test func thePolicysEffectiveDateMatchesThisChange() throws {
         let policy = try Self.read("docs/privacy.html")
-        #expect(policy.contains("Effective: 2026-09-03"), """
+        #expect(policy.contains("Effective: 2026-09-06"), """
             the policy text changed in this lane but its Effective date did not — the file's \
             own Changes clause promises the date revises with the change
+            """)
+    }
+
+    /// **#433 — the "Your data, your controls" paragraph tells the truth
+    /// about deletion.** The 2026-09-04 audit (A8) found the old sentence
+    /// ("delete the app to remove everything local") false: a connected
+    /// host's credentials are kept in the iOS Keychain by design (#41 —
+    /// "survives … app deletion, which is the whole point"), specifically so
+    /// a reinstall does not force a re-pair. This lane's corrected paragraph
+    /// names that survival AND the control that clears it — Disconnect,
+    /// under Settings → Connect Host, which only works before the app is
+    /// deleted. RED on the untouched tree: the old sentence is still there.
+    @Test func theControlsParagraphNamesKeychainSurvivalAndDisconnect() throws {
+        let policy = try Self.read("docs/privacy.html")
+
+        // The file hand-wraps its prose across source lines (this file's own
+        // `collapsedWhitespace` note, above): the old sentence's raw bytes
+        // are actually "delete the app to\n  remove everything local", so a
+        // literal `.contains` on the UN-collapsed text never sees it and
+        // this check would pass vacuously on the untouched tree.
+        let policyCollapsed = Self.collapsedWhitespace(policy)
+        #expect(!policyCollapsed.contains("delete the app to remove everything local"), """
+            the privacy policy still claims deleting the app removes everything local — a \
+            connected host's credentials survive in the iOS Keychain by design (#41), and \
+            #433's audit found this sentence false
+            """)
+
+        let headingStart = try #require(
+            policy.range(of: "<h2>Your data, your controls</h2>"),
+            "the controls section heading is gone from docs/privacy.html — re-point this pin")
+        let headingEnd = try #require(
+            policy.range(of: "<h2>Children</h2>", range: headingStart.upperBound..<policy.endIndex),
+            "the heading after the controls section is gone from docs/privacy.html — re-point this pin")
+        let controlsParagraph = Self.collapsedWhitespace(String(policy[headingStart.upperBound..<headingEnd.lowerBound]))
+
+        #expect(controlsParagraph.contains("Keychain"), """
+            the controls paragraph no longer names the Keychain, where a disconnected-but-not- \
+            deleted host's credentials continue to live
+            """)
+        #expect(controlsParagraph.contains("Disconnect"), """
+            the controls paragraph no longer names Disconnect, the control that clears a \
+            host's credentials from this device
+            """)
+
+        // **`:82`'s Keychain line makes the same falsified claim, two
+        // headings earlier, and this lane's controller ruled it in scope
+        // ("The `:82` Keychain line stays consistent with it", 433-A).** The
+        // "What the app stores on your device" paragraph lists pairing
+        // credentials among the local data it says deletion removes — the
+        // same claim the controls paragraph made and this lane already
+        // corrected above. RED on the untouched tree: the sentence is still
+        // there, unchanged by the first commit.
+        let storesHeadingStart = try #require(
+            policy.range(of: "<h2>What the app stores on your device</h2>"),
+            "the \"What the app stores on your device\" heading is gone from docs/privacy.html — re-point this pin")
+        let storesHeadingEnd = try #require(
+            policy.range(of: "<h2>Voice</h2>", range: storesHeadingStart.upperBound..<policy.endIndex),
+            "the heading after the device-storage section is gone from docs/privacy.html — re-point this pin")
+        let storesParagraph = Self.collapsedWhitespace(String(policy[storesHeadingStart.upperBound..<storesHeadingEnd.lowerBound]))
+
+        #expect(!storesParagraph.contains("Deleting the app deletes this local data"), """
+            docs/privacy.html's device-storage paragraph (\":82\") still claims deleting the \
+            app deletes all the local data it just listed, including pairing credentials — \
+            the same claim #433's audit found false in the controls paragraph, restated two \
+            headings earlier and left inconsistent with the fix above
             """)
     }
 

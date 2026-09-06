@@ -27,7 +27,7 @@
 <body>
 <main>
   <h1>Privacy Policy</h1>
-  <p class="date">Talaria for iOS · Effective: 2026-09-03</p>
+  <p class="date">Talaria for iOS · Effective: 2026-09-06</p>
 
   <div class="tldr">
     <p><strong>The short version:</strong> Talaria has no servers. We — the app's
@@ -80,8 +80,11 @@
   <h2>What the app stores on your device</h2>
   <p>Conversation history, attachments you add, settings, and pairing
   credentials (kept in the iOS Keychain) are stored locally on your iPhone.
-  Deleting the app deletes this local data. Talaria does not sync your data to
-  iCloud or to any cloud service of ours.</p>
+  Deleting the app deletes your conversations, attachments, and settings; a
+  connected host's credentials stay in the Keychain by design, so
+  reinstalling the app does not make you pair again, as described below.
+  Talaria does not sync your data to iCloud or to any cloud service of
+  ours.</p>
   <p>With memory turned on, Talaria also keeps an on-device index of your own
   messages from your local chats, together with any notes you asked it to
   remember, so that later answers can draw on them. They stay on your iPhone
@@ -142,8 +145,14 @@
   </ul>
 
   <h2>Your data, your controls</h2>
-  <p>Delete a conversation in the app to remove it locally; delete the app to
-  remove everything local; unpair to stop all traffic to your server.
+  <p>Delete a conversation in the app to remove it locally. Deleting the app
+  removes your conversations, memory index, notes, and settings, but a
+  connected host's credentials stay in the iPhone Keychain by design, so
+  reinstalling the app does not make you pair again. Disconnect a host,
+  under Settings &rarr; Connect Host, to clear its credentials from this
+  device and stop traffic to that server &mdash; do this before you delete
+  the app, since there is no app afterward to do it from, and no single
+  control disconnects every host at once.
   <strong>Forget everything</strong>, under Settings &rarr; Sessions &rarr;
   Memory, erases the on-device memory index and every remembered note; the same
   screen lists what is stored and lets you delete or stop using any single
