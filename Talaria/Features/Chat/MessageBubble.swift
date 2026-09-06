@@ -295,8 +295,12 @@ struct MessageBubble: View {
                 // it is a value-added product, which owes the same attribution
                 // plus a notice that the data was modified. Derived from the
                 // persisted transcript rather than trusted to the reply's own
-                // words, and gated on nothing else: an attribution the reader
-                // has to expand is not displayed. Deliberately OUTSIDE the
+                // words — both WHAT ran (`toolActivities`) and WHOSE weather
+                // service ran it (`brain`, so a host tool that shares the name
+                // cannot borrow Apple's trademark) — and gated on nothing else
+                // HERE: an attribution the reader has to expand is not
+                // displayed, so the view adds no second condition of its own.
+                // Deliberately OUTSIDE the
                 // `!message.isStreaming` block below — the moment the weather
                 // call comes back, its data is on screen.
                 if WeatherAttribution.required(for: message) {

@@ -218,14 +218,24 @@ built from that data, the same attribution "along with a notice that the data
 provided by Apple has been modified." A model's prose about the weather is such
 a product, so Talaria owes both halves.
 
-It renders them deterministically rather than leaving compliance to generated
-text: any reply whose persisted transcript records a completed `currentWeather`
-tool call carries the line **"Weather data by Apple Weather, modified by
-Talaria"**, linking to
+**On the on-device and Private Cloud brains, Talaria renders both halves
+deterministically** rather than leaving compliance to generated text: any reply
+from those brains whose persisted transcript records a completed
+`currentWeather` tool call carries the line **"Weather data by Apple Weather,
+modified by Talaria"**, linking to
 
-- https://weatherkit.apple.com/legal-attribution.html
+- https://developer.apple.com/weatherkit/data-source-attribution/
 
 A reply that never called the weather tool — and one whose call failed, was
 stopped, or is still running — carries no attribution, because no Apple data
 was displayed. The rule lives in
 `Talaria/Features/Chat/WeatherAttribution.swift`.
+
+**The hosted (Hermes) brain is a named follow-up, not a covered path.** A
+hosted reply can draw on this phone's WeatherKit read, but it does so through
+the plugin's single `talaria_phone_query` tool, whose `kind` argument — not its
+name — is what says `weather`, and the runs stream Talaria listens on carries a
+tool's name and preview without its arguments. The app therefore cannot tell a
+hosted weather read from a hosted health or calendar one, and it renders no
+attribution there rather than guessing. That gap is tracked work, not a claim
+made here.

@@ -63,11 +63,23 @@ struct WeatherAttributionTests {
                      provenance: provenance)
     }
 
-    private static func reply(_ activities: [ToolActivity]) -> Message {
+    /// A settled **on-device** reply unless told otherwise.
+    ///
+    /// The brain is part of the fixture because it is part of the RULE (final
+    /// review, Important 3): `currentWeather` is this app's OWN belt tool, and
+    /// a Hermes-side tool that happened to share the name would otherwise
+    /// render Apple's trademark over data Apple never supplied.
+    private static func reply(
+        _ activities: [ToolActivity],
+        brain: ChatBackendRouter.Brain? = .onDevice,
+        isStreaming: Bool = false
+    ) -> Message {
         Message(sender: .hermes,
                 content: "It's 68 and clear in Gulfport, clearing tonight.",
                 status: .delivered,
-                toolActivities: activities)
+                toolActivities: activities,
+                brain: brain?.rawValue,
+                isStreaming: isStreaming)
     }
 
     // MARK: - 435-A — the derived trigger
@@ -197,15 +209,147 @@ struct WeatherAttributionTests {
         #expect(WeatherAttribution.required(for: message))
     }
 
+    // MARK: - 435-B (final review, Important 3) — the ORIGIN check
+
+    /// **Important 3.** `currentWeather` is a bare string, and
+    /// `ChatStore.swift:1350` writes `label: event.name` verbatim for ANY tool
+    /// on ANY brain — the host's runs stream included. So a Hermes-side tool
+    /// that happened to be named `currentWeather` would have rendered "Weather
+    /// data by Apple Weather" over data Apple never supplied. The rule now
+    /// requires the message's own recorded brain to be one this app's WeatherKit
+    /// belt actually runs on.
+    ///
+    /// This is the row the ruling asks for: **a settled host-brain message with
+    /// a completed `currentWeather` activity gets nothing.**
+    @Test("435-B · a settled Hermes-brain reply gets no row, whatever the tool was called")
+    func aSettledHostBrainReplyGetsNoRow() {
+        let message = Self.reply([Self.weatherActivity()], brain: .hermes)
+        #expect(!WeatherAttribution.required(for: message),
+                "a host tool named currentWeather is not this app's WeatherKit belt")
+    }
+
+    /// **Important 3, the other direction.** Both brains that run this app's
+    /// own belt still owe the attribution — the origin check must not have
+    /// narrowed the rule to on-device alone.
+    @Test("435-A · both local brains still require the attribution",
+          arguments: [ChatBackendRouter.Brain.onDevice, .privateCloud])
+    func bothLocalBrainsRequireTheAttribution(brain: ChatBackendRouter.Brain) {
+        #expect(WeatherAttribution.required(for: Self.reply([Self.weatherActivity()], brain: brain)))
+    }
+
+    /// **Important 3.** A message with NO recorded brain that has SETTLED is
+    /// treated as hosted, and that is the vector the finding named:
+    /// `SessionsHermesClient.mapStoredMessage` rebuilds a host transcript's
+    /// tool calls into `.reconstructed` activities and never sets `brain`, so
+    /// an unknown brain on a finished row is a host row far more often than a
+    /// pre-#27 local cache.
+    @Test("435-B · a settled reply with no recorded brain gets no row")
+    func aSettledReplyWithNoRecordedBrainGetsNoRow() {
+        #expect(!WeatherAttribution.required(for: Self.reply([Self.weatherActivity()], brain: nil)))
+    }
+
+    /// **Important 3, and the one carve-out — pinned so it cannot widen.**
+    /// `ChatStore.swift:1207-1214` mints the streaming placeholder with no
+    /// brain at all; `ChatBackendRouter.swift:477-478` stamps it only at
+    /// `.finished`. A brain check with no carve-out would therefore withhold
+    /// the attribution for the WHOLE length of a local weather reply — the
+    /// exact window 435-A placed the row outside `!isStreaming` to cover.
+    ///
+    /// So an unknown brain counts only **while the turn is still streaming**,
+    /// and never once it has settled (the row above). The residual is a row
+    /// that shows and then vanishes if a HOST tool is ever named
+    /// `currentWeather`; the alternative was an unattributed live reply, which
+    /// is the compliance failure rather than a cosmetic one.
+    @Test("435-A · a still-streaming reply with no recorded brain yet still requires it")
+    func aStreamingReplyWithNoBrainYetStillRequiresIt() {
+        #expect(WeatherAttribution.required(
+            for: Self.reply([Self.weatherActivity()], brain: nil, isStreaming: true)))
+    }
+
+    // MARK: - 435-F (final review, Important 1) — the HOST path, MEASURED
+
+    /// **Important 1 is a MEASUREMENT, and the measured answer is: the app
+    /// cannot identify a hosted weather read, so it renders nothing and says
+    /// so.**
+    ///
+    /// The default (Hermes) brain DOES serve real WeatherKit data —
+    /// `PhoneQueryResponder.swift:57-58` calls
+    /// `WeatherTool.performLookup(…, name: "currentWeather")` and
+    /// `AppContainer.swift:1084-1087` wires it into `TalariaPlatformLink` in
+    /// production — and that read writes no local `ToolActivity` at all
+    /// (`PhoneQueryResponder.swift:131-133`: `emit` is nil). The only record
+    /// the app ever sees is the HOST's own `tool.started` frame, and that frame
+    /// cannot say "weather":
+    ///
+    ///  1. The plugin exposes ONE tool for all seven reads — the app's own
+    ///     responder mirrors its shape, `answer(kind:params:)`, dispatching
+    ///     `health` / `location` / `motion` / `weather` / `calendar` /
+    ///     `reminders` / `deviceStatus` off an ARGUMENT
+    ///     (`PhoneQueryResponder.swift:118-160`). The name is the same for a
+    ///     weather read and a health read.
+    ///  2. The runs stream — the only turn transport since #382 — carries a
+    ///     tool's NAME and `preview` and **no arguments at all**:
+    ///     `SessionsHermesClient+RunsTransport.swift:293-295` parses exactly
+    ///     `tool` + `preview`, and `:432-436` records why ("the runs
+    ///     `tool.started` carries no `args`", cited to `api_server.py`).
+    ///
+    /// Name without argument cannot discriminate, so a rule keyed on the
+    /// hosted tool name would attribute Apple Weather over six kinds of read
+    /// that are not weather — the same false-attribution defect Important 3
+    /// closed, in the other direction. **Not guessed; filed.** This row pins
+    /// the measured behaviour: a hosted phone-query activity gets no row.
+    @Test("435-F · MEASURED: a hosted phone-query activity cannot be identified as weather")
+    func aHostedPhoneQueryActivityGetsNoRow() {
+        let message = Self.reply(
+            [ToolActivity(label: "talaria_phone_query", isActive: false, detail: nil)],
+            brain: .hermes)
+        #expect(!WeatherAttribution.required(for: message),
+                "the hosted tool name is shared by all seven phone-query kinds — see this test's docstring")
+    }
+
     // MARK: - 435-C — the words and the link, pinned
 
     /// **435-C.** The link is Apple's legal attribution page, character for
     /// character. It is required by Apple's terms rather than chosen by us, so
     /// it is pinned rather than merely referenced.
+    ///
+    /// **The URL changed in the fix round (final review, Important 2).**
+    /// `https://weatherkit.apple.com/legal-attribution.html` is Apple's LEGACY
+    /// link and answers only through a 308 redirect; the URL Apple's own
+    /// attribution-requirements page names is the developer.apple.com one
+    /// below, verified live this session as a 200 carrying the data-source
+    /// list. A pinned link that depends on someone else's redirect staying up
+    /// is a compliance surface with a dependency nobody wrote down.
     @Test("435-C · the legal link is Apple's attribution page, verbatim")
-    func theLegalLinkIsApplesAttributionPage() {
-        #expect(WeatherAttribution.legalAttributionURL.absoluteString
-                == "https://weatherkit.apple.com/legal-attribution.html")
+    func theLegalLinkIsApplesAttributionPage() throws {
+        #expect(WeatherAttribution.legalAttributionURLString
+                == "https://developer.apple.com/weatherkit/data-source-attribution/")
+        let url = try #require(WeatherAttribution.legalAttributionURL,
+                               "the pinned string no longer parses as a URL — the row's tap is dead")
+        #expect(url.absoluteString == WeatherAttribution.legalAttributionURLString)
+    }
+
+    /// **435-C (final review, minor).** House rule: no force-unwraps on
+    /// network code. `URL(string: …)!` on a compliance row is the worst place
+    /// to keep one — a crash where an attribution belongs.
+    @Test("435-C · the pinned URL is built without a force-unwrap")
+    func thePinnedURLIsBuiltWithoutAForceUnwrap() throws {
+        let source = try Self.read("Talaria/Features/Chat/WeatherAttribution.swift")
+        #expect(!source.contains(")!"),
+                "a force-unwrapped literal is back in the attribution source")
+    }
+
+    /// **435-C (final review, minor).** A 10-point-tall tap target on a link
+    /// the user is meant to be able to follow fails Apple's own 44×44 minimum.
+    /// The words render at their own size; the HIT REGION is the full-width
+    /// container, at least 44 points tall.
+    @Test("435-C · the link's hit region is a full-width 44-point target")
+    func theLinksHitRegionIsAFullWidth44PointTarget() throws {
+        let source = try Self.read("Talaria/Features/Chat/WeatherAttribution.swift")
+        let normalized = source.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        #expect(normalized.contains(
+            ".frame(maxWidth: .infinity, minHeight: 44, alignment: .leading) .contentShape(Rectangle())"),
+                "the tappable area is back to the intrinsic size of the text")
     }
 
     /// **435-C.** The label carries the Apple Weather trademark AND the
@@ -225,7 +369,8 @@ struct WeatherAttributionTests {
     @Test("435-C · the row opens the link with openURL, never a web view")
     func theRowOpensTheLinkWithOpenURL() throws {
         let source = try Self.read("Talaria/Features/Chat/WeatherAttribution.swift")
-        #expect(source.contains("openURL(WeatherAttribution.legalAttributionURL)"),
+        let normalized = source.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        #expect(normalized.contains("if let url = WeatherAttribution.legalAttributionURL { openURL(url) }"),
                 "the row no longer opens the legal link with openURL")
         for banned in ["WKWebView", "SFSafariViewController", "SafariView", "WebView"] {
             #expect(!source.contains(banned),
@@ -264,8 +409,46 @@ struct WeatherAttributionTests {
                 "the section no longer mentions WeatherKit at all — deleting the claim is not correcting it")
         #expect(section.contains("Apple Weather"),
                 "the section does not name the Apple Weather attribution")
-        #expect(section.contains("https://weatherkit.apple.com/legal-attribution.html"),
-                "the section does not carry Apple's legal-attribution URL")
+        #expect(section.contains(WeatherAttribution.legalAttributionURLString),
+                "the section does not carry the same legal-attribution URL the app opens")
+        #expect(!section.contains("weatherkit.apple.com/legal-attribution.html"),
+                "the document still carries Apple's legacy redirect link")
+    }
+
+    /// **435-D (final review, minor).** The document QUOTES the attribution
+    /// line. A quote is a claim about what the app draws, and the two drift
+    /// silently — the notice is read by people who will never diff it against
+    /// `WeatherAttribution.label`.
+    ///
+    /// The document wraps the sentence across lines, so the comparison
+    /// normalizes whitespace on both sides; nothing else about the quote is
+    /// allowed to differ.
+    @Test("435-D · the document quotes the app's attribution line verbatim")
+    func theDocumentQuotesTheAppsAttributionLineVerbatim() throws {
+        let section = try Self.notCoveredHereSection(of: try Self.read("THIRD_PARTY_LICENSES.md"))
+        let normalized = section.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        #expect(normalized.contains(WeatherAttribution.label),
+                "the quoted line has drifted from WeatherAttribution.label")
+    }
+
+    /// **435-D (final review, Important 1).** The document used to say Talaria
+    /// "owes both halves. It renders them deterministically" — a coverage claim
+    /// wider than the mechanism's measured reach. The rule fires on the
+    /// on-device and Private Cloud brains; the HOSTED path serves real
+    /// WeatherKit data through `talaria_phone_query` and is not covered,
+    /// because the runs stream carries a tool's name without its arguments
+    /// (see `aHostedPhoneQueryActivityGetsNoRow`). A notice document that
+    /// over-claims is the one document where over-claiming matters.
+    @Test("435-D · the document scopes its coverage claim to the brains it covers")
+    func theDocumentScopesItsCoverageClaim() throws {
+        let section = try Self.notCoveredHereSection(of: try Self.read("THIRD_PARTY_LICENSES.md"))
+        let normalized = section.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        #expect(normalized.contains("on-device and Private Cloud brains"),
+                "the document does not name the brains the mechanism actually covers")
+        #expect(normalized.contains("talaria_phone_query"),
+                "the document does not name the hosted path it cannot cover")
+        #expect(normalized.lowercased().contains("follow-up"),
+                "the document does not record the hosted path as an open follow-up")
     }
 
     // MARK: - 435-E — voice, MEASURED

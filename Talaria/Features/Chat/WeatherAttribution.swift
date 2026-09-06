@@ -21,12 +21,13 @@ import SwiftUI
 // ordinary text and nothing deterministic attributed it: a reply that happened
 // to mention Apple satisfied nobody, and a reply that did not was a compliance
 // gap. So the rule is a pure function of the transcript the app already
-// persists — `Message.toolActivities` — and the row renders on the strength of
-// that record, whatever the model said.
+// persists — `Message.toolActivities` for WHAT ran and `Message.brain` for
+// WHOSE weather service ran it — and the row renders on the strength of that
+// record, whatever the model said.
 //
-// Nothing here needs a new persisted field: `toolActivities` is already part of
-// `Message.CodingKeys`, so the attribution survives relaunch for free (pinned
-// by `attributionSurvivesACodingRoundTrip`).
+// Nothing here needs a new persisted field: both `toolActivities` and `brain`
+// are already part of `Message.CodingKeys`, so the attribution survives
+// relaunch for free (pinned by `attributionSurvivesACodingRoundTrip`).
 
 /// The rule, the words and the link — one type so no surface can drift from
 /// another, and so the predicate can be asserted as a value instead of being
@@ -46,7 +47,24 @@ enum WeatherAttribution {
 
     /// Apple's legal attribution page. Pinned verbatim by bar 435-C: this is
     /// the link Apple's terms require beside the trademark, not a page we chose.
-    static let legalAttributionURL = URL(string: "https://weatherkit.apple.com/legal-attribution.html")!
+    ///
+    /// **Two fix-round corrections live in this one constant.**
+    ///
+    ///  * **The address.** `weatherkit.apple.com/legal-attribution.html` is
+    ///    Apple's LEGACY link and answers only through a 308 redirect to the
+    ///    URL below — which is the one Apple's own attribution-requirements
+    ///    page names, verified live (200, carrying the data-source list). A
+    ///    compliance surface should not depend on someone else's redirect
+    ///    staying up.
+    ///  * **The construction.** The pinned STRING is the truth and the `URL`
+    ///    is derived from it, optionally: the house rule forbids force-unwrapping
+    ///    `URL(string:)` on network code, and an attribution row is the last
+    ///    place to keep a crash. Nothing is lost by the optional, because the
+    ///    row draws its WORDS unconditionally and only the TAP is conditional —
+    ///    a nil here could never silence the attribution itself, and
+    ///    `theLegalLinkIsApplesAttributionPage` requires it to resolve anyway.
+    static let legalAttributionURLString = "https://developer.apple.com/weatherkit/data-source-attribution/"
+    static let legalAttributionURL: URL? = URL(string: legalAttributionURLString)
 
     /// The one line the transcript shows.
     ///
@@ -67,9 +85,64 @@ enum WeatherAttribution {
     static let accessibilityLabel =
         "\(label). Opens Apple's legal attribution page."
 
+    /// Whether a reply's recorded brain is one whose weather data came from
+    /// **this app's own WeatherKit belt**.
+    ///
+    /// **Why the rule needs an origin at all (fix round, final review).**
+    /// `toolName` is a bare string and nothing upstream of it is namespaced:
+    /// `ChatStore` writes `label: event.name` verbatim for any tool on any
+    /// brain — the host's runs stream included — and
+    /// `SessionsHermesClient.mapStoredMessage` mints the same labels again when
+    /// it rebuilds a host transcript into `.reconstructed` activities. Without
+    /// this check a Hermes-side tool that happened to be called
+    /// `currentWeather` would render Apple's trademark over data Apple never
+    /// supplied, which is a false attribution rather than a cautious one.
+    ///
+    /// The switch is exhaustive on purpose: a fourth brain has to ANSWER this
+    /// question rather than inherit an answer.
+    static func isLocalBrain(_ rawBrain: String?) -> Bool {
+        guard let rawBrain, let brain = ChatBackendRouter.Brain(rawValue: rawBrain) else { return false }
+        switch brain {
+        case .onDevice, .privateCloud: return true
+        case .hermes: return false
+        }
+    }
+
     /// Whether this message must carry the attribution.
+    ///
+    /// Two conditions: the transcript must record a completed weather call,
+    /// **and** the reply must have come from a brain this app's own WeatherKit
+    /// belt serves.
+    ///
+    /// **The nil-brain carve-out, and why it is exactly this narrow.**
+    /// `ChatStore` mints the streaming placeholder with no brain at all, and
+    /// `ChatBackendRouter` stamps one only at `.finished`. A strict check would
+    /// therefore withhold the attribution for the ENTIRE length of a live local
+    /// weather reply — the exact window this row was deliberately placed
+    /// outside `!isStreaming` to cover, because the moment the lookup returns,
+    /// Apple's data is on screen. So an unrecorded brain counts only while the
+    /// turn is STILL STREAMING; once a reply has settled, an unknown brain is
+    /// treated as hosted, which is what a rebuilt host transcript row actually
+    /// is. The residual is a row that appears and then vanishes if a host tool
+    /// is ever named `currentWeather` — visibly self-correcting, where the
+    /// alternative was an unattributed live reply.
+    ///
+    /// **The HOSTED path is not covered, and that is measured rather than
+    /// assumed.** The default Hermes brain does serve real WeatherKit data
+    /// (`PhoneQueryResponder.weather` calls `WeatherTool.performLookup`), but
+    /// that read emits no local activity (`emit` is nil), and the only record
+    /// the app sees is the host's own `tool.started` frame — which carries a
+    /// tool NAME and `preview` and no arguments
+    /// (`SessionsHermesClient+RunsTransport.swift:293-295`, `:432-436`). The
+    /// plugin serves all seven phone-query kinds under one tool name, with
+    /// `kind` as an argument, so a hosted weather read is indistinguishable
+    /// from a hosted health or calendar read on this wire. Attributing on the
+    /// name alone would repeat the very defect the brain check above closes, so
+    /// the app renders nothing there and the gap is filed as a follow-up.
     static func required(for message: Message) -> Bool {
-        required(for: message.toolActivities)
+        let originIsOurBelt = isLocalBrain(message.brain)
+            || (message.brain == nil && message.isStreaming)
+        return originIsOurBelt && required(for: message.toolActivities)
     }
 
     /// The rule itself: **a weather call that COMPLETED.**
@@ -87,12 +160,22 @@ enum WeatherAttribution {
     ///    user's Stop, or a revoked turn) — a lookup that failed showed no
     ///    Apple data, so it owes no attribution.
     ///
-    /// A `.reconstructed` activity (#371 — rebuilt from a server transcript,
-    /// never witnessed completing) DOES count. #371's rule is that the chip
-    /// must not claim it watched the call finish; this row makes no such claim.
-    /// Attributing data that may not have been shown is a stray line;
-    /// withholding attribution from data that was is the compliance failure, so
-    /// the tie goes to attributing.
+    /// **⟵ CORRECTED in the fix round.** This paragraph used to say a
+    /// `.reconstructed` activity (#371 — rebuilt from a server transcript,
+    /// never witnessed completing) DOES count. As a statement about THIS
+    /// function it is still true, and as a statement about the app it is now
+    /// false: `.reconstructed` activities are minted at exactly one site
+    /// (`SessionsHermesClient.mapStoredMessage`), which rebuilds HOST
+    /// transcripts and sets no `brain` — so the origin check in
+    /// `required(for message:)` excludes every one of them before this
+    /// predicate is ever consulted. The #371 reasoning that justified counting
+    /// them is unchanged and simply no longer reachable from the row.
+    ///
+    /// The tie still goes to attributing WITHIN a local reply: attributing data
+    /// that may not have been shown is a stray line, while withholding
+    /// attribution from data that was is the compliance failure. What the fix
+    /// round changed is that the tie is only broken once the reply's ORIGIN is
+    /// this app's own belt.
     ///
     /// **One known over-attribution, recorded rather than hidden.** The belt
     /// calls `relay.completed` even when the lookup returned an honest
@@ -125,7 +208,7 @@ struct WeatherAttributionRow: View {
 
     var body: some View {
         Button {
-            openURL(WeatherAttribution.legalAttributionURL)
+            if let url = WeatherAttribution.legalAttributionURL { openURL(url) }
         } label: {
             HStack(spacing: Design.Spacing.xxs) {
                 // A plain `Text`, deliberately NOT `MonoLabel`: MonoLabel
@@ -140,10 +223,17 @@ struct WeatherAttributionRow: View {
                     .font(.system(size: 7, weight: .semibold))
                     .foregroundStyle(Design.Colors.dimForeground)
             }
+            // The words are set small on purpose — this is a footnote, not a
+            // headline — but the TAP TARGET is not: Apple's own minimum is
+            // 44×44, and a ~10-point-tall link on a compliance row is one the
+            // reader cannot reliably follow. The frame goes INSIDE the button's
+            // label so the hit region is the button's, and `contentShape` makes
+            // the whole (mostly empty) rectangle tappable rather than just the
+            // glyphs.
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityLabel(WeatherAttribution.accessibilityLabel)
         .accessibilityIdentifier("weather.attribution")
     }
