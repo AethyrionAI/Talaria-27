@@ -1,0 +1,223 @@
+✘ Test bothVoiceEnginesCarryTheCaptureInstrument() recorded an issue at AppLockMidFlightCoverTests.swift:438:30: Expectation failed: try? String(contentsOf: url, encoding: .utf8)
+✘ Test bothVoiceEnginesCarryTheCaptureInstrument() failed after 0.006 seconds with 1 issue.
+✘ Test theMidFlightParkAnnouncesItself() recorded an issue at AppLockMidFlightCoverTests.swift:474:26: Expectation failed: try? String(contentsOf: url, encoding: .utf8)
+✘ Test theMidFlightParkAnnouncesItself() failed after 0.001 seconds with 1 issue.
+✘ Suite AppLockMidFlightCoverTests failed after 0.145 seconds with 2 issues.
+✘ Test theOnsetGateNeverTouchesTheCaptureChainOrItsMarkers() recorded an issue at AppStoresTests.swift:2854:26: Expectation failed: try? String(
+✘ Test theOnsetGateNeverTouchesTheCaptureChainOrItsMarkers() failed after 0.001 seconds with 1 issue.
+✘ Suite AppStoresTests failed after 12.400 seconds with 1 issue.
+✘ Test theAppShortcutSpellsTalaria() recorded an issue at AskHermesIntentTests.swift:163:26: Expectation failed: try? String(contentsOf: file, encoding: .utf8)
+✘ Test theAppShortcutSpellsTalaria() failed after 0.001 seconds with 1 issue.
+✘ Test carPlayIdleTitleIsUntouched() recorded an issue at AskHermesIntentTests.swift:201:26: Expectation failed: try? String(contentsOf: file, encoding: .utf8)
+✘ Test carPlayIdleTitleIsUntouched() failed after 0.001 seconds with 1 issue.
+✘ Suite AskHermesIntentTests failed after 0.002 seconds with 2 issues.
+✘ Test autoConnectOnLaunchIsNamedOnlyByItsModelPlumbingAndDemoSeed() recorded an issue at AutoConnectTogglePinTests.swift:68:9: Expectation failed: !out.isEmpty
+✘ Test autoConnectOnLaunchIsNamedOnlyByItsModelPlumbingAndDemoSeed() failed after 0.001 seconds with 1 issue.
+✘ Test theAllowListedSitesStillNameIt() recorded an issue at AutoConnectTogglePinTests.swift:68:9: Expectation failed: !out.isEmpty
+✘ Test theAllowListedSitesStillNameIt() recorded an issue at AutoConnectTogglePinTests.swift:124:13: Expectation failed: naming.contains(site)
+✘ Test theAllowListedSitesStillNameIt() recorded an issue at AutoConnectTogglePinTests.swift:124:13: Expectation failed: naming.contains(site)
+✘ Test theAllowListedSitesStillNameIt() failed after 0.001 seconds with 3 issues.
+✘ Test theToggleLabelIsGoneFromEveryShippingSource() recorded an issue at AutoConnectTogglePinTests.swift:68:9: Expectation failed: !out.isEmpty
+✘ Test theToggleLabelIsGoneFromEveryShippingSource() failed after 0.001 seconds with 1 issue.
+✘ Test thePersistedKeyAndItsPlumbingSurvive() recorded an issue at AutoConnectTogglePinTests.swift:178:26: Expectation failed: try? String(
+✘ Test thePersistedKeyAndItsPlumbingSurvive() failed after 0.001 seconds with 1 issue.
+✘ Suite AutoConnectTogglePinTests failed after 0.004 seconds with 6 issues.
+✘ Test busyNoCommitArmRendersTheSteerMenu() recorded an issue at BusyComposerSteerAccessTests.swift:100:26: Expectation failed: try? String(contentsOf: barPath, encoding: .utf8)
+✘ Test busyNoCommitArmRendersTheSteerMenu() failed after 0.001 seconds with 1 issue.
+✘ Suite BusyComposerSteerAccessTests failed after 0.001 seconds with 1 issue.
+✘ Test everyCarriedFieldIsNamedInTheMergeItself() recorded an issue at ChatStoreMergeCompletenessTests.swift:128:6: Caught error: Error Domain=NSCocoaErrorDomain Code=260 "The file “ChatStore.swift” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Users/owenjones/Documents/Claude/Talaria-27/Talaria/Stores/ChatStore.swift, NSURL=file:///Users/owenjones/Documents/Claude/Talaria-27/Talaria/Stores/ChatStore.swift, NSUnderlyingError=0x10f6b5020 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+✘ Test everyCarriedFieldIsNamedInTheMergeItself() failed after 0.002 seconds with 1 issue.
+✘ Suite "422-C1 merge completeness" failed after 0.003 seconds with 1 issue.
+✘ Test theConnectHostFieldsBindTheModelDraftNotAStore() recorded an issue at ConnectHostDraftIntegrityTests.swift:124:20: Expectation failed: try? String(contentsOf: path, encoding: .utf8)
+✘ Test theConnectHostFieldsBindTheModelDraftNotAStore() failed after 0.001 seconds with 1 issue.
+✘ Test neitherConnectHostSurfaceWritesCredentialsItself() recorded an issue at ConnectHostDraftIntegrityTests.swift:124:20: Expectation failed: try? String(contentsOf: path, encoding: .utf8)
+✘ Test neitherConnectHostSurfaceWritesCredentialsItself() failed after 0.001 seconds with 1 issue.
+✘ Suite ConnectHostDraftIntegrityTests failed after 0.002 seconds with 2 issues.
+✘ Test composerEditorIsDisabledForExactlyTheDictationWindow() recorded an issue at DictationTypingBlockTests.swift:24:26: Expectation failed: try? String(contentsOf: barPath, encoding: .utf8)
+✘ Test composerEditorIsDisabledForExactlyTheDictationWindow() failed after 0.001 seconds with 1 issue.
+✘ Suite DictationTypingBlockTests failed after 0.001 seconds with 1 issue.
+✘ Test "408-A: the degrade is one call into composeTurnInput with the arm forced off" recorded an issue at GuardrailImageDegradeTests.swift:246:20: Expectation failed: try? String(contentsOf: path, encoding: .utf8)
+✘ Test "408-A: the degrade is one call into composeTurnInput with the arm forced off" failed after 0.001 seconds with 1 issue.
+✘ Test "408: the NON-streaming turn path carries the degrade arm and the note" recorded an issue at GuardrailImageDegradeTests.swift:246:20: Expectation failed: try? String(contentsOf: path, encoding: .utf8)
+✘ Test "408: the NON-streaming turn path carries the degrade arm and the note" failed after 0.001 seconds with 1 issue.
+✘ Test "408: the STREAMING turn path carries the degrade arm and the note" recorded an issue at GuardrailImageDegradeTests.swift:246:20: Expectation failed: try? String(contentsOf: path, encoding: .utf8)
+✘ Test "408: the STREAMING turn path carries the degrade arm and the note" failed after 0.001 seconds with 1 issue.
+✘ Suite GuardrailImageDegradeTests failed after 0.004 seconds with 3 issues.
+✘ Test theWidgetControlsSpellTalaria() recorded an issue at HermesControlsTests.swift:249:26: Expectation failed: try? String(contentsOf: file, encoding: .utf8)
+✘ Test theWidgetControlsSpellTalaria() failed after 0.001 seconds with 1 issue.
+✘ Test hostMeaningHermesStringsSurviveTheRename() recorded an issue at HermesControlsTests.swift:294:9: Expectation failed: !files.isEmpty
+✘ Test hostMeaningHermesStringsSurviveTheRename() recorded an issue at HermesControlsTests.swift:297:9: Expectation failed: !sources.isEmpty
+✘ Test hostMeaningHermesStringsSurviveTheRename() recorded an issue at HermesControlsTests.swift:307:13: Expectation failed: sources.contains { $0.contains(expected) }
+✘ Test hostMeaningHermesStringsSurviveTheRename() recorded an issue at HermesControlsTests.swift:307:13: Expectation failed: sources.contains { $0.contains(expected) }
+✘ Test hostMeaningHermesStringsSurviveTheRename() recorded an issue at HermesControlsTests.swift:307:13: Expectation failed: sources.contains { $0.contains(expected) }
+✘ Test hostMeaningHermesStringsSurviveTheRename() recorded an issue at HermesControlsTests.swift:307:13: Expectation failed: sources.contains { $0.contains(expected) }
+✘ Test hostMeaningHermesStringsSurviveTheRename() failed after 0.001 seconds with 6 issues.
+✘ Suite HermesControlsTests failed after 0.010 seconds with 7 issues.
+✘ Test theMemorySurfaceNeitherWritesNorReachesTheNetwork() recorded an issue at HermesMemoryReaderTests.swift:167:6: Caught error: Error Domain=NSCocoaErrorDomain Code=260 "The file “HermesMemoryReader.swift” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Users/owenjones/Documents/Claude/Talaria-27/Talaria/Services/Live/HermesMemoryReader.swift, NSURL=file:///Users/owenjones/Documents/Claude/Talaria-27/Talaria/Services/Live/HermesMemoryReader.swift, NSUnderlyingError=0x139278180 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+✘ Test theMemorySurfaceNeitherWritesNorReachesTheNetwork() failed after 0.001 seconds with 1 issue.
+✘ Test thePanelRendersTheResultTypesOwnWords() recorded an issue at HermesMemoryReaderTests.swift:198:6: Caught error: Error Domain=NSCocoaErrorDomain Code=260 "The file “AgentMemorySection.swift” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Users/owenjones/Documents/Claude/Talaria-27/Talaria/Features/Settings/AgentMemorySection.swift, NSURL=file:///Users/owenjones/Documents/Claude/Talaria-27/Talaria/Features/Settings/AgentMemorySection.swift, NSUnderlyingError=0x139278360 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+✘ Test thePanelRendersTheResultTypesOwnWords() failed after 0.002 seconds with 1 issue.
+✘ Suite HermesMemoryReaderTests failed after 0.013 seconds with 2 issues.
+✘ Test theServerScreenRendersTheThreeValuedStateWithPinnedCopy() recorded an issue at HostApprovalModeTests.swift:91:26: Expectation failed: try? String(contentsOf: screenPath, encoding: .utf8)
+✘ Test theServerScreenRendersTheThreeValuedStateWithPinnedCopy() failed after 0.001 seconds with 1 issue.
+✘ Suite HostApprovalModeTests failed after 0.001 seconds with 1 issue.
+✘ Test noHostFedScreenRendersTheRawErrorString() recorded an issue at HostFailureConventionTests.swift:31:13: Expectation failed: try? String(contentsOf: repoRoot.appendingPathComponent(relativePath), encoding: .utf8)
+✘ Test noHostFedScreenRendersTheRawErrorString() failed after 0.001 seconds with 1 issue.
+✘ Test everyHostFedScreenRoutesThroughTheSharedMapper() recorded an issue at HostFailureConventionTests.swift:31:13: Expectation failed: try? String(contentsOf: repoRoot.appendingPathComponent(relativePath), encoding: .utf8)
+✘ Test everyHostFedScreenRoutesThroughTheSharedMapper() failed after 0.001 seconds with 1 issue.
+✘ Suite HostFailureConventionTests failed after 0.002 seconds with 2 issues.
+✘ Test theReplayBuilderConstructsOnlyTextSegments() recorded an issue at ImageInputCompositionTests.swift:211:20: Expectation failed: try? String(contentsOf: path, encoding: .utf8)
+✘ Test theReplayBuilderConstructsOnlyTextSegments() failed after 0.001 seconds with 1 issue.
+✘ Test theOnlyImageAttachmentDoorIsTheTurnPromptAssembler() recorded an issue at ImageInputCompositionTests.swift:211:20: Expectation failed: try? String(contentsOf: path, encoding: .utf8)
+✘ Test theOnlyImageAttachmentDoorIsTheTurnPromptAssembler() failed after 0.001 seconds with 1 issue.
+✘ Suite ImageInputCompositionTests failed after 0.003 seconds with 2 issues.
+✘ Test notConfiguredBranchOfTheRouterListIsUnchanged() recorded an issue at LocalSessionHistoryTests.swift:734:26: Expectation failed: try? String(
+✘ Test notConfiguredBranchOfTheRouterListIsUnchanged() failed after 0.001 seconds with 1 issue.
+✘ Suite LocalSessionHistoryTests failed after 0.212 seconds with 1 issue.
+✘ Test backfillTimingProbe() recorded an issue at MemoryBackfillRunnerTests.swift:372:24: Expectation failed: try? Data(contentsOf: url)
+✘ Test backfillTimingProbe() failed after 0.001 seconds with 1 issue.
+✘ Suite "422-B backfill runner" failed after 0.300 seconds with 1 issue.
+✘ Test "fix round 1: send() passes the real savedNote expression, not a hardcoded false" recorded an issue at MemoryHonestyTests.swift:658:20: Expectation failed: try? String(contentsOf: path, encoding: .utf8)
+✘ Test "fix round 1: send() passes the real savedNote expression, not a hardcoded false" failed after 0.001 seconds with 1 issue.
+✘ Test "fix round 1: streamTurn() passes the real savedNote expression, not a hardcoded false" recorded an issue at MemoryHonestyTests.swift:658:20: Expectation failed: try? String(contentsOf: path, encoding: .utf8)
+✘ Test "fix round 1: streamTurn() passes the real savedNote expression, not a hardcoded false" failed after 0.001 seconds with 1 issue.
+✘ Test "fix round 1: both turn paths derive savedNote from the STORE, not the text" recorded an issue at MemoryHonestyTests.swift:658:20: Expectation failed: try? String(contentsOf: path, encoding: .utf8)
+✘ Test "fix round 1: both turn paths derive savedNote from the STORE, not the text" failed after 0.001 seconds with 1 issue.
+✘ Suite "422-H honesty" failed after 0.125 seconds with 3 issues.
+✘ Test bothTurnPathsPrefixMemoryAfterPreparingTheSession() recorded an issue at RepoSourceWitness.swift:97:20: Expectation failed: try? String(contentsOf: path, encoding: .utf8)
+✘ Test bothTurnPathsPrefixMemoryAfterPreparingTheSession() failed after 0.002 seconds with 1 issue.
+✘ Test fitsContextCountsTheInjectedTokens() recorded an issue at MemoryInjectionTests.swift:289:9: Expectation failed: flippedAfter != nil
+✘ Test fitsContextCountsTheInjectedTokens() failed after 6.581 seconds with 1 issue.
+✘ Test fitsContextReservesThisTurnsBlockWhileMemoryIsOn() recorded an issue at MemoryInjectionTests.swift:324:9: Expectation failed: looseStillFits == true
+✘ Test fitsContextReservesThisTurnsBlockWhileMemoryIsOn() failed after 3.819 seconds with 1 issue.
+✘ Test aBackendWithNoStoreTakesNoReserve() recorded an issue at MemoryInjectionTests.swift:356:9: Expectation failed: looseStillFits == true
+✘ Test aBackendWithNoStoreTakesNoReserve() failed after 3.779 seconds with 1 issue.
+✘ Test theBlueprintCondensesEarlierWhenMemoryReservesItsBlock() recorded an issue at MemoryInjectionTests.swift:417:25: Expectation failed: flip
+✘ Test theBlueprintCondensesEarlierWhenMemoryReservesItsBlock() failed after 6.666 seconds with 1 issue.
+✘ Test theJustSavedNoticeCountsAgainstTheBlockCap() recorded an issue at MemoryInjectionTests.swift:724:9: Expectation failed: tokens <= MemoryBudget.memoryBlockTokens(contextSize: 0)
+✘ Test theJustSavedNoticeCountsAgainstTheBlockCap() failed after 0.670 seconds with 1 issue.
+✘ Suite "422-D memory injection" failed after 64.626 seconds with 6 issues.
+✘ Test precisionAt1IsAtLeast0_80OnAnswerableQueries() recorded an issue at MemoryRetrieverTests.swift:131:6: Caught error: Error Domain=NSCocoaErrorDomain Code=260 "The file “2026-09-02-422-retrieval-corpus.json” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Users/owenjones/Documents/Claude/Talaria-27/planning/reports/2026-09-02-422-retrieval-corpus.json, NSURL=file:///Users/owenjones/Documents/Claude/Talaria-27/planning/reports/2026-09-02-422-retrieval-corpus.json, NSUnderlyingError=0x139278450 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+✘ Test precisionAt1IsAtLeast0_80OnAnswerableQueries() failed after 0.002 seconds with 1 issue.
+✘ Test topThreeRecallIsAtLeast0_90OnAnswerableQueries() recorded an issue at MemoryRetrieverTests.swift:137:6: Caught error: Error Domain=NSCocoaErrorDomain Code=260 "The file “2026-09-02-422-retrieval-corpus.json” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Users/owenjones/Documents/Claude/Talaria-27/planning/reports/2026-09-02-422-retrieval-corpus.json, NSURL=file:///Users/owenjones/Documents/Claude/Talaria-27/planning/reports/2026-09-02-422-retrieval-corpus.json, NSUnderlyingError=0x139279650 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+✘ Test topThreeRecallIsAtLeast0_90OnAnswerableQueries() failed after 0.001 seconds with 1 issue.
+✘ Test precisionHoldsWhenQueriesArePhrasedNaturally() recorded an issue at MemoryRetrieverTests.swift:156:6: Caught error: Error Domain=NSCocoaErrorDomain Code=260 "The file “2026-09-02-422-retrieval-corpus.json” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Users/owenjones/Documents/Claude/Talaria-27/planning/reports/2026-09-02-422-retrieval-corpus.json, NSURL=file:///Users/owenjones/Documents/Claude/Talaria-27/planning/reports/2026-09-02-422-retrieval-corpus.json, NSUnderlyingError=0x139278510 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+✘ Test precisionHoldsWhenQueriesArePhrasedNaturally() failed after 0.001 seconds with 1 issue.
+✘ Test falseAdmitRateIsAtMost0_10OnPlainNoAnswerQueries() recorded an issue at MemoryRetrieverTests.swift:173:6: Caught error: Error Domain=NSCocoaErrorDomain Code=260 "The file “2026-09-02-422-retrieval-corpus.json” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Users/owenjones/Documents/Claude/Talaria-27/planning/reports/2026-09-02-422-retrieval-corpus.json, NSURL=file:///Users/owenjones/Documents/Claude/Talaria-27/planning/reports/2026-09-02-422-retrieval-corpus.json, NSUnderlyingError=0x139279b90 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+✘ Test falseAdmitRateIsAtMost0_10OnPlainNoAnswerQueries() failed after 0.001 seconds with 1 issue.
+✘ Test everyPlainNoAnswerQuerySharesNoContentTokenWithAnyTurn() recorded an issue at MemoryRetrieverTests.swift:185:6: Caught error: Error Domain=NSCocoaErrorDomain Code=260 "The file “2026-09-02-422-retrieval-corpus.json” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Users/owenjones/Documents/Claude/Talaria-27/planning/reports/2026-09-02-422-retrieval-corpus.json, NSURL=file:///Users/owenjones/Documents/Claude/Talaria-27/planning/reports/2026-09-02-422-retrieval-corpus.json, NSUnderlyingError=0x139278510 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+✘ Test everyPlainNoAnswerQuerySharesNoContentTokenWithAnyTurn() failed after 0.001 seconds with 1 issue.
+✘ Suite "422-R retrieval" failed after 0.021 seconds with 5 issues.
+✘ Test theStoresCountPathNeverCoalescesAFailureIntoZero() recorded an issue at MemoryScreenTests.swift:478:6: Caught error: Error Domain=NSCocoaErrorDomain Code=260 "The file “MemoryStore.swift” couldn’t be opened because there is no such file." UserInfo={NSFilePath=/Users/owenjones/Documents/Claude/Talaria-27/Talaria/Services/Live/Memory/MemoryStore.swift, NSURL=file:///Users/owenjones/Documents/Claude/Talaria-27/Talaria/Services/Live/Memory/MemoryStore.swift, NSUnderlyingError=0x139296220 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}
+✘ Test theStoresCountPathNeverCoalescesAFailureIntoZero() failed after 0.001 seconds with 1 issue.
+✘ Suite "422-P memory screen" failed after 0.832 seconds with 1 issue.
+✘ Test theMemoryModuleCannotReachTheModel() recorded an issue at MemoryStructuralPinsTests.swift:47:9: Expectation failed: !out.isEmpty
+✘ Test theMemoryModuleCannotReachTheModel() failed after 0.001 seconds with 1 issue.
+✘ Test theHermesClientNeverReferencesTheMemoryModule() recorded an issue at MemoryStructuralPinsTests.swift:99:25: Expectation failed: try? FileManager.default.contentsOfDirectory(atPath: directory.path)
+✘ Test theHermesClientNeverReferencesTheMemoryModule() failed after 0.001 seconds with 1 issue.
+✘ Suite MemoryStructuralPinsTests failed after 0.001 seconds with 2 issues.
+✘ Test permissionUsageDescriptionsNameTalaria() recorded an issue at NamingSweepTests.swift:46:13: Expectation failed: try? String(contentsOf: repoRoot.appendingPathComponent(relativePath), encoding: .utf8)
+✘ Test permissionUsageDescriptionsNameTalaria() failed after 0.001 seconds with 1 issue.
+✘ Test oldAppMeaningLiteralsAreGone() recorded an issue at RepoSourceWitness.swift:90:9: Expectation failed: !out.isEmpty
+✘ Test oldAppMeaningLiteralsAreGone() failed after 0.001 seconds with 1 issue.
+✘ Test hostMeaningStringFamiliesSurviveTheSweep() recorded an issue at RepoSourceWitness.swift:90:9: Expectation failed: !out.isEmpty
+✘ Test hostMeaningStringFamiliesSurviveTheSweep() recorded an issue at NamingSweepTests.swift:229:13: Expectation failed: sources.contains { $0.text.contains(expected) }
+✘ Test hostMeaningStringFamiliesSurviveTheSweep() recorded an issue at NamingSweepTests.swift:229:13: Expectation failed: sources.contains { $0.text.contains(expected) }
+✘ Test hostMeaningStringFamiliesSurviveTheSweep() recorded an issue at NamingSweepTests.swift:229:13: Expectation failed: sources.contains { $0.text.contains(expected) }
+✘ Test hostMeaningStringFamiliesSurviveTheSweep() recorded an issue at NamingSweepTests.swift:229:13: Expectation failed: sources.contains { $0.text.contains(expected) }
+✘ Test hostMeaningStringFamiliesSurviveTheSweep() recorded an issue at NamingSweepTests.swift:229:13: Expectation failed: sources.contains { $0.text.contains(expected) }
+✘ Test hostMeaningStringFamiliesSurviveTheSweep() recorded an issue at NamingSweepTests.swift:229:13: Expectation failed: sources.contains { $0.text.contains(expected) }
+✘ Test hostMeaningStringFamiliesSurviveTheSweep() recorded an issue at NamingSweepTests.swift:229:13: Expectation failed: sources.contains { $0.text.contains(expected) }
+✘ Test hostMeaningStringFamiliesSurviveTheSweep() recorded an issue at NamingSweepTests.swift:229:13: Expectation failed: sources.contains { $0.text.contains(expected) }
+✘ Test hostMeaningStringFamiliesSurviveTheSweep() recorded an issue at NamingSweepTests.swift:229:13: Expectation failed: sources.contains { $0.text.contains(expected) }
+✘ Test hostMeaningStringFamiliesSurviveTheSweep() recorded an issue at NamingSweepTests.swift:229:13: Expectation failed: sources.contains { $0.text.contains(expected) }
+✘ Test hostMeaningStringFamiliesSurviveTheSweep() recorded an issue at NamingSweepTests.swift:229:13: Expectation failed: sources.contains { $0.text.contains(expected) }
+✘ Test hostMeaningStringFamiliesSurviveTheSweep() failed after 0.001 seconds with 12 issues.
+✘ Test theHermesSchemeEasterEggIsUntouched() recorded an issue at NamingSweepTests.swift:46:13: Expectation failed: try? String(contentsOf: repoRoot.appendingPathComponent(relativePath), encoding: .utf8)
+✘ Test theHermesSchemeEasterEggIsUntouched() failed after 0.001 seconds with 1 issue.
+✘ Test widgetKindsAreStable() recorded an issue at NamingSweepTests.swift:46:13: Expectation failed: try? String(contentsOf: repoRoot.appendingPathComponent(relativePath), encoding: .utf8)
+✘ Test widgetKindsAreStable() failed after 0.001 seconds with 1 issue.
+✘ Test widgetGalleryNamesSpellTalaria() recorded an issue at NamingSweepTests.swift:46:13: Expectation failed: try? String(contentsOf: repoRoot.appendingPathComponent(relativePath), encoding: .utf8)
+✘ Test widgetGalleryNamesSpellTalaria() failed after 0.001 seconds with 1 issue.
+✘ Test memoryChipNamingLiteralsSurviveTheSweep() recorded an issue at RepoSourceWitness.swift:90:9: Expectation failed: !out.isEmpty
+✘ Test memoryChipNamingLiteralsSurviveTheSweep() recorded an issue at NamingSweepTests.swift:333:13: Expectation failed: sources.contains { $0.text.contains(expected) }
+✘ Test memoryChipNamingLiteralsSurviveTheSweep() recorded an issue at NamingSweepTests.swift:333:13: Expectation failed: sources.contains { $0.text.contains(expected) }
+✘ Test memoryChipNamingLiteralsSurviveTheSweep() recorded an issue at NamingSweepTests.swift:336:9: Expectation failed: sources.contains { $0.text.contains("\"HERMES MEMORY\"") }
+✘ Test memoryChipNamingLiteralsSurviveTheSweep() failed after 0.001 seconds with 4 issues.
+✘ Test theMemoryScreensOwnWordsAreTalarias() recorded an issue at RepoSourceWitness.swift:90:9: Expectation failed: !out.isEmpty
+✘ Test theMemoryScreensOwnWordsAreTalarias() recorded an issue at NamingSweepTests.swift:356:13: Expectation failed: sources.contains { $0.text.contains(expected) }
+✘ Test theMemoryScreensOwnWordsAreTalarias() recorded an issue at NamingSweepTests.swift:356:13: Expectation failed: sources.contains { $0.text.contains(expected) }
+✘ Test theMemoryScreensOwnWordsAreTalarias() recorded an issue at NamingSweepTests.swift:356:13: Expectation failed: sources.contains { $0.text.contains(expected) }
+✘ Test theMemoryScreensOwnWordsAreTalarias() recorded an issue at NamingSweepTests.swift:356:13: Expectation failed: sources.contains { $0.text.contains(expected) }
+✘ Test theMemoryScreensOwnWordsAreTalarias() failed after 0.001 seconds with 5 issues.
+✘ Test theHonestyCorrectionNamesTalariaNotTheHost() recorded an issue at RepoSourceWitness.swift:90:9: Expectation failed: !out.isEmpty
+✘ Test theHonestyCorrectionNamesTalariaNotTheHost() recorded an issue at NamingSweepTests.swift:405:9: Expectation failed: sources.contains { $0.text.contains("static let memoryCorrectionNoticeNoIndex") }
+✘ Test theHonestyCorrectionNamesTalariaNotTheHost() failed after 0.001 seconds with 2 issues.
+✘ Test noAppMeaningHermesMemoryLiteralExists() recorded an issue at RepoSourceWitness.swift:90:9: Expectation failed: !out.isEmpty
+✘ Test noAppMeaningHermesMemoryLiteralExists() failed after 0.001 seconds with 1 issue.
+✘ Test pccPolicySentenceNamesMemoryInBothHomes() recorded an issue at NamingSweepTests.swift:46:13: Expectation failed: try? String(contentsOf: repoRoot.appendingPathComponent(relativePath), encoding: .utf8)
+✘ Test pccPolicySentenceNamesMemoryInBothHomes() failed after 0.001 seconds with 1 issue.
+✘ Test thePolicyDescribesTheOnDeviceMemoryStore() recorded an issue at NamingSweepTests.swift:46:13: Expectation failed: try? String(contentsOf: repoRoot.appendingPathComponent(relativePath), encoding: .utf8)
+✘ Test thePolicyDescribesTheOnDeviceMemoryStore() failed after 0.001 seconds with 1 issue.
+✘ Test thePolicysEffectiveDateMatchesThisChange() recorded an issue at NamingSweepTests.swift:46:13: Expectation failed: try? String(contentsOf: repoRoot.appendingPathComponent(relativePath), encoding: .utf8)
+✘ Test thePolicysEffectiveDateMatchesThisChange() failed after 0.001 seconds with 1 issue.
+✘ Suite NamingSweepTests failed after 0.005 seconds with 32 issues.
+✘ Test aStartWithNoInterleavedStopIsNotSuperseded() recorded an issue at NativeVoiceCaptureGenerationTests.swift:168:25: Issue recorded
+✘ Test aStartWithNoInterleavedStopIsNotSuperseded() recorded an issue at NativeVoiceCaptureGenerationTests.swift:177:9: Expectation failed: await controller.isEngineRunning == false
+✘ Test aStartWithNoInterleavedStopIsNotSuperseded() failed after 0.994 seconds with 2 issues.
+✘ Suite "428-B capture generation" failed after 4.310 seconds with 2 issues.
+✘ Test theScenePhaseRestartWiringIsStillSpelled() recorded an issue at PooledConnectionWedgeTests.swift:365:26: Expectation failed: try? String(contentsOf: url, encoding: .utf8)
+✘ Test theScenePhaseRestartWiringIsStillSpelled() failed after 0.001 seconds with 1 issue.
+✘ Suite PooledConnectionWedgeTests failed after 6.055 seconds with 1 issue.
+✘ Test manifestsCoverEveryRequiredReasonAPIInTheirSources() recorded an issue at PrivacyManifestCompletenessTests.swift:156:24: Expectation failed: try? String(contentsOf: yamlURL, encoding: .utf8)
+✘ Test manifestsCoverEveryRequiredReasonAPIInTheirSources() failed after 0.001 seconds with 1 issue.
+✘ Test manifestsDeclareNothingUnused() recorded an issue at PrivacyManifestCompletenessTests.swift:156:24: Expectation failed: try? String(contentsOf: yamlURL, encoding: .utf8)
+✘ Test manifestsDeclareNothingUnused() failed after 0.001 seconds with 1 issue.
+✘ Test declaredReasonsMatchTheMeasuredReasons() recorded an issue at PrivacyManifestCompletenessTests.swift:298:24: Expectation failed: try? Data(contentsOf: url)
+✘ Test declaredReasonsMatchTheMeasuredReasons() failed after 0.001 seconds with 1 issue.
+✘ Test everyManifestDeclaresZeroTrackingAndZeroCollection() recorded an issue at PrivacyManifestCompletenessTests.swift:298:24: Expectation failed: try? Data(contentsOf: url)
+✘ Test everyManifestDeclaresZeroTrackingAndZeroCollection() failed after 0.001 seconds with 1 issue.
+✘ Suite PrivacyManifestCompletenessTests failed after 0.001 seconds with 4 issues.
+✘ Test allPCCStateLivesOnlyOnTheDedicatedScreen() recorded an issue at PrivateCloudOptOutTests.swift:302:24: Expectation failed: try? String(contentsOf: url, encoding: .utf8)
+✘ Test allPCCStateLivesOnlyOnTheDedicatedScreen() failed after 0.001 seconds with 1 issue.
+✘ Test theContainerGatesAllThreePredicatesOnTheUsersSetting() recorded an issue at PrivateCloudOptOutTests.swift:337:26: Expectation failed: try? String(contentsOf: url, encoding: .utf8)
+✘ Test theContainerGatesAllThreePredicatesOnTheUsersSetting() failed after 0.001 seconds with 1 issue.
+✘ Suite PrivateCloudOptOutTests failed after 0.014 seconds with 2 issues.
+✘ Test theIndicatorTintIsTheLiveThemeTokenAndNotALiteral() recorded an issue at RealtimeVoiceIndicatorTests.swift:469:9: Expectation failed: RealtimeVoiceNotice.tint == Design.Brand.forge
+✘ Test theIndicatorTintIsTheLiveThemeTokenAndNotALiteral() recorded an issue at RealtimeVoiceIndicatorTests.swift:470:9: Expectation failed: RealtimeVoiceNotice.tint == ThemeRuntime.shared.palette.forge
+✘ Test theIndicatorTintIsTheLiveThemeTokenAndNotALiteral() failed after 0.004 seconds with 2 issues.
+✘ Suite RealtimeVoiceIndicatorTests failed after 0.025 seconds with 2 issues.
+✘ Test theSwitchAndTheSessionsTurnPathAreAbsentFromTheTree() recorded an issue at RunsTransportSwitchTests.swift:53:9: Expectation failed: !files.isEmpty
+✘ Test theSwitchAndTheSessionsTurnPathAreAbsentFromTheTree() failed after 0.001 seconds with 1 issue.
+✘ Suite RunsTransportSwitchTests failed after 0.001 seconds with 1 issue.
+✘ Test searchResultTapsRouteOnlyThroughOpenSubsystem() recorded an issue at SettingsChannelsTests.swift:615:26: Expectation failed: try? String(contentsOf: path, encoding: .utf8)
+✘ Test searchResultTapsRouteOnlyThroughOpenSubsystem() failed after 0.001 seconds with 1 issue.
+✘ Suite SettingsSearchTests failed after 0.003 seconds with 1 issue.
+✘ Test theSpeakerDecisionIsWiredAtBothCallSites() recorded an issue at SpeakerRouteOverrideTests.swift:93:26: Expectation failed: try? String(contentsOf: url, encoding: .utf8)
+✘ Test theSpeakerDecisionIsWiredAtBothCallSites() failed after 0.001 seconds with 1 issue.
+✘ Suite SpeakerRouteOverrideTests failed after 0.001 seconds with 1 issue.
+✘ Test theRailRendersTheProvenanceDistinctionVisuallyAndForVoiceOver() recorded an issue at ToolProvenanceTests.swift:119:26: Expectation failed: try? String(contentsOf: railPath, encoding: .utf8)
+✘ Test theRailRendersTheProvenanceDistinctionVisuallyAndForVoiceOver() failed after 0.001 seconds with 1 issue.
+✘ Suite ToolProvenanceTests failed after 0.002 seconds with 1 issue.
+✘ Test bothTurnPathsPassTheUsersOwnMessage() recorded an issue at RepoSourceWitness.swift:97:20: Expectation failed: try? String(contentsOf: path, encoding: .utf8)
+✘ Test bothTurnPathsPassTheUsersOwnMessage() failed after 0.001 seconds with 1 issue.
+✘ Test theSourceWitnessReadsOneBoundedFunctionBody() recorded an issue at RepoSourceWitness.swift:97:20: Expectation failed: try? String(contentsOf: path, encoding: .utf8)
+✘ Test theSourceWitnessReadsOneBoundedFunctionBody() failed after 0.001 seconds with 1 issue.
+✘ Suite ToolTurnUserTextTests failed after 0.011 seconds with 2 issues.
+✘ Test "the typed cancellation arm is wired, and sits ahead of the generic catch" recorded an issue at VoiceInstrumentLogLineTests.swift:839:20: Expectation failed: try? String(contentsOf: url, encoding: .utf8)
+✘ Test "the typed cancellation arm is wired, and sits ahead of the generic catch" failed after 0.001 seconds with 1 issue.
+✘ Test "the join's cancelled exit is wired to its own line" recorded an issue at VoiceInstrumentLogLineTests.swift:839:20: Expectation failed: try? String(contentsOf: url, encoding: .utf8)
+✘ Test "the join's cancelled exit is wired to its own line" failed after 0.001 seconds with 1 issue.
+✘ Test "the repair is wired to the .superseded arm and gated on the origin" recorded an issue at VoiceInstrumentLogLineTests.swift:839:20: Expectation failed: try? String(contentsOf: url, encoding: .utf8)
+✘ Test "the repair is wired to the .superseded arm and gated on the origin" failed after 0.001 seconds with 1 issue.
+✘ Test "the live-session line is emitted from the .superseded arm itself" recorded an issue at VoiceInstrumentLogLineTests.swift:839:20: Expectation failed: try? String(contentsOf: url, encoding: .utf8)
+✘ Test "the live-session line is emitted from the .superseded arm itself" failed after 0.001 seconds with 1 issue.
+✘ Suite "Voice instrument log lines (#418/#419)" failed after 0.015 seconds with 4 issues.
+✘ Test deactivationIsSpelledOnlyInsideTheInjectableSeam() recorded an issue at VoiceMemoAttachmentTests.swift:213:30: Expectation failed: try? String(contentsOf: url, encoding: .utf8)
+✘ Test deactivationIsSpelledOnlyInsideTheInjectableSeam() failed after 0.001 seconds with 1 issue.
+✘ Suite VoiceMemoAudioSessionGuardTests failed after 0.001 seconds with 1 issue.
+✘ Test activationAndPermissionAreSpelledOnlyInsideTheirSeams() recorded an issue at VoiceMemoAttachmentTests.swift:378:30: Expectation failed: try? String(contentsOf: url, encoding: .utf8)
+✘ Test activationAndPermissionAreSpelledOnlyInsideTheirSeams() failed after 0.001 seconds with 1 issue.
+✘ Suite VoiceMemoTransitionTests failed after 0.307 seconds with 1 issue.
+✘ Test run with 3287 tests in 277 suites failed after 555.819 seconds with 107 issues.
+** TEST FAILED **
