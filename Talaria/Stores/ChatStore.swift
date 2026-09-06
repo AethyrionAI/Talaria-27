@@ -3000,16 +3000,25 @@ final class ChatStore {
 
     /// The plain-text turn POSTed to the Sessions API so the agent sees the
     /// voice exchange as context. Empty when the session had no spoken turns.
+    ///
+    /// **The header and the two speaker labels are `VoiceTranscriptFormat`'s
+    /// (#340 bar 340-F3), not literals here.** `LocalChatBackend.beltUserText`
+    /// reads this shape back to keep the assistant's lines out of the tool
+    /// belt's view of "the user's words"; two copies of the header would drift
+    /// the first time either side was edited, and the reader would fail OPEN.
     nonisolated static func voiceTranscriptTurnText(from session: CompletedVoiceSession) -> String {
         let lines: [String] = session.transcript.compactMap { item in
             guard !item.isPartial, item.speaker != .system else { return nil }
             let text = item.text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else { return nil }
-            return "\(item.speaker == .user ? "User" : "Talaria"): \(text)"
+            let prefix = item.speaker == .user
+                ? VoiceTranscriptFormat.userPrefix
+                : VoiceTranscriptFormat.assistantPrefix
+            return prefix + text
         }
         guard !lines.isEmpty else { return "" }
         return """
-        [Voice session transcript — shared for context. No reply needed.]
+        \(VoiceTranscriptFormat.header)
         \(lines.joined(separator: "\n"))
         """
     }

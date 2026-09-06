@@ -436,6 +436,7 @@
 		9A9158E7F28613FD647CB469 /* InstallationIdentityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31368FFAF120A3F1A9FA2510 /* InstallationIdentityTests.swift */; };
 		9B4CAE7A630BBEB9F1DB5230 /* PrivateCloudGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11026517417AA718E065B0C6 /* PrivateCloudGateTests.swift */; };
 		9B5AE2A8D1A093106533F2C2 /* HermesClientProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 158695134A208F419A6A9E49 /* HermesClientProtocol.swift */; };
+		9B665A09B45EA7C3506C577C /* VoiceTranscriptFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82BD7A6CE57866F1C74E8F5D /* VoiceTranscriptFormat.swift */; };
 		9B6730A87263CACA6CBE568F /* MarkdownBlockQuoteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69438F0D38B60455035902BC /* MarkdownBlockQuoteTests.swift */; };
 		9BCE98D87695BBFA82A6BB29 /* HostFedListPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88D53E5BA48BFBDA5A4B9A57 /* HostFedListPresentationTests.swift */; };
 		9C6F084E3A16D0D62CD8A630 /* ContextMeterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED38126D414AFCFC2BEF18D5 /* ContextMeterTests.swift */; };
@@ -1082,6 +1083,7 @@
 		80EF15B79F03C0BF47DAB3C2 /* ChakraPetch-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ChakraPetch-SemiBold.ttf"; sourceTree = "<group>"; };
 		827F37EE72AFCBAF188EBF43 /* ThemeChannels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeChannels.swift; sourceTree = "<group>"; };
 		82A9EFD28E7758CB1A9CBBD0 /* ToolActivityRail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolActivityRail.swift; sourceTree = "<group>"; };
+		82BD7A6CE57866F1C74E8F5D /* VoiceTranscriptFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceTranscriptFormat.swift; sourceTree = "<group>"; };
 		83CCF9F3F1E13F2FB42A79B9 /* RunsFrameParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunsFrameParserTests.swift; sourceTree = "<group>"; };
 		8423FB3F18FCB7BE1F2A738F /* IconPreview-CosmicBowling.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-CosmicBowling.png"; sourceTree = "<group>"; };
 		843DA9094BCC14595B48C63B /* TalariaWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TalariaWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1825,6 +1827,7 @@
 				976BAC43D166A0D9AD794CF2 /* TurnReceipts.swift */,
 				0AD2308C9C97CEA542271B0C /* UserDefaultsAppPersistenceStore.swift */,
 				CCE85A8CE1548ED41FE4180D /* VoiceEngineRouter.swift */,
+				82BD7A6CE57866F1C74E8F5D /* VoiceTranscriptFormat.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -3107,6 +3110,7 @@
 				BFD8F7CBAA18CF64CB5CEA50 /* VoiceSessionServiceProtocol.swift in Sources */,
 				966A9E29D71DD8D4BA519C19 /* VoiceSettingsScreen.swift in Sources */,
 				10199A455BCE13B63B0B82D2 /* VoiceState.swift in Sources */,
+				9B665A09B45EA7C3506C577C /* VoiceTranscriptFormat.swift in Sources */,
 				6BB37BC08D3FF68B97C081A5 /* WeatherAttribution.swift in Sources */,
 				1B25B1CE93578B1F8C63CB7E /* WeatherKitProbe.swift in Sources */,
 			);
