@@ -316,8 +316,26 @@ final class CronJobService: CronJobServiceProtocol {
             if let serverMessage, !serverMessage.isEmpty {
                 throw CronJobServiceError.serverRejected(serverMessage)
             }
-            let snippet = String(data: data, encoding: .utf8)?.prefix(200) ?? ""
-            throw CronJobServiceError.serverRejected("The Hermes host returned status \(status). \(snippet)")
+            // #432 fix round (2026-09-06): the fallback used to append 200
+            // bytes of the raw body, and — unlike the `SkillsService` /
+            // `InsightsService` twins, whose errors only reach UI presentation
+            // — THIS one is logged. `deliverPlatforms()` above catches the
+            // error from `GET /health/detailed` and logs
+            // `error.localizedDescription` at `privacy: .public`, `.notice`,
+            // which `log collect` and sysdiagnose persist. Measured, not
+            // inferred: #432's first round listed this file as safe.
+            //
+            // The `serverMessage` arm above is deliberately untouched — a
+            // decoded `error` FIELD is a structured host message (the cron
+            // validation and schedule-parse text users need), not raw bytes.
+            throw CronJobServiceError.serverRejected(
+                SessionsHermesClient.hostStatusFailureDetail(
+                    lead: "The Hermes host",
+                    status: status,
+                    contentType: httpResponse.value(forHTTPHeaderField: "Content-Type"),
+                    byteCount: data.count
+                )
+            )
         }
     }
 }

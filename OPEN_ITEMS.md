@@ -2151,6 +2151,40 @@ Logged 2026-07-20 (Session V launch sweep).
 > is used deliberately — none of its characters can appear incidentally in the
 > line's own field names, so a leak of even one character is unambiguous.
 >
+> **⟵ POINTER 2026-09-06 (#432, the close-out rule). That sentence was true of
+> the VOICE instruments and was read as a property of the APP. It was not.**
+> `SessionsHermesClient` logged 500 bytes of the raw response body at `.error`
+> / `privacy: .public` on BOTH decode-failure branches — the session LIST
+> (titles + previews) and one session's STORED MESSAGES (transcript text) —
+> un-gated, at the level `log collect` and sysdiagnose persist, on exactly the
+> branch a version skew or a proxy error page takes. Both sites PREDATE this
+> pin by two months: `93a5325a` (`listSessions`) and `f3738c66`
+> (`openSession`), both **2026-06-25**; the enclosing decode blocks come from
+> `6533f253`, 2026-06-21. #432 closed them — the formatter is handed a byte
+> COUNT, never the bytes — and added a tree-wide witness so no `String(data:`
+> under `Talaria/Services/` can reach a `privacy: .public` interpolation
+> again. **The lesson this pin now also carries: a privacy claim bounded to one
+> subsystem reads, to the next reader, as a claim about the app. State the
+> bound in the sentence, or someone will cite it for a plane it never covered.**
+>
+> **⟵ ADDENDUM 2026-09-06 (#432 fix round 1) — and it is the same lesson
+> arriving one level up, hours later.** The witness described above is real and
+> green, but its NAME said "no response body reaches a public log line" while a
+> response body was reaching one the whole time: `ensureSuccess` folded 200
+> bytes of any non-2xx body into a THROWN error message, and seven live sites
+> interpolate such an error's `localizedDescription` at `privacy: .public`
+> (six for `SessionsHermesClient`, one for `CronJobService.deliverPlatforms`).
+> A line-based source witness cannot follow bytes through a throw, a catch and
+> another function — for `ChatStore` / `ChatBackendRouter` the chain crosses
+> files — so the gap was structural and the name was the false assurance.
+> **Both roots are now closed at the SOURCE of the message** (the builders take
+> a byte count and a `Content-Type`, never `Data`), the test is renamed to what
+> it measures with its three blind spots written into its docstring, and two
+> behavioural canaries assert the THROWN text carries no sentinel. So this pin
+> stands, with a sharper form of its own lesson: **state the bound in the
+> TEST'S NAME too — a name is read far more often than a detector.** Tracker
+> #432.
+>
 > **RED first, against stubs returning the bare prefix:**
 > `✘ Test run with 20 tests in 1 suite failed after 0.012 seconds with 19 issues.`
 > — all 19 in the six new tests, the 14 incumbent pins green throughout.
@@ -13318,15 +13352,186 @@ untouched.
 > - **431-D (close-out).** Archived #123's contract statement ("visible reasons instead of vanishing at drain time") gets an append-only pointer; #180-E's label-arithmetic note likewise. Same commit.
 > - **431-GATE** — `lane-gate.sh` on the final bytes. Owen's morning eyeball: share one oversized file and one corrupt PDF (runbook card written by the controller).
 
-## 432. 🟠 DECODE FAILURES LOG 500 BYTES OF RESPONSE BODY `.public` — session titles/previews and transcript text can land in a device archive, ungated — **FILED 2026-09-04 (audit A7, P2; VERIFIED IN CODE; contradicts #138-M's two-day-old precedent "the transcript's TEXT is never logged"). Lane owed; bars pre-register when it opens.**
+## 432. 🟠 DECODE FAILURES LOG 500 BYTES OF RESPONSE BODY `.public` — session titles/previews and transcript text can land in a device archive, ungated — **FILED 2026-09-04 (audit A7, P2; VERIFIED IN CODE; contradicts #138-M's two-day-old precedent "the transcript's TEXT is never logged"). FIXED 2026-09-06 — bars 432-A/B/C MET, RESULT below; the pointer under #138-M rides the fix commit (close-out rule). 432-GATE owed to the controller. ⟵ FIX ROUND 1, same day (the whole-branch review): the decode branch was NOT the only door — `SessionsHermesClient.ensureSuccess` carried up to 200 bytes of any non-2xx body into a THROWN message that six live `privacy: .public` log lines interpolate, and `CronJobService` carried the identical shape into a seventh, so two claims in the RESULT below are struck as false. Both closed at the source of the message; see FIX ROUND 1 RESULT.**
 
-> **Source:** audit A7. **Verified:** `SessionsHermesClient.swift:577-578` — `let snippet = String(data: data.prefix(500), …)` then `Self.logger.error("listSessions: decode FAILED — …. Raw: \(snippet, privacy: .public)")`; the identical shape at `:668-669` for `openSession`, which also logs the session id `.public`. Not `#if DEBUG`, not verbose-gated — the very next lines (`:580`, `:672`) use `Self.logger.verbose(…)`, which IS gated (`TalariaLog.swift:66-70`). `.error` survives `log collect`/sysdiagnose. The bodies carry titles + previews (list) and transcript text (messages), and the branch fires on version skew or a proxy error page — exactly when a real transcript is in the buffer. The other `prefix(200)` sites (`:1487`, `SkillsService.swift:138`, `+RunsTransport.swift:1417,1657`) fold the snippet into a thrown error message, not a log; these two are the only body-bearing `.public` log lines under `Services/Live/`. **Tracker precedent:** #138-M (`OPEN_ITEMS.md:2127-2160`) pinned "the transcript's TEXT is never logged" with a CJK leak test ("a device archive is collected wholesale and shared") — these two sites are outside its bound and unfiled. **Fix shape:** log status, route, decoding key path and bounded structural metadata; no raw bodies at `.error`; a #138-M-shaped canary test (a recognisable sensitive string in a malformed response must not appear in the log). CLAUDE.md's `.public` rule stands for diagnostics — a body is the exception.
+> **Source:** audit A7. **Verified:** `SessionsHermesClient.swift:577-578` — `let snippet = String(data: data.prefix(500), …)` then `Self.logger.error("listSessions: decode FAILED — …. Raw: \(snippet, privacy: .public)")`; the identical shape at `:668-669` for `openSession`, which also logs the session id `.public`. Not `#if DEBUG`, not verbose-gated — the very next lines (`:580`, `:672`) use `Self.logger.verbose(…)`, which IS gated (`TalariaLog.swift:66-70`). `.error` survives `log collect`/sysdiagnose. The bodies carry titles + previews (list) and transcript text (messages), and the branch fires on version skew or a proxy error page — exactly when a real transcript is in the buffer. The other `prefix(200)` sites (`:1487`, `SkillsService.swift:138`, `+RunsTransport.swift:1417,1657`) fold the snippet into a thrown error message, ~~not a log; these two are the only body-bearing `.public` log lines under `Services/Live/`~~. **⟵ CORRECTED 2026-09-06 (fix round 1, MEASURED): "not a log" is FALSE for two of that list's family, and this clause is where the whole error started.** `SessionsHermesClient.ensureSuccess` (`:1651`) builds its snippet into `SessionsClientError.requestFailed`, a `LocalizedError` returning that message VERBATIM as `errorDescription` — and six live sites interpolate a thrown error's `localizedDescription` at `privacy: .public` on paths that reach it: `SessionsHermesClient.swift:539` and `:1298` (both `.notice`, which a collect persists exactly as `.error`), `ChatStore.swift:3924` and `:3927`, `ChatBackendRouter.swift:738`, and `+RunsTransport.swift:797` (the runs submit goes through `postJSON` → the same `ensureSuccess`). `CronJobService.swift:319`'s twin reaches a seventh: `deliverPlatforms()` (`:218`) catches it and logs it `.public`. Only `SkillsService` and `InsightsService` are genuinely un-logged, and that is a measured fact about their CALLERS (`SkillsStore` / `InsightsStore` / `HostFailurePresentation` carry no `.public` line), never a property of the shape. **Tracker precedent:** #138-M (`OPEN_ITEMS.md:2127-2160`) pinned "the transcript's TEXT is never logged" with a CJK leak test ("a device archive is collected wholesale and shared") — these two sites are outside its bound and unfiled. **Fix shape:** log status, route, decoding key path and bounded structural metadata; no raw bodies at `.error`; a #138-M-shaped canary test (a recognisable sensitive string in a malformed response must not appear in the log). CLAUDE.md's `.public` rule stands for diagnostics — a body is the exception.
 
 > **📋 BARS 432-A..C PRE-REGISTERED 2026-09-06 ~02:00, BEFORE ANY CODE (overnight session). Lane `432-body-logging`.**
 > - **432-A (no body bytes at `.error`).** Both sites (`SessionsHermesClient.swift:577-578` and `:683-684`) log route, HTTP status, the `DecodingError`'s case and `codingPath` (rendered as a dotted key path), and the body's BYTE COUNT — never body bytes. A pure formatter (`decodeFailureDescription(route:status:error:byteCount:)` or equivalent) produces the line; unit rows: a `DecodingError.keyNotFound` renders its key path; a `typeMismatch` renders its expected type. Mutation: reintroduce the `prefix(500)` snippet into the formatter → 432-B reds.
 > - **432-B (the canary, #138-M's shape).** A malformed response body carrying a sentinel (`"CANARY-SECRET-7f3a-哈哈"`) fed through BOTH sites via the existing `URLProtocol` stub fixture produces log text (captured through the formatter's returned string — the same string the logger receives) that does NOT contain the sentinel while DOES contain the byte count and the decoding key path. Plus a tree-wide source witness: no `Logger.*(` call under `Talaria/Services/` interpolates a `String(data:` / `.prefix(` of a response body with `privacy: .public` (positive control: a planted line in a scratch string reds the witness).
 > - **432-C (upstream correction).** #138-M's precedent line ("the transcript's TEXT is never logged", `OPEN_ITEMS.md` #138) gains a dated pointer: two sites outside its bound existed since [git blame date] and are closed by #432 — the correction lands in the same commit as the fix (close-out rule).
 > - **432-GATE** — `lane-gate.sh` on the final bytes.
+
+> **✅ RESULT 2026-09-06 — 432-A / 432-B / 432-C MET. Lane `432-body-logging`, RED first.
+> 432-GATE is OWED: the brief scoped this lane to targeted suites, so the gate on the
+> final bytes belongs to the controller.**
+>
+> **What changed.** One pure formatter —
+> `SessionsHermesClient.decodeFailureLogDetail(route:status:contentType:byteCount:error:)`
+> — and one emit point (`logDecodeFailure`) that both decode sites now call. The line
+> reads `#432 decode FAILED route=… status=… contentType=… bytes=… case=… key=…
+> [expected=…]`; the whole shape is pinned by equality, #138-M's discipline, because a
+> reader greps it. **The formatter is handed a byte COUNT, never the bytes, and that is
+> the invariant rather than a convention:** a function that cannot receive the body
+> cannot leak it under a later edit.
+>
+> **Two things deliberately NOT rendered, one of them measured this lane.** (1) The
+> error's own text: Cocoa's `dataCorrupted` for malformed JSON carries an underlying
+> error reading *"Unexpected character 'o' in expected null value around line 1, column
+> 2."* — a character quoted straight out of the body (probe, 2026-09-06). Folding
+> `localizedDescription` in — which the OLD line did — would have reopened this item
+> through the back door, so only the case, the coding path and the expected TYPE are
+> rendered. (2) The session id, which the `openSession` line also logged `.public`: the
+> route is TEMPLATED (`/api/sessions/{id}/messages`) and ~~the id survives only on the
+> verbose-gated line two lines below~~ **⟵ STRUCK 2026-09-06 (fix round 1): that
+> line is on the SUCCESS path and the catch throws before reaching it, so the id
+> survived NOWHERE. The fix round logs it at `Logger.verbose` INSIDE the catch —
+> gated, and at `.debug`, a level `log collect` does not persist.**
+>
+> **Bounded although nothing needs it today** — path components (8) and key names (32
+> chars) are capped because a future `[String: T]` model field would put a
+> SERVER-CHOSEN key in the coding path; `Content-Type` is capped at 64 and stripped of
+> whitespace so one server header cannot forge extra `key=value` fields in a
+> space-separated line (pinned by a hostile-header row).
+>
+> **RED, on the untouched tree:**
+> `✘ Test run with 5 tests in 1 suite failed after 0.199 seconds with 1 issue.` — the
+> tree witness, naming `SessionsHermesClient.swift:578` and `:684`. **GREEN:**
+> `✔ Test run with 15 tests in 1 suite passed after 0.237 seconds.` The count MOVED,
+> 5 → 15, which is the check `test-without-building` can otherwise fake.
+>
+> | mutation | issues | reddened | untouched |
+> |---|---|---|---|
+> | **M1** — widen the formatter to take `body: Data` and append `String(data: body.prefix(500), …)` | 12 | 3: the whole-line equality pin + BOTH canaries (the sentinel, each CJK character, `CANARY`, the padding, and the session id) | 12 |
+> | **M2** — plant the pre-#432 log line back at the list site, alongside the new call | 1 | 1: the tree witness only — `SessionsHermesClient.swift:709 — 'snippet' (bound from String(data:) at line 708) interpolated at privacy: .public` | 14 |
+>
+> **M2's shape is the point, not an accident:** the canaries stayed GREEN under it,
+> because they observe the string the formatter produced and a SECOND log statement is
+> invisible to them. The witness is what sees that. Each half of 432-B covers what the
+> other cannot.
+>
+> **⚠️ AND M1's FIRST RUN CAUGHT A DEFECT IN THE CANARY ITSELF — recorded because it is
+> the lesson.** With the 700-byte padding placed FIRST in the malformed body, the
+> sentinel sat past byte 500, so the reintroduced `prefix(500)` snippet leaked only
+> padding: the run reddened at `!line.contains("ppppp")` and **every sentinel assertion
+> passed while the body was in the log** (`✘ … 15 tests … failed … with 3 issues`). The
+> fixture now puts the padding LAST and the re-run reds all 12. **A leak assertion the
+> mutation cannot fire is not an assertion** — and it would have shipped looking like a
+> passing privacy pin.
+>
+> **Mutation deviation, stated because the bar named the mutation:** 432-A pre-registered
+> "reintroduce the `prefix(500)` snippet into the formatter", which the shipped signature
+> makes IMPOSSIBLE without first widening it — the formatter never receives the body.
+> M1 therefore performs the widening as part of the mutation. That the pre-registered
+> mutation could not be typed as written is the design working.
+>
+> **Out of this lane's bound, and named so nobody reads the witness as wider than it
+> is:** `ensureSuccess` (`:1651`), `SkillsService`, `CronJobService`, `InsightsService`
+> and the runs transport still fold a `prefix(200)` body snippet into a THROWN error
+> message. ~~Those never reach os_log here, which is why #432 scoped them out~~ — but a
+> caller that logs `error.localizedDescription` publicly would carry them to the same
+> place, and the witness cannot see that path. Filed as a follow-up, not fixed here.
+>
+> **⟵ STRUCK 2026-09-06 (fix round 1). "Those never reach os_log here" is FALSE, and
+> the sentence after it describes the live app rather than a hypothetical:** seven such
+> callers exist today — six for `ensureSuccess` and one for `CronJobService` — and they
+> are enumerated in this entry's Source paragraph above. The paragraph got the mechanism
+> exactly right and then asserted the one thing it had not checked. Both roots are fixed
+> in the fix round; `SkillsService` and `InsightsService` remain, measured un-logged.
+>
+> **Verification:** `✔ Test run with 125 tests in 6 suites passed after 10.165 seconds`
+> — `DecodeFailureLogLineTests` plus the five suites that drive this client
+> (`ContextMeterTests`, `LocalSessionHistoryTests`, `SessionModelImmunityTests`,
+> `BackendProfileRoutingTests`, `RunsPlaneTransportTests`). Simulator `CC-lane-3`
+> (`72C694A1-0BED-48C8-A10B-5B0B4B01A1AF`), Xcode-beta6.
+
+> **✅ FIX ROUND 1 RESULT 2026-09-06 — the whole-branch review's two Important findings
+> and three minors, RED first. The lane's own diagnosis was right about the mechanism
+> and wrong about the reach: bytes were reaching os_log the whole time, by THROW.**
+>
+> **Important 1 — the family is closed at its ROOT.** `ensureSuccess`
+> (`SessionsHermesClient.swift`) built `String(data: data, encoding: .utf8)?.prefix(200)`
+> into `SessionsClientError.requestFailed`, which — being a `LocalizedError` — returns
+> that message verbatim as `errorDescription`. **Six live sites interpolate a thrown
+> error's `localizedDescription` at `privacy: .public` on paths that reach it**, and they
+> are enumerated in this entry's Source paragraph above. All four `ensureSuccess` call
+> sites (the list, the messages read, `getJSON`, `postJSON`) now build the message from
+> **status + `Content-Type` + byte count and never receive `Data`** — one shared
+> `hostStatusFailureDetail(lead:status:contentType:byteCount:)` reusing the decode
+> formatter's own `boundedContentType`, so the two message builders cannot drift and the
+> hostile-header bound is written once. Fixing it here rather than at the six log lines
+> is the whole point: six edited log lines are safe until the seventh is written; a
+> message that never receives the body is safe by construction.
+>
+> **⚠️ And the review's finding had a sibling nobody had traced — MEASURED, not
+> inferred.** `CronJobService.ensureSuccess` carries the identical `prefix(200)` fallback,
+> and `deliverPlatforms()` (`:218`) catches that error from `GET /health/detailed` and
+> logs its `localizedDescription` at `privacy: .public`, `.notice`. So the first round's
+> "those never reach os_log" was false in a second file too. Fixed the same way, through
+> the same formatter. **Deliberately NOT changed:** the arm above it, which surfaces a
+> decoded `error` FIELD untranslated — that is a structured host message (cron validation
+> and schedule-parse text users need), not raw bytes. `SkillsService` and
+> `InsightsService` keep their snippet and are LEFT: their errors reach `SkillsStore` /
+> `InsightsStore` / `HostFailurePresentation` and no `.public` log line — grepped this
+> round, and recorded as a dated fact about their callers rather than a property of the
+> shape, because that inference is exactly what failed the first time.
+>
+> **Important 2 — the dropped session id had no fallback.** The first round said it
+> "survives on the verbose-gated line two lines below"; that line is on the SUCCESS path
+> and the catch throws before reaching it, so the id survived nowhere. It is now logged
+> inside the catch at `Logger.verbose` — behind the Developer screen's toggle AND at
+> `.debug`, a level `log collect` does not persist — never `.public` at `.error`.
+> **Covered by inspection only:** `Logger.verbose` has no observer seam and this line is
+> not worth minting one for; no bar claims it.
+>
+> **The witness: RENAMED, not widened — and the reasoning is the finding.** Widening it
+> to see this family is not possible for a line-based scanner: the binding is in
+> `ensureSuccess`, the throw is there, the catch is in another function, one of the six
+> log lines sits ~1,100 lines EARLIER in the same file, and for `ChatStore` /
+> `ChatBackendRouter` the chain crosses files entirely. A regex that claimed to follow it
+> would be a second false assurance. So `noResponseBodyReachesAPublicLogLine` is now
+> **`noBodyBytesBindingReachesAPublicLogLineInTheSameFile`**, its three blind spots
+> (throw-flow, line-based matching, no scope awareness) are written into the detector's
+> docstring, and the shape it cannot see is measured BEHAVIOURALLY instead — two canaries
+> asserting the THROWN error's `localizedDescription`, the exact string those log lines
+> carry, holds no character of the CJK sentinel. **A test's name is read far more often
+> than its detector, so the name is the claim.**
+>
+> **Minors taken:** `String(decoding:as:)` added to the byte-binding detector with a
+> planted control (7 live sites, none public — verified); the false-negative shapes
+> documented; `// harness-visible` moved out of the doc comment to a plain `//`, matching
+> the file's other two sites.
+>
+> **RED, on the untouched production tree (test-only file present):**
+> `✘ Test run with 18 tests in 1 suite failed after 0.344 seconds with 17 issues.` — 3 in
+> the detector control (the witness could not see `String(decoding:`), 7 in the sessions
+> canary and 7 in the cron canary (each: the sentinel, both CJK characters individually,
+> `CANARY`, the padding, plus the two absent structural fields). **GREEN:**
+> `✔ Test run with 385 tests in 19 suites passed after 28.878 seconds.` The suite's own
+> count MOVED, 15 → 21.
+>
+> | mutation | issues | reddened | untouched |
+> |---|---|---|---|
+> | **A** — append the `prefix(200)` snippet back onto BOTH message builders (`ensureSuccess` and `CronJobService`) | 10 | 2: each canary's own `assertNoLeak` (`:711` sessions, `:762` cron), 5 leak assertions apiece | 19 |
+> | **B** — drop `String(decoding:` from the detector | 3 | 1: the new control only | 20 |
+>
+> **Mutation A applied both message sites in ONE run, stated because it is a deviation
+> from one-mutation-one-run.** Attribution is still exact and the log shows it: the two
+> canaries construct different service types, and each test's five issues are recorded at
+> its OWN `assertNoLeak` line. What the combination does not prove is the absence of
+> cross-talk between the two (a separate run each would have shown the other staying
+> green); that is excluded by construction rather than by measurement.
+>
+> **Verification:** the GREEN run above — `DecodeFailureLogLineTests` plus every suite
+> that constructs the real client or touches the cron path (`AgentFileChipPersistence`,
+> `BackendProfileRouting`, `CancelFinalStatusRead`, `ContextMeter`, `ReasoningChannel`,
+> `RunsApproval`(+`Flow`), `RunsPlaneTransport`(+`RunsHistoryMapping`,
+> `RunsWireHistoryWitness`), `SessionModelImmunity`, `LocalSessionHistory`,
+> `CronJobsStore`, `HostFailureConvention`, `ProfileSwitchAtomicity`, `AppStores`).
+> `scripts/oi-invariants.py` PASS · `scripts/oi-split-verify.py` PASS ·
+> `lane-gate-classify-test.sh` PASS (86 checks). Simulator `CC-lane-3`
+> (`72C694A1-0BED-48C8-A10B-5B0B4B01A1AF`), Xcode-beta6. **432-GATE still OWED to the
+> controller**, on the fix round's bytes rather than the first round's.
 
 ## 433. 📄 THE PRIVACY POLICY'S TWO CLAIMS THAT BEHAVIOUR FALSIFIES — "deleting the app removes everything local" (the Keychain deliberately rehydrates profile/pairing identity after deletion, by design) and the "third parties, exhaustively" list (which omits arbitrary Markdown image origins until #429 lands) — **FILED 2026-09-04 (audit A8, P2). `docs/` is the LIVE Pages root — merging publishes; the wording is Owen's read.**
 
