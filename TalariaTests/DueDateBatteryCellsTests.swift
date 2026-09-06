@@ -41,6 +41,21 @@ struct DueDateBatteryCellsTests {
         return calendar.date(bySettingHour: hour, minute: minute, second: 0, of: shifted)!
     }
 
+    /// #340 bar 340-F4's column reads RELATIONS, never absolute dates — the
+    /// same rule (and the same two helpers) `DeviceActionParsingDetectDueTests`
+    /// runs on, because a hardcoded expectation rots at a fixed hour every day.
+    private func hourMinute(_ date: Date) -> (hour: Int, minute: Int) {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return (c.hour!, c.minute!)
+    }
+
+    private func dayOffset(from now: Date, to date: Date) -> Int {
+        let calendar = Calendar.current
+        return calendar.dateComponents([.day],
+                                       from: calendar.startOfDay(for: now),
+                                       to: calendar.startOfDay(for: date)).day!
+    }
+
     /// A relay with the DEBUG fallback switch set as asked.
     private func relay(disablingFallback: Bool) -> ToolEventRelay {
         let relay = ToolEventRelay()
@@ -94,6 +109,179 @@ struct DueDateBatteryCellsTests {
     /// `armed` in two ways and measure neither.
     @Test func theNofallbackCellDoesNotRoute() {
         #expect(!LocalChatBackend.ActionBatteryCell.armedNofallback.isRouted)
+    }
+
+    // MARK: - Bar 340-F4: the phrase-diversity cell
+
+    /// The label is export vocabulary and #416-G requires it to be UNIQUE
+    /// across every instrument's cells — the scorer groups on `shape=`, so two
+    /// cells sharing a name would pool two measurements into one number.
+    @Test func thePhrasesCellCarriesAUniqueLabel() {
+        #expect(LocalChatBackend.ActionBatteryCell.armedPhrases.rawValue == "armed-phrases")
+        let labels = LocalChatBackend.ActionBatteryCell.allCases.map(\.rawValue)
+        #expect(Set(labels).count == labels.count, "two cells share a raw value")
+        #expect(labels.filter { $0.contains("phrases") } == ["armed-phrases"],
+                "another cell has taken the `phrases` name")
+    }
+
+    /// **The cell's prompt list is EXACTLY the plan's eight phrasings**, in the
+    /// plan's own order (`2026-09-04-340-due-date-from-user-words.md:69`).
+    /// Pinned by value because the eight are the measurement: a ninth added
+    /// quietly, or one silently reworded, changes what the device card reports
+    /// without changing its name.
+    @Test func thePhrasesCellRunsExactlyTheEightPhrasings() {
+        let set = LocalChatBackend.duePhrasePromptSet
+
+        #expect(set.count == 8)
+        #expect(set.map(\.tag) == ["tmrw4pm", "at430", "in20min", "nexttue9am",
+                                   "tonight", "eve7", "friday", "at4"])
+        #expect(set.map(\.text) == [
+            "Remind me to test Talaria tomorrow at 4pm",
+            "Remind me to test Talaria at 4:30",
+            "Remind me to test Talaria in 20 minutes",
+            "Remind me to test Talaria next Tuesday 9am",
+            "Remind me to test Talaria tonight",
+            "Remind me to test Talaria this evening at 7",
+            "Remind me to test Talaria on Friday",
+            "Remind me to test Talaria at 4",
+        ])
+        #expect(Set(set.map(\.tag)).count == 8, "the `p=` tags must be unique — the scorer groups on them")
+    }
+
+    /// **Eight phrasings × 5 = 40 — the ruling's own arithmetic**, and the row
+    /// that stops `--trials 40` meaning 320 trials on a phone whose thermal
+    /// state is a VOID condition.
+    @Test func theRunsTrialsAreDividedAcrossTheEightPhrasings() {
+        #expect(LocalChatBackend.trialsPerPrompt(promptCount: 8, trials: 40) == 5,
+                "the card's `--trials 40` must be eight phrasings x 5")
+        // A one-prompt list has nothing to divide — every other cell is
+        // byte-identical to what it ran before this bar.
+        #expect(LocalChatBackend.trialsPerPrompt(promptCount: 1, trials: 40) == 40)
+        // Floors at one rather than running zero trials silently.
+        #expect(LocalChatBackend.trialsPerPrompt(promptCount: 8, trials: 3) == 1)
+    }
+
+    /// **Only this cell brings its own prompts.** The lookup is what keeps
+    /// every existing denominator where it was — `armed`, `armed-dateguide`
+    /// and `armed-nofallback` still run the run's prompt set at the run's
+    /// trial count.
+    @Test func onlyThePhrasesCellSubstitutesItsOwnPrompts() {
+        for cell in LocalChatBackend.ActionBatteryCell.allCases where cell != .armedPhrases {
+            #expect(LocalChatBackend.cellPromptSet(for: cell) == nil,
+                    "\(cell.rawValue) substituted a prompt list — every existing denominator would move")
+        }
+        let own = LocalChatBackend.cellPromptSet(for: .armedPhrases)
+        #expect(own?.count == 8)
+    }
+
+    /// **Armed exactly like `.armed`.** The cell is a phrase-diversity arm, not
+    /// a treatment: identical belt (no tool swap), no routing, and — critically
+    /// — it is NOT the nofallback arm, so the fallback is ON.
+    /// **Armed exactly like `.armed`.** The cell is a phrase-diversity arm, not
+    /// a treatment: no tool swap, no routing, and — critically — it is not the
+    /// nofallback arm, so the fallback is ON.
+    ///
+    /// The belt half is a SOURCE witness rather than a call, because
+    /// `destallBelt` over an empty array returns an empty array for every cell
+    /// in the enum: the comparison would pass for a cell that swapped the
+    /// reminder tool, which is the one thing it is supposed to catch.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo's own sources — simulator only"))
+    func thePhrasesCellIsArmedLikeProduction() throws {
+        let body = try RepoSourceWitness.functionBody(
+            from: "func destallBelt(from tools: [any Tool], cell: ActionBatteryCell)",
+            in: RepoSourceWitness.batteryPath,
+            boundary: "\n    nonisolated static func ")
+        let identityArm = try #require(body.components(separatedBy: "return tools").first)
+        #expect(identityArm.contains(".armedPhrases"),
+                "armed-phrases must ride the IDENTITY belt arm — a tool swap would make it a treatment")
+
+        #expect(!LocalChatBackend.ActionBatteryCell.armedPhrases.isRouted)
+        #expect(LocalChatBackend.ActionBatteryCell.armedPhrases != .armedNofallback,
+                "the fallback must be ON for this cell")
+    }
+
+    /// **The three honest `nil`s, pinned as the expected-resolution column.**
+    ///
+    /// The device bar is written against THIS, not against 40/40: `in 20
+    /// minutes` is a duration and 340-U-A's allowlist refuses it by design;
+    /// `tonight` and `on Friday` name no clock time and `NSDataDetector`
+    /// declines them. Five of the eight resolve. Pinning it here means the
+    /// column in the RESULT was measured rather than predicted, and a parser
+    /// change that quietly started inventing a time for "tonight" reds this
+    /// row rather than reading as a better device number.
+    /// **THE EXPECTED-RESOLUTION COLUMN — MEASURED 2026-09-06, not predicted,
+    /// and it falsified the prediction the bar itself carried.**
+    ///
+    /// 340-F4's bar text guessed that *"'in 20 minutes' and 'on Friday'-style
+    /// day-only phrasings are honest nils"*. Measured against
+    /// `now = todayAt(9, 15)`:
+    ///
+    /// | tag | measured | resolves? |
+    /// |---|---|---|
+    /// | `tmrw4pm` | tomorrow 16:00 | yes |
+    /// | `at430` | **tomorrow 04:30** | yes — see below |
+    /// | `in20min` | nil | **no** |
+    /// | `nexttue9am` | next Tuesday 09:00 | yes |
+    /// | `tonight` | today 19:00 | yes |
+    /// | `eve7` | today 19:00 | yes |
+    /// | `friday` | the coming Friday 12:00 | yes |
+    /// | `at4` | today 16:00 | yes — 340-F1 |
+    ///
+    /// **SEVEN of the eight resolve; only the duration does not.** `tonight`
+    /// and `on Friday` both resolve, because `NSDataDetector` gives them a
+    /// default hour (19:00 and 12:00) — so a device bar written as "five of
+    /// eight" would have been wrong in the generous direction.
+    ///
+    /// **And the measurement found something 340-F1 does NOT fix.** `at 4:30`
+    /// is matched by the DETECTOR, so it never reaches the second pass and the
+    /// 12-hour rule never sees it: at 09:15 it resolves to **04:30 TOMORROW**,
+    /// not 16:30 today. That is the same reading 340-F1 was ruled against, on
+    /// the one path the ruling scoped out ("in the second pass ONLY"). It is
+    /// pinned here by value, deliberately, so the device card's `at430` column
+    /// is read as an AM answer rather than a win — and so a later lane that
+    /// extends the 12-hour rule to the detector's clock-only roll-forward reds
+    /// this row and has to say so.
+    ///
+    /// Rows whose hand comes from the detector's own defaults (`tonight`,
+    /// `eve7`, `friday`) are asserted only as "resolves, strictly future": the
+    /// detector reads the process's REAL clock, and pinning their hour or day
+    /// would rot with the time of day the suite runs at.
+    @Test func theExpectedResolutionColumnIsPinnedPerPhrasing() throws {
+        let now = todayAt(9, 15)
+        let due = { (tag: String) -> Date? in
+            let text = LocalChatBackend.duePhrasePromptSet.first { $0.tag == tag }?.text
+            return text.flatMap { DeviceActionParsing.detectDue(in: $0, now: now) }
+        }
+
+        // The one honest nil: a duration is neither detector-resolvable nor a
+        // clock, and 340-U-A's continuation allowlist refuses the bare "20".
+        #expect(due("in20min") == nil, "a duration must never manufacture a time")
+
+        // Deterministic rows — their answers are fixed by `now` alone.
+        let tomorrow4pm = try #require(due("tmrw4pm"))
+        #expect(hourMinute(tomorrow4pm) == (16, 0))
+        #expect(dayOffset(from: now, to: tomorrow4pm) == 1)
+
+        let ambiguousHalfPast = try #require(due("at430"))
+        #expect(hourMinute(ambiguousHalfPast) == (4, 30),
+                "`at 4:30` is the DETECTOR's, and it reads AM — 340-F1 does not reach it")
+        #expect(dayOffset(from: now, to: ambiguousHalfPast) == 1)
+
+        let nextTuesday = try #require(due("nexttue9am"))
+        #expect(hourMinute(nextTuesday) == (9, 0))
+        #expect(Calendar.current.component(.weekday, from: nextTuesday) == 3, "Tuesday")
+
+        let bareFour = try #require(due("at4"))
+        #expect(hourMinute(bareFour) == (16, 0),
+                "340-F1: a bare 4 said at 09:15 is this afternoon, not 04:00 tomorrow")
+        #expect(dayOffset(from: now, to: bareFour) == 0)
+
+        // Detector-defaulted rows: resolves, strictly future, hand not pinned.
+        for tag in ["tonight", "eve7", "friday"] {
+            let resolved = try #require(due(tag), "\(tag) must resolve")
+            #expect(resolved > now, "\(tag) resolved to a non-future instant")
+        }
     }
 
     // MARK: - The flag, and what it does to the engine

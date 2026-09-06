@@ -191,6 +191,34 @@ struct BatteryRunRecord: Codable, Equatable, Identifiable {
     /// trial AND its own incompleteness. Nil on legacy records (which all
     /// completed — pre-hardening the only persist was endRun's).
     var endedCleanly: Bool? = nil
+    /// #340 bar 340-F5 — **whether the belt was handed each trial's own prompt
+    /// text**, for every cell in this run.
+    ///
+    /// **This is #398-A's third axis applied to a reminder-due rate.** That
+    /// rule says a rate carries its configuration — #215 asks whether the row
+    /// was ROUTED, #343 whether the run predates the governor, #398-A which OS
+    /// build it ran on. #340 Task 3 added a fourth, and it is the sharpest of
+    /// them: the user-words fallback reads
+    /// `ToolEventRelay.currentTurnUserText`, the bare per-trial `beginTurn()`
+    /// every instrument makes CLEARS it, so a due-date run WITHOUT
+    /// `carriesUserText` measures the fallback **switched off** and reports
+    /// `source=userText 0/N` as if the product did not work. Task 2's review
+    /// caught exactly that before the device run. A number whose artifact does
+    /// not say which of those two configurations produced it is ambiguous, and
+    /// the ambiguity is invisible.
+    ///
+    /// **Run-level, applying to every cell — the same sense `trialsPerCell` is
+    /// per-cell.** `runActionBattery` takes one `carriesUserText` for the whole
+    /// run and every cell in it runs with that value; a map keyed by cell would
+    /// imply a variance the instrument cannot express.
+    ///
+    /// **Absent decodes to `nil`, never `false`** — `nil` means NOT RECORDED
+    /// (every run written before this field, and every instrument that has no
+    /// belt-text dimension), `false` means the belt was measured with the text
+    /// withheld. `metrics`/`notes` carry the same rule for the same reason
+    /// (#213): a default of `false` would silently claim of a 2026-08 archive
+    /// that its fallback was off, which is true but was never measured.
+    var carriesUserText: Bool? = nil
 }
 
 // MARK: - Tally math (pure, testable)
@@ -462,7 +490,11 @@ final class BatteryRunRecorder {
         self.store = store
     }
 
-    func beginRun(trialsPerCell: Int, cells: [String], kind: String? = nil) {
+    /// #340 bar 340-F5: `carriesUserText` defaults to `nil` so every instrument
+    /// that has no belt-text dimension records NOT MEASURED rather than a
+    /// `false` it never established. Only `runActionBattery` passes a value.
+    func beginRun(trialsPerCell: Int, cells: [String], kind: String? = nil,
+                  carriesUserText: Bool? = nil) {
         run = BatteryRunRecord(
             id: UUID(),
             startedAt: Date(),
@@ -473,7 +505,8 @@ final class BatteryRunRecorder {
             cells: cells,
             trials: [],
             probes: [],
-            kind: kind
+            kind: kind,
+            carriesUserText: carriesUserText
         )
     }
 

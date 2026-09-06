@@ -624,6 +624,36 @@ extension LocalChatBackend {
         /// promotion was only ever re-verified against a cross-run
         /// historical baseline; this makes it a within-run control.
         case armedCarveoutrollback = "armed-carveoutrollback"
+        /// #340 bar 340-F4 — **production, on EIGHT date phrasings instead of
+        /// one.** Owen's ruling of 2026-09-04, arm 4.
+        ///
+        /// **Why a cell and not a wider default prompt set.** Every existing
+        /// due-date number — 340-U-C's 30/40, 340-U-D's 17/40, the whole
+        /// 08-27 baseline — was measured on the single prompt *"Remind me to
+        /// test Talaria at 4:30pm"*, whose meridiem is EXPLICIT. So the two
+        /// things this lane's parser work actually changed, the bare-clock
+        /// second pass and the ambiguous-clock reading (340-F1), are the two
+        /// things that instrument cannot see: the whole-plan review said so in
+        /// as many words. Widening the shared prompt set would have moved
+        /// every one of those denominators at once; a cell measures the new
+        /// question and leaves the comparison series intact.
+        ///
+        /// **Armed exactly like `.armed`** — production belt, production
+        /// instructions, fallback ON, `carriesUserText` true. The ONLY delta
+        /// is which sentences the model is asked, which is what makes it a
+        /// phrase-diversity cell rather than a treatment.
+        ///
+        /// **It carries its own prompt list** (`duePhrasePromptSet`, eight
+        /// entries) and the run's `trials` is DIVIDED across them, so
+        /// `--trials 40` still means forty trials for this cell — eight
+        /// phrasings × 5. See `cellPromptSet` and `trialsPerPrompt`.
+        ///
+        /// **Not in `dueDateBatteryCells`, deliberately.** That list is the
+        /// A/B pair the 340-U card runs and this cell answers a different
+        /// question at eight times the prompt breadth; it is selected by name
+        /// (`--cells armed-phrases`), which `ActionBatteryCellSelection`
+        /// resolves from this raw value.
+        case armedPhrases = "armed-phrases"
 
         /// #216: whether this cell puts the ROUTER in front of every trial.
         ///
@@ -650,7 +680,7 @@ extension LocalChatBackend {
              .armedDatefix, .armedCardrollback, .armedDeadendfix, .armedGrabfix,
              .armedStallfix, .armedSchemafix, .armedCalfix, .armedDeadend2,
              .armedCarveoutrollback, .armedScopedv2, .armedNofallback,
-             .routedProduction, .routedScoped:
+             .armedPhrases, .routedProduction, .routedScoped:
             // instrfix/findfix/spiralfix treat INSTRUCTIONS, toolmode and
             // strikefix treat the tool-calling MODE, the #200F scoping
             // cells narrow per PROMPT (`scopedBelt`, inside the trial
@@ -934,7 +964,11 @@ extension LocalChatBackend {
             }
             Self.batteryEmit("battery: WARMUP done — discarded, not counted (#200V)")
         }
-        Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: cells.map(\.rawValue), kind: "action")
+        // #340 bar 340-F5: the run record carries the belt-text configuration,
+        // so a reminder-due rate read back out of the artifact says which of
+        // the two configurations produced it (#398-A's third axis).
+        Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: cells.map(\.rawValue),
+                                      kind: "action", carriesUserText: carriesUserText)
         for cell in cells {
             emitThermal(cell: cell.rawValue, at: "start")
             let cellBelt = Self.destallBelt(from: base, cell: cell)
@@ -1068,11 +1102,24 @@ extension LocalChatBackend {
             default:
                 cellInstructions = instructions
             }
-            for (tag, prompt) in prompts {
+            // #340 bar 340-F4: a cell may bring its OWN prompt list, and the
+            // run's `trials` is then divided across it so the cell's total is
+            // still `trials`. Nil for every other cell, which is why this
+            // changes no existing denominator.
+            let cellPrompts = Self.cellPromptSet(for: cell) ?? prompts
+            let cellTrials = Self.trialsPerPrompt(promptCount: cellPrompts.count, trials: trials)
+            if Self.cellPromptSet(for: cell) != nil {
+                // Named in the artifact rather than inferred — the run-level
+                // START line reports the RUN's prompt count, which is not this
+                // cell's, and a reader comparing denominators needs to see why.
+                Self.batteryEmit(
+                    "battery: CELLPROMPTS cell=\(cell.rawValue) prompts=\(cellPrompts.count) trialsPerPrompt=\(cellTrials) (#340-F4)")
+            }
+            for (tag, prompt) in cellPrompts {
                 // #200F: the scoping cells narrow the belt per PROMPT
                 // (per-intent scope); identity for every other cell.
                 let belt = Self.scopedBelt(from: cellBelt, cell: cell, promptTag: tag)
-                for trial in 1...trials {
+                for trial in 1...cellTrials {
                     ToolEventRelay.batteryTrialTag = "shape=\(cell.rawValue) p=\(tag) t=\(trial)"
                     // Live-only BEGIN line (never rendered from records): if
                     // the run dies inside this trial, the capture log's last
@@ -1623,6 +1670,61 @@ extension LocalChatBackend {
     nonisolated static let dueDatePromptSet: [(tag: String, text: String)] = [
         actionBatteryDefaultPrompts[0],
     ]
+
+    /// #340 bar 340-F4 — **the eight phrasings, verbatim from the plan**
+    /// (`planning/superpowers/plans/2026-09-04-340-due-date-from-user-words.md:69`,
+    /// Task 0 step 2's probe set). The `armed-phrases` cell runs these instead
+    /// of the single explicit-meridiem prompt every other due-date number was
+    /// measured on.
+    ///
+    /// **Three of the eight are expected to resolve to NOTHING, and that is
+    /// the point rather than a defect.** `in 20 minutes` is a duration and
+    /// 340-U-A's allowlist refuses it by design; `tonight` and `on Friday`
+    /// name no clock time. A bar written as 40/40 would therefore be a bar
+    /// against this lane's own ruled behaviour — the expected-resolution
+    /// column goes in the RESULT, per phrasing, and the device bar is written
+    /// against that column.
+    ///
+    /// **Every prompt is the same ASK with a different time phrase**, so the
+    /// cell varies one thing. Tags are short and unique because they become
+    /// the `p=` field of every emit line and the scorer groups on them.
+    nonisolated static let duePhrasePromptSet: [(tag: String, text: String)] = [
+        ("tmrw4pm", "Remind me to test Talaria tomorrow at 4pm"),
+        ("at430", "Remind me to test Talaria at 4:30"),
+        ("in20min", "Remind me to test Talaria in 20 minutes"),
+        ("nexttue9am", "Remind me to test Talaria next Tuesday 9am"),
+        ("tonight", "Remind me to test Talaria tonight"),
+        ("eve7", "Remind me to test Talaria this evening at 7"),
+        ("friday", "Remind me to test Talaria on Friday"),
+        ("at4", "Remind me to test Talaria at 4"),
+    ]
+
+    /// The prompt list a CELL substitutes for the run's, or nil.
+    ///
+    /// #340 bar 340-F4's mechanism, and it is deliberately a lookup rather
+    /// than a field on the enum: the prompt set is instrument data, and the
+    /// enum is shared by nine instruments that have nothing to do with due
+    /// dates.
+    nonisolated static func cellPromptSet(for cell: ActionBatteryCell) -> [(tag: String, text: String)]? {
+        cell == .armedPhrases ? duePhrasePromptSet : nil
+    }
+
+    /// How many trials each prompt of a cell-supplied list gets, so the CELL's
+    /// total stays the run's `trials`.
+    ///
+    /// **Without this, `--trials 40` would mean 40 × 8 = 320 trials for one
+    /// cell** — a ~2-hour run where the operator asked for the same twenty
+    /// minutes every other due-date cell takes, on a phone whose thermal state
+    /// is a VOID condition. 40 ÷ 8 = 5 is the ruling's own "eight phrasings ×
+    /// 5".
+    ///
+    /// Floors at 1 so a small `--trials` still runs every phrasing once rather
+    /// than silently running none, and passes `trials` straight through for a
+    /// one-prompt list (nothing to divide).
+    nonisolated static func trialsPerPrompt(promptCount: Int, trials: Int) -> Int {
+        guard promptCount > 1 else { return trials }
+        return max(1, trials / promptCount)
+    }
 
     /// #340: production against #200K's UNPROMOTED day-default clause.
     ///
