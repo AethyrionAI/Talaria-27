@@ -513,7 +513,7 @@ struct NamingSweepTests {
     /// behind tells a reader the text they are looking at is older than it is.
     @Test func thePolicysEffectiveDateMatchesThisChange() throws {
         let policy = try Self.read("docs/privacy.html")
-        #expect(policy.contains("Effective: 2026-09-03"), """
+        #expect(policy.contains("Effective: 2026-09-06"), """
             the policy text changed in this lane but its Effective date did not — the file's \
             own Changes clause promises the date revises with the change
             """)
