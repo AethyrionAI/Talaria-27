@@ -229,11 +229,108 @@ struct ShareCapPolicyTests {
             ShareRefusal.audioOrVideo(fileName: name),
             ShareRefusal.unreadable(fileName: name),
             ShareRefusal.couldNotStage(fileName: name),
+            ShareRefusal.notAPDF(fileName: name),
             ShareRefusal.overTypeCap(fileName: name, byteCount: 1_200_000, capLabel: "350 KB"),
             ShareRefusal.overShareBudget(fileName: name, byteCount: 21_000_000),
         ]
         for message in messages {
             #expect(message.contains(name), "a refusal that does not name its file: \(message)")
+        }
+    }
+
+    /// **The mislabelled-PDF sentence says what happened** (#431 fix round 1,
+    /// the review's minor 4). `couldNotStage` claims Talaria "couldn't read the
+    /// file", which is false for a `.pdf` whose bytes read perfectly and simply
+    /// are not a PDF — the difference between "try again" and "that file is
+    /// mislabelled".
+    @Test func theMislabelledPDFRefusalDoesNotClaimTheFileWasUnreadable() {
+        let message = ShareInboxDrainer.stagingRefusalMessage(
+            fileName: "report.pdf", data: Data("this is not a pdf at all".utf8))
+        #expect(message == ShareRefusal.notAPDF(fileName: "report.pdf"), "\(message)")
+        #expect(!message.contains("couldn’t read"), "\(message)")
+
+        // The genuinely-unreadable arm keeps the other sentence: an image whose
+        // bytes UIImage cannot decode really was unreadable.
+        let undecodable = ShareInboxDrainer.stagingRefusalMessage(
+            fileName: "photo.jpg", data: Data(repeating: 0xAB, count: 64))
+        #expect(undecodable == ShareRefusal.couldNotStage(fileName: "photo.jpg"), "\(undecodable)")
+    }
+
+    // MARK: - The PDF sniff, measured on what it ACCEPTS
+
+    /// **The review's Important 1.** `looksLikePDF` shipped with only a
+    /// negative control — one corrupt-PDF row — so nothing measured that it
+    /// does not OVER-refuse. A gate wrong in that direction kills every PDF
+    /// attachment in the app, on both the share and the picker paths, and the
+    /// suite would have stayed green: no test anywhere staged a genuine PDF
+    /// through `PendingAttachment.file(at:)`.
+    ///
+    /// (`AttachmentInliningTests.rawPDF` looks like one and is not — it builds
+    /// the attachment through the memberwise initializer with 128 `%` bytes and
+    /// never touches `file(at:)`, so this gate cannot see it. It needs no fix.)
+    @Test func aGenuinePDFStagesThroughTheStagingPath() throws {
+        let pdf = Self.minimalPDF()
+        #expect(pdf.starts(with: Data("%PDF-".utf8)), "precondition: the fixture is a real PDF")
+        #expect(PendingAttachment.looksLikePDF(pdf))
+
+        let attachment = try stage(pdf, as: "report.pdf")
+        let staged = try #require(attachment, "the format gate refused a genuine PDF")
+        #expect(staged.kind == .file)
+        #expect(staged.mimeType == StageableTypeCatalog.pdfMimeType)
+        #expect(staged.data == pdf, "the staged bytes must be the file's own")
+    }
+
+    /// The spec allows leading junk before the header — real readers scan for
+    /// `%PDF-` inside the first kilobyte rather than demanding it at byte 0,
+    /// and so does the gate. A producer that emits a BOM, a shebang, or an
+    /// HTTP preamble must not have its file refused.
+    @Test func aPDFBehindLeadingJunkStillStages() throws {
+        let junk = Data(repeating: 0x20, count: 500)
+        let pdf = junk + Self.minimalPDF()
+        #expect(PendingAttachment.looksLikePDF(pdf))
+
+        let attachment = try stage(pdf, as: "report.pdf")
+        let staged = try #require(attachment, "a PDF behind 500 bytes of leading junk was refused")
+        #expect(staged.data.count == pdf.count)
+    }
+
+    /// …and the search is BOUNDED, which is the other half of the same rule:
+    /// a marker starting at byte 1024 is outside the window the spec allows,
+    /// so the gate refuses rather than scanning an arbitrary file for a string.
+    @Test func aPDFMarkerPastTheFirstKilobyteIsRefused() throws {
+        let pdf = Data(repeating: 0x20, count: 1024) + Self.minimalPDF()
+        #expect(!PendingAttachment.looksLikePDF(pdf))
+        let refused = try stage(pdf, as: "report.pdf")
+        #expect(refused == nil, "a marker outside the first kilobyte was accepted")
+    }
+
+    /// The negative control the lane already had, now standing beside the
+    /// positives it needs to mean anything.
+    @Test func aFileNamedPDFWhoseBytesAreNotAPDFIsRefused() throws {
+        let refused = try stage(Data("this is not a pdf at all".utf8), as: "report.pdf")
+        #expect(refused == nil, "a .pdf whose bytes are not a PDF was staged")
+    }
+
+    /// Write `data` under `fileName` and hand it to the real staging path.
+    private func stage(_ data: Data, as fileName: String) throws -> PendingAttachment? {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ShareCapPolicyTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent(fileName)
+        try data.write(to: url)
+        return PendingAttachment.file(at: url)
+    }
+
+    /// A real one-page PDF, rendered by PDFKit's own writer rather than
+    /// hand-assembled — a hand-written header would prove only that the gate
+    /// matches the string this test wrote.
+    private static func minimalPDF() -> Data {
+        let bounds = CGRect(x: 0, y: 0, width: 200, height: 200)
+        return UIGraphicsPDFRenderer(bounds: bounds).pdfData { context in
+            context.beginPage()
+            UIColor.black.setFill()
+            context.cgContext.fill(CGRect(x: 10, y: 10, width: 80, height: 20))
         }
     }
 
@@ -263,6 +360,14 @@ struct ShareCapPolicyTests {
                 "the chat screen never reads the drain's failures")
         #expect(screen.contains("shareStagingFailureBanner("),
                 "the chat screen has no banner to render them in")
+        // #431 fix round 1: the banner's PLACEMENT is what the review found
+        // wrong, and a witness that only sees the two lines above cannot see
+        // it. This one pins that the screen renders whatever the pure
+        // `BannerStack.resolve` returns — the function the stacking rows in
+        // `ShareInboxDrainTests` assert against. Without it, resolve could be
+        // fixed, tested, and never consulted by the view.
+        #expect(screen.contains("BannerStack.resolve("),
+                "the chat screen does not consult the resolved banner stack")
     }
 
     // MARK: Image fixture

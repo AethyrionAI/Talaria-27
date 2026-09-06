@@ -139,10 +139,20 @@ enum ShareRefusal {
             + "one share can carry up to \(SharedInboxStore.sizeLimitLabel)"
     }
 
-    /// The drain-time fallback: the app refused the file for a reason the size
-    /// table cannot name (undecodable image bytes, a `.pdf` that is not a
-    /// PDF). Honest about which half knows what — the extension could not have
-    /// seen this, so it is reported rather than pre-refused.
+    /// A file NAMED `.pdf` whose bytes carry no `%PDF-` header. Its own
+    /// sentence rather than `couldNotStage`'s, because "couldn't read the
+    /// file" is not what happened: the file read fine and is not a PDF. The
+    /// distinction is the difference between "try again" and "that file is
+    /// mislabelled", and only the app can make it (#431 fix round 1 — the
+    /// review's minor 4).
+    static func notAPDF(fileName: String) -> String {
+        "“\(fileName)” isn’t a PDF Talaria can attach"
+    }
+
+    /// The drain-time fallback for a file the app could not make sense of at
+    /// all — undecodable image bytes, or a read that failed under it. Kept for
+    /// the cases where "couldn't read" is literally true; the mislabelled-PDF
+    /// case has its own sentence above.
     static func couldNotStage(fileName: String) -> String {
         "“\(fileName)” couldn’t be added — Talaria couldn’t read the file"
     }
@@ -363,6 +373,19 @@ struct SharedInboxStore: Sendable {
     /// envelope id. Anything unreadable is cleaned up as it's encountered:
     /// corrupt or oversize envelopes and stale incomplete dirs are removed;
     /// fresh incomplete dirs (the extension may still be writing) survive.
+    ///
+    /// **⚠️ RESIDUAL, named rather than hidden (#431 fix round 1).** #431-C
+    /// gave the PER-ITEM failure a user-facing result — an item that fails to
+    /// stage now rides `DrainResult.failures` to a banner instead of a log
+    /// line. **Three ENVELOPE-level paths below still vanish exactly the way
+    /// the per-item skip used to**, one layer above `convertFileItem` and out
+    /// of that fix's reach: a **stale incomplete dir** (the extension died
+    /// mid-write), an **oversize envelope dir**, and a **corrupt
+    /// `envelope.json`**. Each logs `.notice` and deletes the whole share —
+    /// every item in it, with nothing on screen. Widening the failure channel
+    /// to this layer means giving the drain a way to report a share whose
+    /// items it cannot even enumerate (there is no file name to name), so it
+    /// is a design question, not an oversight: filed, not fixed here.
     func pendingEnvelopes() -> [ShareEnvelope] {
         let fileManager = FileManager.default
         guard let entries = try? fileManager.contentsOfDirectory(

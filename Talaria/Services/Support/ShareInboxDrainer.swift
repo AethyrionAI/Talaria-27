@@ -116,6 +116,12 @@ final class ShareInboxDrainer {
         envelopeID: UUID,
         store: SharedInboxStore
     ) -> FileItemOutcome {
+        // ONE name for everything the user is told (#431 fix round 1 — the
+        // review's minor 7). It used to be two: the missing-blob arm reported
+        // `displayName` while every later arm reported the SANITIZED name, so
+        // the same item could be named two ways depending on where it failed.
+        // Sanitization exists for the temp file's sake and is not the user's
+        // name for their file.
         let displayName = item.fileName ?? item.blobFileName ?? "Shared file"
         guard let blobName = item.blobFileName,
               let data = store.blobData(named: blobName, envelopeID: envelopeID) else {
@@ -137,12 +143,12 @@ final class ShareInboxDrainer {
                 return .staged(attachment)
             }
             return .failed(ShareItemFailure(
-                fileName: fileName,
-                message: Self.stagingRefusalMessage(fileName: fileName, byteCount: data.count)))
+                fileName: displayName,
+                message: Self.stagingRefusalMessage(fileName: displayName, data: data)))
         } catch {
             return .failed(ShareItemFailure(
-                fileName: fileName,
-                message: ShareRefusal.unreadable(fileName: fileName)))
+                fileName: displayName,
+                message: ShareRefusal.unreadable(fileName: displayName)))
         }
     }
 
@@ -154,16 +160,29 @@ final class ShareInboxDrainer {
     /// envelope budget was already spent at write time and cannot be the
     /// reason here, so passing it inert keeps that arm from firing. When the
     /// table says the file was acceptable and the app still refused it, the
-    /// cause is something only the app can see — undecodable image bytes, or
-    /// a `.pdf` that is not a PDF (#431's `looksLikePDF`) — and the fallback
-    /// says exactly that rather than inventing a size.
+    /// cause is something only the app can see, and there are exactly two —
+    /// **so the sentence names which** (#431 fix round 1, the review's minor
+    /// 4). A `.pdf` whose bytes carry no `%PDF-` header WAS read, so
+    /// "couldn't read the file" was the wrong sentence for it; that case gets
+    /// `notAPDF`, and `couldNotStage` keeps the cases where the app genuinely
+    /// could not make sense of the bytes (an undecodable image).
+    ///
+    /// Takes the DATA rather than a byte count because the format check is a
+    /// property of the bytes, not of their length.
     // harness-visible
-    static func stagingRefusalMessage(fileName: String, byteCount: Int) -> String {
+    static func stagingRefusalMessage(fileName: String, data: Data) -> String {
         switch StageableTypeCatalog.acceptance(
-            fileName: fileName, byteCount: byteCount, remainingBytes: byteCount
+            fileName: fileName, byteCount: data.count, remainingBytes: data.count
         ) {
-        case .refused(let message): message
-        case .accepted: ShareRefusal.couldNotStage(fileName: fileName)
+        case .refused(let message):
+            return message
+        case .accepted:
+            let mimeType = StageableTypeCatalog.mimeType(
+                forFileExtension: (fileName as NSString).pathExtension)
+            if mimeType == StageableTypeCatalog.pdfMimeType, !PendingAttachment.looksLikePDF(data) {
+                return ShareRefusal.notAPDF(fileName: fileName)
+            }
+            return ShareRefusal.couldNotStage(fileName: fileName)
         }
     }
 }

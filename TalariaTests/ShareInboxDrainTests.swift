@@ -159,7 +159,10 @@ struct ShareInboxDrainTests {
         #expect(result.failures.count == 1)
         let failure = try #require(result.failures.first)
         #expect(failure.fileName == "report.pdf")
-        #expect(failure.message == ShareRefusal.couldNotStage(fileName: "report.pdf"),
+        // #431 fix round 1: this said `couldNotStage` — "Talaria couldn't read
+        // the file" — which is not what happened. The file read fine and is
+        // not a PDF, and the sentence now says that.
+        #expect(failure.message == ShareRefusal.notAPDF(fileName: "report.pdf"),
                 "\(failure.message)")
         #expect(store.pendingEnvelopes().isEmpty)
     }
@@ -252,6 +255,59 @@ struct ShareInboxDrainTests {
 
         store.dismissShareStagingFailures()
         #expect(store.shareStagingFailureMessage == nil)
+    }
+
+    // MARK: - #431-C: the banner is not outranked by the state it serves
+
+    /// **The finding this row exists for.** The share-failure banner used to be
+    /// the third arm of ONE `if / else if` ladder in `ChatScreen`, behind the
+    /// standalone-unavailable explanation. `drainShareInbox` runs ahead of the
+    /// pairing-gated work precisely because sharing is a free-tier surface, and
+    /// "no host, brain unavailable" is what makes that explanation non-nil — so
+    /// the configuration 431-C exists to protect was the one configuration that
+    /// suppressed its own banner, after which the next clean share cleared the
+    /// failures the user never saw.
+    @Test func theShareFailureSurvivesTheHostlessState() {
+        let banners = ChatScreen.BannerStack.resolve(
+            standalone: "Apple Intelligence is off",
+            sessionOpenFailure: nil,
+            shareFailure: "“notes.md” is 400 KB; Talaria accepts up to 350 KB for this type")
+
+        #expect(banners.contains(.standaloneUnavailable("Apple Intelligence is off")),
+                "the hostless explanation must still show: \(banners)")
+        #expect(banners.contains(where: {
+            if case .shareStagingFailure = $0 { return true } else { return false }
+        }), "the share failure was suppressed by the very state it serves: \(banners)")
+    }
+
+    /// The same stacking against #190B's failed session open — the other
+    /// persistent state that outranked it.
+    @Test func theShareFailureStacksWithAFailedSessionOpen() {
+        let failure = ChatStore.SessionOpenFailure(sessionID: "s-1", message: "Couldn’t open that conversation")
+        let banners = ChatScreen.BannerStack.resolve(
+            standalone: nil,
+            sessionOpenFailure: failure,
+            shareFailure: "“clip.mov” isn’t a file type Talaria can accept")
+
+        #expect(banners.contains(.sessionOpenFailure(failure)), "\(banners)")
+        #expect(banners.contains(.shareStagingFailure("“clip.mov” isn’t a file type Talaria can accept")),
+                "\(banners)")
+        #expect(banners.count == 2, "\(banners)")
+    }
+
+    /// …and the two PERSISTENT state banners stay mutually exclusive: only one
+    /// app state is true at a time, and stacking them would be a different
+    /// (wrong) change. Nothing showing resolves to nothing — the routing and
+    /// connection notices below the stack depend on that.
+    @Test func theTwoPersistentStateBannersStayMutuallyExclusive() {
+        let banners = ChatScreen.BannerStack.resolve(
+            standalone: "Apple Intelligence is off",
+            sessionOpenFailure: ChatStore.SessionOpenFailure(sessionID: "s-1", message: "nope"),
+            shareFailure: nil)
+        #expect(banners == [.standaloneUnavailable("Apple Intelligence is off")], "\(banners)")
+
+        #expect(ChatScreen.BannerStack.resolve(
+            standalone: nil, sessionOpenFailure: nil, shareFailure: nil).isEmpty)
     }
 
     /// A later clean share must not leave the previous share's banner up.

@@ -205,11 +205,14 @@ struct PendingAttachment: Identifiable, Sendable {
         // #431: a file NAMED `.pdf` whose bytes are not a PDF stages into a
         // chip that can never leave the composer — `isTransmittable` is false
         // for a raw PDF, and "Extract text" (#8) has nothing to rasterize — so
-        // it reads as a staged attachment forever. Refusing it makes it a
-        // VISIBLE failure (the picker drops it; the drain names it, #431-C)
-        // instead of a dead chip. Tolerant the way real readers are: the
-        // marker may sit behind leading junk, so the first 1 KB is searched
-        // rather than only byte 0.
+        // it reads as a staged attachment forever. Refusing it is the better
+        // of two failures on ONE of the two paths that reach here, and the
+        // comment that stood here had that backwards: **the SHARE path names
+        // the refusal** (#431-C's banner), while **the PICKER still drops it
+        // in silence** — `ChatScreen.handleAttachmentResult` has no else arm,
+        // which is tracker #439's own lane, not this one's.
+        // Tolerant the way real readers are: the marker may sit behind
+        // leading junk, so the first 1 KB is searched rather than only byte 0.
         if mimeType == pdfMimeType, !looksLikePDF(data) { return nil }
 
         var thumbData: Data?

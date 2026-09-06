@@ -57,7 +57,12 @@ final class ShareSheetModel {
             case webURL(String)
             case text(String)
             case fileBlob(fileName: String, data: Data)
-            case refused(name: String, reason: String)
+            /// #431 fix round 1: this used to carry `name` as well, and
+            /// nothing ever read it — every refusal MESSAGE names its own
+            /// file (`ShareRefusal`), which is what the row renders. A dead
+            /// associated value is a second name source waiting to disagree
+            /// with the first.
+            case refused(reason: String)
         }
 
         let id = UUID()
@@ -90,7 +95,7 @@ final class ShareSheetModel {
             case .webURL(let url): url
             case .text(let body): body
             case .fileBlob(let fileName, _): fileName
-            case .refused(_, let reason): reason
+            case .refused(let reason): reason
             }
         }
 
@@ -162,7 +167,6 @@ final class ShareSheetModel {
         if provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier)
             || provider.hasItemConformingToTypeIdentifier(UTType.audio.identifier) {
             return LoadedItem(payload: .refused(
-                name: fallbackName,
                 reason: ShareRefusal.audioOrVideo(fileName: fallbackName)))
         }
 
@@ -187,7 +191,6 @@ final class ShareSheetModel {
                 }
             }
             return LoadedItem(payload: .refused(
-                name: fallbackName,
                 reason: ShareRefusal.unreadable(fileName: fallbackName)))
         }
 
@@ -209,7 +212,6 @@ final class ShareSheetModel {
         }
 
         return LoadedItem(payload: .refused(
-            name: fallbackName,
             reason: ShareRefusal.unsupportedType(fileName: fallbackName)))
     }
 
@@ -230,7 +232,7 @@ final class ShareSheetModel {
         case .accepted:
             return LoadedItem(payload: .fileBlob(fileName: fileName, data: data))
         case .refused(let message):
-            return LoadedItem(payload: .refused(name: fileName, reason: message))
+            return LoadedItem(payload: .refused(reason: message))
         }
     }
 

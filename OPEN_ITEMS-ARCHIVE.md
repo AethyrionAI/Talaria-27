@@ -45996,7 +45996,11 @@ Logged 2026-07-17.
 > **📌 POINTER 2026-09-06 (#431-D, append-only per #317 ruling (a) — the bytes
 > above are untouched). This entry's own contract sentence — "wrong-type and
 > over-20MB payloads … are refused with visible reasons instead of vanishing at
-> drain time" — was HALF TRUE for 14 months, and #431 closed the other half.**
+> drain time" — was HALF TRUE for 14 months, and #431 closed the PER-ITEM half
+> of what was missing. It did NOT close the whole of it: three ENVELOPE-level
+> vanish paths remain (a stale incomplete dir, an oversize envelope dir, a
+> corrupt `envelope.json` — each deletes a whole share after a `.notice` line),
+> named at the site in `SharedInboxStore.pendingEnvelopes` and unfixed.**
 >
 > The **type** half worked. The **size** half was written against ONE cap, the
 > 20 MB envelope budget, and the app's staging path has always enforced two
