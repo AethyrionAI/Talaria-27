@@ -140,6 +140,21 @@ final class SessionsHermesClient: HermesClientProtocol {
     // while keeping the properties themselves `private(set)`.
     func setActiveRunContext(runID: String, profileID: UUID?, endpoint: ResolvedEndpoint) {
         activeRunContext = (runID, profileID, endpoint)
+        // #430: deliberately OUTLIVES the context above — see `lastRunProfile`.
+        // Named as its own operation because it IS one; kept INSIDE this
+        // method rather than beside it at the call sites because a second
+        // call every submit must remember is exactly the silently-forgotten
+        // hazard `armPendingRunRecovery`'s no-default parameter exists to
+        // close, and no compiler can pin a missing second call.
+        recordSubmittedRun(runID: runID, profileID: profileID)
+    }
+
+    /// #430: stamps the keyed slot below. One line, one name — the durable
+    /// half of a submit, separated from the turn-scoped half above so that
+    /// "cleared on terminal exit" and "outlives the turn" are not one
+    /// undifferentiated assignment pair.
+    private func recordSubmittedRun(runID: String, profileID: UUID?) {
+        lastRunProfile = (runID, profileID)
     }
 
     /// No-ops if `activeRunContext` no longer names `matchingRunID` — either
@@ -168,6 +183,63 @@ final class SessionsHermesClient: HermesClientProtocol {
         guard let index = selfStoppedRunIDs.firstIndex(of: runID) else { return false }
         selfStoppedRunIDs.remove(at: index)
         return true
+    }
+
+    /// #430: the profile the most recently SUBMITTED run was sent under,
+    /// keyed by that run's id.
+    ///
+    /// `activeRunContext` cannot answer this question and must not be made to:
+    /// it is cleared on the turn's terminal exit, while the consumer that
+    /// needs the answer — `ChatStore`'s `.interrupted` arm, arming recovery
+    /// for the run that just dropped — reads it from a DIFFERENT task, after
+    /// the driver's `defer` has already run. Reading a single slot that may
+    /// have been cleared is the #304 §9 trap 1 shape.
+    ///
+    /// This slot is never cleared, only overwritten by the next submit, and it
+    /// is KEYED: a read naming any other run answers nil rather than handing
+    /// back a stranger's host, and nil degrades to the birth-profile fallback
+    /// rather than to a wrong answer. One slot suffices because this client
+    /// drives one turn at a time.
+    private(set) var lastRunProfile: (runID: String, profileID: UUID?)?
+
+    /// #430: the host a given run was submitted to — nil when this client
+    /// never submitted it, or has since submitted another.
+    func runProfileID(forRunID runID: String) -> UUID? {
+        guard let last = lastRunProfile, last.runID == runID else { return nil }
+        return last.profileID
+    }
+
+    /// #430: the host to address a DROPPED run's status read to, in the only
+    /// order the client can honestly know it.
+    ///
+    /// 1. **The pending record's own profile** — the host the run was SENT
+    ///    under, frozen at submit time.
+    /// 2. **The session's BIRTH profile**, for a record written before #430.
+    ///    This is the same resolution `openSession` uses — structurally so,
+    ///    not by resemblance: `openSession` CALLS this method with a nil
+    ///    record profile, so rungs 2 and 3 cannot drift apart from the host a
+    ///    session's own history is read from.
+    /// 3. **The active profile**, which is where this read always went. Right
+    ///    only when the first two are unknown (a pre-Lane-M session id).
+    ///
+    /// `requestProfileID` collapses the active profile back to nil, so on a
+    /// single-profile install every arm produces byte-identical requests to
+    /// the pre-#430 code.
+    ///
+    /// **What changes when a resolved profile no longer EXISTS** (the user
+    /// deleted the backend profile the run was sent under): the ladder does
+    /// not walk on. `resolveEndpoint` throws `notConfigured` for an
+    /// unresolvable profile id, `readRunStatus` catches that as
+    /// `.unreadable`, and `resolveDroppedRun` maps `.unreadable` to nil —
+    /// so every pass says "keep polling", the caller burns its full
+    /// `runRecoveryWallClockBudget`, and a restored row settles `.failed`.
+    /// That is slower than the pre-#430 code, which would have asked the
+    /// ACTIVE host instead — and it is the intended trade: a wrong host's
+    /// 404 is classified `.gone` and destroys the answer, while a budget
+    /// expiry leaves the run on its own host, unclaimed and still there.
+    /// This ladder never falls through to a host the run was not sent to.
+    func recoveryProfileID(recordProfileID: UUID?, sessionID: String) -> UUID? {
+        recordProfileID ?? profileIndex?.profileID(forSessionID: sessionID) ?? activeProfileIDProvider()
     }
 
     /// The durable journal (shared with ChatStore via AppContainer). Owns the
@@ -800,7 +872,13 @@ final class SessionsHermesClient: HermesClientProtocol {
         // M-5: the session's history lives on its BIRTH host — resolve the
         // endpoint from the index (unrecorded ids are pre-profile sessions,
         // which belong to the active/migrated profile).
-        let birthProfileID = profileIndex?.profileID(forSessionID: id) ?? activeProfileIDProvider()
+        // #430 (review minor 2): this IS `recoveryProfileID`'s rungs 2 and 3,
+        // so it calls them rather than restating them — the recovery read's
+        // doc claims "the same resolution `openSession` uses", and a claim of
+        // sameness held by two copies of an expression is one edit from being
+        // false. There is no record to consult here: `openSession` is asking
+        // about a SESSION, not about a run.
+        let birthProfileID = recoveryProfileID(recordProfileID: nil, sessionID: id)
         let (sessionId, fetched) = try await fetchSessionConversation(id, profileID: birthProfileID)
         var convo = fetched
         // #25: the stored transcript carries no usage of any kind (probe

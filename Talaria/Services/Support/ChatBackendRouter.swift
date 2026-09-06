@@ -600,9 +600,19 @@ final class ChatBackendRouter: HermesClientProtocol {
     /// nil on every pass and the collapse would be a silent no-op. Gated on
     /// `isHermesConfigured()` instead, matching `reconcileFromServer()` — the
     /// only other recovery-shaped forward here.
-    func resolveDroppedRun(runID: String, sessionID: String) async -> DroppedRunResolution? {
+    func resolveDroppedRun(runID: String, sessionID: String, profileID: UUID?) async -> DroppedRunResolution? {
         guard isHermesConfigured() else { return nil }
-        return await hermes.resolveDroppedRun(runID: runID, sessionID: sessionID)
+        return await hermes.resolveDroppedRun(runID: runID, sessionID: sessionID, profileID: profileID)
+    }
+
+    /// #430: the run's own host, forwarded UNGATED for exactly the reason
+    /// `finalRunUsage` above is — a `/v1/runs/{id}` id can only have come from
+    /// the Hermes plane, and both readers (the `.interrupted` arm and
+    /// `cancelStreaming`) can run after `abandonActiveRun()` has released
+    /// `runningBrain`. Gating would answer nil on every Stop, which is the
+    /// silent no-op this note exists to prevent.
+    func runProfileID(forRunID runID: String) -> UUID? {
+        hermes.runProfileID(forRunID: runID)
     }
 
     /// #304: the approval answer, forwarded by routing lock exactly like

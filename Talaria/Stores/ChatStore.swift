@@ -679,6 +679,17 @@ final class ChatStore {
         /// into B. Nil only when a run is armed against no conversation at
         /// all — the token matches that case on equal terms.
         let conversationID: UUID?
+        /// #430: the backend profile this run was SENT under — the host that
+        /// has it. `conversationID` above names the THREAD half of ownership;
+        /// this names the HOST half, and recovery needs both. Sourced from the
+        /// run's own submit (the frozen endpoint's profile, via
+        /// `HermesClientProtocol.runProfileID(forRunID:)`) or from the durable
+        /// record on a cold restore — never re-derived from whichever profile
+        /// happens to be active when the record is written, which is the #427
+        /// mistake pointed at the host axis instead of the thread axis.
+        /// Nil when the plane has no run ids, or for a record written before
+        /// #430; recovery then falls back to the session's birth profile.
+        let profileID: UUID?
         let userMessageID: UUID
         let sentAt: Date
         /// Reasoning streamed before the drop (#4.15). The server transcript
@@ -720,7 +731,11 @@ final class ChatStore {
                     userMessageID: pending.userMessageID,
                     conversationID: conversationID,
                     sentAt: pending.sentAt,
-                    partialReasoning: pending.partialReasoning
+                    partialReasoning: pending.partialReasoning,
+                    // #430: the TOKEN's host, for the same reason the line
+                    // above takes the token's thread — a record about one
+                    // specific run must not learn either fact from live state.
+                    profileID: pending.profileID
                 ))
             } else if pendingRun == nil {
                 persistence.clearPendingRunRecord()
@@ -1088,6 +1103,10 @@ final class ChatStore {
             // #427: the record's own thread — which the guard above has just
             // proven equals `conversation?.id`.
             conversationID: record.conversationID,
+            // #430: the host the dead process sent this run to. Nil for a
+            // record written before #430 — recovery then asks the session's
+            // birth profile, which is what `openSession` has always used.
+            profileID: record.profileID,
             userMessageID: record.userMessageID,
             sentAt: record.sentAt,
             partialReasoning: record.partialReasoning,
@@ -1716,7 +1735,13 @@ final class ChatStore {
                         placeholderID: placeholderID,
                         sessionId: sessionId,
                         runId: runId,
-                        userMessageID: clientMessageID
+                        userMessageID: clientMessageID,
+                        // #430: the host THIS run was submitted to, asked of
+                        // the client by run id. Not `activeRunID`'s slot —
+                        // that one is cleared by the driver's terminal exit,
+                        // which has already run by the time this arm sees the
+                        // event.
+                        profileID: runId.flatMap { self.hermesClient.runProfileID(forRunID: $0) }
                     )
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == clientMessageID }) {
                         self.conversation?.messages[idx].status = .working
@@ -1962,7 +1987,12 @@ final class ChatStore {
         placeholderID: UUID,
         sessionId: String,
         runId: String?,
-        userMessageID: UUID
+        userMessageID: UUID,
+        // #430: the host this run was SENT to. Deliberately has NO default —
+        // a defaulted nil would let a future arming site silently fall back
+        // to the birth-profile guess, which is the bug this parameter exists
+        // to close.
+        profileID: UUID?
     ) {
         var partialReasoning: String?
         if let idx = conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {
@@ -1974,6 +2004,7 @@ final class ChatStore {
             runId: runId,
             // #427: the thread that is arming this recovery owns its verdict.
             conversationID: conversation?.id,
+            profileID: profileID,
             userMessageID: userMessageID,
             sentAt: pendingMessageSentAt ?? .now,
             partialReasoning: partialReasoning
@@ -2197,6 +2228,12 @@ final class ChatStore {
         // live-stream Stop it is the client's own. Nil on any plane without
         // run ids, which is honest, not a gap — there is nothing to read.
         let cancelledRunID = pendingRun?.runId ?? hermesClient.activeRunID
+        // #430: and the HOST that run went to, captured in the same breath.
+        // In the recovery window it rides `pendingRun`; on a live-stream Stop
+        // the client answers by run id. Nil on a plane without run ids, which
+        // is honest — recovery then asks the session's birth profile.
+        let cancelledRunProfileID = pendingRun?.profileID
+            ?? cancelledRunID.flatMap { hermesClient.runProfileID(forRunID: $0) }
         // #295 (Owen's ruling, review follow-up): read recoverability FIRST —
         // before cancelling the consuming task (which the router treats as a
         // walk-away and may itself release the routing lock from, per
@@ -2298,7 +2335,10 @@ final class ChatStore {
                 placeholderID: placeholderID,
                 sessionId: sessionId,
                 runId: cancelledRunID,
-                userMessageID: userMessageID
+                userMessageID: userMessageID,
+                // #430: captured with `cancelledRunID` above, under the same
+                // #322 read-before-clear discipline.
+                profileID: cancelledRunProfileID
             )
             armedRecovery = true
         } else if let sid = streamingMessageID,
@@ -4200,6 +4240,7 @@ final class ChatStore {
             sessionId: sessionId,
             runId: runId,
             conversationID: conversation?.id,
+            profileID: nil,
             userMessageID: UUID(),
             sentAt: .distantPast,
             partialReasoning: nil
@@ -4465,7 +4506,11 @@ final class ChatStore {
         // TOUCH state (a counter, a notice row, a settle) needs the guard.
         guard let resolution = await hermesClient.resolveDroppedRun(
             runID: runID,
-            sessionID: pending.sessionId
+            sessionID: pending.sessionId,
+            // #430: the run's OWN host. Nil (a pre-#430 record) resolves to
+            // the session's birth profile client-side, never straight to the
+            // active one.
+            profileID: pending.profileID
         ) else { return .keepPolling }
 
         // #427: DROP, never redirect. Writing this answer into the departed

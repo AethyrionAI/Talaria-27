@@ -923,7 +923,7 @@ private final class GatedRecoveryClient: HermesClientProtocol {
         return serverConversation
     }
 
-    func resolveDroppedRun(runID: String, sessionID: String) async -> DroppedRunResolution? {
+    func resolveDroppedRun(runID: String, sessionID: String, profileID: UUID?) async -> DroppedRunResolution? {
         resolveCalls.append(runID)
         await park(runID)
         return answers[runID]

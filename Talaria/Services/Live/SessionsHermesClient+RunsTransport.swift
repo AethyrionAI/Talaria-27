@@ -1353,8 +1353,23 @@ extension SessionsHermesClient {
     /// Usage is recorded into the session's index on the way past, exactly as
     /// `deliverPolledTerminal` does, so a recovered turn's numbers reach the
     /// CTX gauge by the same route a streamed one's do.
-    func resolveDroppedRun(runID: String, sessionID: String) async -> DroppedRunResolution? {
-        switch await readRunStatus(runID: runID, profileID: nil) {
+    ///
+    /// **#430 — `profileID` is the run's OWN host, and it is not optional
+    /// decoration.** This is a COLD entry point: unlike the in-turn catch-path
+    /// poll (`pollRunToTerminal`, which carries the turn's frozen
+    /// `ResolvedEndpoint` and is untouched by this lane), it can run in a
+    /// process that never submitted the run, long after the active profile
+    /// changed. #285's frozen-endpoint rule never reached here, and #368's
+    /// `3E-J` bar asserted it did.
+    func resolveDroppedRun(runID: String, sessionID: String, profileID: UUID?) async -> DroppedRunResolution? {
+        // #430: the RUN'S host, never "whichever profile is active now". This
+        // call used to pass `profileID: nil`, which `resolveTurnEndpoint`
+        // resolves to the ACTIVE profile — so after a profile switch the
+        // question reached a host that had never heard of the run, was
+        // answered 404, and the `.gone` arm below destroyed a real answer.
+        // `recoveryProfileID` is the record → birth → active ladder.
+        let host = recoveryProfileID(recordProfileID: profileID, sessionID: sessionID)
+        switch await readRunStatus(runID: runID, profileID: host) {
         case .gone:
             runsTransportLogger.notice(
                 "runs: recovery read for \(runID, privacy: .public) — host no longer has this run (404); nothing further to wait for"

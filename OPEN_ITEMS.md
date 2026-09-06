@@ -11967,6 +11967,26 @@ scope: **wholesale, or a permanent dual path?**
   (#364), the #306 hold-slot matrix rows, and the #285 frozen-endpoint rule.
   Falsifier: any edit to those mechanisms riding this PR.
 
+  **⟵ 📌 CORRECTED 2026-09-06 (#430, in the same commit as the fix — the
+  close-out rule).** The clause "**the #285 frozen-endpoint rule**" is
+  half true, and the half it misses is the half 3E created. The bar
+  checked that this diff did not EDIT the frozen-endpoint machinery, and
+  it did not — every pre-existing site still carries its turn's frozen
+  `ResolvedEndpoint`. But 3E also added a NEW entry point that had never
+  been under that rule: `resolveDroppedRun`, the cold-launch recovery
+  read, which called `readRunStatus(runID:profileID: nil)` — and nil
+  resolves to whichever profile is ACTIVE at relaunch, not to the run's
+  host. `PendingRunRecord` carried no profile, so there was nothing for it
+  to resolve from. On a multi-profile phone whose active profile changed
+  between the drop and the relaunch, the question reached a host that had
+  never heard of the run, got a 404, and the 404 was classified `.gone`:
+  a real answer destroyed as "the host forgot it". **The general lesson,
+  which is the reason this correction is here and not only in #430:** a
+  "nothing smuggled" bar that scores DIFF-UNCHANGED cannot see an
+  invariant that a NEW site was never brought under. Ask both questions —
+  did the diff edit the mechanism, and does every site the diff ADDED obey
+  it. Closed by #430 (record → birth → active).
+
 **Sequencing:** commit 1 = recovery collapse (3E-B/C/D), commit 2 = the flip
 + migration (3E-A/F/I), commit 3 = deletion (3E-E). Gate once at the end
 (3E-G). Device leg 3E-H is Owen's, evening.
@@ -12092,7 +12112,7 @@ scope: **wholesale, or a permanent dual path?**
 > | 3E-G gate | **MET** | above |
 > | 3E-H device | **OWED — Owen, PM slot** | see below |
 > | 3E-I honesty on a runs-less host | **MET** | `RunsPlaneTransportTests.aHostThatCannotServeRunsFailsVisiblyRatherThanSilently` — one `.failed` with words, never `.interrupted` or `.unreachable` |
-> | 3E-J nothing smuggled | **MET** | the artifact correlator, stored-args reconstruction, the #306 matrix and the #285 frozen-endpoint rule are untouched; the one lingering-loop imperfection found mid-build was deliberately LEFT ALONE for this reason |
+> | 3E-J nothing smuggled | **MET** | the artifact correlator, stored-args reconstruction, the #306 matrix and the #285 frozen-endpoint rule are untouched; the one lingering-loop imperfection found mid-build was deliberately LEFT ALONE for this reason — **⟵ the last clause is CORRECTED 2026-09-06 (#430): untouched, yes, but 3E's own NEW cold-launch entry point (`resolveDroppedRun`) was never brought under the rule and asked the active host instead of the run's. See the dated block under the 3E-J bar text above.** |
 >
 > **What the full suite caught that the targeted suites could not:** four
 > existing tests modelled the OLD recovery and went red on the flip
@@ -13331,7 +13351,7 @@ untouched.
 - The §01 runbook eyeball card (`scripts/mac/ota-stage.sh main Debug`) — not run in this
   lane; a device/OTA verification step, out of Task 4's scope as briefed.
 
-## 430. 🟠 DROPPED-RUN RECOVERY ASKS THE ACTIVE HOST, NOT THE RUN'S HOST — `resolveDroppedRun` calls `readRunStatus(runID:profileID:nil)`; nil resolves to the active profile; `PendingRunRecord` carries no profile; a wrong-host 404 is classified `.gone` — **FILED 2026-09-04 (audit A5, P2; VERIFIED IN CODE — #285's invariant is BELIEVED covered by #368's 3E-J bar and is not, at this entry point). Lane owed after the P1s; bars pre-register when it opens.**
+## 430. 🟠 DROPPED-RUN RECOVERY ASKS THE ACTIVE HOST, NOT THE RUN'S HOST — `resolveDroppedRun` calls `readRunStatus(runID:profileID:nil)`; nil resolves to the active profile; `PendingRunRecord` carries no profile; a wrong-host 404 is classified `.gone` — **FILED 2026-09-04 (audit A5, P2; VERIFIED IN CODE — #285's invariant is BELIEVED covered by #368's 3E-J bar and is not, at this entry point). Lane owed after the P1s; bars pre-register when it opens.** **⟵ ✅ FIX LANDED 2026-09-06 — lane `430-recovery-host`, fix commit `33259ca8`; bars 430-A/B/C MET, 430-GATE is the controller's. See the RESULT block below.**
 
 > **Source:** audit A5. **Verified:** `+RunsTransport.swift:1317-1318` — `resolveDroppedRun(runID:sessionID:)` → `readRunStatus(runID: runID, profileID: nil)`; `SessionsHermesClient.swift:1314` `let resolved = try endpoint ?? resolveTurnEndpoint(profileID: profileID)` with `:1441` nil ⇒ active profile; `PendingRunRecord.swift:12-26` fields are `sessionId, runId, userMessageID, conversationID, sentAt, partialReasoning` — no profile; nor `ChatStore.PendingRun` (`ChatStore.swift:663-677`) nor the protocol signature (`HermesClientProtocol.swift:316`) — the blindness is in the interface. **The data to fix it exists and is used elsewhere:** `SessionsHermesClient.swift:633` `birthProfileID = profileIndex?.profileID(forSessionID: id) ?? activeProfileIDProvider()` — `openSession` resolves the birth host from the same session id the recovery path already receives. **The tracker believes the opposite:** #285's Part 3 block (archive `:16855` — "the catch-path recovery poll") and #368's `3E-J` bar (`OPEN_ITEMS.md:11896/:12024`) assert the frozen-endpoint rule is untouched — true for the IN-TURN catch-path poll (which carries the frozen `endpoint`), false for 3E's cold-launch entry at `:1317`. **Tests:** all five `resolveDroppedRun` occurrences in `TalariaTests/` are stub fixtures that never reach endpoint resolution. **Fix shape:** persist the originating profile id with the pending run (identity, never a second plaintext key), resolve recovery against it, freeze endpoint ownership for a live attempt; unit bar with distinct A/B mock endpoints, warm and cold. Severity: moderate — multi-profile users whose active host changes between a dropped run and recovery lose a real answer as "gone".
 
@@ -13340,6 +13360,60 @@ untouched.
 > - **430-B (recovery asks the run's host).** `resolveDroppedRun` reads the run's status against the RECORD's profile; when the record carries none (legacy), against the session's BIRTH profile via `profileIndex?.profileID(forSessionID:)`; only when both are unknown does it fall back to the active profile. Unit with two distinct mock endpoints A/B: a record armed under A, the active profile switched to B before the cold-launch recovery → the status read hits A, not B (RED on the untouched tree — today it hits B); the warm in-turn catch-path poll (`:1131`, frozen `endpoint`) stays byte-untouched and its rows stay green. Mutation: pass `profileID: nil` again → the A/B row reds.
 > - **430-C (a wrong-host 404 is not "gone", and the docs say so).** With the host known, a 404 from THAT host still classifies `.gone` (the host itself says so); the row that used to misclassify — a 404 from the WRONG host — can no longer occur by construction, pinned by 430-B. Close-out: #368's `3E-J` bar text and archived #285's Part 3 ("the catch-path recovery poll") get dated pointers in the SAME commit — the frozen-endpoint rule held for the in-turn poll and NOT for 3E's cold-launch entry until this lane.
 > - **430-GATE** — `lane-gate.sh` on the final bytes.
+
+> **✅ RESULT 2026-09-06 — BARS 430-A/B/C MET. Lane `430-recovery-host`, fix commit `33259ca8`. 430-GATE (`lane-gate.sh` on the final bytes) is the controller's.**
+>
+> | bar | verdict | evidence |
+> |---|---|---|
+> | 430-A the record knows its host | **MET** | `PendingRunRecord.profileID: UUID?` + `ChatStore.PendingRun.profileID`; `thePendingRunRecordCarriesItsSendProfileAndLegacyRecordsDecodeNil` (round-trip; a legacy JSON with no such key decodes `nil`; the encoded record contains neither `http` nor `Bearer` — identity only) · `armingRecoveryPersistsTheRunsOwnSendProfile` (what the arming site is handed is what the durable record persists) |
+> | 430-B recovery asks the run's host | **MET** | three wire rows on distinct A/B mock endpoints, active profile OJAMD throughout: the record's profile ⇒ `macmini` + `Bearer key-mac` (`droppedRunRecoveryReadsTheRecordsProfileNotTheActiveOne`, with the birth index deliberately EMPTY so only the record's own field can carry it); a legacy record + birth index ⇒ `macmini` (`aLegacyRecordWithNoProfileFallsBackToTheSessionsBirthHost`); neither known ⇒ `ojamd` (`withNeitherRecordNorBirthProfileRecoveryAsksTheActiveHost`) · end to end through the relaunch door: `theRestoredRecordsSendProfileReachesTheRecoveryRead` · **warm poll byte-untouched and green:** `theWarmInTurnPollStillRidesItsFrozenEndpointAcrossASwitch` |
+> | 430-C the two upstream pointers | **MET** | in the SAME commit as the fix: #368's `3E-J` bar text and its results-table row corrected in place; archived #285's Part 3 given an APPEND-ONLY dated pointer beneath the entry, original bytes untouched (#261/#317(a)). `oi-split-verify.py` PASS, `oi-invariants.py` PASS |
+>
+> **Suites:** `BackendProfileRoutingTests` · `ColdLaunchRunRecoveryTests` ·
+> `RecoveryOwnershipTests` · `RunStatusRecoveryTests` — **36 → 43 tests, all
+> passed** on `33259ca8`'s bytes.
+>
+> **RED-first.** All seven bar tests were written before any production edit and
+> did not compile against the untouched tree — 17 errors, of two shapes:
+> `value of type 'PendingRunRecord' has no member 'profileID'` and
+> `extra argument 'profileID' in call`. A compile red does not discriminate, so
+> every bar also has a named isolating mutation, and all four were run:
+>
+> | mutation | red | scope |
+> |---|---|---|
+> | **A1** — the `didSet` writes a constant `nil` instead of `pending.profileID` | `armingRecoveryPersistsTheRunsOwnSendProfile` — *Expectation failed: `persistence.loadPendingRunRecord()?.profileID == sendProfile`* (`ColdLaunchRunRecoveryTests.swift:320`) | **isolating** — 18 of 19 green |
+> | **A2** — `PendingRunRecord` decodes `profileID` as REQUIRED (explicit `init(from:)`) | `thePendingRunRecordCarriesItsSendProfileAndLegacyRecordsDecodeNil` — *Caught error: `DecodingError.keyNotFound: Key 'profileID' not found`* (`BackendProfileRoutingTests.swift:482`) | **deliberately NOT isolating, and that is the finding** — five #329 rows go red with it (`restoredRowIsNotClassifiedFailedWhileTheRunIsAlive`, `hostReportedFailureClassifiesTheRowFailedHonestly`, `anUnreachableHostSettlesFailedOnlyAfterTheBudget`, `queuedRowScrubIsUntouchedByThePresenceOfARecord`, `armingRecoveryPersistsTheRecordAndSettlingClearsIt`), because a record whose decode throws presents downstream as *"there was no pending run at all"*. That is the #42 shape the optionality exists to prevent, demonstrated rather than asserted |
+> | **B1** — `resolveDroppedRun` passes `profileID: nil` again (the pre-lane line) | both A/B rows — *Expectation failed: `requests.first?.host == "macmini"`* / `... == "Bearer key-mac"` (`:326`/`:327` and `:374`/`:375`) | **isolating to 430-B** — 17 of 19 green, warm-poll control green |
+> | **B2** — the birth-profile rung dropped from `recoveryProfileID`'s ladder | `aLegacyRecordWithNoProfileFallsBackToTheSessionsBirthHost` only (`:374`/`:375`) | **isolating, and it separates the rungs** — the record's-profile row stays green, so tiers 1 and 2 are independently pinned |
+>
+> **The channel this needed, and why it is not `activeRunContext`.** The
+> `.interrupted` arm — the site that arms recovery for the run that just dropped
+> — runs in a DIFFERENT task from the driver, after the driver's `defer` has
+> already called `clearActiveRunContext`. Reading that single slot would be the
+> #304 §9 trap 1 shape. The lane added a KEYED slot instead —
+> `SessionsHermesClient.lastRunProfile`, written beside `activeRunContext` at
+> submit, never cleared, only overwritten by the next submit — read through
+> `HermesClientProtocol.runProfileID(forRunID:)`. A read naming a run this client
+> did not submit answers `nil`, which degrades to the birth-profile rung rather
+> than to a stranger's host. One slot suffices because this client drives one
+> turn at a time. `cancelStreaming` captures it beside `cancelledRunID` under
+> #322's read-before-clear discipline.
+>
+> **`armPendingRunRecovery`'s new parameter deliberately has NO default.** A
+> defaulted `nil` would let a future arming site silently fall back to the
+> birth-profile guess, which is the bug the parameter exists to close — the
+> compiler is that pin, so no source witness was written for it.
+>
+> **Byte-identical for the single-profile user.** `requestProfileID` collapses
+> the ACTIVE profile back to `nil`, so on an install with one profile every rung
+> of the new ladder issues the same request the pre-lane code issued.
+>
+> **Out of scope, stated rather than assumed:** records already on disk stay
+> profile-less and take the birth-profile rung (no retro-pinning — the same call
+> #241's immunity lane made for sessions holding the alias); and the lane changed
+> the COLD entry point only, leaving #285's frozen-`ResolvedEndpoint` machinery
+> byte-untouched. **Owed:** no device step — every bar is wire-level and
+> simulator-answerable.
 
 ## 431. 🟠 THE SHARE EXTENSION ACCEPTS FILES THE APP THEN SILENTLY DISCARDS — 20 MB envelope acceptance vs the app's 350 KB (non-PDF) / 10 MB (PDF) staging caps; the drain logs and removes with no user-facing result — **FILED 2026-09-04 (audit A6, P2; VERIFIED IN CODE — the gap is WIDER than the audit stated: 350 KB vs 20 MB on ordinary files). Lane owed; bars pre-register when it opens.**
 
