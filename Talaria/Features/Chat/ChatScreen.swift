@@ -410,8 +410,13 @@ struct ChatScreen: View {
             showEmptySessions: settingsStore.settings.showEmptySessions
         )
         guard ordinal - 1 < targets.count else { return }
-        sessionsOpen = false
         let target = targets[ordinal - 1]
+        // 425-F1, the belt behind the filter: the same guard
+        // `SessionsDrawerModel.selectSession` has carried since #190. The
+        // filter above is the fix — this is what keeps the choke point true
+        // for THIS door if a future edit ever hands it an unfiltered list.
+        guard !target.isUnresumable else { return }
+        sessionsOpen = false
         Task {
             await chatStore.openSession(target.id)
             // J-8: keep the persistent sidebar's list + highlight current.

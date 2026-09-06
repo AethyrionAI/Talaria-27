@@ -77,6 +77,18 @@ struct SessionJumpOrderTests {
         .init(id: id, title: id, subtitle: "", timeLabel: "", group: group)
     }
 
+    /// A dimmed host row — what `ChatScreen.sessionSummary` builds from an
+    /// `isResumable == false` info: the "Contacting host…" stub 425-D paints
+    /// during the interim window, and the "Host unreachable" stub #190 leaves
+    /// behind afterwards. Both are visible history, neither is a destination.
+    private static func unresumable(
+        _ id: String,
+        group: SessionsDrawerModel.Group
+    ) -> SessionsDrawerModel.SessionSummary {
+        .init(id: id, title: id, subtitle: ChatBackendRouter.hostPendingReason,
+              timeLabel: "", group: group, isUnresumable: true)
+    }
+
     /// Jump order is the drawer's visible order: pinned rows float first,
     /// the rest keep fetch (recency) order in their sections; archived rows
     /// are unreachable by shortcut.
@@ -104,6 +116,71 @@ struct SessionJumpOrderTests {
             sessions: [], pinnedIDs: ["x"], archivedIDs: []
         )
         #expect(targets.isEmpty)
+    }
+
+    /// **425-F1 — the fourth door.** `SessionsDrawerModel.selectSession` has
+    /// carried the unresumable guard since #190, and the row itself is
+    /// `.disabled` — but ⌘1…⌘9 never went through either. It resolves its own
+    /// target list and calls `chatStore.openSession` directly, so on an
+    /// iPad with a keyboard a dimmed stub was addressable by ordinal. 425-D
+    /// made that window ordinary rather than rare: every configured launch now
+    /// paints "Contacting host…" stubs for the host's whole timeout.
+    ///
+    /// The bar is BOTH halves: the stub is not a target, and the ordinals
+    /// re-number over the live rows only — a filter that merely blanked the
+    /// slot would leave ⌘2 opening nothing and ⌘3 opening the second row.
+    ///
+    /// Isolating mutation: drop the `isUnresumable` filter from
+    /// `sessionJumpTargets` → this row reds and nothing else does.
+    @Test func unresumableStubsAreNotJumpTargetsAndOrdinalsRenumber() {
+        let sessions = [
+            Self.summary("live-a", group: .today),
+            Self.unresumable("stub", group: .today),
+            Self.summary("live-b", group: .today),
+        ]
+        let targets = ChatKeyboardShortcuts.sessionJumpTargets(
+            sessions: sessions, pinnedIDs: [], archivedIDs: []
+        )
+
+        #expect(targets.map(\.id) == ["live-a", "live-b"],
+                "a dimmed host stub is visible history, not a ⌘n destination")
+        // ⌘2 is `targets[1]`. Before the filter it addressed the stub; the
+        // bar is that it now addresses the SECOND LIVE row, not a hole.
+        #expect(targets.count == 2)
+        #expect(targets[1].id == "live-b",
+                "the ordinals must re-number over the live rows — a blanked slot is a second defect, not a fix")
+        #expect(targets.allSatisfy { !$0.isUnresumable })
+    }
+
+    /// **425-F1, the belt.** A filter on the target list is the fix; the guard
+    /// in `openSessionJump` is the second line, mirroring the one
+    /// `SessionsDrawerModel.selectSession` has carried since #190. No runtime
+    /// test can reach `openSessionJump` (a private method on a SwiftUI
+    /// `View`), so this reads the repo's own bytes — the `RepoSourceWitness`
+    /// idiom, failing loudly rather than vacuously.
+    ///
+    /// Isolating mutation: delete the guard from `openSessionJump` → this row
+    /// reds and nothing else does.
+    @Test(.enabled(if: RepoSourceWitness.repoSourcesAreReadable,
+                   "reads the repo's own sources — simulator only"))
+    func openSessionJumpCarriesTheUnresumableGuard() throws {
+        let path = "Talaria/Features/Chat/ChatScreen.swift"
+        let anchor = "private func openSessionJump(_ ordinal: Int) {"
+        let whole = try RepoSourceWitness.source(path)
+        #expect(whole.components(separatedBy: anchor).count == 2,
+                "\(anchor) is not unique in \(path) — this pin cannot say which one it read")
+        let body = try RepoSourceWitness.functionBody(from: anchor, in: path, boundary: "\n    /// ")
+        #expect(!body.contains("func "),
+                "the slice swallowed a neighbour: the boundary stops at the next DOC COMMENT, so an undocumented neighbour could satisfy this pin instead")
+        #expect(body.contains("guard !target.isUnresumable else { return }"),
+                "⌘n opens whatever the ordinal resolved to — the belt behind the filter is gone (425-F1)")
+        // The guard has to sit BEFORE the open, or it guards nothing.
+        let guardAt = try #require(body.range(of: "!target.isUnresumable")?.lowerBound,
+                                   "no unresumable guard in openSessionJump")
+        let openAt = try #require(body.range(of: "chatStore.openSession(")?.lowerBound,
+                                  "no openSession call in openSessionJump")
+        #expect(guardAt < openAt,
+                "a guard after the open is not a guard")
     }
 }
 
