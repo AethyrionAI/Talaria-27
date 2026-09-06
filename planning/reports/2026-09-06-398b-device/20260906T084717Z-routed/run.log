@@ -1,0 +1,3 @@
+device=00008150-000E794C3C47801C instrument=routed trials=10 cells=armed,routed-production timeout=2400s sha=782aaae5
+launched (console pid 22063); polling every 20s
+RESULT: refused — artifact at /Users/owenjones/.talaria-instrument-runs/20260906T084717Z-routed/latest.json
