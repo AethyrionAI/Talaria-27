@@ -267,6 +267,13 @@ final class ToolEventRelay {
     /// Called only when the fallback actually PRODUCED the date — a create the
     /// model dated never reaches the detector, so it must not move the cursor
     /// (`aModelDatedCreateDoesNotConsumeACandidate`).
+    ///
+    /// **And only from BELOW the three #233/#249 guards (moved 2026-09-06 by
+    /// the fix round).** A guard returns without staging anything, and each one
+    /// exists to invite an in-turn RE-CALL — so consuming above them spent a
+    /// candidate on a card the user never saw and left the re-call resolving at
+    /// the next cursor: a dateless card on a one-date sentence, the WRONG date
+    /// on a two-date one. The call site carries the full account.
     func consumeDueCandidate() {
         dueCandidatesConsumedThisTurn += 1
     }

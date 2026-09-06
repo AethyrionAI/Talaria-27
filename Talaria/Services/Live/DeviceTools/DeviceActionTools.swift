@@ -482,9 +482,6 @@ enum DeviceActionParsing {
         "about", "tomorrow", "today", "tonight", "this", "next", "on", "in"
     ]
 
-    /// A token that is nothing but digits — the ambiguous form, and the only
-    /// one the continuation test applies to. A colon or a meridiem makes the
-    /// token a clock on its own evidence.
     /// Whether the user wrote a meridiem on the clock token itself — 340-F1's
     /// one discriminator. `parseBareClock`'s own marker test, applied to the
     /// token BEFORE it folds `pm` into the hour: same `.` stripping, same two
@@ -494,6 +491,9 @@ enum DeviceActionParsing {
         return lowered.hasSuffix("am") || lowered.hasSuffix("pm")
     }
 
+    /// A token that is nothing but digits — the ambiguous form, and the only
+    /// one the continuation test applies to. A colon or a meridiem makes the
+    /// token a clock on its own evidence.
     private nonisolated static func isBareIntegerToken(_ token: String) -> Bool {
         let lowered = token.lowercased().replacingOccurrences(of: ".", with: "")
         guard !lowered.isEmpty, !lowered.contains(":"),
@@ -891,11 +891,6 @@ struct ReminderCreateTool: Tool {
                                           allowUserTextFallback: allowUserTextFallback,
                                           candidateCursor: candidateCursor)
         let parsedDue = resolution.date
-        // Advance only when the FALLBACK produced the date. A create the model
-        // dated never reached the detector, so it has spent nothing.
-        if resolution.source == "userText" {
-            await relay.consumeDueCandidate()
-        }
         // #249 instrument: raw model-supplied due vs the parsed local time.
         // A zone-bearing raw string takes the ISO branch and gets CONVERTED
         // to local — a DST-wrong offset (-06:00 in summer Chicago) lands the
@@ -961,6 +956,36 @@ struct ReminderCreateTool: Tool {
             // quote's own negative needs word-DELETION to flip, a harder
             // mining error than the word-drop that burned 233-E.
             return "No reminder was created. Evening requests that resolve to the next morning are usually a misread clock time. Reply to the user with exactly this question: \"Nothing is scheduled yet — did you mean tonight or tomorrow morning?\" Then create the reminder with the time they confirm."
+        }
+        // #340 bar 340-F2: the candidate is spent HERE — below all three
+        // guards, and above the confirmation gate.
+        //
+        // Advance only when the FALLBACK produced the date. A create the model
+        // dated never reached the detector, so it has spent nothing.
+        //
+        // **BELOW THE GUARDS, and the review that moved it here named the case
+        // (2026-09-06).** The first cut consumed at RESOLUTION, four lines
+        // under `resolvedDue`. Each of the three guards above returns WITHOUT
+        // staging, so a bounced create spent a candidate on a card the user
+        // never saw — and every one of those guards exists precisely to invite
+        // an in-turn RE-CALL ("ask, then create the reminder with the time they
+        // confirm"). The latches are conversation-scoped, so the re-call sails
+        // past the guard and resolves at the ADVANCED cursor: on a one-date
+        // sentence it finds nothing and stages a DATELESS card, and on a
+        // two-date sentence it stages the OTHER date. `at 8` asked at 21:00 —
+        // 340-F1's own canonical case — resolves to 08:00 tomorrow, which is
+        // exactly `isNextMorning`, so the defect fired on the ruling's own
+        // second example. Both shapes are pinned
+        // (`aGuardBouncedCreateSpendsNoCandidate`,
+        // `aBouncedCreateDoesNotShiftTheNextOneOntoTheSecondDate`).
+        //
+        // **A DECLINED card still consumes, deliberately.** The gate is below
+        // this line, so a user who sees the date and says no has spent the
+        // candidate — which is right: the offer was made and answered. What a
+        // bounce and a decline do NOT share is that the bounce shows the user
+        // nothing at all.
+        if resolution.source == "userText" {
+            await relay.consumeDueCandidate()
         }
         let decision = await confirmations.requestConfirmation(
             title: "Create this reminder?",

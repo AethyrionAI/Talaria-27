@@ -431,6 +431,73 @@ struct ReminderDueFallbackTests {
                 "the model's own date must not have moved the fallback's cursor, got \(fallback.due ?? "nil")")
     }
 
+    /// **A create the GUARDS bounced has spent no candidate — and the ruling's
+    /// own second example is the case that proves it.**
+    ///
+    /// *"at 8"* said at 21:00 is 340-F1's canonical answer: **08:00
+    /// TOMORROW**, which is exactly `isNextMorning`, so the first create
+    /// returns #249's evening-clock ask and stages nothing at all. That return
+    /// string goes back to the model INSIDE the same turn, and the latch is
+    /// conversation-scoped, so the re-call the ask invites arrives with the
+    /// guard already spent — and it must re-offer the SAME time the user was
+    /// asked about.
+    ///
+    /// **The defect this pins (review fix round 1, 2026-09-06).** 340-F2's
+    /// first cut consumed the candidate at RESOLUTION, four lines above the
+    /// first guard, so the bounced call spent this sentence's one and only
+    /// candidate. The re-call then resolved at cursor 1, found nothing, and
+    /// staged a **dateless card** — a reminder at no time, offered in answer to
+    /// *"did you mean tonight or tomorrow morning?"*. Consuming below the third
+    /// guard is what makes a bounce free: a card the user never saw cannot have
+    /// spent anything.
+    @Test func aGuardBouncedCreateSpendsNoCandidate() async {
+        let now = todayAt(21, 0)
+        let sentence = "Remind me at 8"
+        let relay = ToolEventRelay()
+        relay.beginTurn(userText: sentence)
+
+        let bounced = await StagedReminderProbe.staged(
+            rawDue: "", userText: sentence, now: now, relay: relay)
+        #expect(bounced.due == nil,
+                "the evening-clock guard must stage nothing, got \(bounced.due ?? "nil")")
+        #expect(bounced.result.contains("did you mean tonight or tomorrow morning?"),
+                "expected #249's evening-clock ask, got \(bounced.result)")
+
+        let recall = await StagedReminderProbe.staged(
+            rawDue: "", userText: sentence, now: now, relay: relay)
+        #expect(recall.due == DeviceActionParsing.displayDate(day(1, from: now, at: 8, 0)),
+                "the re-call must re-offer the SAME 08:00 the user was asked about, got \(recall.due ?? "nil")")
+    }
+
+    /// **The two-date form of the same rule, and the worse failure.** A bounced
+    /// create must not shift the NEXT one onto a date the user has not been
+    /// asked about.
+    ///
+    /// The first candidate here is tomorrow **06:00**, inside #233's wee-hour
+    /// window, so the first create returns the AM/PM ask and stages nothing.
+    /// With the cursor advanced at resolution the re-call answers that ask with
+    /// the SECOND date entirely — the user is asked *"did you mean 6 AM or
+    /// 6 PM?"* and handed a card for a different DAY. The dateless card the row
+    /// above pins is at least visibly empty; this one looks staged and is
+    /// wrong.
+    @Test func aBouncedCreateDoesNotShiftTheNextOneOntoTheSecondDate() async {
+        let now = todayAt(21, 0)
+        let sentence = "Remind me tomorrow at 6am and again on "
+            + monthDay(day(2, from: now, at: 9, 0)) + " at 9am"
+        let relay = ToolEventRelay()
+        relay.beginTurn(userText: sentence)
+
+        let bounced = await StagedReminderProbe.staged(
+            rawDue: "", userText: sentence, now: now, relay: relay)
+        #expect(bounced.due == nil,
+                "the wee-hour guard must stage nothing, got \(bounced.due ?? "nil")")
+
+        let recall = await StagedReminderProbe.staged(
+            rawDue: "", userText: sentence, now: now, relay: relay)
+        #expect(recall.due == DeviceActionParsing.displayDate(day(1, from: now, at: 6, 0)),
+                "the re-call must still be the FIRST candidate — the second date was never offered, got \(recall.due ?? "nil")")
+    }
+
     /// A date phrase built from `now` — see the row above.
     private func monthDay(_ date: Date) -> String {
         let f = DateFormatter()
