@@ -202,9 +202,30 @@ continuation of that lineage, not a separate project.
 
 ## Not covered here
 
-- Apple system frameworks (FoundationModels, HealthKit, CoreMotion, WeatherKit,
-  AlarmKit, AVFoundation, and so on) — used under the Apple Developer Program
-  License Agreement, no attribution obligation.
+- Apple system frameworks (FoundationModels, HealthKit, CoreMotion, AlarmKit,
+  AVFoundation, and so on) — used under the Apple Developer Program License
+  Agreement, no attribution obligation.
 - `NousResearch/hermes-agent` — the server Talaria connects to. It is a separate
   program the user installs and runs themselves; Talaria neither bundles nor
   redistributes it.
+
+**WeatherKit was in that first list and should not have been.** Using the
+framework carries no attribution obligation; DISPLAYING the data it returns
+does, and the two are easy to conflate. Apple's WeatherKit terms require the
+Apple Weather trademark plus a link to Apple's legal attribution page wherever
+Apple's weather data is shown — and, for a *value-added* service or product
+built from that data, the same attribution "along with a notice that the data
+provided by Apple has been modified." A model's prose about the weather is such
+a product, so Talaria owes both halves.
+
+It renders them deterministically rather than leaving compliance to generated
+text: any reply whose persisted transcript records a completed `currentWeather`
+tool call carries the line **"Weather data by Apple Weather, modified by
+Talaria"**, linking to
+
+- https://weatherkit.apple.com/legal-attribution.html
+
+A reply that never called the weather tool — and one whose call failed, was
+stopped, or is still running — carries no attribution, because no Apple data
+was displayed. The rule lives in
+`Talaria/Features/Chat/WeatherAttribution.swift`.
