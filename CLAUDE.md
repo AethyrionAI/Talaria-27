@@ -17,6 +17,11 @@ toolset is disabled on OJAMD (#346). **Chat and sensors are
 independent paths** — never conflate a relay/connector issue with a chat issue or vice
 versa. Owen directs and tests; Claude writes all code + runs infrastructure (Owen does not
 write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta6**.
+**⟵ 2026-09-09/10 (#441): the iOS 27 RC and Xcode 27 RC (`/Applications/Xcode-rc.app`,
+27A266a) have both shipped; Owen installed the iOS RC on the phone the night of 09-09.
+The RC gated green first-run (3426 Swift Testing + 18 XCUITest + Release on sim runtime
+24A434); whether it is the STANDARD toolchain is Owen's promotion call — read the
+"Build / tooling" section for the current answer, never this line.**
 
 ## Architecture — Clean Chat Path
 
@@ -674,6 +679,19 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   revision, and the timeline gains a fourth row (`24A5424a`, from 2026-08-24).
   No logarchive was needed: the instrument artifact's own `osVersion` carried it,
   which is the cheap route this very section prescribes.**
+  **⟵ 2026-09-06 (#392/#398's device runs, recorded in the tracker but not here until
+  #441): the device measured `Version 27.0 (Build 24A5430a)` — a FIFTH timeline row,
+  on the phone since 08-31/09-01 — against a newest sim of `24A5423a`. Still one
+  revision ahead, still no local twin.**
+  **⟵ 2026-09-09/10 (#441): the RC changes the numbers, not the shape.** Xcode 27 RC
+  (27A266a) ships iOS SDK **`24A430`** and sim runtime **`24A434`** — the first Xcode
+  whose runtime and SDK are different builds. Owen installed the **iOS 27 RC on the
+  phone the same night; its build string is UNMEASURED** until the next instrument
+  artifact's `osVersion` (398-A's route). So: sim `24A434`, device unknown, SDK
+  `24A430` — do not assert which leads. The adoption freeze stays lifted in the safe
+  direction (the RC SDK adds no API the app references — #441's diff), and the sim
+  STILL cannot generate on either FM tier on 24A434 (#402's probe re-run, identical
+  result), so brain behaviour remains device-answerable only.
 - **Xcode-beta6** (`/Applications/Xcode-beta6.app`, Xcode 27.0 build 27A5252f, swiftlang
   6.4.0.33.1, iOS SDK 24A5422a — the *iOS beta 7* vintage) is the standard toolchain for
   iOS 27 targets — **promoted from beta5 on 2026-08-24 on Owen's explicit word** (#401:
@@ -687,6 +705,23 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   is history, evidence `planning/reports/2026-08-11-beta5-sdk-audit.md`.)*
   Release Xcode still can't build iOS 27.
   `DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer` in every shell.
+  **⟵ 2026-09-09/10 (#441) — TWO CORRECTIONS AND ONE PENDING DECISION.** (1) ~~Beta5
+  STAYS on disk~~ is **FALSE: `Xcode-beta5.app` is GONE from `/Applications`** (found on
+  the RC round's arrival check; deletion date/hand unknown). What remains:
+  `Xcode-beta6.app`, **`Xcode-rc.app` (Xcode 27.0 build 27A266a, swiftlang 6.4.0.34.1,
+  iOS SDK 24A430, sim runtime 24A434 — installed 2026-09-03)**, and release `Xcode.app`
+  (26.6, 17F113). The 24A5408d RUNTIME survives, so runtime A/Bs still work; a beta5
+  BUILD needs a re-download. (2) The RC's regression round passed FIRST-RUN under
+  `DEVELOPER_DIR=/Applications/Xcode-rc.app/Contents/Developer` — 3426 Swift Testing /
+  281 suites + 18 XCUITest + Release on VERIFIED sim runtime 24A434; SDK diff 5 real
+  changes in 280 device interfaces, all additive, none Talaria-called; FoundationModels
+  stamp-only; #402's PCC/on-device sim probe re-run identical (generation still dead on
+  both tiers). Full evidence `planning/reports/2026-09-09-rc-sdk-audit.md`; the sweep
+  is now `scripts/mac/sdk-interface-diff.sh`. (3) **PROMOTION of `Xcode-rc` to the
+  standard toolchain (beta6 as the A/B fallback) is RECOMMENDED and AWAITS OWEN'S WORD**
+  — until he gives it, beta6 remains standard and every `DEVELOPER_DIR` default in
+  `scripts/mac/` still points at it; when he does, this paragraph's head moves and this
+  note is the record of why.**
   ~~**Beta4 (27A5228h) remains on disk as the A/B fallback**~~ — **FALSE as of
   2026-08-12: beta4 is GONE from `/Applications` (verified by direct path check,
   `mdfind`, and `.Trash`; only `Xcode-beta5.app` and release `Xcode.app` remained —
@@ -699,11 +734,15 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   is joined by "the other binary no longer exists." `Xcode-beta.app`/`Xcode-beta3.app`
   were deleted 2026-07-24. `xcode-select` still points at beta4's CLT — harmless, CLT ships no
   iOS SDK and no `xcodebuild`, so the `DEVELOPER_DIR` export is mandatory either way (re-point
-  needs sudo; no urgency). Sim runtimes kept: **iOS 27.0 (24A5423a, iOS beta 7 — the
-  DEFAULT match since 2026-08-24)**, **iOS 27.0 (24A5408d, beta5)**, **iOS 27.0
-  (24A5390f, beta4)** — A/B via `simctl runtime match set iphoneos27.0 24A5408d` (or
-  `24A5390f`) for NEW boots, and ALWAYS `match set iphoneos27.0 --default` afterwards —
-  and **iOS 26.5 (23F77)**.
+  needs sudo; no urgency). Sim runtimes kept: **iOS 27.0 (24A434, RC — the DEFAULT
+  match since the RC's install, no user override; CC-lane-1/3 already followed it
+  silently, 2026-09-09)**, **iOS 27.0 (24A5423a, iOS beta 7 — the default from
+  2026-08-24 to the RC)**, **iOS 27.0 (24A5408d, beta5)**, **iOS 27.0
+  (24A5390f, beta4)** — A/B via `simctl runtime match set iphoneos27.0 24A5423a` (or
+  `24A5408d` / `24A5390f`) for NEW boots, and ALWAYS `match set iphoneos27.0 --default`
+  afterwards — and **iOS 26.5 (23F77)**. 37.8 GB total. RC known issue 141290052: a
+  REMOVED runtime can re-appear after a reboot — verify a prune with `runtime list`
+  after the next restart, not at delete time.
   **⚠️ Beta-to-beta dyld hazard (proven #324): a beta5-built binary referencing new-in-beta5
   symbols (e.g. `SystemLanguageModel.variant`) dies at dyld launch on a beta4 27.0 runtime**
   (RBSProcessExitStatus domain:dyld(6) code:4, NO .ips, empty stdout) — `@available(iOS 27.0)`
