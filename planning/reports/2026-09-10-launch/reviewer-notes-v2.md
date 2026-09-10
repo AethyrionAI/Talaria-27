@@ -11,9 +11,22 @@ CarPlay implications, and marks the one sentence that still needs a measurement.
 **Requirements (please read first).** Talaria requires an iPhone that supports Apple
 Intelligence, running iOS 27, with Apple Intelligence turned on in Settings → Apple
 Intelligence & Siri. The default assistant is Apple's on-device Foundation Model; there
-is no other backend. ⚠️ *[VERIFY ON SIM BEFORE PASTING — 443-D]:* On a device where the
-model is unavailable, the app explains what to enable on first launch instead of failing
-silently.
+is no other backend. On a device where the model is unavailable, the first message you
+send is answered by the app itself with the exact reason and the setting to enable
+(for example: "On-device intelligence is turned off. Enable Apple Intelligence in
+Settings → Apple Intelligence & Siri, then try again.") — it does not fail silently.
+
+<!-- 443-D evidence (not for pasting): the three reasons Apple's API can report
+(deviceNotEligible / appleIntelligenceNotEnabled / modelNotReady) each map to a distinct
+sentence in LocalChatBackend.unavailabilityMessage(for:), surfaced as a system message
+by connect(), send() and streamTurn(); the unit test
+LocalChatBackendTests.unavailabilityMessagesAreDistinctAndActionable pins all three.
+This CANNOT be shown on a simulator: the sim reports the model as available and fails
+at generation instead (#402), so the evidence is the code path and its test, not a
+sim screenshot. A device with Apple Intelligence switched off would show it live. -->
+
+**Language and region.** Apple Intelligence availability by language and region applies;
+the app follows the device setting.
 
 **What Talaria is.** A private assistant that runs entirely on the iPhone. Nothing you
 type leaves the phone unless you deliberately connect the app to a server you run
