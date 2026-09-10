@@ -19,6 +19,29 @@ struct SettingsChannelsTests {
         #expect(SettingsSubsystem.developer.a11yID == "settings.row.developer")
     }
 
+    /// **#445 (2026-09-10, Owen: the Developer row is "Debug only").** A
+    /// Release build on a fresh simulator listed `09 DEVELOPER · PRODUCTION`
+    /// to what would be a store user. The row is now the second conditional
+    /// member of the ONE visible list (beside the PCC tile), keyed on the same
+    /// policy flag that gates environment overrides — so the row, its deck
+    /// page, its search entries and the counter vanish together, and the
+    /// numbering stays contiguous without it. The default keeps every older
+    /// caller's answer.
+    @Test func developerRowIsDebugOnly() {
+        let release = SettingsSubsystem.cases(privateCloudAvailable: false, developerAvailable: false)
+        #expect(!release.contains(.developer))
+        #expect(release.last == .about)
+        #expect(release.count == SettingsSubsystem.allCases.count - 2)
+        for (position, subsystem) in release.enumerated() {
+            #expect(subsystem.indexLabel(in: release) == String(format: "%02d", position + 1))
+        }
+        #expect(SettingsSubsystem.cases(privateCloudAvailable: true, developerAvailable: false).last == .about)
+        #expect(SettingsSubsystem.cases(privateCloudAvailable: false).contains(.developer),
+                "the default is unchanged for older callers (Debug shape)")
+        #expect(AppEnvironmentPolicy(allowsEnvironmentOverrides: false).allowsEnvironmentOverrides == false,
+                "the Release policy is the flag the screen passes")
+    }
+
     /// **395-D2-B — positional card numbers, both device shapes, no gaps.**
     /// The number is computed from the tiles VISIBLE on this device: with
     /// the PCC tier, Owen's floated 08 PRIVATE CLOUD / 09 ABOUT; without it,

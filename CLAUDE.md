@@ -1031,9 +1031,14 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
 - **Real data only** in UI — show `"—"` where a value isn't knowable; no mocked toggles.
 - **Naming (Owen's standing ruling, 2026-08-27): the app's outward identity is
   TALARIA on every phone-facing surface** — "Hermes" appears only where it
-  means THE HOST/CONNECTION ("Message Hermes…", Connect Host, gateway errors,
-  host status). Standing authority to rename app-meaning "Hermes" finds
-  without re-asking. Fences that are their own rulings and OUTRANK this:
+  means THE HOST/CONNECTION (Connect Host, gateway errors, host status, the
+  HERMES brain label). Standing authority to rename app-meaning "Hermes" finds
+  without re-asking. **⟵ 2026-09-10 (#445): the composer placeholder
+  "Message Hermes…" — which this line used to cite as its FIRST host-meaning
+  example — is APP-meaning by Owen's ruling ("I thought we had gotten rid of
+  the message hermes / ask hermes, etc and reframed it as ask talaria") and
+  reads "Message Talaria…"; `NamingSweepTests` asserts the old spelling absent.
+  You message Talaria whichever brain answers.** Fences that are their own rulings and OUTRANK this:
   the `hermes://` easter-egg scheme (#77), CarPlay's deferred-with-trigger
   rename (#415 — unverifiable until #74's sim works, and moot for 1.0: #443
   ships no CarPlay scene at all), and type names /

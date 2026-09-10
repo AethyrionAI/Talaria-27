@@ -16,10 +16,27 @@ enum SettingsSubsystem: Int, CaseIterable, Identifiable {
     var id: Int { rawValue }
 
     /// #395-D: the tile exists only where the tier does. The filter is here,
-    /// pure and testable, so the grid, the deck pager, and the page dots all
-    /// consume ONE list and can never disagree about what exists.
-    static func cases(privateCloudAvailable: Bool) -> [SettingsSubsystem] {
-        privateCloudAvailable ? allCases : allCases.filter { $0 != .privateCloud }
+    /// pure and testable, so the grid, the deck pager, the page dots and the
+    /// search index all consume ONE list and can never disagree about what
+    /// exists.
+    ///
+    /// #445 (2026-09-10, Owen: the Developer row is "Debug only"): the
+    /// DEVELOPER row is the second conditional member. A Release build on a
+    /// fresh simulator showed `09 DEVELOPER · PRODUCTION` to what would be a
+    /// store user; the screen passes
+    /// `AppEnvironmentPolicy.currentBuild.allowsEnvironmentOverrides` (true
+    /// only under `#if DEBUG`), so the row, its deck page, its search entries
+    /// and the counter all vanish together where the policy says so. The
+    /// default keeps every existing caller's answer unchanged.
+    static func cases(privateCloudAvailable: Bool,
+                      developerAvailable: Bool = true) -> [SettingsSubsystem] {
+        allCases.filter { subsystem in
+            switch subsystem {
+            case .privateCloud: privateCloudAvailable
+            case .developer: developerAvailable
+            default: true
+            }
+        }
     }
 
     var title: String {

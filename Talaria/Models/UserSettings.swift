@@ -377,8 +377,8 @@ struct UserSettings: Codable, Hashable, Sendable {
     var approvalMode: ApprovalMode
     /// #422 (bar 422-B): the on-device memory master switch.
     ///
-    /// **Default ON**, like `privateCloudEnabled` and unlike
-    /// `spotlightIndexingEnabled`, and for the same reason as the former: the
+    /// **Default ON**, unlike `spotlightIndexingEnabled` (and, since #445,
+    /// unlike `privateCloudEnabled`, which a fresh install starts OFF): the
     /// memory index is the feature rather than a side-channel, and nothing
     /// leaves the device — the rows live in their own local SwiftData
     /// container that ruling 3 forbids a host row from entering.
@@ -423,7 +423,14 @@ struct UserSettings: Codable, Hashable, Sendable {
         reduceMotion: Bool = false,
         verboseLogging: Bool = false,
         spotlightIndexingEnabled: Bool = false,
-        privateCloudEnabled: Bool = true,
+        // #445 (2026-09-10, Owen: "it can default to off. but leave the
+        // feature intact"): a FRESH install starts with the Private Cloud
+        // offer-toggle OFF — the tile reads OFF and the tier is not offered in
+        // Models until the user turns it on in Settings → Private Cloud. The
+        // Codable fallback below deliberately stays `true`: a settings file
+        // that predates the key belongs to an install that HAD the tier
+        // (#386's promise). Two defaults, two populations.
+        privateCloudEnabled: Bool = false,
         showEmptySessions: Bool = false,
         midTurnSendAction: MidTurnSendAction = .queue,
         appLockEnabled: Bool = false,

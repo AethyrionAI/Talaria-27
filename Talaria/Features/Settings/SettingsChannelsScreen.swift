@@ -108,7 +108,11 @@ struct SettingsChannelsScreen: View {
         // fact — on a DEBUG simulator the tile exists (quota testable) while
         // routing stays dark; on device the two facts are identical.
         SettingsSubsystem.cases(
-            privateCloudAvailable: container.localChatBackend?.isPrivateCloudObservable == true)
+            privateCloudAvailable: container.localChatBackend?.isPrivateCloudObservable == true,
+            // #445: the Developer row is Debug-only (Owen, 2026-09-10) — the
+            // same policy flag that gates environment overrides and the
+            // mock fallbacks, so "Debug-only" has exactly one definition.
+            developerAvailable: AppEnvironmentPolicy.currentBuild.allowsEnvironmentOverrides)
     }
 
     private var counterText: String {
@@ -246,7 +250,9 @@ struct SettingsChannelsScreen: View {
                 } else {
                     if !container.hasGatewayCredentials { upgradeBanner }
                     cardGrid
-                    developerRow
+                    // #445: the row exists only where the visible list says
+                    // so — Debug builds; a Release build never renders it.
+                    if visibleSubsystems.contains(.developer) { developerRow }
                 }
                 footer
             }

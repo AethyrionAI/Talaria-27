@@ -296,10 +296,11 @@ struct HermesControlsTests {
         let sources = files.compactMap { try? String(contentsOf: $0, encoding: .utf8) }
         #expect(!sources.isEmpty, "cannot read any Talaria/ source — this check did not run")
 
-        // The host, named as the host: composer placeholder, two lines of
-        // Connect Host copy, one chat-status line.
+        // The host, named as the host: two lines of Connect Host copy, one
+        // chat-status line. (#445, 2026-09-10: the composer placeholder LEFT
+        // this list — Owen reframed it as app-meaning, "Message Talaria…";
+        // NamingSweepTests now asserts the old spelling ABSENT.)
         for expected in [
-            "\"Message Hermes\u{2026}\"",
             "\"A Hermes gateway\"",
             "\"Something's there, but it isn't Hermes\"",
             "\"Hermes host online\"",
