@@ -19,12 +19,12 @@ evidence.
 | R3 | Privacy policy, in-app notices, weather attribution published/shipped | ✅ #433 #434 #435 |
 | R4 | RC toolchain standard, gate green | ✅ #441 |
 | R5 | iPhone-only, no CarPlay scene (Owen's rulings) in the built product, tests pinned | ✅ 443-A/B — PR #447 → `94f5f62a`, gate PASS on 24A434 |
-| R6 | Store build exported under Xcode-RC from merged `main`, family + manifest verified inside the ipa | ✅ **`~/.talaria-ota/testflight/Talaria27-store-3334.ipa`** (main @ `a76b0440`, build 3334 — carries #443 iPhone-only/no CarPlay, #444 hostless honesty, #445's three rulings, #447's host-probe honesty; every earlier ipa in `retired/`); upload is Owen's |
+| R6 | Store build exported under Xcode-RC from merged `main`, family + manifest verified inside the ipa | ✅ superseded by the UPLOAD: **build 3338** (main @ `e22c5cb5` — same app code as 3334, plus the script's upload mode) went to App Store Connect 2026-09-10 13:56 via `testflight-stage.sh upload`; the 3334 ipa was never uploaded and sits in `retired/` |
 | R7 | Reviewer notes v2 read by Owen; the "model unavailable" sentence grounded (code path + unit test — a sim cannot present the state, #402) | 🔄 443-D grounded 2026-09-10; Owen's read owed |
 | R8 | Listing copy decided; 6.9-inch screenshots captured | 🔄 443-E — listing DRAFTED (Owen decides); three simulator frames LANDED in `planning/reports/2026-09-10-launch/screenshots/` (chooser, fresh chat, hostless Settings — from the fixed Release build); the three on-device brain frames are Owen's phone, any evening (`compose-shots.py` pads them to 6.9-inch) |
 | R9 | Support contact on the Pages index | ✅ PR #450 merged 2026-09-10 on Owen's read — `https://aethyrionai.github.io/Talaria-27/#support`, support@aethyrion.org (Cloudflare-routed); also the App Review contact email |
-| R10 | App Store Connect record exists with App Privacy answered | ⬜ 🧑 |
-| R11 | Build uploaded, processed, installed from TestFlight on `whoGoesThere`, ten minutes of real use | ⬜ 🧑 (+ device sanity pass) |
+| R10 | App Store Connect record exists with App Privacy answered | 🔄 🧑 record EXISTS ("Talaria 27", iOS App 1.0 Prepare for Submission — Owen's screenshot 2026-09-10); App Privacy answer, screenshots, copy and review notes still to enter |
+| R11 | Build uploaded, processed, installed from TestFlight on `whoGoesThere`, ten minutes of real use | 🔄 build **3338 UPLOADED 13:56** (processing); TestFlight install + the ten minutes are Owen's evening |
 
 ## Stop conditions (do NOT submit if any is true)
 
@@ -53,7 +53,7 @@ evidence.
 8. App Privacy → **Data Not Collected** → publish.
 9. App Information / Pricing: category Productivity, price Free, availability.
 10. Version 1.0.0 page: paste description, subtitle, keywords, promotional text, support + privacy URLs, screenshots; age rating questionnaire (expect 4+); App Review Information → paste the notes; contact phone/email; "sign-in required: No".
-11. **Upload** `~/.talaria-ota/testflight/Talaria27-store-3334.ipa` with Transporter (Mac App Store) signed in as the developer Apple ID. Wait for "processing" to finish (minutes to an hour). Select the build on the version page. Export compliance should not prompt (166d); if it does: exempt only.
+11. ✅ **UPLOADED 2026-09-10 13:56 — build 3338** (main @ `e22c5cb5`), by Owen running `scripts/mac/testflight-stage.sh upload` in a Terminal on the Mac: Xcode's `destination=upload` export delivered it under the signed-in Apple ID, no credential typed (`Progress 100%: Upload succeeded.` · `Uploaded Talaria` · `** EXPORT SUCCEEDED **`). One warning, not blocking: *Upload Symbols Failed — no dSYM for WebRTC.framework* (the vendor binary ships none; app symbols uploaded; WebRTC frames in a crash report would be unsymbolicated). Transporter was never needed. Wait for "processing" to finish (minutes to an hour). Select the build on the version page. Export compliance should not prompt (166d); if it does: exempt only.
 12. TestFlight → internal testing → add yourself → install on `whoGoesThere` → ten minutes of real use: chat, Talk, a reminder, the Health widget, share a PDF. (R11)
 13. **Submit for Review.** Then close the laptop. Review typically answers within 24–48 h; a rejection is a message, not a verdict — it comes back here as a tracker item.
 

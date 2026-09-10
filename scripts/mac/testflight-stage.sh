@@ -8,6 +8,7 @@
 # No credential is typed by anyone: it is the Organizer's "Upload" button from the command line. Run it only on
 # Owen's word for THAT build — an upload is outward-facing and lands in TestFlight processing immediately.
 set -uo pipefail
+setopt NULL_GLOB   # upload mode leaves no plist in the export dir; an unmatched glob must not print an error
 MODE="${1:-export}"
 case "$MODE" in export|upload) ;; *) echo "usage: $0 [export|upload]" >&2; exit 2 ;; esac
 export DEVELOPER_DIR=/Applications/Xcode-rc.app/Contents/Developer
