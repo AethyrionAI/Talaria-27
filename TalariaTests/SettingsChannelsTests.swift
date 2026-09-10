@@ -496,6 +496,43 @@ struct SettingsChannelsTests {
                 "a configured host that answers is still online")
     }
 
+    /// **#447 (2026-09-10) — 444-F, the configured-host twin.** With a host
+    /// paired and the ON-DEVICE brain active, `direct` still measures the
+    /// brain (the router fronts whichever brain is active), so a dead `:8642`
+    /// read LINKED for as long as the user stayed local. The host-specific
+    /// measurement already exists — `HermesHostStore.refresh()`'s `/health`
+    /// probe, polled by the chat health loop and on every settings screen —
+    /// and arrives here as `hostFallback`. When `direct` does not measure the
+    /// host, the settings surfaces read that probe instead; when the host
+    /// brain IS active, `direct` is a real host measurement and stays
+    /// authoritative. Chat ignores the new input (direct-only by design).
+    @Test func configuredHostWithALocalBrainReadsTheHostProbe() {
+        let localBrainHostDown = ConnectionSignal.Inputs(
+            direct: .connected,
+            hostFallback: .unreachable,
+            hostConfigured: true,
+            directMeasuresHost: false)
+        #expect(ConnectionSignal.state(localBrainHostDown, for: .settings) == .unreachable,
+                "the brain's readiness is not the host's reachability")
+
+        let localBrainHostUp = ConnectionSignal.Inputs(
+            direct: .connected,
+            hostFallback: .online,
+            hostConfigured: true,
+            directMeasuresHost: false)
+        #expect(ConnectionSignal.state(localBrainHostUp, for: .settings) == .online)
+
+        let hostBrain = ConnectionSignal.Inputs(
+            direct: .connected,
+            hostFallback: .unreachable,
+            hostConfigured: true)
+        #expect(ConnectionSignal.state(hostBrain, for: .settings) == .online,
+                "the default keeps every older caller's answer: direct measures the host")
+
+        #expect(ConnectionSignal.state(localBrainHostDown, for: .chat) == .online,
+                "chat's direct plane is untouched")
+    }
+
     /// **#444 — the SERVER tile never names a placeholder host.** The one-shot
     /// migration mints a profile called "My Hermes" on every install, host or
     /// not; with no credentials the tile must say so instead of printing the
