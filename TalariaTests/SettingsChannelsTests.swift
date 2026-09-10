@@ -441,6 +441,48 @@ struct SettingsChannelsTests {
         #expect(ConnectionSignal.state(inputs, for: .settings) != .checking)
     }
 
+    /// **#444 (2026-09-10) — the row the test above never fed.** `direct` is
+    /// the CHAT ROUTER's status (`ChatStore.hermesClient` is
+    /// `chatBackendRouter`), so on a hostless install it is the on-device
+    /// brain saying "ready" — not a host answering. A Release build on a
+    /// brand-new simulator rendered `LINKED · MY HERMES` and `UPLINK ·
+    /// CONNECTED` from exactly these inputs. The settings surfaces must tell
+    /// the host-store story whenever no host is configured, whatever the
+    /// brain reports; the chat surface keeps its own plane (its header already
+    /// reads TALARIA · READY for the same state).
+    @Test func hostlessInstallWithALiveLocalBrainIsNotLinked() {
+        let hostless = ConnectionSignal.Inputs(
+            direct: .connected,
+            hostFallback: .notConnected,
+            hostConfigured: false)
+        #expect(ConnectionSignal.state(hostless, for: .settings) == .notConnected,
+                "a live local brain is not a host link")
+        #expect(ConnectionSignal.state(hostless, for: .chat) == .online,
+                "chat's direct plane is untouched by #444")
+        #expect(SettingsCardValues.uplink(state: ConnectionSignal.state(hostless, for: .settings))
+                == "NOT LINKED")
+        #expect(SettingsCardValues.statusStrip(
+            state: ConnectionSignal.state(hostless, for: .settings),
+            hostName: "My Hermes", modelName: nil, brainLabel: "On-Device") == "ON-DEVICE")
+
+        let configured = ConnectionSignal.Inputs(
+            direct: .connected,
+            hostFallback: .notConnected,
+            hostConfigured: true)
+        #expect(ConnectionSignal.state(configured, for: .settings) == .online,
+                "a configured host that answers is still online")
+    }
+
+    /// **#444 — the SERVER tile never names a placeholder host.** The one-shot
+    /// migration mints a profile called "My Hermes" on every install, host or
+    /// not; with no credentials the tile must say so instead of printing the
+    /// name as if a server were configured. The three `serverValue` rows above
+    /// keep their answers.
+    @Test func serverValueNeverNamesAPlaceholderHost() {
+        #expect(SettingsCardValues.server(activeProfileName: "My Hermes", hasHost: false) == "NO HOST")
+        #expect(SettingsCardValues.server(activeProfileName: "Studio", hasHost: true) == "STUDIO")
+    }
+
     /// The card/strip values render `.checking` as explicitly unknown —
     /// no LINKED, no CONNECTED, no accent.
     @Test func checkingRendersExplicitlyUnknownInSettings() {
