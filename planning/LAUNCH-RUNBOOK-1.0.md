@@ -19,10 +19,10 @@ evidence.
 | R3 | Privacy policy, in-app notices, weather attribution published/shipped | ✅ #433 #434 #435 |
 | R4 | RC toolchain standard, gate green | ✅ #441 |
 | R5 | iPhone-only, no CarPlay scene (Owen's rulings) in the built product, tests pinned | ✅ 443-A/B — PR #447 → `94f5f62a`, gate PASS on 24A434 |
-| R6 | Store build exported under Xcode-RC from merged `main`, family + manifest verified inside the ipa | ✅ **`~/.talaria-ota/testflight/Talaria27-store-3331.ipa`** (main @ `3ba4d00a`, build 3331 — carries #443 iPhone-only/no CarPlay, #444 hostless honesty, #445's three rulings; 3328/3324/3313 in `retired/`); upload is Owen's |
+| R6 | Store build exported under Xcode-RC from merged `main`, family + manifest verified inside the ipa | ✅ **`~/.talaria-ota/testflight/Talaria27-store-3334.ipa`** (main @ `a76b0440`, build 3334 — carries #443 iPhone-only/no CarPlay, #444 hostless honesty, #445's three rulings, #447's host-probe honesty; every earlier ipa in `retired/`); upload is Owen's |
 | R7 | Reviewer notes v2 read by Owen; the "model unavailable" sentence grounded (code path + unit test — a sim cannot present the state, #402) | 🔄 443-D grounded 2026-09-10; Owen's read owed |
 | R8 | Listing copy decided; 6.9-inch screenshots captured | 🔄 443-E — listing DRAFTED (Owen decides); three simulator frames LANDED in `planning/reports/2026-09-10-launch/screenshots/` (chooser, fresh chat, hostless Settings — from the fixed Release build); the three on-device brain frames are Owen's phone, any evening (`compose-shots.py` pads them to 6.9-inch) |
-| R9 | Support contact on the Pages index | ⬜ (10-line `docs/index.html` change; `docs/` is live on merge) |
+| R9 | Support contact on the Pages index | ✅ PR #450 merged 2026-09-10 on Owen's read — `https://aethyrionai.github.io/Talaria-27/#support`, support@aethyrion.org (Cloudflare-routed); also the App Review contact email |
 | R10 | App Store Connect record exists with App Privacy answered | ⬜ 🧑 |
 | R11 | Build uploaded, processed, installed from TestFlight on `whoGoesThere`, ten minutes of real use | ⬜ 🧑 (+ device sanity pass) |
 
@@ -42,7 +42,7 @@ evidence.
 
 **Agent (this week, no device needed)**
 1. ✅ Merged #443's lane (PR #447 → `94f5f62a`); `main`'s tree proven identical to the gated branch tree (same tree hash), so the branch gate IS the `main` gate for this HEAD.
-2. ✅ `scripts/mac/testflight-stage.sh` under Xcode-RC → **`~/.talaria-ota/testflight/Talaria27-store-3331.ipa`** (main @ `3ba4d00a`, build 3331, 1.0.0, minOS 27.0 — includes #444's hostless honesty and #445's three rulings: Private Cloud off on a fresh install, no Developer row in Release, "Message Talaria…"); `UIDeviceFamily [1]` and the empty scene-configuration dict verified inside the ipa; both appexes present. Earlier ipas (3328, 3324, 3313) live in `retired/` — the one loose ipa in the folder is the one to upload.
+2. ✅ `scripts/mac/testflight-stage.sh` under Xcode-RC → **`~/.talaria-ota/testflight/Talaria27-store-3334.ipa`** (main @ `a76b0440`, build 3334, 1.0.0, minOS 27.0 — includes #444's hostless honesty, #445's three rulings (Private Cloud off on a fresh install, no Developer row in Release, "Message Talaria…") and #447's host-probe honesty for the connected tier); `UIDeviceFamily [1]` and the empty scene-configuration dict verified inside the ipa; both appexes present. Every earlier ipa lives in `retired/` — the one loose ipa in the folder is the one to upload.
 3. ~~Verify the model-unavailable path on a simulator~~ — DONE differently (R7): a sim reports the model available and fails at generation (#402), so it cannot show the unavailable copy; the sentence in `reviewer-notes-v2.md` is grounded in `LocalChatBackend.unavailabilityMessage(for:)` and its unit test instead. Owen can see it live by switching Apple Intelligence off for thirty seconds; optional.
 4. Capture the five 6.9-inch screenshots on CC-lane-1 with the Mac host supplying chat content; land them in `planning/reports/2026-09-10-launch/screenshots/` (R8).
 5. Add a Support section with a contact address to `docs/index.html` (R9) — the address is Owen's to choose.
@@ -53,7 +53,7 @@ evidence.
 8. App Privacy → **Data Not Collected** → publish.
 9. App Information / Pricing: category Productivity, price Free, availability.
 10. Version 1.0.0 page: paste description, subtitle, keywords, promotional text, support + privacy URLs, screenshots; age rating questionnaire (expect 4+); App Review Information → paste the notes; contact phone/email; "sign-in required: No".
-11. **Upload** `~/.talaria-ota/testflight/Talaria27-store-3331.ipa` with Transporter (Mac App Store) signed in as the developer Apple ID. Wait for "processing" to finish (minutes to an hour). Select the build on the version page. Export compliance should not prompt (166d); if it does: exempt only.
+11. **Upload** `~/.talaria-ota/testflight/Talaria27-store-3334.ipa` with Transporter (Mac App Store) signed in as the developer Apple ID. Wait for "processing" to finish (minutes to an hour). Select the build on the version page. Export compliance should not prompt (166d); if it does: exempt only.
 12. TestFlight → internal testing → add yourself → install on `whoGoesThere` → ten minutes of real use: chat, Talk, a reminder, the Health widget, share a PDF. (R11)
 13. **Submit for Review.** Then close the laptop. Review typically answers within 24–48 h; a rejection is a message, not a verdict — it comes back here as a tracker item.
 
