@@ -9,7 +9,7 @@ Source of truth: the three shipped privacy manifests (`Talaria/Resources`, `Tala
 ## The two things to state explicitly in the notes (so "Data Not Collected" is not read as a dodge)
 
 1. **The user's own server.** If a user chooses to connect Talaria to a Hermes agent they run themselves, their chat text goes to THAT machine. The developer never receives it. Apple treats data sent to a server the user controls as not "collected" by the developer; say so in the review notes (done in `reviewer-notes-draft.md`).
-2. **Apple's own services.** Private Cloud Compute (off by default; user-enabled), WeatherKit, HealthKit, EventKit and Foundation Models are Apple frameworks under Apple's terms; nothing is sent to Talaria's developer.
+2. **Apple's own services.** Private Cloud Compute (an optional tier the user selects in Settings → Models; the default brain is on-device — corrected 2026-09-10, #443: the `privateCloudEnabled` setting that OFFERS the tier defaults to true, but nothing routes to PCC unless the user picks it), WeatherKit, HealthKit, EventKit and Foundation Models are Apple frameworks under Apple's terms; nothing is sent to Talaria's developer.
 
 ## Per-category checklist (answer "no" to each; the reason is the evidence)
 

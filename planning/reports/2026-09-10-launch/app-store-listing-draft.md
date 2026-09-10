@@ -53,8 +53,9 @@ is a choice, not a surprise. Fields Owen must fill from his own account are mark
 > app and ask about it.
 >
 > YOUR DATA STAYS YOURS
-> Talaria collects nothing. No analytics, no tracking, no cloud of ours. Optional
-> Private Cloud Compute is off until you turn it on. An optional App Lock uses Face ID.
+> Talaria collects nothing. No analytics, no tracking, no cloud of ours. The brain is
+> on-device unless you choose Apple's Private Cloud Compute in Models. An optional App
+> Lock uses Face ID.
 >
 > FOR PEOPLE WHO RUN THEIR OWN SERVER
 > If you self-host a Hermes agent, Talaria can connect to it — over your own network,

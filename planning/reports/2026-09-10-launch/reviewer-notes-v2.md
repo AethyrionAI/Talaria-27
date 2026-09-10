@@ -65,7 +65,9 @@ to see it, we can provide a temporary host for the review window on request.
 - Location (when in use) — weather at the current location and place-aware answers.
 - Motion — "what am I doing right now" questions.
 - Camera / Photos — attach a picture or document to a question; analysed on device, or on
-  Apple's Private Cloud Compute only if the user turns that on.
+  Apple's Private Cloud Compute only if the user selects that tier in Settings → Models
+  (the default brain is on-device; Private Cloud Compute is Apple's own service and is
+  never used unless chosen).
 - Face ID — the optional App Lock.
 
 **Third-party content.** Weather comes from Apple Weather (WeatherKit) and is attributed
