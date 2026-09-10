@@ -55,15 +55,28 @@ enum ConnectionSignal {
         var direct: ConnectionStatus
         var hostFallback: HermesHostConnectionState
         var hostConfigured: Bool
+        /// #447: does `direct` actually measure the HOST? `direct` is the chat
+        /// router's status, and the router fronts whichever brain is active —
+        /// with the on-device brain selected it reports the brain's readiness,
+        /// not `:8642`. Only the host brain's turns go to the host, so only
+        /// then is `direct` a host measurement. When it is not, the settings
+        /// surfaces read `hostFallback`, which is `HermesHostStore.refresh()`'s
+        /// `/health` probe — polled by the chat health loop and on every
+        /// settings screen's appearance, so it is a live measurement, not
+        /// relay-plane memory. Defaults to `true` so every older caller keeps
+        /// its answer; chat ignores it (direct-only by design).
+        var directMeasuresHost: Bool
 
         init(
             direct: ConnectionStatus,
             hostFallback: HermesHostConnectionState = .notConnected,
-            hostConfigured: Bool = false
+            hostConfigured: Bool = false,
+            directMeasuresHost: Bool = true
         ) {
             self.direct = direct
             self.hostFallback = hostFallback
             self.hostConfigured = hostConfigured
+            self.directMeasuresHost = directMeasuresHost
         }
     }
 
@@ -88,6 +101,12 @@ enum ConnectionSignal {
         // and the on-device brain active, `direct` still measures the brain,
         // so the host case needs a host-specific probe — a design, not a guard.
         if surface == .settings, !inputs.hostConfigured {
+            return inputs.hostFallback
+        }
+        // #447 (444-F): a configured host with the on-device brain active —
+        // `direct` measures the brain, so the settings surfaces read the host
+        // probe instead. Chat keeps its own plane.
+        if surface == .settings, !inputs.directMeasuresHost {
             return inputs.hostFallback
         }
         switch inputs.direct {
@@ -148,7 +167,10 @@ enum ConnectionSignal {
             Inputs(
                 direct: container.chatStore.directConnectionStatus,
                 hostFallback: hostStore.connectionState,
-                hostConfigured: hostConfigured(activeProfile: container.profilesStore?.activeProfile)
+                hostConfigured: hostConfigured(activeProfile: container.profilesStore?.activeProfile),
+                // #447: only the host brain's turns reach `:8642`, so only
+                // then is the router's status a host measurement.
+                directMeasuresHost: container.chatBackendRouter?.activeBrain == .hermes
             ),
             for: .settings
         )
