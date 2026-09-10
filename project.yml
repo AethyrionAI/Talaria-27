@@ -20,7 +20,7 @@ settings:
     # stale "26.0" left over from the frozen iOS 26 line silently held the
     # real floor at 26 while Requirements claimed 27. One source of truth
     # for the floor: options.deploymentTarget.iOS at the top of this file.
-    TARGETED_DEVICE_FAMILY: "1,2"
+    TARGETED_DEVICE_FAMILY: "1"  # #443 (2026-09-10, Owen): 1.0 ships iPhone-only; iPad ("1,2", Lane J / #108) returns post-launch
     INFOPLIST_KEY_UILaunchScreen_Generation: true
     # Orientation posture lives in the app target's info.properties (the
     # committed Info.plist is xcodegen-generated from there). INFOPLIST_KEY_
@@ -67,6 +67,10 @@ targets:
         # to run the CarPlay Simulator scene locally (#74), and permanently once
         # Apple approves the capability for team DNL25ZFSD2 / org.aethyrion.talaria27.
         # Kept HERE (not only in the .entitlements file) for the #44/#48 strip trap.
+        # #443 (2026-09-10): 1.0 ships with NO CarPlay scene declared either —
+        # the manifest block under the app target's info.properties is stripped
+        # to match this missing entitlement (a declared scene without its
+        # entitlement was a review-risk row for nothing). Restore both together.
         # com.apple.developer.carplay-voice-based-conversation: true
         # #72: Private Cloud Compute — Apple GRANTED this managed capability
         # on 2026-08-20 (Developer Relations mail: "Access to models on
@@ -143,6 +147,16 @@ targets:
         CURRENT_PROJECT_VERSION: "1"
         DEVELOPMENT_TEAM: "DNL25ZFSD2"
         CODE_SIGN_STYLE: Automatic
+        # #443 (2026-09-10, Owen): 1.0 ships iPhone-only. This line is REQUIRED
+        # here even though the project-level base setting (top of file) says the
+        # same thing: XcodeGen writes its own TARGETED_DEVICE_FAMILY default
+        # ("1,2") at TARGET level for every iOS application target, and a
+        # target-level setting overrides the project-level base — so without
+        # this line the built app's UIDeviceFamily stayed [1, 2] while the
+        # base setting read "1" (measured 2026-09-10; the #319 productName
+        # lesson in a new coat). UniversalTargetInfoPlistTests pins the built
+        # product, not this file. iPad ("1,2", Lane J / #108) returns post-launch.
+        TARGETED_DEVICE_FAMILY: "1"
         INFOPLIST_KEY_CFBundleDisplayName: Talaria27
     scheme:
       testTargets:
@@ -420,13 +434,22 @@ targets:
         BGTaskSchedulerPermittedIdentifiers:
           - org.aethyrion.talaria27.refresh
           - org.aethyrion.talaria27.continued.*
+        # #443 (2026-09-10, Owen: "strip it for 1.0"): the CarPlay scene role
+        # is NOT declared — its entitlement (above, commented out) was never
+        # granted, so declaring `CPTemplateApplicationScene` here promised a
+        # scene the build could not sign for. Multi-scene stays true: it is
+        # what satisfies the 27-SDK scene-lifecycle requirement, and
+        # SingleWindowPolicy (AppEntry.swift) refuses extra app windows by
+        # notification, not by this manifest. Restoring CarPlay (#74) = the
+        # entitlement line + this block back:
+        #   UISceneConfigurations:
+        #     CPTemplateApplicationSceneSessionRoleApplication:
+        #       - UISceneClassName: CPTemplateApplicationScene
+        #         UISceneConfigurationName: CarPlay
+        #         UISceneDelegateClassName: "$(PRODUCT_MODULE_NAME).CarPlaySceneDelegate"
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: true
-          UISceneConfigurations:
-            CPTemplateApplicationSceneSessionRoleApplication:
-              - UISceneClassName: CPTemplateApplicationScene
-                UISceneConfigurationName: CarPlay
-                UISceneDelegateClassName: "$(PRODUCT_MODULE_NAME).CarPlaySceneDelegate"
+          UISceneConfigurations: {}
 
   TalariaWidgets:
     type: app-extension
@@ -469,7 +492,7 @@ targets:
         SWIFT_VERSION: "6.2"
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: "DNL25ZFSD2"
-        TARGETED_DEVICE_FAMILY: "1,2"
+        TARGETED_DEVICE_FAMILY: "1"  # #443 (2026-09-10, Owen): 1.0 ships iPhone-only; iPad ("1,2", Lane J / #108) returns post-launch
     scheme: {}
 
   TalariaShare:
@@ -522,7 +545,7 @@ targets:
         SWIFT_VERSION: "6.2"
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: "DNL25ZFSD2"
-        TARGETED_DEVICE_FAMILY: "1,2"
+        TARGETED_DEVICE_FAMILY: "1"  # #443 (2026-09-10, Owen): 1.0 ships iPhone-only; iPad ("1,2", Lane J / #108) returns post-launch
     scheme: {}
 
   TalariaTests:

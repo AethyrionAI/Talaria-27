@@ -199,13 +199,15 @@ struct UniversalTargetInfoPlistTests {
         return try #require(plist as? [String: Any])
     }
 
-    /// J-1: TARGETED_DEVICE_FAMILY "1,2" lands in the built app as
-    /// UIDeviceFamily [1, 2] — the actual universal-target proof.
-    @Test func builtAppIsUniversal() throws {
+    /// #443 (2026-09-10, Owen: "ship as iphone only. ipad for after launch"):
+    /// TARGETED_DEVICE_FAMILY "1" lands in the built app as UIDeviceFamily
+    /// [1] — 1.0 ships iPhone-only, and the iPad family reappears here when
+    /// the post-launch iPad lane (J-1's universal target, #108) is re-opened.
+    /// An iPad app runs the iPhone build in compatibility mode meanwhile.
+    @Test func builtAppIsIPhoneOnly() throws {
         let plist = try Self.builtInfoPlist()
         let families = try #require(plist["UIDeviceFamily"] as? [Int])
-        #expect(families.contains(1), "iPhone family missing")
-        #expect(families.contains(2), "iPad family missing")
+        #expect(families == [1], "1.0 is iPhone-only (#443); got \(families)")
     }
 
     /// J-1: iPad supports all four orientations (freely resizable windows
@@ -235,18 +237,24 @@ struct UniversalTargetInfoPlistTests {
         #expect(orientations == ["UIInterfaceOrientationPortrait"])
     }
 
-    /// J-2: multi-scene stays ON (CarPlay requires it) with the CarPlay role
-    /// as the only declared configuration — app windows attach through
-    /// SwiftUI, and window scenes beyond the first are refused at runtime by
-    /// SingleWindowPolicy. A UIWindowSceneSessionRoleApplication entry
-    /// appearing here would mean someone changed that mechanism.
+    /// J-2, amended by #443 (2026-09-10, Owen: "strip it for 1.0"): the
+    /// scene manifest declares NO CarPlay role — the entitlement was never
+    /// requested (project.yml keeps it commented out), so a declared
+    /// `CPTemplateApplicationScene` was a promise the build could not keep,
+    /// and 1.0 ships without it. Multi-scene stays ON (the manifest is what
+    /// satisfies the 27-SDK scene-lifecycle requirement) and app windows
+    /// still attach through SwiftUI with SingleWindowPolicy refusing extras,
+    /// so a UIWindowSceneSessionRoleApplication entry appearing here would
+    /// still mean someone changed that mechanism. The CarPlay code
+    /// (`Talaria/CarPlay/`) stays compiled and unreachable until the
+    /// post-launch CarPlay lane (#74) restores this entry WITH the entitlement.
     @Test func sceneManifestMatchesSingleWindowDecision() throws {
         let plist = try Self.builtInfoPlist()
         let manifest = try #require(plist["UIApplicationSceneManifest"] as? [String: Any])
         #expect(manifest["UIApplicationSupportsMultipleScenes"] as? Bool == true)
-        let configurations = try #require(manifest["UISceneConfigurations"] as? [String: Any])
-        #expect(configurations["CPTemplateApplicationSceneSessionRoleApplication"] != nil,
-                "CarPlay scene configuration missing")
+        let configurations = (manifest["UISceneConfigurations"] as? [String: Any]) ?? [:]
+        #expect(configurations["CPTemplateApplicationSceneSessionRoleApplication"] == nil,
+                "CarPlay scene configuration declared without its entitlement — stripped for 1.0 (#443)")
         #expect(configurations["UIWindowSceneSessionRoleApplication"] == nil,
                 "unexpected window-role scene configuration — J-2 assumes SwiftUI-managed windows")
     }

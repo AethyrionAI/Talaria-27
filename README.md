@@ -29,7 +29,8 @@ Talaria is a working alpha, developed and used daily on real hardware. Honestly,
 | Share extension | Working — share URLs, images, files, and text into Talaria from any app |
 | Notifications (local + push) | Removed by design — the app posts no notifications and registers for no push; chat, the inbox, and Live Activities carry state in-app |
 | Voice mode | Working — realtime speech-to-speech plus an on-device fallback engine; echo/self-interruption tuning and connect hardening actively in progress |
-| CarPlay | Parked — scene and voice manager are built but disabled pending Apple's discretionary capability grant |
+| CarPlay | Parked — scene and voice manager are built but disabled pending Apple's discretionary capability grant; 1.0 declares no CarPlay scene at all (#443) |
+| iPad | Post-launch — 1.0 ships iPhone-only; an iPad runs the iPhone build in compatibility mode (#443) |
 
 Expect rough edges. There is no TestFlight or App Store distribution — you build and sign it yourself.
 

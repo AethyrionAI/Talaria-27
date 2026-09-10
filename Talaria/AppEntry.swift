@@ -21,6 +21,13 @@ private let appDelegateLog = Logger(subsystem: "org.aethyrion.talaria", category
 /// `application(_:configurationForConnecting:options:)`, which would sit in
 /// the middle of SwiftUI's WindowGroup scene attachment and the manifest's
 /// CarPlay config resolution.
+///
+/// #443 (2026-09-10) amends the premise without changing the mechanism: 1.0
+/// ships iPhone-only with NO CarPlay scene declared (the entitlement was
+/// never granted), so today the key is kept `true` for the 27-SDK
+/// scene-lifecycle requirement and this policy is dormant insurance. When
+/// #74 restores the CarPlay declaration and #108's iPad target returns, the
+/// paragraph above is the live rationale again — nothing here needs to move.
 @MainActor
 enum SingleWindowPolicy {
     /// Selector-based (not block-based) observer: the block API hands the
