@@ -8,7 +8,7 @@ is a choice, not a surprise. Fields Owen must fill from his own account are mark
 
 | Field | Proposal | Notes |
 |---|---|---|
-| Name (≤30) | **Talaria** | Availability is checked at record creation — if taken, `Talaria — Private Assistant` (28). |
+| Name (≤30) | **Talaria 27** (decided 2026-09-10) | "Talaria" was TAKEN at record creation; Owen chose `Talaria 27`, which matches the app's display name (`PRODUCT_NAME`). `Talaria — Private Assistant` (28) stays the alternative if he ever wants to change it. |
 | Subtitle (≤30) | **Private assistant, on-device** | 29 chars. Alternative: `Your assistant, on your phone`. |
 | Bundle ID | `org.aethyrion.talaria27` | Fixed by the profiles already minted. |
 | SKU **[OWEN]** | `talaria-ios-1` | Any unique string; never shown. |

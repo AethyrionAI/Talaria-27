@@ -23,8 +23,8 @@ evidence.
 | R7 | Reviewer notes v2 read by Owen; the "model unavailable" sentence grounded (code path + unit test — a sim cannot present the state, #402) | 🔄 443-D grounded 2026-09-10; Owen's read owed |
 | R8 | Listing copy decided; 6.9-inch screenshots captured | 🔄 443-E — listing DRAFTED (Owen decides); three simulator frames LANDED in `planning/reports/2026-09-10-launch/screenshots/` (chooser, fresh chat, hostless Settings — from the fixed Release build); the three on-device brain frames are Owen's phone, any evening (`compose-shots.py` pads them to 6.9-inch) |
 | R9 | Support contact on the Pages index | ✅ PR #450 merged 2026-09-10 on Owen's read — `https://aethyrionai.github.io/Talaria-27/#support`, support@aethyrion.org (Cloudflare-routed); also the App Review contact email |
-| R10 | App Store Connect record exists with App Privacy answered | 🔄 🧑 record EXISTS ("Talaria 27", iOS App 1.0 Prepare for Submission — Owen's screenshot 2026-09-10); App Privacy answer, screenshots, copy and review notes still to enter |
-| R11 | Build uploaded, processed, installed from TestFlight on `whoGoesThere`, ten minutes of real use | 🔄 build **3338 UPLOADED 13:56** (processing); TestFlight install + the ten minutes are Owen's evening |
+| R10 | App Store Connect record exists with App Privacy answered | ✅ 🧑 record "Talaria 27" ("Talaria" was taken); App Privacy, 6.5-inch screenshots, copy, category (Productivity / Utilities), age rating, review notes, contact all ENTERED by Owen 2026-09-10 afternoon (his word: "everything else I believe has been set") |
+| R11 | Build uploaded, processed, installed from TestFlight on `whoGoesThere`, ten minutes of real use | 🔄 build **3338 PROCESSED** (Build Uploads: Complete, 13:56) and attached to the Internal + External TestFlight groups (the External group's "Waiting for Review" is TestFlight beta review, not App Review; Internal needs none); the phone install + ten minutes are Owen's evening |
 
 ## Stop conditions (do NOT submit if any is true)
 
