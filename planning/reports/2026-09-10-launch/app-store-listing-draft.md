@@ -19,7 +19,8 @@ is a choice, not a surprise. Fields Owen must fill from his own account are mark
 | Availability **[OWEN]** | All territories | Apple Intelligence's language/region limits gate real usefulness; the description says so. |
 | Copyright **[OWEN]** | `2026 <legal name or Aethyrion>` | |
 | Version | 1.0.0 | `MARKETING_VERSION` in `project.yml`. |
-| Support URL **[OWEN]** | `https://aethyrionai.github.io/Talaria-27` | The index has no contact today — add a short "Support" section with an email before submission (a 10-line `docs/index.html` change; `docs/` is live on merge). |
+| Support URL | `https://aethyrionai.github.io/Talaria-27/#support` | The Support section (PR #450) — email, issue tracker, privacy, plugin. |
+| Support email | `support@aethyrion.org` | Owen, 2026-09-10: routed through Cloudflare to a personal address. Also the App Review contact email in App Store Connect. |
 | Marketing URL | same as support | Optional. |
 | Privacy policy URL | `https://aethyrionai.github.io/Talaria-27/privacy.html` | Published, corrected 2026-09-06 (#433). |
 
