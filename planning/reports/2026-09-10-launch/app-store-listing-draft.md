@@ -96,8 +96,21 @@ the wrong size and predates the naming sweep — not reused. Proposed five frame
 order: (1) onboarding with the on-device brain selected, (2) a chat answer about the
 day with a confirmation card, (3) Talk mid-conversation, (4) a health/weather answer
 with the Apple Weather attribution visible, (5) Settings → Connect Host with nothing
-paired, to show the tier is optional. Captured on the simulator with the Mac host
-supplying chat content where the sim cannot generate.
+paired, to show the tier is optional.
+
+**Who captures what (decided 2026-09-10, after the sim facts landed):** the simulator
+cannot generate on either FM tier (#402, re-measured on the RC runtime), so frames that
+show the on-device brain answering — (2), (3), (4) — are only honest from the phone.
+Owen takes those three on `whoGoesThere` in an evening (Settings → screenshot; the
+app's Deep Field theme, a real calendar question, Talk mid-sentence, a weather or
+steps answer with the Apple Weather line visible). The agent captures (1) and (5) on
+the `CC-shots-17ProMax` simulator (created 2026-09-10 for exactly this; 6.9-inch,
+1320 × 2868 native) and composes all five onto 6.9-inch canvases — a phone screenshot
+from a smaller display is placed on the canvas at native scale with the app's
+background colour filling the margin, which Apple accepts (the image must show the app
+as it runs; framing and margins are fine, mock-ups of features that do not exist are
+not). Output lands in `planning/reports/2026-09-10-launch/screenshots/` as
+`01`…`05.png` plus the raw captures.
 
 ## App Privacy
 
