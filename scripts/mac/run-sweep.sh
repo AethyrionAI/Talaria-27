@@ -2,7 +2,7 @@
 # #343 Track U sequencer. Priority-ordered: archive-matched and Class 1 rows
 # first, so a clock overrun truncates the LEAST valuable rows.
 set -uo pipefail   # NOT -e: one failed instrument must not end the sweep.
-export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta6.app/Contents/Developer}"
+export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-rc.app/Contents/Developer}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 DEVICE="${TALARIA_DEVICE:-whoGoesThere}"
 OUT_ROOT="${TALARIA_SWEEP_OUT:-$HOME/.talaria-instrument-runs}"

@@ -194,7 +194,7 @@ FIXTURE_EOF
     exit 1
 fi
 
-DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta6.app/Contents/Developer}"
+DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-rc.app/Contents/Developer}"
 export DEVELOPER_DIR
 SIM_NAME="${TALARIA_SIM_NAME:-CC-lane-2}"
 TAP_STRATEGY="${UITEST_TAP_STRATEGY:-}"

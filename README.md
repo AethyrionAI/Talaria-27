@@ -107,7 +107,7 @@ The app registers **`talaria://`**. Anything that can open a URL — Safari, Sho
 | Network (upgrade tier) | Tailscale (recommended) or other private network access |
 | Relay & connector (legacy tier — retired) | Python 3.11+, uvicorn; current builds never call it — realtime voice rides the talaria plugin (#383) |
 
-> Building from the command line with multiple Xcode versions installed? Point at the beta toolchain first, e.g. `export DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer` (adjust for your install name). "Cannot find in scope" errors on iOS 27 APIs almost always mean the stable SDK is being used by mistake.
+> Building from the command line with multiple Xcode versions installed? Point at the iOS 27 toolchain first, e.g. `export DEVELOPER_DIR=/Applications/Xcode-rc.app/Contents/Developer` (Xcode 27 RC as of 2026-09-10; adjust for your install name). "Cannot find in scope" errors on iOS 27 APIs almost always mean an older SDK is being used by mistake.
 
 ---
 

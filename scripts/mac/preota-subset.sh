@@ -16,7 +16,7 @@
 # KNOWS what regime this run must be in sets TALARIA_EXPECTED_OS; a mismatch
 # against the most recent artifact exits 3 before anything launches.
 set -uo pipefail   # NOT -e: one failed instrument must not end the subset.
-export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta6.app/Contents/Developer}"
+export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-rc.app/Contents/Developer}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 DEVICE="${TALARIA_DEVICE:-whoGoesThere}"
 OUT_ROOT="${TALARIA_SUBSET_OUT:-$HOME/.talaria-instrument-runs}"

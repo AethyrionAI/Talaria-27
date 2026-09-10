@@ -104,7 +104,7 @@ fi
 # shellcheck source=./lane-gate-classify.sh
 . "$GATE_CLASSIFY_LIB"
 
-DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta6.app/Contents/Developer}"
+DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-rc.app/Contents/Developer}"
 export DEVELOPER_DIR
 SIM_NAME="${TALARIA_SIM_NAME:-iPhone 17 Pro Max}"
 LOGDIR="${TALARIA_GATE_LOGDIR:-$(mktemp -d -t talaria-gate)}"
@@ -247,7 +247,7 @@ echo "-- preflight"
 if [[ -x "$DEVELOPER_DIR/usr/bin/xcodebuild" ]]; then
     ok "xcodebuild present ($("$DEVELOPER_DIR/usr/bin/xcodebuild" -version | head -1))"
 else
-    bad "xcodebuild not found under DEVELOPER_DIR — set DEVELOPER_DIR to the beta toolchain"
+    bad "xcodebuild not found under DEVELOPER_DIR — set DEVELOPER_DIR to the iOS 27 toolchain (Xcode-rc as of 2026-09-10)"
     echo; echo "GATE: FAIL (cannot run)"; exit 1
 fi
 

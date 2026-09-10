@@ -3,7 +3,7 @@
 # app-store-connect export to an .ipa (no upload — Owen uploads it with Transporter / Xcode Organizer under his Apple ID).
 # Mirrors ota-stage.sh (worktree, commit-count build number with the high-water floor) but exports for the store.
 set -uo pipefail
-export DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer
+export DEVELOPER_DIR=/Applications/Xcode-rc.app/Contents/Developer
 REPO=/Users/owenjones/Documents/Claude/Talaria-27
 OUT=$HOME/.talaria-ota/testflight; mkdir -p $OUT
 WORK=$(mktemp -d /tmp/tf-stage.XXXXXX); trap 'rm -rf "$WORK"' EXIT

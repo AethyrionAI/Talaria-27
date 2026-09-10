@@ -20,8 +20,9 @@ write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta6**.
 **⟵ 2026-09-09/10 (#441): the iOS 27 RC and Xcode 27 RC (`/Applications/Xcode-rc.app`,
 27A266a) have both shipped; Owen installed the iOS RC on the phone the night of 09-09.
 The RC gated green first-run (3426 Swift Testing + 18 XCUITest + Release on sim runtime
-24A434); whether it is the STANDARD toolchain is Owen's promotion call — read the
-"Build / tooling" section for the current answer, never this line.**
+24A434) and was PROMOTED to the standard toolchain on 2026-09-10 on Owen's word, with
+beta6 as the A/B fallback — read the "Build / tooling" section for the current answer,
+never this line.**
 
 ## Architecture — Clean Chat Path
 
@@ -639,9 +640,21 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   the phone the same night, build string UNMEASURED until the next instrument
   artifact's `osVersion`. Do not assert which of sim/device leads. The sim still
   cannot generate on either FM tier on 24A434 (#402's probe re-run, identical).**
-- **Xcode-beta6** (`/Applications/Xcode-beta6.app`, Xcode 27.0 build 27A5252f, swiftlang
+- **Xcode-rc** (`/Applications/Xcode-rc.app`, Xcode 27.0 build **27A266a**, swiftlang
+  6.4.0.34.1, iOS SDK **24A430**, sim runtime **24A434** — the *iOS 27 RC* vintage) is
+  the standard toolchain for iOS 27 targets — **promoted from beta6 on 2026-09-10 on
+  Owen's explicit word ("1. yes")** (#441: gate green FIRST-RUN under the RC — 3426
+  tests/281 suites Swift Testing + 18 XCUITest + Release build on verified sim runtime
+  24A434; SDK diff 5 real changes in 280 interfaces, none Talaria-called; FM stamp-only;
+  full evidence `planning/reports/2026-09-09-rc-sdk-audit.md`). **Beta6 (27A5252f)
+  STAYS on disk as the A/B fallback** — the only other iOS-27 Xcode left, since beta5 is
+  gone (below). Every `DEVELOPER_DIR` default in `scripts/mac/` now points at the RC
+  (`run-sweep`'s `EXPECTED_OS` era pin deliberately untouched). This is also the Xcode
+  an App Store submission requires (#166). *(History: beta6 was the standard from
+  2026-08-24 to 2026-09-10 — the paragraph that follows is that promotion's record.)*
+  ~~**Xcode-beta6** (`/Applications/Xcode-beta6.app`, Xcode 27.0 build 27A5252f, swiftlang
   6.4.0.33.1, iOS SDK 24A5422a — the *iOS beta 7* vintage) is the standard toolchain for
-  iOS 27 targets — **promoted from beta5 on 2026-08-24 on Owen's explicit word** (#401:
+  iOS 27 targets~~ — **promoted from beta5 on 2026-08-24 on Owen's explicit word** (#401:
   gate green FIRST-RUN under beta6 — 2482 tests/200 suites Swift Testing + 14 XCUITest +
   Release build on verified sim runtime 24A5423a; SDK diff 6 real changes in 280
   interfaces, none Talaria-called — full evidence
@@ -651,8 +664,9 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   under #324's pre-authorized auto-promote, 2056/156 + 14 —
   is history, evidence `planning/reports/2026-08-11-beta5-sdk-audit.md`.)*
   Release Xcode still can't build iOS 27.
-  `DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer` in every shell.
-  **⟵ 2026-09-09/10 (#441) — TWO CORRECTIONS AND ONE PENDING DECISION.** (1) ~~Beta5
+  `DEVELOPER_DIR=/Applications/Xcode-rc.app/Contents/Developer` in every shell (was
+  `Xcode-beta6.app` until the 2026-09-10 promotion).
+  **⟵ 2026-09-09/10 (#441) — TWO CORRECTIONS AND ONE DECISION.** (1) ~~Beta5
   STAYS on disk~~ is **FALSE: `Xcode-beta5.app` is GONE from `/Applications`** (found on
   the RC round's arrival check; deletion date/hand unknown). What remains:
   `Xcode-beta6.app`, **`Xcode-rc.app` (Xcode 27.0 build 27A266a, swiftlang 6.4.0.34.1,
@@ -665,10 +679,10 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   stamp-only; #402's PCC/on-device sim probe re-run identical (generation still dead on
   both tiers). Full evidence `planning/reports/2026-09-09-rc-sdk-audit.md`; the sweep
   is now `scripts/mac/sdk-interface-diff.sh`. (3) **PROMOTION of `Xcode-rc` to the
-  standard toolchain (beta6 as the A/B fallback) is RECOMMENDED and AWAITS OWEN'S WORD**
-  — until he gives it, beta6 remains standard and every `DEVELOPER_DIR` default in
-  `scripts/mac/` still points at it. CLAUDE.md carries the same note and is the
-  fresher of the two files.**
+  standard toolchain (beta6 as the A/B fallback) was RECOMMENDED and Owen GAVE THE WORD
+  the same morning (2026-09-10, "1. yes")** — the head of this bullet and every
+  `DEVELOPER_DIR` default in `scripts/mac/` moved in that commit. CLAUDE.md carries the
+  same note and is the fresher of the two files.**
   ~~**Beta4 (27A5228h) remains on disk as the A/B fallback**~~ — **FALSE as of
   2026-08-12: beta4 is GONE from `/Applications` (verified by direct path check,
   `mdfind`, and `.Trash`; only `Xcode-beta5.app` and release `Xcode.app` remained —
@@ -1022,7 +1036,7 @@ Corollary, and it applies to any `#if DEBUG` or gating edit: **verify with a
 Release build**, because a green Debug suite cannot see a mis-set gate.
 
   ```bash
-  DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer xcodebuild -project Talaria.xcodeproj -scheme Talaria -configuration Release -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
+  DEVELOPER_DIR=/Applications/Xcode-rc.app/Contents/Developer xcodebuild -project Talaria.xcodeproj -scheme Talaria -configuration Release -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
   ```
 
 ## Project history
