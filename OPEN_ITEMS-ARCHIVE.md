@@ -2717,6 +2717,8 @@ Numbering: branch entries #107/#108 renumbered to #108/#109 (main grew T6 as #10
 
 Logged 2026-07-12.
 
+
+> **📌 2026-09-10 (append-only pointer, #317(a)) — SUPERSEDED FOR 1.0 BY #443 (Owen: "ship as iphone only. ipad for after launch"):** `TARGETED_DEVICE_FAMILY` is `"1"` on all three targets from #443's commit; the built app's `UIDeviceFamily` is `[1]` and `IPadAdaptationTests.builtAppIsUniversal` became `builtAppIsIPhoneOnly`. Nothing else of Lane J is undone — the `~ipad` orientation/icon keys, the split-view adaptation, and `SingleWindowPolicy` all stay in the tree, inert on an iPhone-only build — so re-opening iPad after launch is the one-line family revert plus a fresh device pass, not a rebuild of this lane. J-2's scene-manifest test also changed in the same commit (#443 stripped the CarPlay scene declaration — see #74's pointer).
 ## 110. ✅ Read-aloud retracts the collapsed loop — DEVICE-VERIFIED 2026-07-18
 
 > **⚠️ ENGINE-AMBIGUOUS — flagged 2026-08-01 by the #220 audit.** This item's device
@@ -50691,6 +50693,8 @@ grant lands.
 
 > **✅ CLOSED 2026-09-02 (sweep 14) on Owen's 09-01 mandate — everything off the live board except what he tests.** Closes as EXTERNAL — blocked on Apple's iOS 27 beta CarPlay simulator bug — no window/surface after 3+ minutes on beta 5, 6 and 7 (re-confirmed 08-24). The entitlement stays commented out in `project.yml`. **Reopen trigger:** the next runtime promotion — re-probe with #402's PCC re-probe; a CarPlay window on any 27.x sim reopens 74-A..E. Listed on the Desk Board §02.
 
+
+> **📌 2026-09-10 (append-only pointer, #317(a)) — THE CARPLAY SCENE DECLARATION IS STRIPPED FOR 1.0 BY #443 (Owen: "strip it for 1.0"):** the `CPTemplateApplicationSceneSessionRoleApplication` entry left `project.yml`'s scene manifest in #443's commit; the entitlement it needed (`com.apple.developer.carplay-voice-based-conversation`) was never requested and stays commented out where #19 left it, so the declaration was a promise the build could not keep and a review-risk row for nothing. `Talaria/CarPlay/` (the scene delegate + `CarPlayVoiceManager`), the CarPlay exemption in the background-mic rule, and the widget-data notes all stay compiled and unreachable. `UIApplicationSupportsMultipleScenes` stays `true` (it is what satisfies the 27-SDK scene-lifecycle requirement, and `SingleWindowPolicy` is notification-based, not manifest-based). Restoring CarPlay after launch = this entry's manifest block back + the entitlement + the #415 naming fence — one lane, not a rebuild.
 ## 165. 🧩 156d Insights lane — **SHIPPED, on `main`** (`Talaria/Features/Insights/`, reachable at `ContentView.swift:252`); **device checklist still owed** — header corrected 2026-08-01
 
 Dispatch `dispatch/FABLE-T27-156D-insights.md` executed 2026-07-22 on the Mac Mini
