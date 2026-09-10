@@ -20,7 +20,7 @@ evidence.
 | R4 | RC toolchain standard, gate green | ✅ #441 |
 | R5 | iPhone-only, no CarPlay scene (Owen's rulings) in the built product, tests pinned | 🔄 #443-A/B — lane branch `443-iphone-only-no-carplay` |
 | R6 | Store build exported under Xcode-RC from merged `main`, device family iPhone-only in `DistributionSummary.plist` | ⬜ 443-C (after R5 merges) |
-| R7 | Reviewer notes v2 read by Owen; the "model unavailable" first-launch sentence VERIFIED on sim | ⬜ 443-D |
+| R7 | Reviewer notes v2 read by Owen; the "model unavailable" sentence grounded (code path + unit test — a sim cannot present the state, #402) | 🔄 443-D grounded 2026-09-10; Owen's read owed |
 | R8 | Listing copy decided; 6.9-inch screenshots captured | ⬜ 443-E |
 | R9 | Support contact on the Pages index | ⬜ (10-line `docs/index.html` change; `docs/` is live on merge) |
 | R10 | App Store Connect record exists with App Privacy answered | ⬜ 🧑 |
@@ -43,7 +43,7 @@ evidence.
 **Agent (this week, no device needed)**
 1. Merge #443's lane (R5) after its gate; run the gate once on `main` HEAD.
 2. `scripts/mac/testflight-stage.sh` under Xcode-RC → `~/.talaria-ota/testflight/Talaria27-store-<build>.ipa`; record build number + commit in #443; confirm the family and manifest in the export (R6).
-3. Verify the model-unavailable first-launch path on a simulator (the sim cannot generate by design — #402), screenshot it, and replace the ⚠️ sentence in `planning/reports/2026-09-10-launch/reviewer-notes-v2.md` with what the app actually says (R7).
+3. ~~Verify the model-unavailable path on a simulator~~ — DONE differently (R7): a sim reports the model available and fails at generation (#402), so it cannot show the unavailable copy; the sentence in `reviewer-notes-v2.md` is grounded in `LocalChatBackend.unavailabilityMessage(for:)` and its unit test instead. Owen can see it live by switching Apple Intelligence off for thirty seconds; optional.
 4. Capture the five 6.9-inch screenshots on CC-lane-1 with the Mac host supplying chat content; land them in `planning/reports/2026-09-10-launch/screenshots/` (R8).
 5. Add a Support section with a contact address to `docs/index.html` (R9) — the address is Owen's to choose.
 
