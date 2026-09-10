@@ -1,6 +1,16 @@
-# Hermes iOS Connector
+# Hermes iOS Connector — RETIRED (legacy tier, kept for history)
 
-`hermes-mobile` is the host-side bridge between the Hermes iPhone app and a local Hermes runtime. It owns the durable connection to the relay, executes Hermes work on the host machine, exposes phone context through MCP, and keeps the host available when no terminal window is open.
+> **Current Talaria builds never use the connector or the `hermes_mobile` MCP server.**
+> The host-side bridge is the **talaria plugin** on your Hermes install (`hermes talaria
+> pair`); the connector and relay were retired on both hosts in August 2026 (tracker #346,
+> #375, #383) and `mcp_servers.hermes_mobile` is disabled. This directory ships for history
+> and rollback only. See the root `README.md` for the current setup.
+
+The text that follows is the connector's original documentation, unchanged.
+
+---
+
+`hermes-mobile` was the host-side bridge between the Hermes iPhone app and a local Hermes runtime. It owns the durable connection to the relay, executes Hermes work on the host machine, exposes phone context through MCP, and keeps the host available when no terminal window is open.
 
 <insert image> Connector CLI setup wizard after validating the Hermes command and prompting for the relay source.
 

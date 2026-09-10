@@ -1,6 +1,16 @@
-# Hermes iOS Relay
+# Hermes iOS Relay — RETIRED (legacy tier, kept for history)
 
-The relay is the public control plane for Hermes iOS. It handles pairing, auth, jobs, SSE, push registration, and the connector WebSocket, but it does **not** run Hermes itself in connector mode.
+> **Current Talaria builds never call the relay.** Pairing, phone-aware answers, push and
+> realtime voice all ride the **talaria plugin** on your Hermes install (`hermes talaria
+> pair`); the relay and connector were retired on both hosts in August 2026 (tracker #346,
+> #375, #383). This directory ships for history and rollback only — nothing below describes
+> how Talaria works today. See the root `README.md` for the current setup.
+
+The text that follows is the relay's original documentation, unchanged.
+
+---
+
+The relay was the public control plane for Hermes iOS. It handled pairing, auth, jobs, SSE, push registration, and the connector WebSocket, but it did **not** run Hermes itself in connector mode.
 
 ## What the relay does
 

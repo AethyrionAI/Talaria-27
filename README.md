@@ -104,7 +104,7 @@ The app registers **`talaria://`**. Anything that can open a URL — Safari, Sho
 |-----------|-------------|
 | iOS app | iOS 27 (beta), Xcode 27 beta (iOS 27 SDK), Apple Developer account — **this is the whole list for on-device mode** |
 | Host OS (upgrade tier) | macOS or Windows (Linux untested) |
-| Hermes (upgrade tier) | [hermes-agent](https://github.com/NousResearch/hermes-agent) installed and configured, with the talaria plugin for pairing and phone-aware answers |
+| Hermes (upgrade tier) | [hermes-agent](https://github.com/NousResearch/hermes-agent) installed and configured, with the [talaria plugin](https://github.com/AethyrionAI/talaria-plugin) for pairing and phone-aware answers |
 | Network (upgrade tier) | Tailscale (recommended) or other private network access |
 | Relay & connector (legacy tier — retired) | Python 3.11+, uvicorn; current builds never call it — realtime voice rides the talaria plugin (#383) |
 
@@ -143,7 +143,7 @@ This starts the Sessions API on `:8642`. Use NSSM (Windows) or a launchd agent (
 
 ### 4 — Pair the phone (talaria plugin)
 
-Pairing is one command on the host — it requires the talaria plugin on your Hermes install (`hermes talaria status` to check):
+Pairing is one command on the host — it requires the [talaria plugin](https://github.com/AethyrionAI/talaria-plugin) on your Hermes install (clone it into `~/.hermes/plugins/talaria`, enable it in `config.yaml`, restart the gateway; `hermes plugins list` should show `talaria · enabled`, and `hermes talaria status` checks the link). The old relay + connector tier is retired and is not part of this setup:
 
 ```bash
 hermes talaria pair
