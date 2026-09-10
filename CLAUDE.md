@@ -1027,7 +1027,8 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
   host status). Standing authority to rename app-meaning "Hermes" finds
   without re-asking. Fences that are their own rulings and OUTRANK this:
   the `hermes://` easter-egg scheme (#77), CarPlay's deferred-with-trigger
-  rename (#415 — unverifiable until #74's sim works), and type names /
+  rename (#415 — unverifiable until #74's sim works, and moot for 1.0: #443
+  ships no CarPlay scene at all), and type names /
   control `kind` ids / intent identifiers (orphaning hazards, test-pinned).
 - **Verification-first:** honest corrections over confident guesses; mid-session corrections
   are normal and valued. The **"Questions for Owen"** header surfaces decisions.
