@@ -282,7 +282,10 @@ struct ChatInputBar: View {
                         )
 
                     if text.isEmpty {
-                        Text(speechService.isListening ? "Listening…" : "Message Hermes…")
+                        // #445 (2026-09-10, Owen): you message TALARIA, whichever
+                        // brain answers — the placeholder left #415's host-meaning
+                        // list; NamingSweepTests asserts the old spelling absent.
+                        Text(speechService.isListening ? "Listening…" : "Message Talaria…")
                             .font(Design.Typography.body)
                             .foregroundStyle(Design.Colors.mutedForeground)
                             .allowsHitTesting(false)

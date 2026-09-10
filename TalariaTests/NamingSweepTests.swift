@@ -160,6 +160,7 @@ struct NamingSweepTests {
 
         for stale in [
             "\"Ask Hermes \\(\\.$question)\"",       // the elected string, at source
+            "\"Message Hermes\u{2026}\"",            // #445: the composer placeholder — Owen, 2026-09-10: "I thought we had gotten rid of the message hermes / ask hermes, etc and reframed it as ask talaria"; you message TALARIA, whichever brain answers
             "\"What should I ask Hermes?\"",         // Siri's parameter prompt
             "\"What to ask Hermes.\"",               // the parameter's description
             "\"Hermes Is Reasoning\"",               // the thinking indicator

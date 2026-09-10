@@ -140,6 +140,18 @@ struct PrivateCloudOptOutTests {
         #expect(decoded.privateCloudEnabled == true)
     }
 
+    /// **#445 (2026-09-10, Owen: "it can default to off. but leave the feature
+    /// intact").** A FRESH install — no settings file at all, so `UserSettings()`
+    /// — starts with the Private Cloud offer-toggle OFF: the tile reads
+    /// PRIVATE CLOUD · OFF and the tier is not offered in Models until the
+    /// user turns it on in Settings → Private Cloud. The migration row above
+    /// is deliberately unchanged: a settings file that predates the key still
+    /// decodes to ON, because those installs had the tier and #386's promise
+    /// stands. Two defaults, two populations, both honest.
+    @Test func aFreshInstallStartsWithPrivateCloudOff() {
+        #expect(UserSettings().privateCloudEnabled == false)
+    }
+
     @Test func theToggleSurvivesAnEncodeDecodeRoundTrip() throws {
         var settings = UserSettings()
         settings.privateCloudEnabled = false

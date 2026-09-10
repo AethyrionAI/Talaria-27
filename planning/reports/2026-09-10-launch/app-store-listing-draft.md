@@ -54,7 +54,7 @@ is a choice, not a surprise. Fields Owen must fill from his own account are mark
 >
 > YOUR DATA STAYS YOURS
 > Talaria collects nothing. No analytics, no tracking, no cloud of ours. The brain is
-> on-device unless you choose Apple's Private Cloud Compute in Models. An optional App
+> on-device; Apple's Private Cloud Compute is off until you turn it on. An optional App
 > Lock uses Face ID.
 >
 > FOR PEOPLE WHO RUN THEIR OWN SERVER
