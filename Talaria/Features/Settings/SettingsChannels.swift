@@ -89,8 +89,16 @@ enum SettingsCardValues {
     /// exists, and a profile-less install that HOLDS credentials is described
     /// by what it can do, not by what it once redeemed.
     static func server(activeProfileName: String?, hasHost: Bool) -> String {
+        // #444: the one-shot migration mints a profile named "My Hermes" on
+        // every install, host or not — a name is not a host. With no
+        // credentials the tile says so instead of printing the placeholder
+        // as if a server were configured (the Connect Host screen's own
+        // words for the same state are "No Host").
+        guard hasHost else {
+            return (activeProfileName?.isEmpty == false) ? "NO HOST" : "NO PROFILE"
+        }
         if let name = activeProfileName, !name.isEmpty { return name.uppercased() }
-        return hasHost ? "HOST SET" : "NO PROFILE"
+        return "HOST SET"
     }
 
     static func models(activeModelName: String?, brainLabel: String?) -> String {

@@ -75,6 +75,21 @@ enum ConnectionSignal {
     /// (#25 — the old optimistic mapping painted LINKED · ONLINE against a dead
     /// port across a cold launch).
     static func state(_ inputs: Inputs, for surface: Surface) -> HermesHostConnectionState {
+        // #444 (2026-09-10): `direct` is the CHAT ROUTER's status
+        // (`ChatStore.hermesClient` IS `chatBackendRouter`), so with no host
+        // configured it is the on-device brain saying "ready" — not a host
+        // answering. A Release build on a brand-new simulator painted
+        // `LINKED · MY HERMES` and `UPLINK · CONNECTED` from exactly that.
+        // The settings surfaces tell the host-store story whenever no host is
+        // configured, whatever the brain reports; chat keeps its own plane
+        // (its header reads TALARIA · READY for the same state).
+        //
+        // Residual, named in #444-F and NOT fixed here: with a CONFIGURED host
+        // and the on-device brain active, `direct` still measures the brain,
+        // so the host case needs a host-specific probe — a design, not a guard.
+        if surface == .settings, !inputs.hostConfigured {
+            return inputs.hostFallback
+        }
         switch inputs.direct {
         case .connected:
             return .online
