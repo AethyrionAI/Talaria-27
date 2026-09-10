@@ -92,8 +92,13 @@ the answer here afterwards so the next submission is consistent.
 
 ## Screenshots (bar 443-E — agent captures; Owen picks)
 
-iPhone-only build ⇒ one required set: **6.9-inch (1320 × 2868 portrait)**; Apple scales
-it for smaller displays. Optional: 6.5-inch. The `docs/img` set (780 × 1646, July) is
+iPhone-only build ⇒ one required set. **Measured 2026-09-10 on the live version page:
+the default iPhone slot is the 6.5-inch one and it REJECTS 1320 × 2868** ("Screenshots
+dimensions should be: 1242 × 2688px, 2688 × 1242px, 1284 × 2778px or 2778 × 1284px").
+So the set that goes in is **1284 × 2778** — `screenshots/6.5-inch/` holds the three
+frames at exactly that size (scaled to width, six pixels trimmed top and bottom). The
+native 6.9-inch captures stay in `screenshots/` for the 6.9-inch slot in Media Manager
+if Apple ever asks for it. The `docs/img` set (780 × 1646, July) is
 the wrong size and predates the naming sweep — not reused. Proposed five frames, in
 order: (1) onboarding with the on-device brain selected, (2) a chat answer about the
 day with a confirmation card, (3) Talk mid-conversation, (4) a health/weather answer
