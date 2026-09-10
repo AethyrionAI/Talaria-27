@@ -693,9 +693,14 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   proxy, no toolchain, no runtime. Consequence: any A/B that needs a beta4 BUILD now
   requires re-downloading it, and #324-W4's "same-binary control is dyld-impossible"
   is joined by "the other binary no longer exists." `Xcode-beta.app`/`Xcode-beta3.app`
-  were deleted 2026-07-24. `xcode-select` still points at beta4's CLT — harmless, CLT ships no
-  iOS SDK and no `xcodebuild`, so the `DEVELOPER_DIR` export is mandatory either way (re-point
-  needs sudo; no urgency). Sim runtimes kept: **iOS 27.0 (24A434, RC — the DEFAULT
+  were deleted 2026-07-24. ~~`xcode-select` still points at beta4's CLT — harmless, CLT ships no
+  iOS SDK and no `xcodebuild`~~ **FALSE — measured 2026-09-10 (#443): `xcode-select -p` is
+  `/Applications/Xcode.app/Contents/Developer`, i.e. RELEASE Xcode 26.6 with the iOS 26.5
+  SDK, and a bare `xcodebuild`/`xcrun` with no `DEVELOPER_DIR` builds with THAT SDK and
+  fails with errors that read exactly like missing iOS 27 API. Before diagnosing any
+  "missing iOS 27 symbol", `grep -m1 '/Applications/Xcode' <log>`.** So the
+  `DEVELOPER_DIR` export is mandatory on every hand-rolled call (re-point needs sudo; no
+  urgency — the scripts set their own default). Sim runtimes kept: **iOS 27.0 (24A434, RC — the DEFAULT
   match since the RC's install, no user override; CC-lane-1/3 already followed it
   silently, 2026-09-09)**, **iOS 27.0 (24A5423a, iOS beta 7 — the default from
   2026-08-24 to the RC)**, **iOS 27.0 (24A5408d, beta5)**, **iOS 27.0
