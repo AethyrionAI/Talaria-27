@@ -1,6 +1,12 @@
 import Foundation
 import UIKit
 
+/// One staging decision, shared by the picker and share-inbox drain (#439).
+enum AttachmentStagingOutcome {
+    case staged(PendingAttachment)
+    case refused(ShareItemFailure)
+}
+
 /// An attachment staged in the composer before sending.
 struct PendingAttachment: Identifiable, Sendable {
     let id = UUID()
@@ -188,32 +194,52 @@ struct PendingAttachment: Identifiable, Sendable {
 
     /// Create a file attachment from a URL.
     static func file(at url: URL) -> PendingAttachment? {
-        let mimeType = Self.mimeType(for: url)
-        guard supportsMimeType(mimeType) else { return nil }
+        if case .staged(let attachment) = stageFile(at: url) { return attachment }
+        return nil
+    }
 
-        guard let data = try? Data(contentsOf: url) else { return nil }
+    /// Preserve the actual rejection at the point it occurs. In particular,
+    /// do not reread a failed file later just to guess why staging returned nil.
+    static func stageFile(at url: URL, displayName: String? = nil) -> AttachmentStagingOutcome {
+        let name = displayName ?? url.lastPathComponent
+        func refused(_ message: String) -> AttachmentStagingOutcome {
+            .refused(ShareItemFailure(fileName: name, message: message))
+        }
+        let mimeType = Self.mimeType(for: url)
+        guard supportsMimeType(mimeType) else {
+            return refused(ShareRefusal.unsupportedType(fileName: name))
+        }
+
+        guard let data = try? Data(contentsOf: url) else {
+            return refused(ShareRefusal.unreadable(fileName: name))
+        }
         let isImage = mimeType.hasPrefix("image/")
 
-        if isImage, let image = UIImage(data: data) {
-            return Self.image(image, fileName: url.lastPathComponent)
+        if isImage {
+            guard let image = UIImage(data: data),
+                  let attachment = Self.image(image, fileName: url.lastPathComponent) else {
+                return refused("“\(name)” couldn’t be prepared as an image. Try another image.")
+            }
+            return .staged(attachment)
         }
 
         // Per-mime cap: 350 KB for text (it ships inline), 10 MB for PDFs
         // (never transmitted raw — only their extracted text ships, #8).
-        guard data.count <= stagingCap(forMimeType: mimeType) else { return nil }
+        if case .refusedAbove(let cap, let label) = StageableTypeCatalog.sizePolicy(forMimeType: mimeType),
+           data.count > cap {
+            return refused(ShareRefusal.overTypeCap(fileName: name, byteCount: data.count, capLabel: label))
+        }
 
         // #431: a file NAMED `.pdf` whose bytes are not a PDF stages into a
         // chip that can never leave the composer — `isTransmittable` is false
         // for a raw PDF, and "Extract text" (#8) has nothing to rasterize — so
-        // it reads as a staged attachment forever. Refusing it is the better
-        // of two failures on ONE of the two paths that reach here, and the
-        // comment that stood here had that backwards: **the SHARE path names
-        // the refusal** (#431-C's banner), while **the PICKER still drops it
-        // in silence** — `ChatScreen.handleAttachmentResult` has no else arm,
-        // which is tracker #439's own lane, not this one's.
+        // it reads as a staged attachment forever. Both the picker and share
+        // drain now carry this refusal to the composer banner (#439).
         // Tolerant the way real readers are: the marker may sit behind
         // leading junk, so the first 1 KB is searched rather than only byte 0.
-        if mimeType == pdfMimeType, !looksLikePDF(data) { return nil }
+        if mimeType == pdfMimeType, !looksLikePDF(data) {
+            return refused(ShareRefusal.notAPDF(fileName: name))
+        }
 
         var thumbData: Data?
         if let image = UIImage(data: data) {
@@ -225,14 +251,14 @@ struct PendingAttachment: Identifiable, Sendable {
             thumbData = thumbImage.jpegData(compressionQuality: 0.6)
         }
 
-        return PendingAttachment(
+        return .staged(PendingAttachment(
             kind: isImage ? .image : .file,
             fileName: url.lastPathComponent,
             mimeType: mimeType,
             data: data,
             localStoragePath: stageLocally(data: data, preferredFileName: url.lastPathComponent),
             thumbnailData: thumbData
-        )
+        ))
     }
 
     /// Convert an OCR extraction result into a staged TEXT attachment (#8).

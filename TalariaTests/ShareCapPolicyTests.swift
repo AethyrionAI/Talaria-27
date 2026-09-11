@@ -243,17 +243,25 @@ struct ShareCapPolicyTests {
     /// file", which is false for a `.pdf` whose bytes read perfectly and simply
     /// are not a PDF — the difference between "try again" and "that file is
     /// mislabelled".
-    @Test func theMislabelledPDFRefusalDoesNotClaimTheFileWasUnreadable() {
-        let message = ShareInboxDrainer.stagingRefusalMessage(
-            fileName: "report.pdf", data: Data("this is not a pdf at all".utf8))
-        #expect(message == ShareRefusal.notAPDF(fileName: "report.pdf"), "\(message)")
-        #expect(!message.contains("couldn’t read"), "\(message)")
-
-        // The genuinely-unreadable arm keeps the other sentence: an image whose
-        // bytes UIImage cannot decode really was unreadable.
-        let undecodable = ShareInboxDrainer.stagingRefusalMessage(
-            fileName: "photo.jpg", data: Data(repeating: 0xAB, count: 64))
-        #expect(undecodable == ShareRefusal.couldNotStage(fileName: "photo.jpg"), "\(undecodable)")
+    @Test func theMislabelledPDFRefusalDoesNotClaimTheFileWasUnreadable() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        for name in ["report.pdf", "photo.jpg"] {
+            let url = root.appendingPathComponent(name)
+            try Data("not a PDF or image".utf8).write(to: url)
+            switch PendingAttachment.stageFile(at: url) {
+            case .staged: Issue.record("Invalid bytes were staged as \(name)")
+            case .refused(let failure):
+                #expect(failure.message.contains(name))
+                if name == "report.pdf" {
+                    #expect(failure.message.contains("isn’t a PDF"))
+                    #expect(!failure.message.contains("couldn’t read"))
+                } else {
+                    #expect(failure.message.contains("couldn’t be prepared as an image"))
+                }
+            }
+        }
     }
 
     // MARK: - The PDF sniff, measured on what it ACCEPTS

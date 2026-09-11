@@ -53,6 +53,12 @@ final class ChatStore {
         shareStagingFailures = []
     }
 
+    /// #439: use the same banner for picker failures, without seeding or
+    /// replacing composer content. Retain earlier failures until dismissed.
+    func reportAttachmentStagingFailure(_ failure: ShareItemFailure) {
+        shareStagingFailures.append(failure)
+    }
+
     /// One line per failed item, each already naming its own file.
     var shareStagingFailureMessage: String? {
         guard !shareStagingFailures.isEmpty else { return nil }

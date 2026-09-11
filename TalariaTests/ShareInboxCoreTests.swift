@@ -40,6 +40,46 @@ struct ShareInboxCoreTests {
 
     // MARK: Envelope round-trip
 
+    // #440: the writer and reader must agree at the raw-byte boundary.
+    // Counting allocated blocks or envelope metadata rejects this legal share.
+    @Test func anExactlyAtCapShareSurvivesTheReader() throws {
+        let store = makeStore(maxEnvelopeBytes: 1000)
+        defer { try? FileManager.default.removeItem(at: store.rootURL) }
+        let env = envelope(items: [.file(blobFileName: "a.md", fileName: "a.md")])
+        try store.write(env, blobs: ["a.md": Data(count: 1000)])
+        let scan = store.pendingEnvelopes()
+        #expect(scan.envelopes == [env])
+        #expect(scan.failures.isEmpty)
+    }
+
+    @Test func incompleteSharesAreReportedOnlyAfterGrace() throws {
+        let store = makeStore()
+        defer { try? FileManager.default.removeItem(at: store.rootURL) }
+        let dir = store.rootURL.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        #expect(store.pendingEnvelopes().failures.isEmpty)
+        #expect(FileManager.default.fileExists(atPath: dir.path))
+        let expired = SharedInboxStore(rootURL: store.rootURL, staleIncompleteGrace: 0)
+        let scan = expired.pendingEnvelopes()
+        #expect(scan.envelopes.isEmpty)
+        #expect(scan.failures == [.incomplete])
+        #expect(!FileManager.default.fileExists(atPath: dir.path))
+        #expect(expired.pendingEnvelopes().failures.isEmpty)
+    }
+
+    @Test func anOversizeShareReportsItsFailureOnce() throws {
+        let store = makeStore(maxEnvelopeBytes: 1000)
+        defer { try? FileManager.default.removeItem(at: store.rootURL) }
+        let env = envelope(items: [.text("will be refused")])
+        try store.write(env, blobs: [:])
+        let dir = store.rootURL.appendingPathComponent(env.id.uuidString)
+        try Data(count: 1001).write(to: dir.appendingPathComponent("extra.bin"))
+        let scan = store.pendingEnvelopes()
+        #expect(scan.envelopes.isEmpty)
+        #expect(scan.failures == [.oversize])
+        #expect(store.pendingEnvelopes().failures.isEmpty)
+    }
+
     @Test func envelopeRoundTripsThroughJSON() throws {
         let original = envelope(
             note: "look at this",
@@ -64,7 +104,7 @@ struct ShareInboxCoreTests {
         )
         try store.write(env, blobs: ["0-doc.pdf": blob])
 
-        let pending = store.pendingEnvelopes()
+        let pending = store.pendingEnvelopes().envelopes
         #expect(pending == [env])
         #expect(store.blobData(named: "0-doc.pdf", envelopeID: env.id) == blob)
     }
@@ -90,7 +130,7 @@ struct ShareInboxCoreTests {
         try store.write(first, blobs: [:])
         try store.write(second, blobs: [:])
 
-        #expect(store.pendingEnvelopes().map(\.id) == [first.id, second.id, third.id])
+        #expect(store.pendingEnvelopes().envelopes.map(\.id) == [first.id, second.id, third.id])
     }
 
     // MARK: Dedupe
@@ -106,10 +146,10 @@ struct ShareInboxCoreTests {
         let duplicate = store.rootURL.appendingPathComponent("dup-\(env.id.uuidString)", isDirectory: true)
         try FileManager.default.copyItem(at: original, to: duplicate)
 
-        let pending = store.pendingEnvelopes()
+        let pending = store.pendingEnvelopes().envelopes
         #expect(pending.map(\.id) == [env.id])
         // The duplicate must not resurface on the next drain either.
-        #expect(store.pendingEnvelopes().map(\.id) == [env.id])
+        #expect(store.pendingEnvelopes().envelopes.map(\.id) == [env.id])
     }
 
     // MARK: Corrupt-skip (tolerant drain — house rule)
@@ -124,7 +164,7 @@ struct ShareInboxCoreTests {
         try Data("not json {".utf8).write(
             to: corruptDir.appendingPathComponent(SharedInboxStore.envelopeFileName))
 
-        #expect(store.pendingEnvelopes().map(\.id) == [good.id])
+        #expect(store.pendingEnvelopes().envelopes.map(\.id) == [good.id])
         // A corrupt envelope can never become valid — it must be cleaned up,
         // not re-hit on every drain.
         #expect(!FileManager.default.fileExists(atPath: corruptDir.path))
@@ -138,7 +178,7 @@ struct ShareInboxCoreTests {
         try FileManager.default.createDirectory(at: inflight, withIntermediateDirectories: true)
         try Data("partial".utf8).write(to: inflight.appendingPathComponent("blob.bin"))
 
-        #expect(store.pendingEnvelopes().isEmpty)
+        #expect(store.pendingEnvelopes().envelopes.isEmpty)
         #expect(FileManager.default.fileExists(atPath: inflight.path))
     }
 
@@ -149,7 +189,7 @@ struct ShareInboxCoreTests {
         try FileManager.default.createDirectory(at: stale, withIntermediateDirectories: true)
         try Data("partial".utf8).write(to: stale.appendingPathComponent("blob.bin"))
 
-        #expect(store.pendingEnvelopes().isEmpty)
+        #expect(store.pendingEnvelopes().envelopes.isEmpty)
         #expect(!FileManager.default.fileExists(atPath: stale.path))
     }
 
@@ -162,7 +202,7 @@ struct ShareInboxCoreTests {
             try store.write(env, blobs: ["big.bin": Data(count: 2048)])
         }
         // A refused write must leave nothing behind for the drain to trip on.
-        #expect(store.pendingEnvelopes().isEmpty)
+        #expect(store.pendingEnvelopes().envelopes.isEmpty)
         #expect(!FileManager.default.fileExists(
             atPath: store.rootURL.appendingPathComponent(env.id.uuidString).path))
     }
@@ -177,7 +217,7 @@ struct ShareInboxCoreTests {
         let envDir = store.rootURL.appendingPathComponent(env.id.uuidString, isDirectory: true)
         try Data(count: 2048).write(to: envDir.appendingPathComponent("planted.bin"))
 
-        #expect(store.pendingEnvelopes().isEmpty)
+        #expect(store.pendingEnvelopes().envelopes.isEmpty)
         #expect(!FileManager.default.fileExists(atPath: envDir.path))
     }
 
@@ -264,7 +304,7 @@ struct ShareInboxCoreTests {
 
         store.remove(envelopeID: env.id)
 
-        #expect(store.pendingEnvelopes().isEmpty)
+        #expect(store.pendingEnvelopes().envelopes.isEmpty)
         #expect(!FileManager.default.fileExists(
             atPath: store.rootURL.appendingPathComponent(env.id.uuidString).path))
     }

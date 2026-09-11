@@ -1425,7 +1425,7 @@ struct ChatScreen: View {
     /// screen. Each line already names its file and its reason.
     private func shareStagingFailureBanner(_ message: String) -> some View {
         dismissibleFailureBanner(
-            title: "COULDN'T ADD SHARED FILE",
+            title: "COULDN'T ADD ITEM",
             message: message,
             iconTint: Design.Brand.forge,
             borderTint: Design.Brand.forge,
@@ -1802,19 +1802,39 @@ struct ChatScreen: View {
     }
 
     func handleAttachmentResult(_ result: AttachmentResult) {
-        guard pendingAttachments.count < PendingAttachment.maxAttachmentsPerMessage else { return }
+        switch Self.stagePickedAttachment(result, existingCount: pendingAttachments.count) {
+        case .staged(let attachment):
+            pendingAttachments.append(attachment)
+        case .refused(let failure):
+            chatStore.reportAttachmentStagingFailure(failure)
+        }
+    }
+
+    /// #439: the shipping picker decision is testable without constructing a
+    /// SwiftUI view. Refusals never change the draft or its existing chips.
+    static func stagePickedAttachment(_ result: AttachmentResult, existingCount: Int) -> AttachmentStagingOutcome {
+        let name: String
+        switch result {
+        case .image: name = "Photo"
+        case .file(let url): name = url.lastPathComponent
+        case .voiceMemo(let attachment): name = attachment.fileName
+        }
+        guard existingCount < PendingAttachment.maxAttachmentsPerMessage else {
+            return .refused(ShareItemFailure(fileName: name,
+                message: "“\(name)” couldn’t be added. Remove an attachment before adding another; one message holds up to \(PendingAttachment.maxAttachmentsPerMessage)."))
+        }
         switch result {
         case .image(let image):
             if let attachment = PendingAttachment.image(image) {
-                pendingAttachments.append(attachment)
+                return .staged(attachment)
             }
+            return .refused(ShareItemFailure(fileName: name,
+                message: "The photo couldn’t be prepared as an attachment. Try another image."))
         case .file(let url):
-            if let attachment = PendingAttachment.file(at: url) {
-                pendingAttachments.append(attachment)
-            }
+            return PendingAttachment.stageFile(at: url)
         case .voiceMemo(let attachment):
             // Staged by the recorder flow (#9) — transcript data + audio path.
-            pendingAttachments.append(attachment)
+            return .staged(attachment)
         }
     }
 

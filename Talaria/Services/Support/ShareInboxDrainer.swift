@@ -32,12 +32,12 @@ struct ShareItemFailure: Equatable, Sendable {
 
 /// #123 — drains the app-group `SharedInbox/` on foreground and converts
 /// envelopes into composer-ready content. Text-ish payloads (note, URL,
-/// shared text) join in share order; file blobs convert through the EXISTING
-/// `PendingAttachment.file(at:)` staging path (MIME detection, size caps,
+/// shared text) join in share order; file blobs convert through the shared
+/// `PendingAttachment.stageFile(at:)` staging path (MIME detection, size caps,
 /// image downscale + thumbnail, local staging copy) so the share pipeline
-/// can never accept what the picker pipeline would refuse. Tolerant: an
-/// unconvertible item is skipped + logged, never a crash, and a processed
-/// envelope is removed so it can't resurface.
+/// can never accept what the picker pipeline would refuse. Refused files and
+/// unreadable envelopes produce user-facing failures; processed envelopes
+/// are removed so they can't resurface.
 @MainActor
 final class ShareInboxDrainer {
     struct DrainResult {
@@ -77,10 +77,13 @@ final class ShareInboxDrainer {
 
         var textParts: [String] = []
         var attachments: [PendingAttachment] = []
-        var failures: [ShareItemFailure] = []
-        var envelopeCount = 0
+        let pending = store.pendingEnvelopes()
+        var failures = pending.failures.map {
+            ShareItemFailure(fileName: "Shared item", message: $0.message)
+        }
+        var envelopeCount = pending.failures.count
 
-        for envelope in store.pendingEnvelopes() {
+        for envelope in pending.envelopes {
             envelopeCount += 1
             let note = envelope.note.trimmingCharacters(in: .whitespacesAndNewlines)
             if !note.isEmpty { textParts.append(note) }
@@ -139,12 +142,12 @@ final class ShareInboxDrainer {
             try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
             let tempFile = tempDir.appendingPathComponent(fileName)
             try data.write(to: tempFile)
-            if let attachment = PendingAttachment.file(at: tempFile) {
+            switch PendingAttachment.stageFile(at: tempFile, displayName: displayName) {
+            case .staged(let attachment):
                 return .staged(attachment)
+            case .refused(let failure):
+                return .failed(failure)
             }
-            return .failed(ShareItemFailure(
-                fileName: displayName,
-                message: Self.stagingRefusalMessage(fileName: displayName, data: data)))
         } catch {
             return .failed(ShareItemFailure(
                 fileName: displayName,
@@ -152,37 +155,4 @@ final class ShareInboxDrainer {
         }
     }
 
-    /// #431-C — why the staging path said no, named from the SAME table the
-    /// share sheet reads (`StageableTypeCatalog`), so the two halves of the
-    /// pipeline cannot explain one refusal two ways.
-    ///
-    /// `remainingBytes` is deliberately the file's own size: the aggregate
-    /// envelope budget was already spent at write time and cannot be the
-    /// reason here, so passing it inert keeps that arm from firing. When the
-    /// table says the file was acceptable and the app still refused it, the
-    /// cause is something only the app can see, and there are exactly two —
-    /// **so the sentence names which** (#431 fix round 1, the review's minor
-    /// 4). A `.pdf` whose bytes carry no `%PDF-` header WAS read, so
-    /// "couldn't read the file" was the wrong sentence for it; that case gets
-    /// `notAPDF`, and `couldNotStage` keeps the cases where the app genuinely
-    /// could not make sense of the bytes (an undecodable image).
-    ///
-    /// Takes the DATA rather than a byte count because the format check is a
-    /// property of the bytes, not of their length.
-    // harness-visible
-    static func stagingRefusalMessage(fileName: String, data: Data) -> String {
-        switch StageableTypeCatalog.acceptance(
-            fileName: fileName, byteCount: data.count, remainingBytes: data.count
-        ) {
-        case .refused(let message):
-            return message
-        case .accepted:
-            let mimeType = StageableTypeCatalog.mimeType(
-                forFileExtension: (fileName as NSString).pathExtension)
-            if mimeType == StageableTypeCatalog.pdfMimeType, !PendingAttachment.looksLikePDF(data) {
-                return ShareRefusal.notAPDF(fileName: fileName)
-            }
-            return ShareRefusal.couldNotStage(fileName: fileName)
-        }
-    }
 }
