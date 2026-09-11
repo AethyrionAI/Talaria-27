@@ -111,19 +111,50 @@ struct TranscriptItem: Identifiable, Codable, Hashable, Sendable {
     var text: String
     var isPartial: Bool
     var imageData: Data?  // JPEG thumbnail for display in transcript
+    // Optional for backward-compatible decoding of older transcript snapshots.
+    var toolActivities: [ToolActivity]?
+    var brain: String?
 
     init(
         id: UUID = UUID(),
         speaker: TranscriptSpeaker,
         text: String,
         isPartial: Bool = false,
-        imageData: Data? = nil
+        imageData: Data? = nil,
+        toolActivities: [ToolActivity]? = nil,
+        brain: String? = nil
     ) {
         self.id = id
         self.speaker = speaker
         self.text = text
         self.isPartial = isPartial
         self.imageData = imageData
+        self.toolActivities = toolActivities
+        self.brain = brain
+    }
+
+    mutating func settleUnfinishedTools() {
+        guard var activities = toolActivities else { return }
+        for index in activities.indices where activities[index].isActive {
+            activities[index].isActive = false
+            activities[index].failure = activities[index].failure ?? ToolActivity.interruptedBySystem
+        }
+        toolActivities = activities
+    }
+
+    /// Preserve actual outcomes; an unmatched completion is still witnessed.
+    mutating func recordToolEvent(_ event: ToolCallEvent) {
+        var activities = toolActivities ?? []
+        let failure = event.detail.flatMap { $0.isEmpty ? nil : $0 }
+        if event.phase == .started {
+            activities.append(ToolActivity(label: event.name, detail: event.detail))
+        } else if let index = activities.lastIndex(where: { $0.label == event.name && $0.isActive }) {
+            activities[index].isActive = false
+            activities[index].failure = failure
+        } else {
+            activities.append(ToolActivity(label: event.name, isActive: false, failure: failure))
+        }
+        toolActivities = activities
     }
 }
 

@@ -956,9 +956,12 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
             return
         }
         let stream = backend.sendStreaming(message: text, attachments: [], clientMessageID: UUID())
+        // Captured after sendStreaming selects its backend; never read the
+        // user's later selection when an old reply finishes.
+        var evidence = TranscriptItem(speaker: .hermes, text: "", brain: backend.currentRunBrain)
         var streamedText = ""
         for await update in stream {
-            if Task.isCancelled { break }
+            if Task.isCancelled || activeTurnID != ttsTurnID { break }
             switch update {
             case .messageSent:
                 break
@@ -983,6 +986,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 // never spoken; ChatStore renders the notice and cost.
                 break
             case .toolActivity(let event):
+                evidence.recordToolEvent(event)
                 if event.phase == .started {
                     voiceState = .thinking
                     statusMessage = "Talaria is working on that\u{2026}"
@@ -997,7 +1001,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 break
             case .finished(let message, _, _):
                 let final = message.content.isEmpty ? streamedText : message.content
-                finalizeAssistantItem(text: final)
+                finalizeAssistantItem(text: final, evidence: evidence)
                 speechOutput.finishStream(messageID: ttsTurnID)
                 if latencyMetrics.firstAssistantFinalizedAt == nil {
                     latencyMetrics.firstAssistantFinalizedAt = .now
@@ -1026,10 +1030,18 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 speechOutput.cancelStream(messageID: ttsTurnID)
                 failTurn("Connection dropped — the reply may finish on the host.")
             }
+            // Stamp every visible partial as well as the final row, so a
+            // barge-in retains completed weather evidence on frozen text.
+            if let currentAssistantItemID,
+               let index = transcriptItems.firstIndex(where: { $0.id == currentAssistantItemID }) {
+                transcriptItems[index].toolActivities = evidence.toolActivities
+                transcriptItems[index].brain = evidence.brain
+            }
         }
         // A superseded run (barge-in started a newer turn) ends here — the
         // newer turn owns the task handle and the state machine.
         guard activeTurnID == ttsTurnID else { return }
+        freezeCurrentAssistantItem()
         turnTask = nil
         await settleAfterSpeaking()
     }
@@ -1083,7 +1095,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         }
     }
 
-    private func finalizeAssistantItem(text: String) {
+    private func finalizeAssistantItem(text: String, evidence: TranscriptItem? = nil) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if let currentAssistantItemID,
            let index = transcriptItems.firstIndex(where: { $0.id == currentAssistantItemID }) {
@@ -1091,8 +1103,13 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 transcriptItems[index].text = trimmed
             }
             transcriptItems[index].isPartial = false
+            transcriptItems[index].toolActivities = evidence?.toolActivities
+            transcriptItems[index].brain = evidence?.brain
+            transcriptItems[index].settleUnfinishedTools()
         } else if !trimmed.isEmpty {
-            transcriptItems.append(TranscriptItem(speaker: .hermes, text: trimmed, isPartial: false))
+            transcriptItems.append(TranscriptItem(speaker: .hermes, text: trimmed, isPartial: false,
+                                                  toolActivities: evidence?.toolActivities, brain: evidence?.brain))
+            transcriptItems[transcriptItems.count - 1].settleUnfinishedTools()
         }
         currentAssistantItemID = nil
     }
@@ -1101,6 +1118,7 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         if let currentAssistantItemID,
            let index = transcriptItems.firstIndex(where: { $0.id == currentAssistantItemID }) {
             transcriptItems[index].isPartial = false
+            transcriptItems[index].settleUnfinishedTools()
         }
         currentAssistantItemID = nil
     }

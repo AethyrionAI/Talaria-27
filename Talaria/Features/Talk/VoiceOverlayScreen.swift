@@ -337,6 +337,7 @@ struct VoiceOverlayScreen: View {
                             BlinkingCaret()
                         }
                     }
+                    if WeatherAttribution.required(for: item) { WeatherAttributionRow() }
                 }
                 Spacer()
             }

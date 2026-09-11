@@ -68,16 +68,19 @@ struct TranscriptView: View {
 
     @ViewBuilder
     private func transcriptLine(_ item: TranscriptItem, showCaret: Bool) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 0) {
-            Text(item.text)
-                .font(Design.Typography.body)
-                .foregroundStyle(Design.Colors.coolForeground)
-                .opacity(item.isPartial ? 0.72 : 1)
-            if showCaret {
-                BlinkingCaret()
+        VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                Text(item.text)
+                    .font(Design.Typography.body)
+                    .foregroundStyle(Design.Colors.coolForeground)
+                    .opacity(item.isPartial ? 0.72 : 1)
+                if showCaret {
+                    BlinkingCaret()
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if WeatherAttribution.required(for: item) { WeatherAttributionRow() }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

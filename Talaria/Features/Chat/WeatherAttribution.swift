@@ -148,6 +148,11 @@ enum WeatherAttribution {
     /// from a hosted health or calendar read on this wire. Attributing on the
     /// name alone would repeat the very defect the brain check above closes, so
     /// the app renders nothing there and the gap is filed as a follow-up.
+    static func required(for item: TranscriptItem) -> Bool {
+        item.speaker == .hermes && isLocalBrain(item.brain)
+            && required(for: item.toolActivities ?? [])
+    }
+
     static func required(for message: Message) -> Bool {
         isLocalBrain(message.brain) && required(for: message.toolActivities)
     }

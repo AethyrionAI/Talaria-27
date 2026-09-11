@@ -3012,7 +3012,8 @@ final class ChatStore {
             case .hermes: sender = .voiceHermes
             case .system: continue
             }
-            messages.append(Message(sender: sender, content: text, status: .delivered))
+            messages.append(Message(sender: sender, content: text, status: .delivered,
+                                    toolActivities: item.toolActivities ?? [], brain: item.brain))
         }
         guard !messages.isEmpty else { return [] }
         let banner = Message(
