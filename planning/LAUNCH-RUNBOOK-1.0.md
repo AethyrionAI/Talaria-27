@@ -24,7 +24,7 @@ evidence.
 | R8 | Listing copy decided; 6.9-inch screenshots captured | 🔄 443-E — listing DRAFTED (Owen decides); three simulator frames LANDED in `planning/reports/2026-09-10-launch/screenshots/` (chooser, fresh chat, hostless Settings — from the fixed Release build); the three on-device brain frames are Owen's phone, any evening (`compose-shots.py` pads them to 6.9-inch) |
 | R9 | Support contact on the Pages index | ✅ PR #450 merged 2026-09-10 on Owen's read — `https://aethyrionai.github.io/Talaria-27/#support`, support@aethyrion.org (Cloudflare-routed); also the App Review contact email |
 | R10 | App Store Connect record exists with App Privacy answered | ✅ 🧑 record "Talaria 27" ("Talaria" was taken); App Privacy, 6.5-inch screenshots, copy, category (Productivity / Utilities), age rating, review notes, contact all ENTERED by Owen 2026-09-10 afternoon (his word: "everything else I believe has been set") |
-| R11 | Build uploaded, processed, installed from TestFlight on `whoGoesThere`, ten minutes of real use | 🔄 build **3338 INSTALLED from TestFlight (Internal) ~14:40** — an in-place upgrade over the dev build (same bundle id; pairing + settings persist, and the Keychain rehydrates them even after a delete, #433), so the check runs as a PAIRED user; that still exercises the store-signed entitlements at runtime, which is the point. The ten minutes (chat, Talk, a reminder, Health widget, share a PDF, weather) are this evening |
+| R11 | Build uploaded, processed, installed from TestFlight on `whoGoesThere`, ten minutes of real use | ✅ MET 2026-09-10 (Owen: "tested everything on the test flight build") — build **3338 INSTALLED from TestFlight (Internal) ~14:40** — an in-place upgrade over the dev build (same bundle id; pairing + settings persist, and the Keychain rehydrates them even after a delete, #433), so the check runs as a PAIRED user; that still exercises the store-signed entitlements at runtime, which is the point. The ten minutes (chat, Talk, a reminder, Health widget, share a PDF, weather) are this evening |
 
 ## Stop conditions (do NOT submit if any is true)
 
@@ -55,7 +55,7 @@ evidence.
 10. Version 1.0.0 page: paste description, subtitle, keywords, promotional text, support + privacy URLs, screenshots; age rating questionnaire (expect 4+); App Review Information → paste the notes; contact phone/email; "sign-in required: No".
 11. ✅ **UPLOADED 2026-09-10 13:56 — build 3338** (main @ `e22c5cb5`), by Owen running `scripts/mac/testflight-stage.sh upload` in a Terminal on the Mac: Xcode's `destination=upload` export delivered it under the signed-in Apple ID, no credential typed (`Progress 100%: Upload succeeded.` · `Uploaded Talaria` · `** EXPORT SUCCEEDED **`). One warning, not blocking: *Upload Symbols Failed — no dSYM for WebRTC.framework* (the vendor binary ships none; app symbols uploaded; WebRTC frames in a crash report would be unsymbolicated). Transporter was never needed. Wait for "processing" to finish (minutes to an hour). Select the build on the version page. Export compliance should not prompt (166d); if it does: exempt only.
 12. TestFlight → internal testing → add yourself → install on `whoGoesThere` → ten minutes of real use: chat, Talk, a reminder, the Health widget, share a PDF. (R11)
-13. **Submit for Review.** Then close the laptop. Review typically answers within 24–48 h; a rejection is a message, not a verdict — it comes back here as a tracker item.
+13. ✅ **SUBMITTED 2026-09-10 15:34** (submission `9eaf52da`). **⟵ 2026-09-11 00:22: REJECTED on entry to review — Guideline 2.1 "Information Needed", Apple's boilerplate questionnaire for accounts with limited review history (six notes items + a device screen recording; the same build is re-reviewed).** Reply + shot list: `planning/reports/2026-09-10-launch/review-reply-2.1.md`. Owen: record, upload, paste the reply into "Reply to App Review" and into App Review Information → Notes, Resubmit. A rejection is a message, not a verdict — this one proves it.
 
 **Agent, after submission**
 14. Watch for App Review messages Owen forwards; if the host tier is requested, run `review-host-on-request.md` end to end on a spare session first.
@@ -65,6 +65,7 @@ evidence.
 
 | Risk | Likelihood | Mitigation |
 |---|---|---|
+| First-submission questionnaire (Guideline 2.1 "Information Needed") — Apple asks new accounts for a device screen recording + six notes items before reviewing anything | **HAPPENED 2026-09-11** | Answer from `review-reply-2.1.md`; add the six answers to the notes so future submissions skip it. |
 | Reviewer tests on a phone without Apple Intelligence, or with it off | medium | Notes lead with the requirement; first-launch copy verified (R7); the description states it. |
 | Reviewer asks to see the Connect Host tier (guideline 2.1 demo) | low–medium | Notes offer a temporary host on request; recipe rehearsed before the reply. |
 | iPhone build on an iPad in compatibility mode looks odd | low | Expected behaviour for iPhone-only apps; the RC fixed the compatibility-mode orientation bugs (178573319 family). |
