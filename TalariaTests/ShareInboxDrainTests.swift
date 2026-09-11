@@ -5,10 +5,10 @@ import UIKit
 
 /// #123 — app-side drain: SharedInbox envelopes become composer-ready
 /// content. Text-ish payloads (note, URL, shared text) join in share order;
-/// file blobs convert through the EXISTING `PendingAttachment.file(at:)`
+/// file blobs convert through the EXISTING `PendingAttachment.stageFile(at:)`
 /// staging path (caps, MIME detection, image downscale, thumbnails) so the
 /// share pipeline can never accept what the picker pipeline would refuse.
-/// Tolerant: an unconvertible item is skipped + logged, never a crash, and a
+/// Tolerant: an unconvertible item produces a visible refusal, and a
 /// processed envelope never resurfaces.
 @MainActor
 struct ShareInboxDrainTests {
@@ -29,6 +29,135 @@ struct ShareInboxDrainTests {
         ShareEnvelope(id: UUID(), createdAt: createdAt, note: note, items: items)
     }
 
+    // #440: a rejected envelope must produce a visible result even when no
+    // valid item survives. Removing the scan-failure handoff breaks these rows.
+    @Test func corruptEnvelopeProducesFailureOnlyDrainOnce() throws {
+        let store = makeStore()
+        defer { try? FileManager.default.removeItem(at: store.rootURL) }
+        let dir = store.rootURL.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try Data("not JSON".utf8).write(to: dir.appendingPathComponent("envelope.json"))
+        let drainer = ShareInboxDrainer(store: store)
+
+        let result = try #require(drainer.drain())
+        #expect(result.attachments.isEmpty)
+        #expect(result.text.isEmpty)
+        #expect(result.failures.count == 1)
+        #expect(result.failures.first?.message.contains("couldn’t be read") == true)
+        #expect(drainer.drain() == nil)
+    }
+
+    @Test func rejectedEnvelopeDoesNotHideAValidShare() throws {
+        let store = makeStore()
+        defer { try? FileManager.default.removeItem(at: store.rootURL) }
+        let good = envelope(note: "keep this note", items: [.text("keep this text")])
+        try store.write(good, blobs: [:])
+        let bad = store.rootURL.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: bad, withIntermediateDirectories: true)
+        try Data("broken".utf8).write(to: bad.appendingPathComponent("envelope.json"))
+
+        let result = try #require(ShareInboxDrainer(store: store).drain())
+        #expect(result.text == "keep this note\nkeep this text")
+        #expect(result.failures.count == 1)
+        #expect(result.envelopeCount == 2)
+    }
+
+    // #439: assert the same staging decision used by the actual picker,
+    // including rejection before I/O when the composer is full.
+    @Test func pickerReportsRefusedFilesAndPreservesAcceptedBytes() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cases: [(String, Data, String)] = [
+            ("large.md", Data(count: 350 * 1024 + 1), "350 KB"),
+            ("large.pdf", Data(count: 10 * 1024 * 1024 + 1), "10 MB"),
+            ("fake.pdf", Data("not a PDF".utf8), "isn’t a PDF"),
+            ("bad.jpg", Data("not an image".utf8), "couldn’t"),
+            ("clip.mov", Data([1]), "isn’t a file type"),
+        ]
+        for (name, bytes, reason) in cases {
+            let url = root.appendingPathComponent(name)
+            try bytes.write(to: url)
+            switch ChatScreen.stagePickedAttachment(.file(url), existingCount: 0) {
+            case .staged:
+                Issue.record("Refused file staged: \(name)")
+            case .refused(let failure):
+                #expect(failure.fileName == name)
+                #expect(failure.message.contains(reason))
+            }
+        }
+        let url = root.appendingPathComponent("good.md")
+        try Data("kept".utf8).write(to: url)
+        switch ChatScreen.stagePickedAttachment(.file(url), existingCount: 0) {
+        case .staged(let attachment):
+            #expect(attachment.data == Data("kept".utf8))
+            if let path = attachment.localStoragePath { try? FileManager.default.removeItem(atPath: path) }
+        case .refused: Issue.record("Valid text was refused")
+        }
+    }
+
+    @Test func pickerReportsMissingFileAndFullComposer() {
+        let missing = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString).appendingPathComponent("missing.md")
+        for count in [0, PendingAttachment.maxAttachmentsPerMessage] {
+            switch ChatScreen.stagePickedAttachment(.file(missing), existingCount: count) {
+            case .staged: Issue.record("Missing file staged")
+            case .refused(let failure):
+                #expect(failure.message.contains(count == 0 ? "couldn’t be read" : "Remove an attachment"))
+            }
+        }
+    }
+
+    @Test func pickerAcceptsAnImageBelowTheCountLimitAndRefusesItAtTheLimit() throws {
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 12, height: 12)).image { context in
+            UIColor.systemTeal.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 12, height: 12))
+        }
+        switch ChatScreen.stagePickedAttachment(.image(image), existingCount: PendingAttachment.maxAttachmentsPerMessage - 1) {
+        case .staged(let attachment):
+            #expect(attachment.kind == .image)
+            #expect(!attachment.data.isEmpty)
+            if let path = attachment.localStoragePath { try? FileManager.default.removeItem(atPath: path) }
+        case .refused: Issue.record("Valid image was refused below the count limit")
+        }
+        switch ChatScreen.stagePickedAttachment(.image(image), existingCount: PendingAttachment.maxAttachmentsPerMessage) {
+        case .staged: Issue.record("Image exceeded the count limit")
+        case .refused(let failure): #expect(failure.message.contains("Remove an attachment"))
+        }
+    }
+
+    @Test func incompleteAndOversizeEnvelopesReachTheFailureBanner() throws {
+        for oversize in [false, true] {
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at: root) }
+            let inbox = SharedInboxStore(rootURL: root, maxEnvelopeBytes: 1000, staleIncompleteGrace: 0)
+            let dir = root.appendingPathComponent(UUID().uuidString)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            if oversize {
+                let env = envelope(items: [.text("too large")])
+                try inbox.write(env, blobs: [:])
+                try FileManager.default.removeItem(at: dir)
+                try Data(count: 1001).write(to: root.appendingPathComponent(env.id.uuidString).appendingPathComponent("extra.bin"))
+            }
+            let result = try #require(ShareInboxDrainer(store: inbox).drain())
+            let chat = makeChatStore()
+            chat.seedComposerFromShare(text: result.text, attachments: result.attachments, failures: result.failures)
+            #expect(chat.shareStagingFailures.count == 1)
+            #expect(chat.shareStagingFailureMessage?.contains(oversize ? "size limit" : "didn’t finish") == true)
+            #expect(chat.consumeShareSeed() == nil)
+        }
+    }
+
+    @Test func pickerFailureReachesBannerWithoutChangingComposerSeed() {
+        let store = makeChatStore()
+        store.seedComposerFromShare(text: "keep my draft", attachments: [])
+        store.reportAttachmentStagingFailure(ShareItemFailure(fileName: "bad.pdf", message: "bad.pdf refused"))
+        #expect(store.shareStagingFailureMessage == "bad.pdf refused")
+        #expect(store.consumeShareSeed()?.text == "keep my draft")
+        store.dismissShareStagingFailures()
+        #expect(store.shareStagingFailureMessage == nil)
+    }
+
     @Test func drainCombinesEnvelopesInShareOrder() throws {
         let store = makeStore()
         let drainer = ShareInboxDrainer(store: store)
@@ -42,7 +171,7 @@ struct ShareInboxDrainTests {
         #expect(result.attachments.isEmpty)
         #expect(result.envelopeCount == 2)
         // Consumed — a second drain finds nothing.
-        #expect(store.pendingEnvelopes().isEmpty)
+        #expect(store.pendingEnvelopes().envelopes.isEmpty)
         #expect(drainer.drain() == nil)
     }
 
@@ -101,7 +230,7 @@ struct ShareInboxDrainTests {
                 "\(failure.message)")
         // The envelope is consumed even though one item was refused —
         // a bad item must not wedge the inbox.
-        #expect(store.pendingEnvelopes().isEmpty)
+        #expect(store.pendingEnvelopes().envelopes.isEmpty)
     }
 
     @Test func drainReturnsNilWhenInboxEmpty() {
@@ -125,14 +254,14 @@ struct ShareInboxDrainTests {
         #expect(result.text.isEmpty)
         #expect(result.attachments.isEmpty)
         #expect(result.failures.map(\.fileName) == ["blob.bin"])
-        #expect(store.pendingEnvelopes().isEmpty)
+        #expect(store.pendingEnvelopes().envelopes.isEmpty)
     }
 
     /// #431-C, the bar's own worked case: one corrupt PDF and one good image
     /// yields the image AND one named failure.
     ///
     /// The corrupt PDF is only a failure because #431 taught
-    /// `PendingAttachment.file(at:)` to check for `%PDF-`. Before that it
+    /// `PendingAttachment.stageFile(at:)` to check for `%PDF-`. Before that it
     /// staged happily into a chip that could never be sent (a raw PDF has no
     /// wire representation and "Extract text" had nothing to rasterize) — a
     /// different way for the same file to go quietly nowhere.
@@ -164,7 +293,7 @@ struct ShareInboxDrainTests {
         // not a PDF, and the sentence now says that.
         #expect(failure.message == ShareRefusal.notAPDF(fileName: "report.pdf"),
                 "\(failure.message)")
-        #expect(store.pendingEnvelopes().isEmpty)
+        #expect(store.pendingEnvelopes().envelopes.isEmpty)
     }
 
     /// #431-C, the over-cap arm — and it is not hypothetical after 431-B: an

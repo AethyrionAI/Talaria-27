@@ -1657,7 +1657,7 @@ final class AppContainer {
     /// all (the on-device brain answers). Seed-only: the user still sends.
     func drainShareInbox() {
         guard let result = shareInboxDrainer.drain() else { return }
-        containerLog.notice("Share inbox: staged \(result.envelopeCount) share(s) into the composer, \(result.failures.count) item(s) refused")
+        containerLog.notice("Share inbox: processed \(result.envelopeCount) share(s), \(result.failures.count) item(s) refused")
         // #431-C: the refusals ride along and become a banner. The log line
         // above is diagnostics; it is no longer the ONLY record that a shared
         // file did not make it.

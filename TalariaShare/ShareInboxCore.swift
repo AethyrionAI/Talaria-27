@@ -63,6 +63,30 @@ enum SharedInboxError: Error, Equatable {
     case payloadTooLarge(totalBytes: Int)
 }
 
+/// A whole share can fail before its item names are readable (#440).
+/// Do not show internal envelope UUIDs as if they were file names.
+enum ShareEnvelopeFailure: Equatable, Sendable {
+    case incomplete
+    case oversize
+    case unreadable
+
+    var message: String {
+        switch self {
+        case .incomplete:
+            "A shared item didn’t finish transferring. Share it again from the original app."
+        case .oversize:
+            "A share exceeded Talaria’s size limit and couldn’t be added. Share fewer or smaller files."
+        case .unreadable:
+            "A shared item couldn’t be read. Share it again from the original app."
+        }
+    }
+}
+
+struct PendingShareEnvelopes {
+    var envelopes: [ShareEnvelope]
+    var failures: [ShareEnvelopeFailure]
+}
+
 /// #431 — what the APP's staging path does with a file of a given type, as a
 /// SIZE policy. The share extension cannot import `PendingAttachment` (UIKit,
 /// app target only), so before this existed the sheet knew only whether a type
@@ -369,32 +393,19 @@ struct SharedInboxStore: Sendable {
 
     // MARK: - App side (drain)
 
-    /// Complete envelopes in share order (createdAt ascending), deduped by
-    /// envelope id. Anything unreadable is cleaned up as it's encountered:
-    /// corrupt or oversize envelopes and stale incomplete dirs are removed;
-    /// fresh incomplete dirs (the extension may still be writing) survive.
-    ///
-    /// **⚠️ RESIDUAL, named rather than hidden (#431 fix round 1).** #431-C
-    /// gave the PER-ITEM failure a user-facing result — an item that fails to
-    /// stage now rides `DrainResult.failures` to a banner instead of a log
-    /// line. **Three ENVELOPE-level paths below still vanish exactly the way
-    /// the per-item skip used to**, one layer above `convertFileItem` and out
-    /// of that fix's reach: a **stale incomplete dir** (the extension died
-    /// mid-write), an **oversize envelope dir**, and a **corrupt
-    /// `envelope.json`**. Each logs `.notice` and deletes the whole share —
-    /// every item in it, with nothing on screen. Widening the failure channel
-    /// to this layer means giving the drain a way to report a share whose
-    /// items it cannot even enumerate (there is no file name to name), so it
-    /// is a design question, not an oversight: filed, not fixed here.
-    func pendingEnvelopes() -> [ShareEnvelope] {
+    /// Complete envelopes in share order, plus failures for whole shares
+    /// removed during the scan (#440). Fresh incomplete writes survive.
+    /// The caller must deliver failures even when no envelope can be decoded.
+    func pendingEnvelopes() -> PendingShareEnvelopes {
         let fileManager = FileManager.default
         guard let entries = try? fileManager.contentsOfDirectory(
             at: rootURL,
             includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey],
             options: [.skipsHiddenFiles]
-        ) else { return [] }
+        ) else { return PendingShareEnvelopes(envelopes: [], failures: []) }
 
         var byID: [UUID: ShareEnvelope] = [:]
+        var failures: [ShareEnvelopeFailure] = []
         // Stable scan order so dedupe keeps a deterministic winner.
         for dir in entries.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             guard (try? dir.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true else { continue }
@@ -402,6 +413,7 @@ struct SharedInboxStore: Sendable {
             let envelopeURL = dir.appendingPathComponent(Self.envelopeFileName)
             guard fileManager.fileExists(atPath: envelopeURL.path) else {
                 if isStale(dir) {
+                    failures.append(.incomplete)
                     Self.log.notice("SharedInbox drain: removing stale incomplete dir \(dir.lastPathComponent, privacy: .public)")
                     try? fileManager.removeItem(at: dir)
                 }
@@ -410,6 +422,7 @@ struct SharedInboxStore: Sendable {
 
             let size = directorySize(dir)
             guard size <= maxEnvelopeBytes else {
+                failures.append(.oversize)
                 Self.log.notice("SharedInbox drain: skipping oversize envelope dir \(dir.lastPathComponent, privacy: .public) (\(size) bytes)")
                 try? fileManager.removeItem(at: dir)
                 continue
@@ -417,6 +430,7 @@ struct SharedInboxStore: Sendable {
 
             guard let data = try? Data(contentsOf: envelopeURL),
                   let envelope = try? ShareEnvelope.decode(from: data) else {
+                failures.append(.unreadable)
                 Self.log.notice("SharedInbox drain: skipping corrupt envelope in \(dir.lastPathComponent, privacy: .public)")
                 try? fileManager.removeItem(at: dir)
                 continue
@@ -437,9 +451,10 @@ struct SharedInboxStore: Sendable {
             }
         }
 
-        return byID.values.sorted {
+        let envelopes = byID.values.sorted {
             ($0.createdAt, $0.id.uuidString) < ($1.createdAt, $1.id.uuidString)
         }
+        return PendingShareEnvelopes(envelopes: envelopes, failures: failures)
     }
 
     func blobData(named name: String, envelopeID: UUID) -> Data? {
@@ -477,12 +492,17 @@ struct SharedInboxStore: Sendable {
     private func directorySize(_ dir: URL) -> Int {
         let fileManager = FileManager.default
         guard let enumerator = fileManager.enumerator(
-            at: dir, includingPropertiesForKeys: [.totalFileAllocatedSizeKey, .fileSizeKey]
+            at: dir, includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey]
         ) else { return 0 }
         var total = 0
         for case let url as URL in enumerator {
-            let values = try? url.resourceValues(forKeys: [.totalFileAllocatedSizeKey, .fileSizeKey])
-            total += values?.totalFileAllocatedSize ?? values?.fileSize ?? 0
+            // The writer budgets raw payload bytes, not filesystem blocks or
+            // its envelope.json metadata. A share exactly at its cap must
+            // survive being read on a filesystem with larger allocation units.
+            if url == dir.appendingPathComponent(Self.envelopeFileName) { continue }
+            let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+            guard values?.isRegularFile == true else { continue }
+            total += values?.fileSize ?? 0
         }
         return total
     }
