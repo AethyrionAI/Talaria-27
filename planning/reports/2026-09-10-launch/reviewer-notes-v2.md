@@ -10,8 +10,8 @@ CarPlay implications, and marks the one sentence that still needs a measurement.
 
 **Requirements (please read first).** Talaria requires an iPhone that supports Apple
 Intelligence, running iOS 27, with Apple Intelligence turned on in Settings → Apple
-Intelligence & Siri. The default assistant is Apple's on-device Foundation Model; there
-is no other backend. On a device where the model is unavailable, the first message you
+Intelligence & Siri. The default assistant is Apple's on-device Foundation Model; no developer-operated backend is required. Optional Private Cloud and
+self-hosted modes are described below. On a device where the model is unavailable, the first message you
 send is answered by the app itself with the exact reason and the setting to enable
 (for example: "On-device intelligence is turned off. Enable Apple Intelligence in
 Settings → Apple Intelligence & Siri, then try again.") — it does not fail silently.
@@ -28,12 +28,18 @@ sim screenshot. A device with Apple Intelligence switched off would show it live
 **Language and region.** Apple Intelligence availability by language and region applies;
 the app follows the device setting.
 
-**What Talaria is.** A private assistant that runs entirely on the iPhone. Nothing you
-type leaves the phone unless you deliberately connect the app to a server you run
-yourself. Every feature can be exercised with **no server and no account**: chat, voice
+**What Talaria is.** A personal assistant with on-device model processing by default.
+The core on-device features require **no server and no account**: chat, voice
 (Talk), reminders, alarms, calendar, contacts, health and motion questions, weather,
-photos and documents, the share extension, and the widgets all run against the on-device
-model. This build is iPhone-only.
+photos and documents, the share extension, and widgets. Weather requests contact Apple;
+reply images contact their origins only after a tap. This build is iPhone-only.
+
+**Optional Private Cloud.** Off on a fresh install. Users may enable it in Settings →
+Private Cloud and select it in Models. Requests then go to Apple's Private Cloud Compute,
+including attached content, relevant memory context, and device-tool results used for
+the answer (including permitted Health or Motion results). Native Talk transcribes
+speech on device, but its answers use the selected brain. There is no Talaria-operated
+processing service.
 
 **How to review (the intended default).**
 1. Install and open the app. In onboarding, skip "Connect Host" — it is optional.
@@ -50,14 +56,15 @@ rest of the app working.
 **The optional "Connect Host" tier.** Talaria can also talk to a self-hosted Hermes agent
 the user runs on their own computer, the way a mail client talks to the user's own mail
 server. There is no Talaria-operated server, and the app never contacts one of ours. With
-nothing paired, the screens under Settings → Connect Host simply say so. Nothing in the
-app requires this tier, and there is nothing for review to reach on it. If you would like
+nothing paired, the screens under Settings → Connect Host simply say so. Host sessions, Tasks/Skills, and realtime host voice require this optional tier;
+the core on-device experience does not. If you would like
 to see it, we can provide a temporary host for the review window on request.
 
 **Permissions the app declares, and what each is for.**
 - Microphone / Speech Recognition — Talk mode and dictation, on device.
-- Calendars / Reminders / Alarms — read to answer questions; every write is confirmed by
-  the user on a card first.
+- Calendars / Reminders / Alarms — read to answer questions. The default Manual action mode
+  asks for confirmation before writes. Users may choose Smart or Off in Privacy →
+  Agent Actions; eligible actions may then run without a card, subject to the safety floor.
 - Contacts — look up a contact the user names.
 - Health (read only) — steps, sleep, heart rate, calories for questions and the Health
   widget. The write description exists because the framework requires it; the app never
@@ -70,8 +77,9 @@ to see it, we can provide a temporary host for the review window on request.
   on-device, and Private Cloud Compute is Apple's own service, never used unless chosen.
 - Face ID — the optional App Lock.
 
-**Third-party content.** Weather comes from Apple Weather (WeatherKit) and is attributed
-under every reply that used it. Third-party notices, including the OFL fonts, are in
+**Third-party content.** Weather comes from Apple Weather (WeatherKit) and has attribution under typed local/Private Cloud replies that used the
+weather tool. Attribution in saved voice transcripts and hosted weather is a known
+coverage gap in submitted build 3338; a follow-up is being prepared. Third-party notices, including the OFL fonts, are in
 Settings → About → Licenses. Images inside replies are never fetched until the user taps
 them.
 
