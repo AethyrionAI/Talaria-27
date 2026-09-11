@@ -479,45 +479,103 @@ struct WeatherAttributionTests {
                 "the document does not record the hosted path as an open follow-up")
     }
 
-    // MARK: - 435-E — voice, MEASURED
+    // MARK: - 435-E-F — voice evidence survives the transcript handoff
 
-    /// **435-E is a MEASUREMENT, not a mechanism.** It records what the voice
-    /// path does TODAY so 435-A's coverage claim is not guessed at.
-    ///
-    /// **Measured answer: NO — a voice transcript row carries no
-    /// `toolActivities`, so 435-A does not cover voice.** Two independent
-    /// sites, either of which alone is sufficient:
-    ///
-    ///  1. `NativeVoicePipelineService.swift`'s stream loop consumes
-    ///     `.toolActivity` only to move `voiceState`/`statusMessage` — the
-    ///     event is dropped, never recorded onto anything that outlives the
-    ///     turn.
-    ///  2. `ChatStore.voiceTranscriptMessages(from:)` composes every transcript
-    ///     row as `Message(sender:content:status:)`, so `toolActivities`
-    ///     defaults to `[]` no matter what ran during the session.
-    ///
-    /// This test pins site 2, which is the one a unit can reach. **If it ever
-    /// goes red because voice rows now carry activities, that is the follow-up
-    /// landing — delete this test and re-measure 435-A's coverage.** It is a
-    /// record of a measured gap, not a defence of it.
-    @Test("435-E · MEASURED: voice transcript rows carry no toolActivities")
-    func voiceTranscriptRowsCarryNoToolActivities() {
-        let session = CompletedVoiceSession(
-            voiceSessionId: UUID(),
-            duration: 42,
-            turnCount: 2,
-            transcript: [
-                TranscriptItem(speaker: .user, text: "what's the weather"),
-                TranscriptItem(speaker: .hermes, text: "It's 68 and clear.")
-            ],
-            engine: .native
-        )
-        let rows = ChatStore.voiceTranscriptMessages(from: session)
-        #expect(rows.count == 3, "banner + two spoken turns")
-        for row in rows {
-            #expect(row.toolActivities.isEmpty,
-                    "a voice transcript row carries no tool activities — 435-E's measured gap")
+    @Test func voiceWeatherEvidenceSurvivesPersistenceAndMapping() throws {
+        var item = TranscriptItem(speaker: .hermes, text: "Clear today.",
+                                  brain: ChatBackendRouter.Brain.onDevice.rawValue)
+        item.recordToolEvent(ToolCallEvent(name: WeatherAttribution.toolName))
+        item.recordToolEvent(ToolCallEvent(name: WeatherAttribution.toolName, phase: .completed))
+        let restored = try JSONDecoder().decode(TranscriptItem.self, from: JSONEncoder().encode(item))
+        let session = CompletedVoiceSession(voiceSessionId: UUID(), duration: 2, turnCount: 1,
+                                            transcript: [restored], engine: .native)
+        let row = try #require(ChatStore.voiceTranscriptMessages(from: session).last)
+        #expect(WeatherAttribution.required(for: row))
+        #expect(row.toolActivities.count == 1)
+    }
+
+    @Test func voiceWeatherFailuresAndUnknownOriginsDoNotAttribute() {
+        for brain in [nil, ChatBackendRouter.Brain.hermes.rawValue,
+                      ChatBackendRouter.Brain.privateCloud.rawValue] as [String?] {
+            var item = TranscriptItem(speaker: .hermes, text: "Weather reply", brain: brain)
+            item.recordToolEvent(ToolCallEvent(name: WeatherAttribution.toolName))
+            let session: (TranscriptItem) -> CompletedVoiceSession = {
+                CompletedVoiceSession(voiceSessionId: UUID(), duration: 1, turnCount: 1,
+                                      transcript: [$0], engine: .native)
+            }
+            #expect(!WeatherAttribution.required(for: ChatStore.voiceTranscriptMessages(from: session(item)).last!))
+            item.recordToolEvent(ToolCallEvent(name: WeatherAttribution.toolName, phase: .completed, detail: "Failed"))
+            #expect(!WeatherAttribution.required(for: ChatStore.voiceTranscriptMessages(from: session(item)).last!))
+            item.recordToolEvent(ToolCallEvent(name: WeatherAttribution.toolName))
+            item.recordToolEvent(ToolCallEvent(name: WeatherAttribution.toolName, phase: .completed))
+            #expect(WeatherAttribution.required(for: ChatStore.voiceTranscriptMessages(from: session(item)).last!)
+                    == (brain == ChatBackendRouter.Brain.privateCloud.rawValue))
         }
+    }
+
+    @MainActor
+    @Test func nativeVoiceStreamCarriesWeatherEvidenceToTheSavedReply() async throws {
+        let backend = LocalBeltClient(brain: .privateCloud)
+        let speech = SpeechOutputService()
+        speech.managesAudioSession = false
+        let voice = NativeVoicePipelineService(backendProvider: { backend }, speechOutput: speech)
+        voice.commitUserUtterance("Weather please")
+        #expect(await pollUntil { !backend.continuations.isEmpty })
+        let stream = try #require(backend.continuations.first)
+        stream.yield(.toolActivity(ToolCallEvent(name: WeatherAttribution.toolName)))
+        stream.yield(.toolActivity(ToolCallEvent(name: WeatherAttribution.toolName, phase: .completed)))
+        // A later selection must not rewrite this turn's source.
+        backend.currentRunBrain = ChatBackendRouter.Brain.hermes.rawValue
+        stream.yield(.finished(Message(sender: .hermes, content: "Clear today", status: .delivered), nil, nil))
+        stream.finish()
+        #expect(await pollUntil { voice.transcriptItems.contains { $0.speaker == .hermes && !$0.isPartial } })
+        let item = try #require(voice.transcriptItems.last { $0.speaker == .hermes })
+        #expect(WeatherAttribution.required(for: item))
+        #expect(item.brain == ChatBackendRouter.Brain.privateCloud.rawValue)
+        let session = CompletedVoiceSession(voiceSessionId: UUID(), duration: 1, turnCount: 1,
+                                            transcript: voice.transcriptItems, engine: .native)
+        let row = try #require(ChatStore.voiceTranscriptMessages(from: session).last)
+        #expect(WeatherAttribution.required(for: row))
+    }
+
+    @MainActor
+    @Test func aVoiceStreamEndingWithoutAFinalKeepsCompletedWeatherEvidence() async throws {
+        let backend = LocalBeltClient(brain: .onDevice)
+        let speech = SpeechOutputService()
+        speech.managesAudioSession = false
+        let voice = NativeVoicePipelineService(backendProvider: { backend }, speechOutput: speech)
+        voice.commitUserUtterance("Weather please")
+        #expect(await pollUntil { !backend.continuations.isEmpty })
+        let stream = try #require(backend.continuations.first)
+        stream.yield(.toolActivity(ToolCallEvent(name: WeatherAttribution.toolName, phase: .completed)))
+        stream.yield(.textDelta("Clear"))
+        stream.yield(.toolActivity(ToolCallEvent(name: "readCalendar")))
+        #expect(await pollUntil { voice.transcriptItems.last?.toolActivities?.count == 2 })
+        #expect(WeatherAttribution.required(for: try #require(voice.transcriptItems.last)))
+        stream.finish()
+        #expect(await pollUntil { voice.transcriptItems.last?.isPartial == false })
+        let item = try #require(voice.transcriptItems.last)
+        #expect(WeatherAttribution.required(for: item))
+        #expect(item.toolActivities?.last?.failure == ToolActivity.interruptedBySystem)
+        speech.stop()
+    }
+
+    @Test func freezingVoiceEvidencePreservesSuccessAndSettlesOnlyUnfinishedCalls() {
+        var item = TranscriptItem(speaker: .hermes, text: "Clear", brain: ChatBackendRouter.Brain.onDevice.rawValue)
+        item.recordToolEvent(ToolCallEvent(name: WeatherAttribution.toolName, phase: .completed))
+        item.recordToolEvent(ToolCallEvent(name: "readCalendar"))
+        item.recordToolEvent(ToolCallEvent(name: WeatherAttribution.toolName, phase: .completed, detail: ""))
+        item.settleUnfinishedTools()
+        #expect(WeatherAttribution.required(for: item))
+        #expect(item.toolActivities?.first { $0.label == "readCalendar" }?.failure == ToolActivity.interruptedBySystem)
+        #expect(item.toolActivities?.contains { $0.isActive } == false)
+    }
+
+    @Test func legacyVoiceTranscriptStillDecodes() throws {
+        let json = "{\"id\":\"00000000-0000-0000-0000-000000000001\",\"speaker\":\"hermes\",\"text\":\"Hello\",\"isPartial\":false}"
+        let item = try JSONDecoder().decode(TranscriptItem.self, from: Data(json.utf8))
+        #expect(item.toolActivities == nil)
+        #expect(item.brain == nil)
     }
 
     // MARK: - Fix round 2 — the placeholder learns its brain at stream START
